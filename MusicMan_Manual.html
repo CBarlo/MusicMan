@@ -238,6 +238,9 @@
 
   hr { border: none; border-top: 1px solid #eee; margin: 32px 0; }
   .mono { font-family: 'Share Tech Mono', monospace; font-size: 12px; background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
+
+  html { scroll-behavior: smooth; }
+  h1[id], h2[id], h3[id] { scroll-margin-top: 24px; }
 </style>
 </head>
 <body>
@@ -261,64 +264,64 @@
   <h2>Contents</h2>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 1 — What Is This?</div>
+    <div class="toc-section-title"><a href="#part1">Part 1 — What Is This?</a></div>
     <ul>
-      <li>System overview</li>
-      <li>What it controls</li>
-      <li>Hardware you need</li>
+      <li><a href="#system-overview">System overview</a></li>
+      <li><a href="#what-it-controls">What it controls</a></li>
+      <li><a href="#hardware">Hardware you need</a></li>
     </ul>
   </div>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 2 — Setup</div>
+    <div class="toc-section-title"><a href="#part2">Part 2 — Setup</a></div>
     <ul>
-      <li>Physical connections</li>
-      <li>Connecting to the system</li>
-      <li>USB drive file layout</li>
-      <li>Swapping USB drives</li>
+      <li><a href="#physical-connections">Physical connections</a></li>
+      <li><a href="#connecting">Connecting to the system</a></li>
+      <li><a href="#usb-file-layout">USB drive file layout</a></li>
+      <li><a href="#swapping-usb">Swapping USB drives</a></li>
     </ul>
   </div>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 3 — Admin Configuration</div>
+    <div class="toc-section-title"><a href="#part3">Part 3 — Admin Configuration</a></div>
     <ul>
-      <li>Opening the Admin panel</li>
-      <li>Setting up Walk-Ups (Circles &amp; Roles)</li>
-      <li>Creating Lighting Scenes</li>
-      <li>Creating Macros</li>
-      <li>Building the Show Flow</li>
-      <li>Configuring the Skit Timer</li>
-      <li>Saving Timer Presets</li>
-      <li>Configuring the Games Timer</li>
-      <li>Live Slides (admin builder)</li>
+      <li><a href="#admin-panel-overview">Opening the Admin panel</a></li>
+      <li><a href="#circles">Setting up Walk-Ups (Circles &amp; Roles)</a></li>
+      <li><a href="#lighting-scenes">Creating Lighting Scenes</a></li>
+      <li><a href="#macros">Creating Macros</a></li>
+      <li><a href="#show-flow">Building the Show Flow</a></li>
+      <li><a href="#skit-timer-config">Configuring the Skit Timer</a></li>
+      <li><a href="#timer-presets">Saving Timer Presets</a></li>
+      <li><a href="#games-timer">Configuring the Games Timer</a></li>
+      <li><a href="#live-slides-admin">Live Slides (admin builder)</a></li>
     </ul>
   </div>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 4 — Running the Show</div>
+    <div class="toc-section-title"><a href="#part4">Part 4 — Running the Show</a></div>
     <ul>
-      <li>Console overview</li>
-      <li>Running the Show Flow</li>
-      <li>Transport controls</li>
-      <li>Walk-Up music</li>
-      <li>Playing music from the library</li>
-      <li>Sound effects</li>
-      <li>Lighting controls</li>
-      <li>Battery monitor</li>
-      <li>The Skit Timer</li>
-      <li>Games tab &amp; leaderboard</li>
-      <li>HDMI display controls</li>
-      <li>Live Slide Builder (console)</li>
-      <li>Emergency stop (Kill All)</li>
+      <li><a href="#console-overview">Console overview</a></li>
+      <li><a href="#running-show-flow">Running the Show Flow</a></li>
+      <li><a href="#transport-controls">Transport controls</a></li>
+      <li><a href="#walkup-music">Walk-Up music</a></li>
+      <li><a href="#music-library">Playing music from the library</a></li>
+      <li><a href="#sound-effects">Sound effects</a></li>
+      <li><a href="#lighting-controls">Lighting controls</a></li>
+      <li><a href="#battery-monitor">Battery monitor</a></li>
+      <li><a href="#skit-timer">The Skit Timer</a></li>
+      <li><a href="#games-tab">Games tab &amp; leaderboard</a></li>
+      <li><a href="#hdmi-display">HDMI display controls</a></li>
+      <li><a href="#live-slide-builder">Live Slide Builder (console)</a></li>
+      <li><a href="#kill-all">Emergency stop (Kill All)</a></li>
     </ul>
   </div>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 5 — Quick Reference</div>
+    <div class="toc-section-title"><a href="#part5">Part 5 — Quick Reference</a></div>
     <ul>
-      <li>Pre-show checklist</li>
-      <li>Common workflows</li>
-      <li>Troubleshooting</li>
+      <li><a href="#pre-show-checklist">Pre-show checklist</a></li>
+      <li><a href="#common-workflows">Common workflows</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
     </ul>
   </div>
 </div>
@@ -327,9 +330,9 @@
 <div class="content">
 <div class="section">
   <div class="section-badge">PART 1</div>
-  <h1>What Is This?</h1>
+  <h1 id="part1">What Is This?</h1>
 
-  <h2>System Overview</h2>
+  <h2 id="system-overview">System Overview</h2>
   <p>
     MusicMan is a show controller that runs on a Raspberry Pi. It lets one person —
     from a phone, tablet, or laptop — control music, lighting, sound effects, timers,
@@ -341,7 +344,7 @@
     a web browser and go to the Pi's address.
   </p>
 
-  <h2>What It Controls</h2>
+  <h2 id="what-it-controls">What It Controls</h2>
   <table>
     <tr><th>System</th><th>What MusicMan does</th></tr>
     <tr><td>Music</td><td>Plays walk-up music for each circle, music from a library, and countdown background tracks</td></tr>
@@ -353,7 +356,7 @@
     <tr><td>Battery Monitor</td><td>Connects wirelessly to Anker SOLIX C300 power stations via Bluetooth — shows live battery %, charge rate, power in/out, temperature, and lets you toggle AC/DC outlets and the pole flashlight</td></tr>
   </table>
 
-  <h2>Hardware You Need</h2>
+  <h2 id="hardware">Hardware You Need</h2>
   <ul>
     <li><strong>Raspberry Pi</strong> (any model with Wi-Fi, Pi 3B+ or newer recommended)</li>
     <li><strong>Power supply</strong> for the Pi</li>
@@ -370,9 +373,9 @@
 <!-- ══════════════════ PART 2 ══════════════════ -->
 <div class="section">
   <div class="section-badge">PART 2</div>
-  <h1>Setup</h1>
+  <h1 id="part2">Setup</h1>
 
-  <h2>Physical Connections</h2>
+  <h2 id="physical-connections">Physical Connections</h2>
   <ol class="steps">
     <li>Connect your <strong>speakers</strong> to the audio output jack on the box.</li>
     <li>Connect the <strong>HDMI display or projector</strong> to the Pi's HDMI port.</li>
@@ -406,7 +409,7 @@
   <p><span class="mono">http://musicman.local/display</span></p>
   <p>Press <strong>F11</strong> to go fullscreen. It will show exactly the same content as the HDMI output, synchronized live.</p>
 
-  <h2>Connecting from Your Control Device</h2>
+  <h2 id="connecting">Connecting from Your Control Device</h2>
   <p>On any phone, tablet, or laptop on the same Wi-Fi, open a browser and go to:</p>
   <p><span class="mono">http://&lt;Pi-IP-address&gt;</span></p>
   <p>This is the operator console. Bookmark it.</p>
@@ -489,7 +492,7 @@
     you may need to refresh the Admin → Circles or Roles page.
   </div>
 
-  <h2>USB Drive File Layout</h2>
+  <h2 id="usb-file-layout">USB Drive File Layout</h2>
   <p>
     The Pi reads media from a USB drive. The drive can contain any folder structure —
     MusicMan scans the whole drive — but the app's own <strong>local asset folders</strong>
@@ -508,7 +511,7 @@
     so you can play anything on the drive without copying it to the Pi first.
   </p>
 
-  <h2>Swapping USB Drives</h2>
+  <h2 id="swapping-usb">Swapping USB Drives</h2>
   <p>If you get a new USB drive and want to move everything over:</p>
   <ol class="steps">
     <li>Copy all folders and files from the old drive to the new drive, keeping the same folder structure.</li>
@@ -525,7 +528,7 @@
 <!-- ══════════════════ PART 3 ══════════════════ -->
 <div class="section">
   <div class="section-badge">PART 3</div>
-  <h1>Admin Configuration</h1>
+  <h1 id="part3">Admin Configuration</h1>
   <p>
     Everything in this section is done once (or updated before a show) from the Admin panel at
     <span class="mono">http://&lt;Pi-IP&gt;/admin</span>.
@@ -653,7 +656,7 @@
     is useful when multiple circles share the same walk-up track.
   </div>
 
-  <h2>Admin Panel Overview</h2>
+  <h2 id="admin-panel-overview">Admin Panel Overview</h2>
   <p>The Admin panel is at <span class="mono">http://&lt;Pi-IP&gt;/admin</span>. The left sidebar navigates between sections.</p>
   <table>
     <tr><th>Sidebar Section</th><th>What it does</th></tr>
@@ -669,7 +672,7 @@
     <tr><td><strong>⚙ System</strong></td><td>Pi health stats, standby display image, restart and shutdown controls</td></tr>
   </table>
 
-  <h2>Circles (Walk-Ups)</h2>
+  <h2 id="circles">Circles (Walk-Ups)</h2>
   <p>
     A <strong>Circle</strong> entry stores everything needed to announce that circle:
     their music, their logo or animation on the HDMI screen, how long the music plays, and which lighting scene fires.
@@ -707,7 +710,7 @@
     Click <kbd>▶ PREVIEW</kbd> on any asset slot to hear or see it through the Pi before the show.
   </div>
 
-  <h2>Roles (Walk-Ups)</h2>
+  <h2 id="roles">Roles (Walk-Ups)</h2>
   <p>
     <strong>Roles</strong> work exactly like circles, but for individual positions —
     Expedition Navigator, Firestarter, Story Teller, Chief, Dad of the Year, etc.
@@ -721,7 +724,7 @@
   </ol>
   <p>Role buttons appear in the console's <span class="tab">ROLES</span> tab. Tapping one plays their music and fires their lighting scene, just like a circle walk-up.</p>
 
-  <h2>Lighting Scenes</h2>
+  <h2 id="lighting-scenes">Lighting Scenes</h2>
   <p>
     A <strong>Scene</strong> is a named lighting state. Scenes are sent to WLED LED controllers
     over Wi-Fi. You define the scene here, and MusicMan sends the command when it's triggered
@@ -768,7 +771,7 @@
     <span class="mono">sos</span>. WLED zones and pole lights can be combined in the same scene.
   </p>
 
-  <h2>Macros</h2>
+  <h2 id="macros">Macros</h2>
   <p>
     A <strong>Macro</strong> is an ordered list of steps that execute one after another
     when triggered. A single tap on a show flow item can play music, set lights, show an image,
@@ -821,7 +824,7 @@
     Useful when several show items have similar structure (play music → set scene → load timer).
   </div>
 
-  <h2>Show Flow</h2>
+  <h2 id="show-flow">Show Flow</h2>
   <p>
     The <strong>Show Flow</strong> is the master rundown for the show — an ordered list of named items,
     each linked to a macro. During the show, you tap items one by one in the console's SHOW tab,
@@ -854,7 +857,7 @@
     close the browser without saving, the order reverts.
   </div>
 
-  <h2>Skit Timer</h2>
+  <h2 id="skit-timer-config">Skit Timer</h2>
   <p>
     The skit timer is the countdown shown in the left panel of the console during skits.
     Configure it in Admin → <strong>⏱ Timer</strong>.
@@ -882,7 +885,7 @@
     Example: Duration = 120, Start Sound Fade = 5 → music loops for 115 seconds, then fades over 5 seconds as the end sound fires.
   </div>
 
-  <h3>Saving and loading timer presets</h3>
+  <h3 id="timer-presets">Saving and loading timer presets</h3>
   <p>
     A <strong>Timer Preset</strong> saves all the current timer settings under a name.
     Presets can be loaded by a macro step (<em>Load Timer Preset</em>), so the timer is
@@ -904,7 +907,7 @@
     not necessarily what was last saved. Always glance at the <em>Will save:</em> summary before clicking.
   </div>
 
-  <h2>Games Timer</h2>
+  <h2 id="games-timer">Games Timer</h2>
   <p>
     The Games Timer is a separate countdown used during games. It's configured directly
     in the console's <span class="tab">GAMES</span> tab — no Admin panel needed.
@@ -920,7 +923,7 @@
     <tr><td>End Anim</td><td>Check to show a "time's up" animation on the HDMI screen at zero.</td></tr>
   </table>
 
-  <h2>Live Slides</h2>
+  <h2 id="live-slides-admin">Live Slides</h2>
   <p>
     The <strong>📋 Slides</strong> tab lets you build and push a custom text slide to the projector
     without leaving the admin panel — useful for setting up announcements or next-camp info before the show.
@@ -994,9 +997,9 @@
 <!-- ══════════════════ PART 4 ══════════════════ -->
 <div class="section">
   <div class="section-badge">PART 4</div>
-  <h1>Running the Show</h1>
+  <h1 id="part4">Running the Show</h1>
 
-  <h2>Console Overview</h2>
+  <h2 id="console-overview">Console Overview</h2>
   <p>
     The console is at <span class="mono">http://&lt;Pi-IP&gt;</span>.
     It has a <strong>left panel</strong> and a <strong>right panel with tabs</strong>.
@@ -1026,7 +1029,7 @@
     <tr><td><span class="tab">GAMES</span></td><td>Games countdown timer, stopwatch, and leaderboard</td></tr>
   </table>
 
-  <h2>Running the Show Flow</h2>
+  <h2 id="running-show-flow">Running the Show Flow</h2>
   <p>
     The Show Flow is the core of the show. Each item is a button in the
     <span class="tab">SHOW</span> tab.
@@ -1044,7 +1047,7 @@
     prompt. Tap deliberately.
   </div>
 
-  <h2>Transport Controls</h2>
+  <h2 id="transport-controls">Transport Controls</h2>
   <table>
     <tr><th>Button</th><th>What it does</th></tr>
     <tr><td><kbd>STOP</kbd></td><td>Stops music immediately (hard cut)</td></tr>
@@ -1056,14 +1059,14 @@
     <tr><td><kbd>KILL ALL</kbd></td><td>Emergency stop — cuts music, resets timer, clears everything</td></tr>
   </table>
 
-  <div class="callout callout-warn">
+  <div id="kill-all" class="callout callout-warn">
     <div class="callout-title">Kill All</div>
     <kbd>KILL ALL</kbd> is the big red emergency button. Use it if something goes badly wrong.
     It stops all audio, resets the skit timer, and clears the display.
     It does not reset the show flow position.
   </div>
 
-  <h2>Walk-Up Music</h2>
+  <h2 id="walkup-music">Walk-Up Music</h2>
   <p>Walk-ups play a customized intro track for each circle or role.</p>
   <ol class="steps">
     <li>Go to the <span class="tab">WALKUPS</span> tab.</li>
@@ -1077,7 +1080,7 @@
     Walk-up music replaces whatever is currently playing.
   </div>
 
-  <h2>Playing Music from the Library</h2>
+  <h2 id="music-library">Playing Music from the Library</h2>
   <ol class="steps">
     <li>Go to the <span class="tab">MUSIC</span> tab.</li>
     <li>Browse or search for a track.</li>
@@ -1085,7 +1088,7 @@
     <li>Use the transport controls to pause, fade, or stop.</li>
   </ol>
 
-  <h2>Sound Effects</h2>
+  <h2 id="sound-effects">Sound Effects</h2>
   <ol class="steps">
     <li>Go to the <span class="tab">SFX</span> tab.</li>
     <li>Tap any sound effect button to trigger it.</li>
@@ -1093,7 +1096,7 @@
     <li>Adjust the SFX volume with the bottom volume slider in the left panel.</li>
   </ol>
 
-  <h2>Lighting Controls</h2>
+  <h2 id="lighting-controls">Lighting Controls</h2>
   <p>
     Lighting scenes appear as buttons in the left panel under <strong>Lighting Scenes</strong>.
     The active scene is highlighted.
@@ -1104,7 +1107,7 @@
     <li>Scenes can also be triggered automatically by macros and walk-ups.</li>
   </ul>
 
-  <h2>Battery Monitor</h2>
+  <h2 id="battery-monitor">Battery Monitor</h2>
   <p>
     If an Anker SOLIX C300 is configured, a battery card appears in the console for each unit.
     The card updates every 10 seconds via Bluetooth and shows:
@@ -1138,7 +1141,7 @@
     No button press needed — just wait and the card will return to OK status on its own.
   </div>
 
-  <h2>The Skit Timer</h2>
+  <h2 id="skit-timer">The Skit Timer</h2>
   <p>
     The skit timer lives in the left panel. Its label shows the name of whatever timer
     preset is currently loaded (or "SKIT TIMER" if none).
@@ -1164,7 +1167,7 @@
     the label changes to <strong>GAMES TIMER</strong>. It reverts when the countdown stops.
   </p>
 
-  <h2>Games Tab</h2>
+  <h2 id="games-tab">Games Tab</h2>
 
   <h3>Games Countdown Timer</h3>
   <ol class="steps">
@@ -1191,7 +1194,7 @@
     <li>Click <kbd>✕ CLEAR</kbd> to clear times for the current game.</li>
   </ol>
 
-  <h2>HDMI Display Controls</h2>
+  <h2 id="hdmi-display">HDMI Display Controls</h2>
   <p>The <span class="tab">DISPLAY</span> tab controls what the audience sees on screen.</p>
   <table>
     <tr><th>Control</th><th>What it does</th></tr>
@@ -1202,7 +1205,7 @@
 
   <p>The display is also controlled automatically by macros (show images, timers, leaderboards).</p>
 
-  <h2>Live Slide Builder</h2>
+  <h2 id="live-slide-builder">Live Slide Builder</h2>
   <p>
     The <span class="tab">DISPLAY</span> tab includes a slide builder at the top for pushing
     custom text slides to the projector on the fly — no admin panel needed.
@@ -1223,7 +1226,7 @@
     slides included.
   </div>
 
-  <h2>USB Playlist Tab</h2>
+  <h2 id="usb-playlist">USB Playlist Tab</h2>
   <p>
     The <span class="tab">USB</span> tab lets you browse and play music folders directly from a USB drive,
     without needing to configure anything in advance. Great for pre-show or post-show background music.
@@ -1246,9 +1249,9 @@
 <!-- ══════════════════ PART 5 ══════════════════ -->
 <div class="section">
   <div class="section-badge">PART 5</div>
-  <h1>Quick Reference</h1>
+  <h1 id="part5">Quick Reference</h1>
 
-  <h2>Pre-Show Checklist</h2>
+  <h2 id="pre-show-checklist">Pre-Show Checklist</h2>
   <ul class="steps">
     <li>Pi is powered on and fully booted (~60 seconds after power-up)</li>
     <li>USB drive is plugged in</li>
@@ -1262,7 +1265,7 @@
     <li>Battery monitor connected — card shows OK with a live % reading (not SCANNING or OFFLINE). If it's still scanning, wait 2 minutes after powering the C300 on.</li>
   </ul>
 
-  <h2>Common Workflows</h2>
+  <h2 id="common-workflows">Common Workflows</h2>
 
   <h3>Announcing a Circle</h3>
   <div class="flow">
@@ -1309,7 +1312,7 @@
   </div>
   <p>Use <kbd>FADE &amp; END</kbd> instead of <kbd>STOP</kbd> whenever possible — it sounds much better than a hard cut.</p>
 
-  <h2>Troubleshooting</h2>
+  <h2 id="troubleshooting">Troubleshooting</h2>
 
   <table>
     <tr><th>Problem</th><th>Fix</th></tr>
