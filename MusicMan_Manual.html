@@ -304,6 +304,7 @@
       <li>Playing music from the library</li>
       <li>Sound effects</li>
       <li>Lighting controls</li>
+      <li>Battery monitor</li>
       <li>The Skit Timer</li>
       <li>Games tab &amp; leaderboard</li>
       <li>HDMI display controls</li>
@@ -349,6 +350,7 @@
     <tr><td>HDMI Display</td><td>Shows countdown timers, leaderboards, images, and animations on a projector or TV</td></tr>
     <tr><td>Timers</td><td>Skit timer (with HDMI warning), games countdown timer, stopwatch</td></tr>
     <tr><td>Show Flow</td><td>A scripted sequence of steps that fire macros automatically, in order</td></tr>
+    <tr><td>Battery Monitor</td><td>Connects wirelessly to Anker SOLIX C300 power stations via Bluetooth — shows live battery %, charge rate, power in/out, temperature, and lets you toggle AC/DC outlets and the pole flashlight</td></tr>
   </table>
 
   <h2>Hardware You Need</h2>
@@ -361,6 +363,7 @@
     <li><strong>Wi-Fi network</strong> that both the Pi and your control device share</li>
     <li><strong>Control device</strong> — any phone, tablet, or laptop with a browser</li>
     <li><strong>WLED lighting controllers</strong> (optional — lighting scenes require these)</li>
+    <li><strong>Anker SOLIX C300 power station(s)</strong> (optional — enables live battery monitoring and outlet/light control via Bluetooth)</li>
   </ul>
 </div>
 
@@ -747,6 +750,24 @@
     Scenes assigned to walk-ups or macros will silently do nothing if no WLED devices are reachable.
   </div>
 
+  <h3>Pole Lights (C300 Flashlight)</h3>
+  <p>
+    If you have an Anker SOLIX C300 power station connected via Bluetooth, you can control its built-in
+    flashlight as part of any scene. Add a <strong>poles</strong> block to the scene in
+    <span class="mono">config.yaml</span>:
+  </p>
+  <pre style="background:#f5f5f5;padding:12px 16px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:12px;margin:12px 0">scenes:
+  - id: campfire
+    name: Campfire
+    poles:
+      A: low      # options: off, low, high, sos</pre>
+  <p>
+    Pole label (<span class="mono">A</span>, <span class="mono">B</span>, etc.) must match the label in your
+    <span class="mono">config.yaml</span> battery_units list. Valid values are
+    <span class="mono">off</span>, <span class="mono">low</span>, <span class="mono">high</span>, and
+    <span class="mono">sos</span>. WLED zones and pole lights can be combined in the same scene.
+  </p>
+
   <h2>Macros</h2>
   <p>
     A <strong>Macro</strong> is an ordered list of steps that execute one after another
@@ -1083,6 +1104,40 @@
     <li>Scenes can also be triggered automatically by macros and walk-ups.</li>
   </ul>
 
+  <h2>Battery Monitor</h2>
+  <p>
+    If an Anker SOLIX C300 is configured, a battery card appears in the console for each unit.
+    The card updates every 10 seconds via Bluetooth and shows:
+  </p>
+  <table>
+    <tr><th>Field</th><th>What it means</th></tr>
+    <tr><td>Battery %</td><td>Current charge level</td></tr>
+    <tr><td>Status</td><td>CHARGING, DISCHARGING, or STANDBY</td></tr>
+    <tr><td>Power In / Out</td><td>Watts flowing in (from AC or solar) and out (to connected devices)</td></tr>
+    <tr><td>Temperature</td><td>Internal cell temperature in °C</td></tr>
+    <tr><td>Time Remaining</td><td>Estimated hours at current draw (only meaningful when discharging)</td></tr>
+    <tr><td>AC / DC / Light buttons</td><td>Toggle the AC outlet, DC outlet, and built-in flashlight on or off</td></tr>
+  </table>
+  <p style="margin-top:12px">The status badge on the card shows the connection state:</p>
+  <table>
+    <tr><th>Badge</th><th>Meaning</th></tr>
+    <tr><td><strong>OK</strong></td><td>Connected and receiving live data</td></tr>
+    <tr><td><strong>SCANNING</strong></td><td>Bluetooth scan in progress — C300 not yet found</td></tr>
+    <tr><td><strong>CONNECTING</strong></td><td>Found the C300, negotiating the connection</td></tr>
+    <tr><td><strong>OFFLINE</strong></td><td>Could not connect after the scan timeout — will retry automatically</td></tr>
+  </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">Tip — SCAN NOW button</div>
+    If the card shows OFFLINE or SCANNING longer than expected, press <kbd>SCAN NOW</kbd> on the card
+    to trigger an immediate scan. The C300 takes about 2 minutes after a power-on or reconnect to start
+    advertising — if you just turned it on, wait before pressing SCAN NOW.
+  </div>
+  <div class="callout callout-info">
+    <div class="callout-title">Automatic reconnect</div>
+    If the Bluetooth connection drops mid-show, the Pi reconnects automatically within about 2 minutes.
+    No button press needed — just wait and the card will return to OK status on its own.
+  </div>
+
   <h2>The Skit Timer</h2>
   <p>
     The skit timer lives in the left panel. Its label shows the name of whatever timer
@@ -1204,6 +1259,7 @@
     <li>Timer presets are correct — fire a test macro and confirm the timer label updates and the duration is right</li>
     <li>Volume levels are set. Music slider is at your starting level; SFX slider is set.</li>
     <li>Lighting scenes are working — tap one and confirm the lights respond</li>
+    <li>Battery monitor connected — card shows OK with a live % reading (not SCANNING or OFFLINE). If it's still scanning, wait 2 minutes after powering the C300 on.</li>
   </ul>
 
   <h2>Common Workflows</h2>
@@ -1288,6 +1344,22 @@
     <tr>
       <td>Changes in Admin aren't taking effect</td>
       <td>Hard-refresh the admin page (Cmd/Ctrl + Shift + R on Mac, Ctrl + Shift + R on Windows/Android).</td>
+    </tr>
+    <tr>
+      <td>Battery card stuck on SCANNING</td>
+      <td>The C300 takes about 2 minutes after power-on before it starts advertising Bluetooth. Wait, then press SCAN NOW. If still scanning after 3 minutes, power-cycle the C300 and wait again.</td>
+    </tr>
+    <tr>
+      <td>Battery card shows OFFLINE</td>
+      <td>The Pi couldn't find the C300 within the scan window. Press SCAN NOW to retry immediately. Make sure the C300 is powered on and within range (~10 meters). The Pi will also retry automatically on its own cycle.</td>
+    </tr>
+    <tr>
+      <td>Battery card shows CONNECTING / Reading Data… for a long time</td>
+      <td>The Bluetooth negotiation is still in progress — this normally takes 5–15 seconds. If it's been more than 30 seconds, the connection may have stalled. Press SCAN NOW to force a fresh connection attempt.</td>
+    </tr>
+    <tr>
+      <td>Battery card connected but data is stale (old timestamp)</td>
+      <td>The poll loop may have hit an error. Press SCAN NOW to reconnect and force a fresh data read.</td>
     </tr>
   </table>
 
