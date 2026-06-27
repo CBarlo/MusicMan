@@ -5,10 +5,12 @@ logs/
 *.bak
 *.corrupt
 *.zip
+# exclude loose media at root, but keep everything inside assets/
 *.mov
 *.mp4
 *.mp3
 *.wav
 good vibes only*/
+!assets/**
 .DS_Store
 .claude/
