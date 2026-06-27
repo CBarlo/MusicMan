@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music Man Display</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width:100%; height:100%;
+    background:#080808;
+    font-family:'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
+    overflow:hidden;
+    color:#fff;
+  }
+
+  /* ── LAYERS ────────────────────────────────────────────── */
+  #layer-standby,
+  #layer-walkup {
+    position:fixed;
+    inset:0;
+  }
+  #layer-standby { opacity:1; z-index:1; }
+  #layer-walkup  { opacity:0; z-index:2; pointer-events:none; }
+
+  /* ── STANDBY ────────────────────────────────────────────── */
+  #layer-standby {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3vh;
+    background:#080808;
+  }
+  #standby-logo {
+    max-width:28vw;
+    max-height:38vh;
+    object-fit:contain;
+    display:none;
+  }
+  #standby-text {
+    text-align:center;
+    opacity:0.18;
+  }
+  #standby-title {
+    font-size:7vw;
+    font-weight:800;
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    line-height:1;
+  }
+  #standby-subtitle {
+    font-size:2.2vw;
+    letter-spacing:0.45em;
+    text-transform:uppercase;
+    margin-top:1vw;
+    font-weight:500;
+  }
+
+  /* ── WALKUP ────────────────────────────────────────────── */
+  #layer-walkup {
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* Background color wash */
+  #wu-bg {
+    position:absolute;
+    inset:0;
+    background:#000;
+  }
+
+  /* Full-screen video */
+  #wu-video {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:none;
+    z-index:1;
+  }
+
+  /* Logo centered */
+  #wu-logo-wrap {
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:2;
+  }
+  #wu-logo {
+    max-width:55vw;
+    max-height:70vh;
+    object-fit:contain;
+    display:none;
+    filter:drop-shadow(0 0 4vw rgba(0,0,0,0.5));
+  }
+
+  /* Name bar */
+  #wu-namebar {
+    position:absolute;
+    bottom:0;
+    left:0;
+    right:0;
+    z-index:10;
+    padding:3vh 5vw 4vh;
+    background:linear-gradient(transparent, rgba(0,0,0,0.85) 60%);
+    text-align:center;
+  }
+  #wu-name {
+    font-size:8vw;
+    font-weight:800;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    line-height:0.9;
+    text-shadow:0 4px 3vw rgba(0,0,0,0.6);
+  }
+
+  /* ── TITLE CARD (macro steps) ──────────────────────────── */
+  #layer-title {
+    position:fixed;
+    inset:0;
+    z-index:3;
+    opacity:0;
+    pointer-events:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#050505;
+  }
+  #title-name {
+    font-size:12vw;
+    font-weight:900;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    text-align:center;
+    line-height:1;
+    padding:0 6vw;
+    text-shadow:0 0 8vw currentColor;
+    position:relative;
+    z-index:2;
+  }
+  #title-video,
+  #title-img-a,
+  #title-img-b {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    opacity:0;
+    transition:opacity 0.8s ease;
+  }
+
+  /* ── BREATHE ANIMATION on standby ──────────────────────── */
+  @keyframes breathe {
+    0%, 100% { opacity:0.85; }
+    50%       { opacity:1; }
+  }
+  #standby-logo, #standby-text { animation:breathe 4s ease-in-out infinite; }
+
+  /* ── SLIDE LAYER ─────────────────────────────────────────── */
+  #layer-slide {
+    position:fixed; inset:0; z-index:4;
+    opacity:0; pointer-events:none;
+    transition:opacity .7s ease;
+    display:flex; align-items:center; justify-content:center;
+    background:#060504; overflow:hidden;
+  }
+  /* BIG TITLE */
+  .sl-big          { text-align:center; padding:0 8vw; }
+  .sl-big .sl-head { font-size:15vw; font-weight:900; letter-spacing:.06em; text-transform:uppercase; line-height:.9; color:var(--sl-a,#F5A623); text-shadow:0 0 8vw currentColor; }
+  .sl-big .sl-sub  { font-size:4vw; font-weight:600; letter-spacing:.22em; text-transform:uppercase; color:rgba(255,255,255,.82); margin-top:2vw; }
+  /* BULLETIN */
+  .sl-bul          { padding:0 10vw; width:100%; }
+  .sl-bul .sl-head { font-size:7vw; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:var(--sl-a,#F5A623); text-shadow:0 0 5vw currentColor; line-height:1; }
+  .sl-rule         { width:100%; height:3px; background:var(--sl-a,#F5A623); margin:1.5vw 0; opacity:.7; }
+  .sl-line         { font-size:3.8vw; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:rgba(255,255,255,.9); line-height:1.6; padding-left:1.5vw; border-left:.5vw solid var(--sl-a,#F5A623); margin:.5vw 0; }
+  /* NEXT EVENT */
+  .sl-nxt            { text-align:center; padding:0 8vw; }
+  .sl-nxt .sl-label  { font-size:2.4vw; font-weight:700; letter-spacing:.5em; text-transform:uppercase; color:rgba(255,255,255,.45); margin-bottom:1.5vw; }
+  .sl-nxt .sl-name   { font-size:11vw; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:var(--sl-a,#F5A623); text-shadow:0 0 7vw currentColor; line-height:.88; margin:1.5vw 0; }
+  .sl-nxt .sl-date   { font-size:4.2vw; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.8); margin-top:1.5vw; }
+  /* SPOTLIGHT */
+  .sl-spot           { display:flex; align-items:center; gap:6vw; padding:0 7vw; width:100%; }
+  .sl-spot .sl-img   { max-width:36vw; max-height:72vh; object-fit:contain; filter:drop-shadow(0 0 5vw rgba(0,0,0,.55)); flex-shrink:0; }
+  .sl-spot .sl-txt   { flex:1; }
+  .sl-spot .sl-head  { font-size:8vw; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:var(--sl-a,#F5A623); text-shadow:0 0 5vw currentColor; line-height:.88; }
+  .sl-spot .sl-sub   { font-size:3.4vw; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:rgba(255,255,255,.75); margin-top:2vw; }
+  /* QR CODE */
+  .sl-qr             { text-align:center; padding:0 8vw; }
+  .sl-qr .sl-head    { font-size:6vw; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:var(--sl-a,#F5A623); text-shadow:0 0 4vw currentColor; line-height:1; }
+  .sl-qr .sl-body    { font-size:2.6vw; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.65); margin:1.2vw 0; }
+  .sl-qr .sl-qimg    { width:24vw; height:24vw; margin:1.2vw auto; display:block; border:1vw solid #fff; border-radius:.6vw; image-rendering:pixelated; }
+  .sl-qr .sl-url     { font-size:1.7vw; font-weight:600; letter-spacing:.08em; color:rgba(255,255,255,.38); font-family:'Share Tech Mono','Courier New',monospace; margin-top:.4vw; }
+</style>
+</head>
+<body>
+
+<!-- STANDBY LAYER -->
+<div id="layer-standby">
+  <img id="standby-logo" src="" alt="">
+  <div id="standby-text">
+    <div id="standby-title"></div>
+    <div id="standby-subtitle"></div>
+  </div>
+</div>
+
+<!-- TITLE CARD LAYER (macro steps) -->
+<div id="layer-title">
+  <video id="title-video" playsinline autoplay loop muted></video>
+  <img id="title-img-a" alt="">
+  <img id="title-img-b" alt="">
+  <div id="title-name"></div>
+</div>
+
+<!-- CHRONO OVERLAY (countdown timer + stopwatch) -->
+<div id="layer-timer" style="position:fixed;inset:0;z-index:10;pointer-events:none;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5vh;opacity:0;transition:opacity 0.8s ease">
+  <div style="background:rgba(0,0,0,0.72);border-radius:16px;padding:2vw 5vw 1.5vw;text-align:center;backdrop-filter:blur(6px)">
+    <div id="timer-num" style="font-size:16vw;font-weight:900;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;letter-spacing:0.04em;line-height:0.85;color:#F5A623;text-shadow:0 0 5vw currentColor;transition:color 0.4s"></div>
+    <div id="chrono-label" style="font-size:1.8vw;letter-spacing:0.4em;color:rgba(255,255,255,0.5);margin-top:0.5vw;font-weight:600">REMAINING</div>
+  </div>
+</div>
+
+<!-- LEADERBOARD OVERLAY -->
+<div id="layer-leaderboard" style="position:fixed;inset:0;z-index:8;pointer-events:none;opacity:0;transition:opacity 0.7s ease;background:#060504;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4vw 8vw">
+  <div id="lb-game-name" style="font-size:3.5vw;font-weight:900;letter-spacing:0.18em;text-transform:uppercase;color:#F5A623;text-shadow:0 0 4vw #F5A62344;text-align:center;margin-bottom:0.6vw"></div>
+  <div style="font-size:1.4vw;letter-spacing:0.45em;color:rgba(255,255,255,0.35);margin-bottom:3.5vw;font-weight:600">FASTEST TIMES</div>
+  <div id="lb-rows" style="width:100%;max-width:72vw"></div>
+</div>
+
+<!-- SLIDE LAYER -->
+<div id="layer-slide"></div>
+
+<!-- WALKUP LAYER -->
+<div id="layer-walkup">
+  <div id="wu-bg"></div>
+  <video id="wu-video" playsinline autoplay loop muted></video>
+  <canvas id="wu-frame-hold" style="position:absolute;inset:0;width:100%;height:100%;display:none;z-index:2"></canvas>
+  <div id="wu-logo-wrap">
+    <img id="wu-logo" src="" alt="">
+  </div>
+  <div id="wu-namebar">
+    <div id="wu-name"></div>
+  </div>
+</div>
+
+<script>
+// ── STANDBY CONFIG ────────────────────────────────────────────────────────────
+async function loadStandbyConfig() {
+  try {
+    const d = await fetch('/api/display/config').then(r => r.json());
+    document.getElementById('standby-title').textContent    = d.title    || '';
+    document.getElementById('standby-subtitle').textContent = d.subtitle || '';
+    document.getElementById('standby-subtitle').style.display = d.subtitle ? '' : 'none';
+    const logo = document.getElementById('standby-logo');
+    const size = d.logo_size || 50;
+    logo.style.maxWidth  = size + 'vw';
+    logo.style.maxHeight = Math.round(size * 0.75) + 'vh';
+    if (d.logo) {
+      logo.src = '/assets/display/' + d.logo + '?t=' + Date.now();
+      logo.style.display = 'block';
+      logo.onerror = () => { logo.style.display = 'none'; };
+    } else {
+      logo.style.display = 'none';
+    }
+  } catch(e) {
+    document.getElementById('standby-title').textContent = 'Broken Arrow';
+    document.getElementById('standby-subtitle').textContent = 'Adventure Guides';
+  }
+}
+loadStandbyConfig();
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let standbyActive  = true;
+let _displaySeq    = 0; // incremented on every display change to cancel stale onload callbacks
+let _titleImgSlot  = 'a'; // which img slot is currently showing
+
+const layerStandby = document.getElementById('layer-standby');
+const layerWalkup  = document.getElementById('layer-walkup');
+const layerTitle   = document.getElementById('layer-title');
+const layerSlide   = document.getElementById('layer-slide');
+const wuBg         = document.getElementById('wu-bg');
+const wuVideo      = document.getElementById('wu-video');
+const wuLogo       = document.getElementById('wu-logo');
+const wuName       = document.getElementById('wu-name');
+const wuNamebar    = document.getElementById('wu-namebar');
+const wuFrameHold  = document.getElementById('wu-frame-hold');
+
+function _resetTitleVideo() {
+  const v = document.getElementById('title-video');
+  v.oncanplay = null; v.pause(); v.src = ''; v.style.opacity = '0';
+}
+function _resetTitleImgs() {
+  document.getElementById('title-img-a').style.opacity = '0';
+  document.getElementById('title-img-b').style.opacity = '0';
+  _titleImgSlot = 'a';
+}
+
+function showStep(data) {
+  const imageUrl = data.image || '';
+  if (!imageUrl) return;
+
+  hideSlide();
+  standbyActive = false;
+  const seq = ++_displaySeq;
+
+  document.getElementById('title-name').style.display = 'none';
+  _resetTitleVideo();
+
+  // Load into the inactive slot, then crossfade
+  const nextSlot = _titleImgSlot === 'a' ? 'b' : 'a';
+  const nextImg  = document.getElementById('title-img-' + nextSlot);
+  const prevImg  = document.getElementById('title-img-' + _titleImgSlot);
+
+  nextImg.onload = null;
+  nextImg.style.opacity = '0';
+  nextImg.onload = () => {
+    if (_displaySeq !== seq) return;
+    nextImg.style.opacity = '1';
+    prevImg.style.opacity = '0';
+    _titleImgSlot = nextSlot;
+    const t = 'opacity 0.8s ease';
+    layerWalkup.style.transition    = t;
+    layerStandby.style.transition   = t;
+    layerTitle.style.transition     = t;
+    layerWalkup.style.opacity       = '0';
+    layerWalkup.style.pointerEvents = 'none';
+    layerStandby.style.opacity      = '0';
+    layerTitle.style.opacity        = '1';
+  };
+  nextImg.onerror = () => { if (_displaySeq === seq) nextImg.style.opacity = '0'; };
+  nextImg.src = imageUrl + '?t=' + Date.now();
+}
+
+function clearAllLayers() {
+  hideSlide();
+  standbyActive = true;
+  const t = 'opacity 1s ease';
+  layerWalkup.style.transition = t;
+  layerTitle.style.transition  = t;
+  layerWalkup.style.opacity  = '0';
+  layerTitle.style.opacity   = '0';
+  layerWalkup.style.pointerEvents = 'none';
+  layerStandby.style.transition = t;
+  layerStandby.style.opacity = '1';
+  setTimeout(() => {
+    wuVideo.pause(); wuVideo.src = '';
+    wuLogo.style.display = 'none'; wuLogo.src = '';
+    _resetTitleVideo();
+    _resetTitleImgs();
+  }, 1200);
+}
+
+// ── DISPLAY CONTROL ───────────────────────────────────────────────────────────
+function showTitleVideo(data) {
+  const videoUrl = data.video || '';
+  if (!videoUrl) return;
+  hideSlide();
+  standbyActive = false;
+  const seq = ++_displaySeq;
+
+  document.getElementById('title-name').style.display = 'none';
+  _resetTitleImgs();
+
+  const titleVideo = document.getElementById('title-video');
+  const holdFrame  = !!data.hold;
+  const loopVideo  = data.loop !== undefined ? !!data.loop : !holdFrame;
+  titleVideo.loop    = loopVideo;
+  titleVideo.onended = holdFrame ? () => { titleVideo.pause(); } : null;
+  titleVideo.style.opacity = '0';
+  if (titleVideo.src !== location.origin + videoUrl) {
+    titleVideo.src = videoUrl;
+    titleVideo.load();
+  }
+  titleVideo.oncanplay = () => {
+    if (_displaySeq !== seq) return;
+    titleVideo.play().catch(() => {});
+    titleVideo.style.opacity = '1';
+    const t = 'opacity 0.8s ease';
+    layerWalkup.style.transition    = t;
+    layerStandby.style.transition   = t;
+    layerTitle.style.transition     = t;
+    layerWalkup.style.opacity       = '0';
+    layerWalkup.style.pointerEvents = 'none';
+    layerStandby.style.opacity      = '0';
+    layerTitle.style.opacity        = '1';
+  };
+}
+
+function showWalkup(data) {
+  hideSlide();
+  standbyActive = false;
+  _displaySeq++; // cancel any pending showStep image load
+  _resetTitleVideo();
+
+  const color    = data.color     || '#F5A623';
+  const name     = (data.name    || '').toUpperCase();
+  const introFile = data.animation_intro || '';
+  const animFile  = data.animation       || '';
+  const logoFile  = data.logo            || '';
+  const logoUrl  = data.logo_url  || '';
+  const id       = data.id        || '';
+  const itemType = data.type === 'role' ? 'roles' : 'circles';
+
+  // Background wash
+  wuBg.style.background = `radial-gradient(ellipse at 50% 30%, ${hexOpacity(color, 0.18)} 0%, #050505 70%)`;
+
+  // Name
+  wuName.textContent = name;
+  wuName.style.color = color;
+  wuNamebar.style.display = (data.hide_name && (introFile || animFile)) ? 'none' : '';
+
+  // Reset media — null callbacks before clearing src to prevent stale closures firing
+  wuVideo.oncanplay = null;
+  wuVideo.onerror   = null;
+  wuVideo.onended   = null;
+  wuVideo.style.display = 'none';
+  wuVideo.pause();
+  wuVideo.src = '';
+  wuLogo.onload  = null;
+  wuLogo.onerror = null;
+  wuLogo.style.display = 'none';
+  wuLogo.src = '';
+
+  function _showLogo() {
+    if (logoUrl) {
+      wuLogo.onerror = () => { wuLogo.style.display = 'none'; tryLogo(itemType, id, logoFile); };
+      wuLogo.onload  = () => { wuLogo.style.display = 'block'; };
+      wuLogo.src     = logoUrl + '?t=' + Date.now();
+    } else {
+      tryLogo(itemType, id, logoFile);
+    }
+  }
+
+  function _startMainAnim() {
+    wuVideo.oncanplay = null;
+    wuVideo.onerror   = null;
+    if (!animFile) {
+      if (!introFile) _showLogo();
+      return;
+    }
+    // Snapshot last intro frame to canvas so there's no black flash during src swap
+    if (introFile && wuVideo.videoWidth) {
+      wuFrameHold.width  = wuVideo.offsetWidth  || window.innerWidth;
+      wuFrameHold.height = wuVideo.offsetHeight || window.innerHeight;
+      wuFrameHold.getContext('2d').drawImage(wuVideo, 0, 0, wuFrameHold.width, wuFrameHold.height);
+      wuFrameHold.style.display = 'block';
+    }
+    const animUrl = `/assets/${itemType}/${id}/${animFile}`;
+    wuVideo.loop = true;
+    wuVideo.onerror   = () => { wuFrameHold.style.display = 'none'; wuVideo.style.display = 'none'; _showLogo(); };
+    wuVideo.oncanplay = () => {
+      wuVideo.style.display = 'block';
+      wuVideo.play().then(() => {
+        wuFrameHold.style.display = 'none';
+      }).catch(() => { wuFrameHold.style.display = 'none'; wuVideo.style.display = 'none'; _showLogo(); });
+    };
+    wuVideo.src = animUrl;
+    wuVideo.load();
+  }
+
+  if (introFile) {
+    const introUrl = `/assets/${itemType}/${id}/${introFile}`;
+    wuVideo.loop    = false;
+    wuVideo.onerror = () => { wuVideo.style.display = 'none'; _startMainAnim(); };
+    wuVideo.oncanplay = () => {
+      wuVideo.style.display = 'block';
+      wuVideo.play().catch(() => { wuVideo.style.display = 'none'; _startMainAnim(); });
+    };
+    wuVideo.onended = () => { wuVideo.onended = null; _startMainAnim(); };
+    wuVideo.src = introUrl;
+    wuVideo.load();
+  } else if (animFile) {
+    _startMainAnim();
+  } else {
+    _showLogo();
+  }
+
+  // Fade IN — stays until next step or explicit clear
+  setLayerTransition(0.8);
+  layerStandby.style.opacity = '0';
+  layerTitle.style.opacity   = '0';
+  layerWalkup.style.opacity  = '1';
+  layerWalkup.style.pointerEvents = 'auto';
+}
+
+function tryLogo(itemType, id, logoFile) {
+  const src = logoFile
+    ? `/assets/${itemType}/${id}/${logoFile}?t=${Date.now()}`
+    : `/assets/${itemType}/${id}/logo.png?t=${Date.now()}`;
+  wuLogo.onerror = () => { wuLogo.style.display = 'none'; };
+  wuLogo.onload  = () => { wuLogo.style.display = 'block'; };
+  wuLogo.src = src;
+}
+
+function showStandby(fadeDurMs) {
+  standbyActive = true;
+  _displaySeq++; // cancel any pending showStep image load
+
+  const dur = fadeDurMs || 1200;
+  const t = `opacity ${dur / 1000}s ease`;
+  layerStandby.style.transition = t;
+  layerWalkup.style.transition  = t;
+  layerTitle.style.transition   = t;
+
+  layerWalkup.style.opacity  = '0';
+  layerWalkup.style.pointerEvents = 'none';
+  layerTitle.style.opacity   = '0';
+  layerStandby.style.opacity = '1';
+
+  setTimeout(() => {
+    wuVideo.pause();
+    wuVideo.src = '';
+    wuLogo.style.display = 'none';
+    wuLogo.src = '';
+    _resetTitleVideo();
+  }, dur + 200);
+}
+
+function setLayerTransition(seconds) {
+  const t = `opacity ${seconds}s ease`;
+  layerStandby.style.transition = t;
+  layerWalkup.style.transition  = t;
+  layerTitle.style.transition   = t;
+}
+
+// ── SLIDE ─────────────────────────────────────────────────────────────────────
+const _SLIDE_ACCENTS = {amber:'#F5A623', blue:'#4A9FD4', green:'#3CB96A', white:'#FFFFFF', red:'#E83A3A'};
+
+function showSlide(data) {
+  if (!data || !data.template) return;
+  const acc = _SLIDE_ACCENTS[data.theme] || _SLIDE_ACCENTS.amber;
+  layerSlide.style.setProperty('--sl-a', acc);
+  const [r,g,b] = [parseInt(acc.slice(1,3),16), parseInt(acc.slice(3,5),16), parseInt(acc.slice(5,7),16)];
+  layerSlide.style.background = `radial-gradient(ellipse at 50% 40%, rgba(${r},${g},${b},.07) 0%, #060504 65%)`;
+
+  const H = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  let html = '';
+  if (data.template === 'big_title') {
+    html = `<div class="sl-big"><div class="sl-head">${H(data.headline)}</div>${data.subtitle?`<div class="sl-sub">${H(data.subtitle)}</div>`:''}</div>`;
+  } else if (data.template === 'bulletin') {
+    const lines = (data.lines||'').split('\n').filter(l=>l.trim()).map(l=>`<div class="sl-line">${H(l)}</div>`).join('');
+    html = `<div class="sl-bul"><div class="sl-head">${H(data.headline)}</div><div class="sl-rule"></div>${lines}</div>`;
+  } else if (data.template === 'next_event') {
+    html = `<div class="sl-nxt"><div class="sl-label">${H(data.label||'NEXT CAMP')}</div><div class="sl-rule"></div><div class="sl-name">${H(data.event_name)}</div>${data.date_text?`<div class="sl-date">${H(data.date_text)}</div>`:''}</div>`;
+  } else if (data.template === 'spotlight') {
+    const img = data.image ? `<img class="sl-img" src="/assets/${H(data.image)}" alt="">` : '';
+    html = `<div class="sl-spot">${img}<div class="sl-txt"><div class="sl-head">${H(data.headline)}</div>${data.subtitle?`<div class="sl-sub">${H(data.subtitle)}</div>`:''}</div></div>`;
+  } else if (data.template === 'qr') {
+    const qimg = data.qr_data_url ? `<img class="sl-qimg" src="${data.qr_data_url}" alt="QR">` : '';
+    html = `<div class="sl-qr"><div class="sl-head">${H(data.headline)}</div>${data.body?`<div class="sl-body">${H(data.body)}</div>`:''}<div class="sl-rule" style="width:20vw;margin:1.2vw auto"></div>${qimg}${data.qr_url?`<div class="sl-url">${H(data.qr_url)}</div>`:''}</div>`;
+  }
+  layerSlide.innerHTML = html;
+
+  const t = 'opacity .7s ease';
+  [layerWalkup, layerTitle, layerStandby, layerSlide].forEach(l => l.style.transition = t);
+  layerWalkup.style.opacity  = '0'; layerWalkup.style.pointerEvents  = 'none';
+  layerTitle.style.opacity   = '0';
+  layerStandby.style.opacity = '0';
+  layerSlide.style.opacity   = '1'; layerSlide.style.pointerEvents   = 'auto';
+  standbyActive = false;
+}
+
+function hideSlide() {
+  layerSlide.style.transition   = 'opacity .7s ease';
+  layerSlide.style.opacity      = '0';
+  layerSlide.style.pointerEvents = 'none';
+}
+
+// ── COLOR HELPER ──────────────────────────────────────────────────────────────
+function hexOpacity(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ── LEADERBOARD OVERLAY ───────────────────────────────────────────────────────
+const layerLb = document.getElementById('layer-leaderboard');
+
+function _escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showLeaderboard(data) {
+  const game  = data.game  || '';
+  const times = data.times || [];
+  document.getElementById('lb-game-name').textContent = game.toUpperCase();
+  const medals = ['🥇','🥈','🥉'];
+  document.getElementById('lb-rows').innerHTML = times.slice(0, 8).map((t, i) => {
+    const tot   = t.ms / 1000;
+    const m     = Math.floor(tot / 60);
+    const s     = Math.floor(tot % 60);
+    const tenth = Math.floor((tot % 1) * 10);
+    const tStr  = m > 0 ? m+':'+String(s).padStart(2,'0')+'.'+tenth : s+'.'+tenth+'s';
+    const medal = medals[i] || (i + 1) + '.';
+    const gold  = i === 0;
+    const sz    = gold ? '5.2vw' : i < 3 ? '4.2vw' : '3.5vw';
+    const col   = gold ? '#F5A623' : 'rgba(255,255,255,0.88)';
+    const fw    = gold ? 900 : 700;
+    return `<div style="display:flex;align-items:center;gap:2.5vw;padding:0.8vw 1.5vw;border-bottom:1px solid rgba(255,255,255,0.07);color:${col};font-size:${sz};font-weight:${fw};letter-spacing:0.04em">
+      <span style="min-width:4.5vw;text-align:center">${medal}</span>
+      <span style="flex:1">${_escHtml(t.label)}</span>
+      <span style="font-family:'Share Tech Mono','Courier New',monospace">${tStr}</span>
+    </div>`;
+  }).join('');
+  layerLb.style.opacity = '1';
+  layerLb.style.pointerEvents = 'auto';
+}
+
+function hideLeaderboard() {
+  layerLb.style.opacity = '0';
+  layerLb.style.pointerEvents = 'none';
+}
+
+// ── CHRONO OVERLAY (countdown + stopwatch) ────────────────────────────────────
+const layerTimer  = document.getElementById('layer-timer');
+const timerNum    = document.getElementById('timer-num');
+const chronoLabel = document.getElementById('chrono-label');
+let _timerVisible  = false;
+let _chronoMode    = 'countdown'; // 'countdown' | 'stopwatch'
+let _chronoSource  = 'none';      // 'skit' | 'countdown' | 'stopwatch'
+let _swStartMs     = null;
+let _swInterval    = null;
+
+function showChronoOverlay(mode, data, source) {
+  _chronoMode = mode;
+  _chronoSource = source || 'skit';
+  _timerVisible = true;
+  if (mode === 'stopwatch') {
+    timerNum.style.color = '#3CB96A';
+    chronoLabel.textContent = 'ELAPSED';
+    _swStartMs = data.start_ms || Date.now();
+    clearInterval(_swInterval);
+    _swInterval = setInterval(_updateSwNum, 100);
+  } else {
+    timerNum.style.color = '#F5A623';
+    chronoLabel.textContent = 'REMAINING';
+    _updateTimerNum(data.seconds || data.seconds_remaining || 0);
+  }
+  layerTimer.style.opacity = '1';
+}
+
+function hideChronoOverlay(source) {
+  if (source && _chronoSource !== source) return;
+  _timerVisible = false;
+  _chronoSource = 'none';
+  clearInterval(_swInterval);
+  layerTimer.style.opacity = '0';
+  setTimeout(() => {
+    if (!_timerVisible) {
+      _chronoMode = 'countdown';
+      timerNum.style.color = '#F5A623';
+      chronoLabel.textContent = 'REMAINING';
+    }
+  }, 900);
+}
+
+function _updateTimerNum(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  timerNum.textContent = m > 0 ? m + ':' + String(s).padStart(2, '0') : String(s);
+  timerNum.style.color = sec <= 5 ? '#FF3333' : sec <= 10 ? '#FF8800' : '#F5A623';
+}
+
+function _updateSwNum() {
+  if (!_swStartMs) return;
+  const elapsed = (Date.now() - _swStartMs) / 1000;
+  const m = Math.floor(elapsed / 60);
+  const s = Math.floor(elapsed % 60);
+  const t = Math.floor((elapsed % 1) * 10);
+  timerNum.textContent = m > 0
+    ? m + ':' + String(s).padStart(2, '0') + '.' + t
+    : s + '.' + t;
+}
+
+function handleTimerState(data) {
+  if (!_timerVisible || _chronoSource !== 'skit') return;
+  const sec = data.seconds_remaining || 0;
+  _updateTimerNum(sec);
+  if (!data.running && sec <= 0) hideChronoOverlay('skit');
+}
+
+function handleCountdownState(data) {
+  if (!_timerVisible || _chronoSource !== 'countdown') return;
+  const sec = data.seconds_remaining || 0;
+  _updateTimerNum(sec);
+  if (!data.running && sec <= 0) hideChronoOverlay('countdown');
+}
+
+function handleStopwatchState(data) {
+  if (data.running && data.show_on_display) {
+    showChronoOverlay('stopwatch', {start_ms: data.start_ms}, 'stopwatch');
+  } else if (!data.running && _chronoSource === 'stopwatch') {
+    clearInterval(_swInterval);
+    if (data.elapsed_ms) {
+      const elapsed = data.elapsed_ms / 1000;
+      const m = Math.floor(elapsed / 60);
+      const s = Math.floor(elapsed % 60);
+      const t = Math.floor((elapsed % 1) * 10);
+      timerNum.textContent = m > 0
+        ? m + ':' + String(s).padStart(2, '0') + '.' + t
+        : s + '.' + t;
+    }
+    if (_timerVisible) setTimeout(() => hideChronoOverlay('stopwatch'), 3000);
+  }
+}
+
+// ── WEBSOCKET ─────────────────────────────────────────────────────────────────
+let _pingTimer       = null;
+let _wsFirstConnect  = true; // true until we've had one successful connection
+
+function connectWS() {
+  const ws = new WebSocket('ws://' + location.host + '/ws');
+
+  ws.onopen = () => {
+    if (_wsFirstConnect) {
+      // First connect: load standby config (handles Chromium beating musicman to start)
+      _wsFirstConnect = false;
+      loadStandbyConfig();
+      fetch('/api/state').then(r=>r.json()).then(s=>{ if (s.slide && s.slide.template) showSlide(s.slide); }).catch(()=>{});
+    } else {
+      // Reconnect after a drop = service restarted.
+      // Hard-navigate with cache-buster so we always get the latest display.html.
+      location.href = '/display?v=' + Date.now();
+      return;
+    }
+    // Keepalive ping every 20s — prevents the server's 30s receive-timeout
+    // from dropping the connection mid-show.
+    clearInterval(_pingTimer);
+    _pingTimer = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+    }, 20000);
+  };
+
+  ws.onmessage = (evt) => {
+    try {
+      const msg  = JSON.parse(evt.data);
+      const data = msg.data || {};
+
+      if      (msg.event === 'display_walkup')    { showWalkup(data); }
+      else if (msg.event === 'display_step')      { showStep(data); }
+      else if (msg.event === 'display_animation') { showTitleVideo(data); }
+      else if (msg.event === 'display_clear')     { hideChronoOverlay(); hideLeaderboard(); hideSlide(); showStandby(); }
+      else if (msg.event === 'display_slide')     { showSlide(data); }
+      else if (msg.event === 'display_slide_clear') { hideSlide(); }
+      else if (msg.event === 'display_leaderboard') { showLeaderboard(data); }
+      else if (msg.event === 'display_reload')    { location.href = '/display?v=' + Date.now(); }
+      else if (msg.event === 'timer_show')        { showChronoOverlay('countdown', {seconds: data.seconds || 0}, 'skit'); }
+      else if (msg.event === 'timer_warning')     { showChronoOverlay('countdown', {seconds: data.seconds_remaining || 0}, 'skit'); }
+      else if (msg.event === 'timer_state')       { handleTimerState(data); }
+      else if (msg.event === 'timer_expired')     { hideChronoOverlay('skit'); }
+      else if (msg.event === 'countdown_show')    { showChronoOverlay('countdown', {seconds: data.seconds}, 'countdown'); }
+      else if (msg.event === 'countdown_state')   { handleCountdownState(data); }
+      else if (msg.event === 'countdown_expired') { hideChronoOverlay('countdown'); }
+      else if (msg.event === 'stopwatch_state')   { handleStopwatchState(data); }
+    } catch(e) {}
+  };
+
+  ws.onclose = () => { clearInterval(_pingTimer); setTimeout(connectWS, 3000); };
+  ws.onerror = () => ws.close();
+}
+
+connectWS();
+</script>
+</body>
+</html>

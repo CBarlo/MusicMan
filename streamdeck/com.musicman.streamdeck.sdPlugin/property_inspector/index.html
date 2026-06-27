@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Music Man</title>
+<style>
+  :root {
+    --sdBgColor: #2D2D2D;
+    --sdColor: #EFEFEF;
+    --sdDimColor: #8E8E8E;
+    --sdAccent: #F5A623;
+    --sdRed: #CC2222;
+    --sdGreen: #3CB96A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--sdBgColor); color: var(--sdColor); font-family: system-ui, -apple-system, sans-serif; font-size: 13px; padding: 12px; }
+  .section { background: #1C1C1C; border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+  .section-title { font-size: 10px; font-weight: 700; color: var(--sdAccent); letter-spacing: 3px; margin-bottom: 10px; text-transform: uppercase; }
+  label { display: block; font-size: 11px; color: var(--sdDimColor); margin-bottom: 4px; margin-top: 10px; letter-spacing: 1px; }
+  label:first-of-type { margin-top: 0; }
+  select, input[type=text] {
+    width: 100%; background: #3C3C3C; border: 1px solid #555; color: var(--sdColor);
+    padding: 7px 10px; border-radius: 5px; font-size: 13px; outline: none;
+    transition: border-color .15s;
+  }
+  select:focus, input[type=text]:focus { border-color: var(--sdAccent); }
+  .hint { font-size: 10px; color: var(--sdDimColor); margin-top: 5px; letter-spacing: 0.5px; line-height: 1.4; }
+  .pi-base-row { display: flex; gap: 6px; align-items: center; }
+  .pi-base-row input { flex: 1; }
+  .btn-test { background: #3C3C3C; border: 1px solid var(--sdAccent); color: var(--sdAccent); padding: 6px 14px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; transition: background .15s; }
+  .btn-test:hover { background: #4A4A2A; }
+  .status { font-size: 10px; color: var(--sdDimColor); margin-top: 8px; text-align: center; }
+  .status.ok  { color: var(--sdGreen); }
+  .status.err { color: var(--sdRed); }
+</style>
+</head>
+<body>
+
+<div class="section" id="section-pi">
+  <div class="section-title">Pi Connection</div>
+  <label>Pi Address</label>
+  <div class="pi-base-row">
+    <input type="text" id="piBase" placeholder="http://musicman.local">
+    <button class="btn-test" onclick="testConnection()">TEST</button>
+  </div>
+  <div class="hint">Default: http://musicman.local — change only if on a different network.</div>
+  <div class="status" id="conn-status"></div>
+</div>
+
+<!-- ACTION-SPECIFIC SECTIONS -->
+<div class="section" id="section-walkup" style="display:none">
+  <div class="section-title">Circle Walk-Up</div>
+  <label>Circle</label>
+  <select id="circle_id">
+    <option value="">Loading…</option>
+  </select>
+  <div class="hint">Press the button to fire this circle's walk-up music and lighting.</div>
+</div>
+
+<div class="section" id="section-sfx" style="display:none">
+  <div class="section-title">Sound Effect</div>
+  <label>Sound</label>
+  <select id="sfx_name">
+    <option value="">Loading…</option>
+  </select>
+  <div class="hint">Plays instantly when pressed. Upload sounds in the Admin panel.</div>
+</div>
+
+<div class="section" id="section-scene" style="display:none">
+  <div class="section-title">Lighting Scene</div>
+  <label>Scene</label>
+  <select id="scene_id">
+    <option value="">Loading…</option>
+  </select>
+  <div class="hint">Button highlights while this scene is active.</div>
+</div>
+
+<div class="section" id="section-macro" style="display:none">
+  <div class="section-title">Macro</div>
+  <label>Macro</label>
+  <select id="macro_id">
+    <option value="">Loading…</option>
+  </select>
+  <div class="hint">Runs all steps in sequence when pressed.</div>
+</div>
+
+<div class="section" id="section-transport" style="display:none">
+  <div class="section-title">Transport / Timer</div>
+  <label>Command</label>
+  <select id="command">
+    <option value="stop">⏹ Stop Audio</option>
+    <option value="fade">🎵 Fade Out</option>
+    <option value="pause">⏸ Pause / Resume</option>
+    <option value="timer_toggle">⏱ Timer Start / Pause</option>
+    <option value="timer_reset">↺ Reset Timer</option>
+    <option value="kill">💀 Kill Everything</option>
+  </select>
+  <div class="hint">Pause/Resume and Timer toggle will flip state on each press.</div>
+</div>
+
+<script>
+const sdPI = window.connectElgatoStreamDeckSocket
+  ? window.connectElgatoStreamDeckSocket
+  : null;
+
+// Stream Deck PI SDK globals
+let sdWebSocket = null;
+let actionUUID  = '';
+let context     = '';
+let settings    = {};
+let piData      = { circles:[], scenes:[], macros:[], sfxList:[] };
+
+// Called by Stream Deck app automatically
+function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
+  context    = inActionInfo ? JSON.parse(inActionInfo).context : '';
+  actionUUID = inActionInfo ? JSON.parse(inActionInfo).action  : '';
+  settings   = (inActionInfo ? JSON.parse(inActionInfo).payload?.settings : null) || {};
+
+  sdWebSocket = new WebSocket('ws://localhost:' + inPort);
+
+  sdWebSocket.onopen = () => {
+    sdWebSocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
+    // Request current settings
+    sdWebSocket.send(JSON.stringify({ event: 'getSettings', context }));
+    // Request Pi data from plugin
+    sendToPlugin({ event: 'requestData' });
+    showActionSection();
+    populateForm();
+  };
+
+  sdWebSocket.onmessage = ({ data }) => {
+    const msg = JSON.parse(data);
+    if (msg.event === 'didReceiveSettings') {
+      settings = msg.payload?.settings || {};
+      populateForm();
+    }
+    if (msg.event === 'sendToPropertyInspector') {
+      const payload = msg.payload;
+      if (payload.circles) { piData = payload; buildDropdowns(); populateForm(); }
+    }
+  };
+}
+
+function sendToPlugin(payload) {
+  if (!sdWebSocket) return;
+  sdWebSocket.send(JSON.stringify({ event: 'sendToPlugin', action: actionUUID, context, payload }));
+}
+
+function saveSettings(extra) {
+  const s = Object.assign({}, settings, extra);
+  if (!sdWebSocket) return;
+  sdWebSocket.send(JSON.stringify({ event: 'setSettings', context, payload: s }));
+  settings = s;
+}
+
+function showActionSection() {
+  document.querySelectorAll('[id^="section-"]').forEach(el => {
+    if (el.id === 'section-pi') return;
+    el.style.display = 'none';
+  });
+  if (actionUUID.includes('walkup'))    document.getElementById('section-walkup').style.display    = '';
+  else if (actionUUID.includes('sfx'))  document.getElementById('section-sfx').style.display      = '';
+  else if (actionUUID.includes('scene'))document.getElementById('section-scene').style.display     = '';
+  else if (actionUUID.includes('macro'))document.getElementById('section-macro').style.display     = '';
+  else if (actionUUID.includes('transport')) document.getElementById('section-transport').style.display = '';
+}
+
+function buildDropdowns() {
+  // Circles
+  const cSel = document.getElementById('circle_id');
+  cSel.innerHTML = '<option value="">— Select circle —</option>' +
+    piData.circles.map(c => `<option value="${c.id}">${c.number ? c.number + '. ' : ''}${c.name}</option>`).join('');
+
+  // SFX
+  const sSel = document.getElementById('sfx_name');
+  sSel.innerHTML = '<option value="">— Select sound —</option>' +
+    piData.sfxList.map(f => `<option value="${f}">${f.replace(/_/g,' ')}</option>`).join('');
+
+  // Scenes
+  const scSel = document.getElementById('scene_id');
+  scSel.innerHTML = '<option value="">— Select scene —</option>' +
+    piData.scenes.map(s => `<option value="${s.id}">${s.icon||''} ${s.name}</option>`).join('');
+
+  // Macros
+  const mSel = document.getElementById('macro_id');
+  mSel.innerHTML = '<option value="">— Select macro —</option>' +
+    piData.macros.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+}
+
+function populateForm() {
+  const pib = document.getElementById('piBase');
+  pib.value = settings.piBase || '';
+
+  const selCircle = document.getElementById('circle_id');
+  if (settings.circle_id && selCircle.querySelector(`[value="${settings.circle_id}"]`))
+    selCircle.value = settings.circle_id;
+
+  const selSfx = document.getElementById('sfx_name');
+  if (settings.sfx_name && selSfx.querySelector(`[value="${settings.sfx_name}"]`))
+    selSfx.value = settings.sfx_name;
+
+  const selScene = document.getElementById('scene_id');
+  if (settings.scene_id && selScene.querySelector(`[value="${settings.scene_id}"]`))
+    selScene.value = settings.scene_id;
+
+  const selMacro = document.getElementById('macro_id');
+  if (settings.macro_id && selMacro.querySelector(`[value="${settings.macro_id}"]`))
+    selMacro.value = settings.macro_id;
+
+  const selCmd = document.getElementById('command');
+  if (settings.command) selCmd.value = settings.command;
+}
+
+// Auto-save on any change
+document.getElementById('piBase').addEventListener('change', e => {
+  saveSettings({ piBase: e.target.value });
+  sendToPlugin({ event: 'setPiBase', value: e.target.value });
+});
+document.getElementById('circle_id').addEventListener('change', e => saveSettings({ circle_id: e.target.value }));
+document.getElementById('sfx_name').addEventListener('change',  e => saveSettings({ sfx_name:  e.target.value }));
+document.getElementById('scene_id').addEventListener('change',  e => saveSettings({ scene_id:  e.target.value }));
+document.getElementById('macro_id').addEventListener('change',  e => saveSettings({ macro_id:  e.target.value }));
+document.getElementById('command').addEventListener('change',   e => saveSettings({ command:   e.target.value }));
+
+function testConnection() {
+  const base = document.getElementById('piBase').value || 'http://musicman.local';
+  const status = document.getElementById('conn-status');
+  status.textContent = 'Testing…';
+  status.className = 'status';
+  fetch(base + '/api/state')
+    .then(r => r.json())
+    .then(d => {
+      status.textContent = '✓ Connected — ' + (d.system?.expedition || 'Music Man');
+      status.className = 'status ok';
+    })
+    .catch(() => {
+      status.textContent = '✕ Cannot reach Pi — check address and network';
+      status.className = 'status err';
+    });
+}
+</script>
+</body>
+</html>

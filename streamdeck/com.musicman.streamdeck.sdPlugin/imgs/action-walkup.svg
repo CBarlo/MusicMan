@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72">
+  <rect width="72" height="72" rx="8" fill="#2B5FA6" fill-opacity="0.25"/>
+  <rect x="1" y="1" width="70" height="70" rx="7" fill="none" stroke="#2B5FA6" stroke-width="2"/>
+  <text x="36" y="30" text-anchor="middle" font-size="22" font-family="Apple Color Emoji,sans-serif">⬡</text>
+  <text x="36" y="52" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="9" fill="#2B5FA6" letter-spacing="1">WALK-UP</text>
+</svg>

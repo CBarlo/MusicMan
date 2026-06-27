@@ -1,0 +1,77 @@
+{
+  "Name": "Music Man",
+  "Version": "1.0.0",
+  "Author": "Broken Arrow Expedition",
+  "Description": "Control the Music Man campfire show system from your Stream Deck.",
+  "Category": "Music Man",
+  "CategoryIcon": "imgs/category",
+  "CodePath": "plugin.js",
+  "Icon": "imgs/plugin-icon",
+  "URL": "http://musicman.local",
+  "SDKVersion": 2,
+  "Software": { "MinimumVersion": "6.0" },
+  "OS": [
+    { "Platform": "mac",     "MinimumVersion": "10.15" },
+    { "Platform": "windows", "MinimumVersion": "10" }
+  ],
+  "Actions": [
+    {
+      "Name": "Circle Walk-Up",
+      "UUID": "com.musicman.streamdeck.walkup",
+      "Icon": "imgs/action-walkup",
+      "Tooltip": "Fire a circle's walk-up music and lighting",
+      "SupportedInMultiActions": true,
+      "PropertyInspectorPath": "property_inspector/index.html",
+      "States": [
+        { "Image": "imgs/action-walkup", "Name": "Idle" },
+        { "Image": "imgs/action-walkup-active", "Name": "Playing" }
+      ]
+    },
+    {
+      "Name": "Sound Effect",
+      "UUID": "com.musicman.streamdeck.sfx",
+      "Icon": "imgs/action-sfx",
+      "Tooltip": "Play a sound effect",
+      "SupportedInMultiActions": true,
+      "PropertyInspectorPath": "property_inspector/index.html",
+      "States": [
+        { "Image": "imgs/action-sfx", "Name": "Ready" }
+      ]
+    },
+    {
+      "Name": "Lighting Scene",
+      "UUID": "com.musicman.streamdeck.scene",
+      "Icon": "imgs/action-scene",
+      "Tooltip": "Activate a lighting scene",
+      "SupportedInMultiActions": true,
+      "PropertyInspectorPath": "property_inspector/index.html",
+      "States": [
+        { "Image": "imgs/action-scene",        "Name": "Idle"   },
+        { "Image": "imgs/action-scene-active", "Name": "Active" }
+      ]
+    },
+    {
+      "Name": "Macro",
+      "UUID": "com.musicman.streamdeck.macro",
+      "Icon": "imgs/action-macro",
+      "Tooltip": "Run a show macro",
+      "SupportedInMultiActions": true,
+      "PropertyInspectorPath": "property_inspector/index.html",
+      "States": [
+        { "Image": "imgs/action-macro", "Name": "Ready" }
+      ]
+    },
+    {
+      "Name": "Transport / Timer",
+      "UUID": "com.musicman.streamdeck.transport",
+      "Icon": "imgs/action-transport",
+      "Tooltip": "Stop, fade, pause, or control the timer",
+      "SupportedInMultiActions": true,
+      "PropertyInspectorPath": "property_inspector/index.html",
+      "States": [
+        { "Image": "imgs/action-transport",        "Name": "Default" },
+        { "Image": "imgs/action-transport-active", "Name": "Active"  }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "com.musicman.streamdeck",
+  "version": "1.0.0",
+  "description": "Music Man Stream Deck Plugin",
+  "main": "plugin.js",
+  "scripts": {
+    "install-plugin": "node install.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

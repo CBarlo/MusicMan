@@ -1,0 +1,17 @@
+[Unit]
+Description=Music Man Stream Deck Controller
+After=musicman.service
+Wants=musicman.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/musicman
+ExecStart=/home/pi/musicman/venv/bin/python3 -u /home/pi/musicman/streamdeck.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/pi/musicman/logs/streamdeck.log
+StandardError=append:/home/pi/musicman/logs/streamdeck.log
+
+[Install]
+WantedBy=multi-user.target

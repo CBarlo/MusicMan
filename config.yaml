@@ -1,0 +1,701 @@
+audio:
+  default_volume: 80
+  fade_duration: 4
+  playlist_volume: 70
+  preload_all: false
+  sfx_volume: 90
+  walkup_fade: 3
+battery_units:
+- address: F4:9D:8A:81:02:40
+  label: A
+circles:
+- active: true
+  assets:
+    animation: walkup.mp4
+    animation_intro: walkup_intro.mp4
+    animation_style: spin_slam
+    logo: logo.png
+    walkup_music: walkup.mp3
+  color: '#008fff'
+  color2: '#000000'
+  deck:
+    color: '#2B5FA6'
+    label: CIRCLE 1
+    page: 1
+    slot: 1
+  id: circle_1
+  name: Mighty Creek
+  number: 1
+  walkup:
+    duration: 30
+    fade_duration: 3
+    hide_name: true
+    stage_scene: stage_scene
+    start_time: 2
+    volume_trim: 100
+    walkup_scene: mightycreek_lights
+- active: true
+  assets:
+    animation_style: spin_slam
+    logo: logo.png
+    walkup_music: walkup.mp3
+  color: '#cc2222'
+  color2: '#ffffff'
+  deck:
+    color: '#CC2222'
+    label: CIRCLE 2
+    page: 1
+    slot: 2
+  id: circle_2
+  name: Buccaneers
+  number: 2
+  walkup:
+    duration: 30
+    fade_duration: 3
+    stage_scene: stage_scene
+    start_time: 3
+    volume_trim: 100
+    walkup_scene: null
+- active: true
+  assets:
+    animation_style: spin_slam
+    logo: logo.png
+  color: '#18355f'
+  color2: '#ffffff'
+  deck:
+    color: '#3CB96A'
+    label: CIRCLE 3
+    page: 1
+    slot: 3
+  id: circle_3
+  name: Blue Hawks
+  number: 3
+  walkup:
+    duration: 30
+    fade_duration: 3
+    stage_scene: null
+    start_time: 0
+    volume_trim: 100
+    walkup_scene: null
+- active: true
+  assets:
+    animation: ''
+    animation_style: spin_slam
+    logo: logo.png
+    walkup_music: ''
+  color: '#f5b558'
+  color2: '#2b5fa6'
+  deck:
+    color: '#F5A623'
+    label: CIRCLE 4
+    page: 1
+    slot: 4
+  id: circle_4
+  name: Rough Riders
+  number: 4
+  walkup:
+    duration: 30
+    fade_duration: 3
+    stage_scene: null
+    start_time: 0
+    volume_trim: 100
+    walkup_scene: null
+- active: true
+  assets:
+    animation: ''
+    animation_style: color_burst
+    logo: logo.png
+    walkup_music: ''
+  color: '#cc2222'
+  deck:
+    color: '#8B44CC'
+    label: CIRCLE 5
+    page: 1
+    slot: 5
+  id: circle_5
+  name: Outlaws
+  number: 5
+  walkup:
+    duration: 30
+    fade_duration: 3
+    start_time: 0
+- active: true
+  assets:
+    animation: ''
+    animation_style: spin_slam
+    logo: logo.png
+    walkup_music: ''
+  color: '#ff9100'
+  deck:
+    color: '#C4610A'
+    label: CIRCLE 6
+    page: 1
+    slot: 6
+  id: circle_6
+  name: Vikings
+  number: 6
+  walkup:
+    duration: 30
+    fade_duration: 3
+    start_time: 0
+- active: true
+  assets:
+    animation: ''
+    animation_style: spin_slam
+    logo: ''
+    walkup_music: ''
+  color: '#8899AA'
+  deck:
+    color: '#8899AA'
+    label: CIRCLE 7
+    page: 1
+    slot: 7
+  id: circle_7
+  name: Circle 7
+  number: 7
+  walkup:
+    duration: 30
+    fade_duration: 3
+    start_time: 0
+- active: true
+  assets:
+    animation: ''
+    animation_style: spin_slam
+    logo: ''
+    walkup_music: ''
+  color: '#445566'
+  deck:
+    color: '#445566'
+    label: CIRCLE 8
+    page: 1
+    slot: 8
+  id: circle_8
+  name: Circle 8
+  number: 8
+  walkup:
+    duration: 30
+    fade_duration: 3
+    start_time: 0
+- active: true
+  assets:
+    animation: ''
+    animation_style: spin_slam
+    logo: ''
+    walkup_music: ''
+  color: '#CCC8C0'
+  deck:
+    color: '#CCC8C0'
+    label: CIRCLE 9
+    page: 1
+    slot: 9
+  id: circle_9
+  name: Circle 9
+  number: 9
+  walkup:
+    duration: 30
+    fade_duration: 3
+    start_time: 0
+display:
+  logo: default.png
+  logo_size: 90
+  subtitle: Adventure Guides
+  title: Broken Arrow
+expedition:
+  logo: broken_arrow_logo.png
+  name: Broken Arrow Expedition
+  season: 2025-2026
+  tagline: Pals Forever · Adventure Guides
+macros:
+- desc: Before Campfire starts, mingling, light music
+  display_image: display_image.png
+  id: Preshow
+  name: Preshow
+  steps:
+  - action: scene
+    scene: scene_1782163093201
+  - action: play_playlist
+    path: /media/usb0/Funk
+    shuffle: true
+  - action: display_anim
+    duration: 0
+    file: Welcome Campfire.mov
+    loop: true
+- desc: Opening campfire with Cheer Director
+  display_image: display_image.png
+  id: welcome
+  name: Welcome
+  steps:
+  - action: walkup_role
+    role_id: role_1781504256355
+- desc: Runs Mighty Creek's walkup and turns the stage lights on for a skit.
+  hold_display: true
+  id: skit_mightycreek
+  name: Skit - Mighty Creek
+  steps:
+  - action: walkup_circle
+    circle_id: circle_1
+  - action: setup_skit_timer
+    preset: Skit Timer
+- desc: Shows the flag
+  display_image: display_image.png
+  id: pledge_flag
+  name: Pledge
+  steps:
+  - action: scene
+    scene: stage_scene
+- desc: ''
+  id: logkeepers
+  name: Log Keepers
+  steps:
+  - action: walkup_role
+    role_id: role_1781462360286
+- desc: Between Show Items
+  display_image: display_image.png
+  id: interlude
+  name: Interlude
+  steps:
+  - action: scene
+    scene: stage_scene
+- desc: ''
+  id: firestarter
+  name: Firestarter
+  steps:
+  - action: walkup_role
+    role_id: role_1781460705109
+- desc: ''
+  id: candy
+  name: Candy
+  steps:
+  - action: walkup_role
+    role_id: role_1781460717281
+- desc: ''
+  id: wizard
+  name: Wizard
+  steps:
+  - action: walkup_role
+    role_id: role_1781544189272
+- desc: ''
+  id: skit_bluehawks
+  name: Skit - Blue Hawks
+  steps:
+  - action: walkup_circle
+    circle_id: circle_3
+  - action: scene
+    scene: stage_scene
+- desc: Music and lights for Tony Pepperoni
+  id: macro_1781588459007
+  name: Tony Pepperoni
+  steps:
+  - action: scene
+    scene: scene_1781588567468
+  - action: music
+    file: Italian Tarantella.wav
+    loop: false
+  - action: display_anim
+    duration: 0
+    file: Tony Pepperoni Intro.mov
+  - action: wait
+    seconds: 30
+  - action: scene
+    scene: stage_scene
+  - action: audio_fade
+    duration: 3
+- desc: Oh shit.
+  display_image: display_image.png
+  id: macro_1782024642418
+  name: Technical Difficulties
+  steps:
+  - action: music
+    file: Bossa Nova Elevator Music.mp3
+    loop: true
+- desc: ''
+  id: macro_1782108375821
+  name: Story Tellers
+  steps:
+  - action: walkup_role
+    role_id: role_1782105716734
+- desc: ''
+  id: macro_1782195933274
+  name: Campfire Directors
+  steps:
+  - action: walkup_role
+    role_id: role_1782191537383
+- desc: ''
+  id: macro_1782196005664
+  name: Cheer Director
+  steps:
+  - action: walkup_role
+    role_id: role_1781504256355
+- desc: ''
+  id: macro_1782196245897
+  name: Campfire Opening
+  steps:
+  - action: walkup_role
+    role_id: role_1781460682946
+- desc: ''
+  id: macro_1782196367594
+  name: Opening Prayer
+  steps:
+  - action: walkup_role
+    role_id: role_1782196275364
+- desc: ''
+  id: macro_1782196526862
+  name: Closing Remarks
+  steps:
+  - action: walkup_role
+    role_id: role_1781460682946
+  - action: scene
+    scene: stage_scene
+- desc: ''
+  id: macro_1782196580188
+  name: Closing Prayer
+  steps:
+  - action: scene
+    scene: scene_1782163093201
+- desc: ''
+  id: macro_1782196709060
+  name: Games
+  steps:
+  - action: scene
+    scene: stage_scene
+  - action: display_image
+    duration: 0
+    file: default.png
+  - action: setup_skit_timer
+    preset: 2 Minute Timer
+- desc: ''
+  id: macro_1782196888035
+  name: End of Show
+  steps:
+  - action: scene
+    scene: scene_1782196867139
+  - action: display_image
+    duration: 0
+    file: default.png
+- desc: ''
+  id: macro_1782198538184
+  name: Fire Fire Fire
+  steps:
+  - action: display_anim
+    duration: 0
+    file: Fire Fire Fire.mov
+    loop: true
+  - action: scene
+    scene: campfire
+- desc: Runs Bucc's walkup and turns the stage lights on for a skit.
+  id: macro_1782241752397
+  name: Skit - Buccaneers
+  steps:
+  - action: walkup_circle
+    circle_id: circle_2
+  - action: setup_skit_timer
+    preset: Skit Timer
+moving_heads: []
+paths:
+  assets: /home/pi/musicman/assets
+  circles: /home/pi/musicman/assets/circles
+  logs: /home/pi/musicman/logs
+  music: /home/pi/musicman/assets/music
+  roles: /home/pi/musicman/assets/roles
+  sfx: /home/pi/musicman/assets/sfx
+playlist:
+  files: []
+  loop: true
+  shuffle: true
+  volume: 70
+roles:
+- assets:
+    logo: logo.png
+    walkup_music: walkup.mp3
+  color: '#3cb96a'
+  id: role_1781460682946
+  name: Expedition Navigators
+  walkup:
+    duration: 25
+    fade_duration: 3
+    stage_scene: stage_scene
+    start_time: 0
+    walkup_scene: null
+- assets:
+    animation_intro: walkup_intro.mp4
+    walkup_music_lib: Firestarter-Sample.mp3
+  color: '#ff4400'
+  color2: '#000000'
+  id: role_1781460705109
+  name: Firestarters
+  walkup:
+    duration: 25
+    fade_duration: 3
+    hide_name: true
+    stage_scene: stage_scene
+    start_time: 20
+    volume_trim: 150
+    walkup_scene: scene_1782097648866
+- color: '#00cccc'
+  id: role_1781460717281
+  name: Candyman
+  walkup:
+    duration: 25
+    fade_duration: 3
+    stage_scene: stage_scene
+    start_time: 0
+    walkup_scene: null
+- color: '#8899aa'
+  id: role_1781462360286
+  name: Log Keepers
+  walkup:
+    duration: 25
+    fade_duration: 3
+    stage_scene: stage_scene
+    start_time: 0
+    walkup_scene: null
+- assets:
+    animation_intro: walkup_intro.mp4
+    walkup_music: walkup.mp3
+  color: '#c4610a'
+  color2: '#000000'
+  id: role_1781504256355
+  name: Cheer Directors
+  walkup:
+    duration: 25
+    fade_duration: 3
+    hide_name: true
+    stage_scene: stage_scene
+    start_time: 28
+    volume_trim: 100
+    walkup_scene: scene_1782163093201
+- assets:
+    animation_intro: walkup_intro.mp4
+    walkup_music: walkup.mp3
+  color: '#445566'
+  color2: '#000000'
+  id: role_1781544189272
+  name: Wizards
+  walkup:
+    duration: 25
+    fade_duration: 3
+    hide_name: true
+    stage_scene: stage_scene
+    start_time: 20
+    volume_trim: 25
+    walkup_scene: scene_1782104667305
+- assets:
+    animation_intro: walkup_intro.mp4
+    walkup_music: walkup.mp3
+  color: '#00cccc'
+  color2: '#ff4400'
+  id: role_1782105716734
+  name: Storyteller
+  walkup:
+    duration: 25
+    fade_duration: 3
+    hide_name: true
+    stage_scene: stage_scene
+    start_time: 0
+    volume_trim: 50
+    walkup_scene: null
+- assets:
+    animation_intro: walkup_intro.mp4
+    walkup_music: walkup.mp3
+  color: '#c4610a'
+  color2: '#e91e8c'
+  id: role_1782191537383
+  name: Campfire DIrectors
+  walkup:
+    duration: 25
+    fade_duration: 3
+    hide_name: true
+    stage_scene: stage_scene
+    start_time: 10
+    volume_trim: 100
+    walkup_scene: null
+- color: '#ccc8c0'
+  color2: '#000000'
+  id: role_1782196275364
+  name: Expedition CB's
+  walkup:
+    duration: 25
+    fade_duration: 3
+    hide_name: false
+    stage_scene: null
+    start_time: 0
+    volume_trim: 100
+    walkup_scene: null
+scenes:
+- desc: Warm fire tones
+  icon: 🔥
+  id: campfire
+  name: Campfire
+  zones: {}
+- desc: Starting a candy-based riot
+  icon: 🍬
+  id: candyman
+  name: Candyman
+  zones: {}
+- desc: Default Stage Scene
+  icon: 🎤
+  id: stage_scene
+  name: Stage
+  zones: {}
+- desc: ''
+  icon: 🚣
+  id: mightycreek_lights
+  name: Mighty Creek
+  zones: {}
+- desc: Red, green and white
+  icon: 🇮🇹
+  id: scene_1781588567468
+  name: Tony Pepperoni
+  zones: {}
+- desc: ''
+  icon: 🔥
+  id: scene_1782097648866
+  name: Firestarter
+  zones: {}
+- desc: ''
+  icon: 🧙‍♂
+  id: scene_1782104667305
+  name: Wizards
+  zones: {}
+- desc: ''
+  icon: ✦
+  id: scene_1782163093201
+  name: Welcome All On
+  zones: {}
+- desc: Lights up the whole place
+  icon: ✦
+  id: scene_1782196867139
+  name: Everything On
+  zones: {}
+sfx: []
+show_flow:
+- color: '#f5a623'
+  id: sf_1781466071260
+  macro_id: Preshow
+  name: Preshow
+- color: '#c4610a'
+  id: sf_1781466074733
+  macro_id: macro_1782195933274
+  name: Welcome - Campfire Directors
+- color: '#3cb96a'
+  id: sf_1782196148344
+  macro_id: macro_1782196005664
+  name: Hype! - Cheer Director
+- color: '#c4610a'
+  id: sf_1782198742412
+  macro_id: macro_1782196245897
+  name: Campfire Opening
+- color: '#3cb96a'
+  id: sf_1782198783036
+  macro_id: macro_1782196367594
+  name: Opening Prayer
+- color: '#cc2222'
+  id: sf_1781466077490
+  macro_id: pledge_flag
+  name: Pledge
+- color: '#f55955'
+  id: sf_1781544130895
+  macro_id: firestarter
+  name: Firestarter
+- color: '#cc2222'
+  id: sf_1782198598108
+  macro_id: macro_1782198538184
+  name: Fire! Fire! Fire!
+- color: '#8b44cc'
+  id: sf_1781543867321
+  macro_id: interlude
+  name: Interlude
+- color: '#c4610a'
+  id: sf_1781543708306
+  macro_id: logkeepers
+  name: Roll Call - Log Keepers
+- color: '#2b5fa6'
+  id: sf_1781503693307
+  macro_id: skit_mightycreek
+  name: Mighty Creek Skit
+- color: '#3cb96a'
+  id: sf_1782108435988
+  macro_id: macro_1782108375821
+  name: Story Tellers
+- color: '#8b44cc'
+  id: sf_1781543880923
+  macro_id: interlude
+  name: Interlude
+- color: '#eeeeee'
+  desc: ''
+  id: sf_1782196764296
+  macro_id: macro_1782196709060
+  name: Games
+- color: '#0fe5f5'
+  id: sf_1781544259329
+  macro_id: wizard
+  name: Wizard
+- color: '#eeeeee'
+  id: sf_1781544158287
+  macro_id: candy
+  name: Candyman
+- color: '#cc2222'
+  id: sf_1782196835611
+  macro_id: macro_1782196526862
+  name: Closing Remarks - Expedition Nav
+- color: '#3cb96a'
+  id: sf_1782196853288
+  macro_id: macro_1782196580188
+  name: Closing Prayer - Expedition CB's
+- color: '#8b44cc'
+  id: sf_1782196959796
+  macro_id: macro_1782196888035
+  name: End of the Show
+skit_timer_presets:
+  2 Minute Timer:
+    duration: 120
+    end_display: TimesUp.png
+    end_scene: ''
+    end_sound: Air Horn.mp3
+    show_on_display: true
+    start_sound: Stopwatch.mp3
+    start_sound_duration: 6.0
+    start_sound_fade: 3.0
+    start_sound_start: 0.0
+    warning_at: 15
+    warning_display: ''
+    warning_scene: ''
+    warning_sound: Mario Warning.wav
+  Skit Timer:
+    duration: 180
+    end_display: TimesUp.png
+    end_scene: ''
+    end_sound: Air Horn.mp3
+    show_on_display: true
+    start_sound: Stopwatch.mp3
+    start_sound_duration: 6.0
+    start_sound_fade: 3.0
+    start_sound_start: 0.0
+    warning_at: 15
+    warning_display: ''
+    warning_scene: ''
+    warning_sound: Mario Warning.wav
+slides: []
+system:
+  audio_device: default
+  debug: false
+  display_enabled: false
+  hostname: musicman
+  log_level: info
+  port: 80
+timer:
+  active_preset: Skit Timer
+  duration: 180
+  end_display: TimesUp.png
+  end_scene: ''
+  end_sound: Air Horn.mp3
+  show_on_display: true
+  start_sound: Stopwatch.mp3
+  start_sound_duration: 6.0
+  start_sound_fade: 3.0
+  start_sound_start: 0.0
+  warning_at: 15
+  warning_display: ''
+  warning_scene: ''
+  warning_sound: Mario Warning.wav
+wled_devices: []

@@ -1,0 +1,19 @@
+[Unit]
+Description=Music Man Console — Broken Arrow Expedition
+After=network.target sound.target avahi-daemon.service
+Wants=avahi-daemon.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/musicman
+ExecStart=/home/pi/musicman/venv/bin/gunicorn musicman:app     --bind 0.0.0.0:80     --workers 1     --threads 32     --worker-class gthread     --timeout 30     --keep-alive 5     --log-level info     --access-logfile /home/pi/musicman/logs/access.log     --error-logfile /home/pi/musicman/logs/error.log
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/pi/musicman/logs/musicman.log
+StandardError=append:/home/pi/musicman/logs/musicman.log
+
+# Watchdog — restart if service hangs
+
+[Install]
+WantedBy=multi-user.target

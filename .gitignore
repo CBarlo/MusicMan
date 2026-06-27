@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+venv/
+logs/
+*.bak
+*.corrupt
+*.zip
+*.mov
+*.mp4
+*.mp3
+*.wav
+good vibes only*/
+.DS_Store
+.claude/
