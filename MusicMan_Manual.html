@@ -277,8 +277,7 @@
     <ul>
       <li><a href="#physical-connections">Physical connections</a></li>
       <li><a href="#connecting">Connecting to the system</a></li>
-      <li><a href="#usb-file-layout">USB drive file layout</a></li>
-      <li><a href="#swapping-usb">Swapping USB drives</a></li>
+      <li><a href="#usb-file-layout">USB drive (playlist)</a></li>
     </ul>
   </div>
 
@@ -492,36 +491,20 @@
     you may need to refresh the Admin → Circles or Roles page.
   </div>
 
-  <h2 id="usb-file-layout">USB Drive File Layout</h2>
+  <h2 id="usb-file-layout">USB Drive</h2>
   <p>
-    The Pi reads media from a USB drive. The drive can contain any folder structure —
-    MusicMan scans the whole drive — but the app's own <strong>local asset folders</strong>
-    on the Pi itself use this structure:
+    The USB drive is optional. It's used for the <strong>USB Playlist</strong> tab in the console,
+    which lets you browse and play music folders directly from the drive — no configuration needed.
+    Any folder structure works; MusicMan scans the whole drive automatically.
   </p>
-  <table>
-    <tr><th>Folder</th><th>Contents</th></tr>
-    <tr><td><span class="mono">assets/music/</span></td><td>Walk-up and background music tracks (.mp3, .wav)</td></tr>
-    <tr><td><span class="mono">assets/sfx/</span></td><td>Sound effects (.wav, .mp3)</td></tr>
-    <tr><td><span class="mono">assets/circles/</span></td><td>Circle-specific walk-up audio</td></tr>
-    <tr><td><span class="mono">assets/roles/</span></td><td>Role-specific walk-up audio (Chief, etc.)</td></tr>
-    <tr><td><span class="mono">assets/display/</span></td><td>Images shown on the HDMI display</td></tr>
-  </table>
   <p>
-    Music on the USB drive (any subfolder) also appears in the Music tab of the console,
-    so you can play anything on the drive without copying it to the Pi first.
+    All other assets (walk-up audio, SFX, display images, etc.) are stored on the Pi itself
+    and managed through the Admin panel — not on the USB drive.
   </p>
-
-  <h2 id="swapping-usb">Swapping USB Drives</h2>
-  <p>If you get a new USB drive and want to move everything over:</p>
-  <ol class="steps">
-    <li>Copy all folders and files from the old drive to the new drive, keeping the same folder structure.</li>
-    <li>Eject the old drive from the Pi, plug in the new one.</li>
-    <li>The system automatically detects it. No configuration change needed.</li>
-  </ol>
-
   <div class="callout callout-tip">
-    <div class="callout-title">Tip — drive label doesn't matter</div>
-    The app finds USB drives by scanning the mount point, not by name. So the new drive can have any volume label.
+    <div class="callout-title">Tip — no setup required</div>
+    Plug in any USB drive with music folders, go to the <span class="tab">USB</span> tab in the console,
+    tap <kbd>↺ SCAN</kbd>, and play. The drive label and folder names don't matter.
   </div>
 </div>
 
