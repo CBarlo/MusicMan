@@ -961,7 +961,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             <label class="field-label">SOUND</label>
             <select id="t-start-sound" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px"></select>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
             <div>
               <label class="field-label">START (SEC)</label>
               <input id="t-start-start" type="number" class="text-input" style="width:100%" min="0" value="0" placeholder="0">
@@ -974,6 +974,12 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <label class="field-label">FADE OUT (SEC)</label>
               <input id="t-start-fade" type="number" class="text-input" style="width:100%" min="0" value="3" placeholder="3">
             </div>
+          </div>
+          <div style="margin-bottom:16px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;user-select:none">
+              <input id="t-start-loop" type="checkbox" checked>
+              LOOP — uncheck to play once (good for bells, stingers, or songs that should run through and stop)
+            </label>
           </div>
 
           <div class="section-divider"></div>
@@ -3460,6 +3466,7 @@ async function loadTimerConfig() {
   document.getElementById('t-start-start').value    = t.start_sound_start    ?? 0;
   document.getElementById('t-start-duration').value = t.start_sound_duration ?? 0;
   document.getElementById('t-start-fade').value     = t.start_sound_fade     ?? 3;
+  document.getElementById('t-start-loop').checked   = t.start_sound_loop !== false;
 
   // Populate scene dropdowns
   const sceneOpts = ['<option value="">(none)</option>',
@@ -3507,6 +3514,7 @@ async function saveTimerConfig() {
     start_sound_start:    parseFloat(document.getElementById('t-start-start').value)    || 0,
     start_sound_duration: parseFloat(document.getElementById('t-start-duration').value) || 0,
     start_sound_fade:     parseFloat(document.getElementById('t-start-fade').value)     || 0,
+    start_sound_loop:     document.getElementById('t-start-loop').checked,
     warning_sound:    document.getElementById('t-warning-sound').value,
     warning_scene:    document.getElementById('t-warning-scene').value,
     warning_display:  document.getElementById('t-warning-display').value,
@@ -3539,6 +3547,7 @@ async function saveTimerPreset() {
         start_sound_start:    parseFloat(document.getElementById('t-start-start').value) || 0,
         start_sound_duration: parseFloat(document.getElementById('t-start-duration').value) || 0,
         start_sound_fade:     parseFloat(document.getElementById('t-start-fade').value) || 0,
+        start_sound_loop:     document.getElementById('t-start-loop').checked,
         warning_sound:        document.getElementById('t-warning-sound').value,
         warning_scene:        document.getElementById('t-warning-scene').value,
         warning_display:      document.getElementById('t-warning-display').value,

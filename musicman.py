@@ -413,6 +413,7 @@ def _timer_state_from_cfg(cfg):
         'start_sound_start':  t.get('start_sound_start', 0),
         'start_sound_duration': t.get('start_sound_duration', 0),
         'start_sound_fade':   t.get('start_sound_fade', 0),
+        'start_sound_loop':   t.get('start_sound_loop', True),
         'warning_sound':      t.get('warning_sound', ''),
         'warning_scene':      t.get('warning_scene', ''),
         'end_sound':          t.get('end_sound', ''),
@@ -1200,22 +1201,23 @@ def api_timer_start():
                     timer_dur  = timer_state['seconds_remaining']
                     # sound_dur > 0 means play only that many seconds; otherwise full timer length
                     play_dur   = sound_dur if sound_dur > 0 else timer_dur
+                    should_loop = timer_state.get('start_sound_loop', True)
                     _timer_sound_stop.clear()
                     global _timer_sound_looping
                     _timer_sound_looping = True
                     def _timer_sound(sp=start_pos, fade=fade_sec, pdur=play_dur,
-                                     ap=str(audio_path), ev=_timer_sound_stop):
+                                     ap=str(audio_path), ev=_timer_sound_stop,
+                                     loop=should_loop):
                         global _timer_sound_looping
                         stem = Path(ap).stem.replace('_', ' ')
+                        loops_arg = -1 if loop else 0
+                        play_audio(ap, start_pos=sp, loops=loops_arg, crossfade_ms=0)
+                        broadcast('music_track', {'name': stem, 'file': Path(ap).name, 'sub': 'SKIT TIMER'})
                         if fade <= 0:
-                            play_audio(ap, start_pos=sp, loops=0, crossfade_ms=0)
-                            broadcast('music_track', {'name': stem, 'file': Path(ap).name, 'sub': 'SKIT TIMER'})
                             ev.wait(timeout=pdur)
                             if not ev.is_set():
                                 pygame.mixer.music.stop()
                         else:
-                            play_audio(ap, start_pos=sp, loops=-1, crossfade_ms=0)
-                            broadcast('music_track', {'name': stem, 'file': Path(ap).name, 'sub': 'SKIT TIMER'})
                             ev.wait(timeout=max(0.0, pdur - fade))
                             if not ev.is_set():
                                 # Fade inline — fade_audio() can be interrupted by _playlist_advance_id
@@ -1298,6 +1300,9 @@ def api_timer_console_set():
         if key in data:
             t[key] = float(data[key])
             changed = True
+    if 'start_sound_loop' in data:
+        t['start_sound_loop'] = bool(data['start_sound_loop'])
+        changed = True
     if 'show_on_display' in data:
         t['show_on_display'] = bool(data['show_on_display'])
         changed = True
