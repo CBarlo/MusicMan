@@ -194,6 +194,10 @@
         <input type="checkbox" id="timerShowDisplay" style="width:15px;height:15px;cursor:pointer;accent-color:var(--amber)" onchange="timerSetShowDisplay(this.checked)">
         <label for="timerShowDisplay" style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;cursor:pointer">SHOW ON SCREEN</label>
       </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px">
+        <input type="checkbox" id="timerSoundLoop" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--amber)" onchange="timerSetSoundLoop(this.checked)">
+        <label for="timerSoundLoop" style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;cursor:pointer">LOOP START SOUND</label>
+      </div>
     </div>
     <div class="lighting-panel">
       <div class="section-label">LIGHTING SCENES</div>
@@ -916,6 +920,10 @@ function renderTimer() {
 function timerSetShowDisplay(val) {
   fetch('/api/timer/show_on_display', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({show: val})}).catch(()=>{});
+}
+function timerSetSoundLoop(val) {
+  fetch('/api/admin/timer', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({start_sound_loop: val})}).catch(()=>{});
 }
 function resetTimer() {
   clearInterval(timerInterval); timerRunning=false; timerSecs=timerDuration; renderTimer();
@@ -1644,6 +1652,8 @@ function initWebSocket() {
         }
         const chk = document.getElementById('timerShowDisplay');
         if (chk) chk.checked = !!s.timer.show_on_display;
+        const loopChk = document.getElementById('timerSoundLoop');
+        if (loopChk) loopChk.checked = s.timer.start_sound_loop !== false;
       }
       if (s.countdown) {
         if (s.countdown.duration) cdTotal = s.countdown.duration;
@@ -1683,6 +1693,10 @@ function initWebSocket() {
         if (data.show_on_display !== undefined) {
           const chk = document.getElementById('timerShowDisplay');
           if (chk) chk.checked = !!data.show_on_display;
+        }
+        if (data.start_sound_loop !== undefined) {
+          const loopChk = document.getElementById('timerSoundLoop');
+          if (loopChk) loopChk.checked = !!data.start_sound_loop;
         }
         if (data.expired) {
           document.getElementById('timerDisplay').classList.add('expired');
