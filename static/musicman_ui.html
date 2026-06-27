@@ -198,6 +198,13 @@
         <input type="checkbox" id="timerSoundLoop" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--amber)" onchange="timerSetSoundLoop(this.checked)">
         <label for="timerSoundLoop" style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;cursor:pointer">LOOP START SOUND</label>
       </div>
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+        <select id="timerPresetSelect" style="flex:1;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px">
+          <option value="">— presets —</option>
+        </select>
+        <button onclick="consoleLoadPreset()" style="padding:4px 8px;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:4px;font-size:10px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">LOAD</button>
+        <button onclick="consoleSavePreset()" style="padding:4px 8px;background:var(--surface);border:1px solid var(--border);color:var(--amber);border-radius:4px;font-size:10px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">SAVE</button>
+      </div>
     </div>
     <div class="lighting-panel">
       <div class="section-label">LIGHTING SCENES</div>
@@ -924,6 +931,40 @@ function timerSetShowDisplay(val) {
 function timerSetSoundLoop(val) {
   fetch('/api/admin/timer', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({start_sound_loop: val})}).catch(()=>{});
+}
+async function refreshTimerPresetList(selectName) {
+  try {
+    const presets = await fetch('/api/admin/timer/presets').then(r => r.json());
+    const sel = document.getElementById('timerPresetSelect');
+    if (!sel) return;
+    const names = Object.keys(presets);
+    sel.innerHTML = '<option value="">— presets —</option>' +
+      names.map(n => `<option value="${n}">${n}</option>`).join('');
+    if (selectName) sel.value = selectName;
+  } catch(e) {}
+}
+async function consoleLoadPreset() {
+  const name = document.getElementById('timerPresetSelect')?.value;
+  if (!name) return;
+  try {
+    await fetch('/api/timer/preset/load', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+  } catch(e) {}
+}
+async function consoleSavePreset() {
+  const sel = document.getElementById('timerPresetSelect');
+  let name = sel?.value;
+  if (!name) {
+    name = prompt('Save timer as preset — enter name:');
+    if (!name || !name.trim()) return;
+    name = name.trim();
+  }
+  try {
+    const r = await fetch('/api/admin/timer/preset/save', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+    const d = await r.json();
+    if (d.ok) { await refreshTimerPresetList(name); showAlert('✔ Saved: ' + name, 2000); }
+  } catch(e) {}
 }
 function resetTimer() {
   clearInterval(timerInterval); timerRunning=false; timerSecs=timerDuration; renderTimer();
@@ -1654,6 +1695,7 @@ function initWebSocket() {
         if (chk) chk.checked = !!s.timer.show_on_display;
         const loopChk = document.getElementById('timerSoundLoop');
         if (loopChk) loopChk.checked = s.timer.start_sound_loop !== false;
+        refreshTimerPresetList(s.timer.preset_name || s.timer.active_preset || '');
       }
       if (s.countdown) {
         if (s.countdown.duration) cdTotal = s.countdown.duration;
@@ -1899,6 +1941,7 @@ function initWebSocket() {
         if (!timerRunning) { timerSecs = data.duration; renderTimer(); }
         const lbl = document.getElementById('timerSectionLabel');
         if (lbl && !cdRunning) lbl.textContent = timerPresetName;
+        refreshTimerPresetList(data.name);
       }
 
       else if (event === 'timer_warning') {

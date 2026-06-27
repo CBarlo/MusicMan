@@ -2329,9 +2329,9 @@ def api_save_timer_preset():
     # Start from existing timer config, then overlay any values passed directly
     snapshot = {k: v for k, v in cfg.get('timer', {}).items()}
     for key in ('duration', 'warning_at', 'start_sound', 'start_sound_start',
-                'start_sound_duration', 'start_sound_fade', 'warning_sound',
-                'warning_scene', 'warning_display', 'end_sound', 'end_scene',
-                'end_display', 'show_on_display'):
+                'start_sound_duration', 'start_sound_fade', 'start_sound_loop',
+                'warning_sound', 'warning_scene', 'warning_display',
+                'end_sound', 'end_scene', 'end_display', 'show_on_display'):
         if key in data:
             snapshot[key] = data[key]
     if 'duration' in snapshot:
@@ -2351,6 +2351,36 @@ def api_delete_timer_preset():
     cfg['skit_timer_presets'] = presets
     save_config(cfg)
     return jsonify({'ok': True, 'presets': presets})
+
+@app.route('/api/timer/preset/load', methods=['POST'])
+def api_load_timer_preset():
+    name = (request.json or {}).get('name', '').strip()
+    if not name:
+        return jsonify({'ok': False, 'error': 'name required'}), 400
+    cfg = load_config()
+    presets = cfg.get('skit_timer_presets', {})
+    preset = presets.get(name)
+    if not preset:
+        return jsonify({'ok': False, 'error': 'preset not found'}), 404
+    t = cfg.setdefault('timer', {})
+    t.update(preset)
+    t['active_preset'] = name
+    save_config(cfg)
+    global config
+    config = cfg
+    new_ts = _timer_state_from_cfg(cfg)
+    was_running = timer_state['running']
+    secs_remaining = timer_state['seconds_remaining'] if was_running else new_ts['duration']
+    show_on_display = timer_state.get('show_on_display', False)
+    timer_state.update(new_ts)
+    timer_state['running'] = was_running
+    timer_state['seconds_remaining'] = secs_remaining
+    timer_state['preset_name'] = name
+    timer_state['show_on_display'] = show_on_display
+    broadcast('timer_state', timer_state)
+    broadcast('timer_preset_loaded', {'name': name, 'duration': timer_state['duration']})
+    log.info(f"Timer preset loaded: {name!r}")
+    return jsonify({'ok': True, 'timer': timer_state})
 
 @app.route('/api/music/list')
 def api_get_music():

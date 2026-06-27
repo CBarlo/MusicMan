@@ -3565,6 +3565,34 @@ async function saveTimerPreset() {
   } catch(e) { toast('Save failed', 'err'); }
 }
 
+async function loadPresetForEdit(name) {
+  const p = timerPresets[name];
+  if (!p) return;
+  // Populate duration
+  const durEl = document.getElementById('t-duration');
+  if (durEl) durEl.value = p.duration ?? 180;
+  // Populate warning
+  const warnEl = document.getElementById('t-warning-at');
+  if (warnEl) warnEl.value = p.warning_at ?? 15;
+  // Populate start sound fields
+  if (p.start_sound) document.getElementById('t-start-sound').value = p.start_sound;
+  document.getElementById('t-start-start').value    = p.start_sound_start    ?? 0;
+  document.getElementById('t-start-duration').value = p.start_sound_duration ?? 0;
+  document.getElementById('t-start-fade').value     = p.start_sound_fade     ?? 0;
+  document.getElementById('t-start-loop').checked   = p.start_sound_loop !== false;
+  // Populate warning/end sounds and scenes
+  if (p.warning_sound) document.getElementById('t-warning-sound').value = p.warning_sound;
+  if (p.warning_scene) document.getElementById('t-warning-scene').value = p.warning_scene;
+  if (p.end_sound)     document.getElementById('t-end-sound').value     = p.end_sound;
+  if (p.end_scene)     document.getElementById('t-end-scene').value     = p.end_scene;
+  // Pre-fill name so SAVE AS PRESET overwrites this preset
+  document.getElementById('t-preset-name').value = name;
+  updatePresetPreview();
+  toast(`Loaded "${name}" for editing — adjust fields above and save`, 'ok');
+  // Scroll to the timer form
+  document.getElementById('t-duration')?.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
 async function deleteTimerPreset(name) {
   if (!confirm(`Delete preset "${name}"?`)) return;
   try {
@@ -3585,6 +3613,7 @@ function renderTimerPresets() {
   container.innerHTML = names.map(n =>
     `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border2)">
       <span style="flex:1;font-size:13px">${escHtml(n)}</span>
+      <button data-preset="${escHtml(n)}" onclick="loadPresetForEdit(this.dataset.preset)" style="font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--amber)">✎ EDIT</button>
       <button data-preset="${escHtml(n)}" onclick="deleteTimerPreset(this.dataset.preset)" style="font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--red,#e74c3c)">✕ DELETE</button>
     </div>`
   ).join('');
