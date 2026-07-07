@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MusicMan — Setup &amp; Operation Manual</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+  @import url('/static/fonts/fonts.css');
 
   :root {
     --amber: #F5A623;
@@ -261,708 +261,770 @@
   <h2>Contents</h2>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 1 — What Is This?</div>
+    <div class="toc-section-title"><a href="#part1">Part 1 — What Is This?</a></div>
     <ul>
-      <li>System overview</li>
-      <li>What it controls</li>
-      <li>Hardware you need</li>
+      <li><a href="#overview">System overview</a></li>
+      <li><a href="#what-controls">What it controls</a></li>
+      <li><a href="#hardware">Hardware you need</a></li>
     </ul>
   </div>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 2 — Setup</div>
+    <div class="toc-section-title"><a href="#part2">Part 2 — Setup</a></div>
     <ul>
-      <li>Physical connections</li>
-      <li>Connecting to the system</li>
-      <li>USB drive file layout</li>
-      <li>Swapping USB drives</li>
+      <li><a href="#physical">Physical connections</a></li>
+      <li><a href="#hdmi">The HDMI display</a></li>
+      <li><a href="#wifi">Connecting to MusicMan WiFi</a></li>
+      <li><a href="#console-url">Opening the console</a></li>
+      <li><a href="#file-access">Accessing files from your computer</a></li>
+      <li><a href="#usb-layout">USB drive file layout</a></li>
     </ul>
   </div>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 3 — Admin Configuration</div>
+    <div class="toc-section-title"><a href="#part3">Part 3 — Admin Configuration</a></div>
     <ul>
-      <li>Opening the Admin panel</li>
-      <li>Setting up Walk-Ups (Circles &amp; Roles)</li>
-      <li>Creating Lighting Scenes</li>
-      <li>Creating Macros</li>
-      <li>Building the Show Flow</li>
-      <li>Configuring the Skit Timer</li>
-      <li>Saving Timer Presets</li>
-      <li>Configuring the Games Timer</li>
-      <li>Live Slides (admin builder)</li>
+      <li><a href="#admin-overview">Admin panel overview</a></li>
+      <li><a href="#loading-media">Loading media files first</a></li>
+      <li><a href="#circles">Setting up Circles (Walk-Ups)</a></li>
+      <li><a href="#roles">Setting up Roles (Walk-Ups)</a></li>
+      <li><a href="#scenes">Creating Lighting Scenes</a></li>
+      <li><a href="#macros">Creating Macros</a></li>
+      <li><a href="#show-flow">Building the Show Flow</a></li>
+      <li><a href="#timer-admin">Configuring the Skit Timer &amp; Presets</a></li>
+      <li><a href="#slides-admin">Live Slides (admin builder)</a></li>
+      <li><a href="#shell-game-admin">Shell Game configuration</a></li>
+      <li><a href="#crowd-admin">Crowd Noise — gauge &amp; lighting setup</a></li>
+      <li><a href="#climax-admin">Climax FX configuration</a></li>
+      <li><a href="#lighting-settings">Lighting settings (Pole Nodes, Fixture Profiles)</a></li>
+      <li><a href="#system-admin">System tab</a></li>
     </ul>
   </div>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 4 — Running the Show</div>
+    <div class="toc-section-title"><a href="#part4">Part 4 — Running the Show</a></div>
     <ul>
-      <li>Console overview</li>
-      <li>Running the Show Flow</li>
-      <li>Transport controls</li>
-      <li>Walk-Up music</li>
-      <li>Playing music from the library</li>
-      <li>Sound effects</li>
-      <li>Lighting controls</li>
-      <li>The Skit Timer</li>
-      <li>Games tab &amp; leaderboard</li>
-      <li>HDMI display controls</li>
-      <li>Live Slide Builder (console)</li>
-      <li>Emergency stop (Kill All)</li>
+      <li><a href="#console-overview">Console overview</a></li>
+      <li><a href="#show-flow-run">Running the Show Flow</a></li>
+      <li><a href="#transport">Transport controls</a></li>
+      <li><a href="#walkups-run">Walk-Up music</a></li>
+      <li><a href="#music-run">Playing music from the library</a></li>
+      <li><a href="#sfx-run">Sound effects</a></li>
+      <li><a href="#lighting-run">Lighting controls</a></li>
+      <li><a href="#skit-timer-run">The Skit Timer</a></li>
+      <li><a href="#games-run">Games tab &amp; leaderboard</a></li>
+      <li><a href="#display-run">HDMI display controls</a></li>
+      <li><a href="#slides-run">Live Slide Builder (console)</a></li>
+      <li><a href="#crowd-run">Crowd Noise — live operation</a></li>
+      <li><a href="#shell-game-run">Shell Game — live operation</a></li>
+      <li><a href="#usb-run">USB Playlist tab</a></li>
+      <li><a href="#kill-all">Emergency stop (Kill All)</a></li>
     </ul>
   </div>
 
   <div class="toc-section">
-    <div class="toc-section-title">Part 5 — Quick Reference</div>
+    <div class="toc-section-title"><a href="#part5">Part 5 — Quick Reference</a></div>
     <ul>
-      <li>Pre-show checklist</li>
-      <li>Common workflows</li>
-      <li>Troubleshooting</li>
+      <li><a href="#checklist">Pre-show checklist</a></li>
+      <li><a href="#workflows">Common workflows</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
     </ul>
   </div>
 </div>
 
 <!-- ══════════════════ PART 1 ══════════════════ -->
 <div class="content">
-<div class="section">
+<div class="section" id="part1">
   <div class="section-badge">PART 1</div>
   <h1>What Is This?</h1>
 
-  <h2>System Overview</h2>
+  <h2 id="overview">System Overview</h2>
   <p>
     MusicMan is a show controller that runs on a Raspberry Pi. It lets one person —
-    from a phone, tablet, or laptop — control music, lighting, sound effects, timers,
-    and the HDMI display during a live campfire show. Everyone else sees a polished
-    production; the operator sees a simple web console.
+    from an iPad — control music, lighting, sound effects, timers, games, and the HDMI
+    display during a live campfire show. Everyone else sees a polished production;
+    the operator sees a simple web console.
   </p>
   <p>
-    There is no software to install on the device you use to control it. You just open
-    a web browser and go to the Pi's address.
+    The Pi creates its own WiFi network called <strong>MusicMan</strong>. Connect your iPad
+    to that network and open a browser — no app to install, no configuration required.
+    The whole show runs from there.
   </p>
 
-  <h2>What It Controls</h2>
+  <h2 id="what-controls">What It Controls</h2>
   <table>
     <tr><th>System</th><th>What MusicMan does</th></tr>
-    <tr><td>Music</td><td>Plays walk-up music for each circle, music from a library, and countdown background tracks</td></tr>
-    <tr><td>Sound Effects</td><td>Triggers one-shot SFX from a library of .wav and .mp3 files</td></tr>
-    <tr><td>Lighting</td><td>Sends scene commands to WLED LED controllers over the network</td></tr>
-    <tr><td>HDMI Display</td><td>Shows countdown timers, leaderboards, images, and animations on a projector or TV</td></tr>
-    <tr><td>Timers</td><td>Skit timer (with HDMI warning), games countdown timer, stopwatch</td></tr>
+    <tr><td>Music</td><td>Plays walk-up music for each circle and role, background music, USB playlists, and countdown tracks</td></tr>
+    <tr><td>Sound Effects</td><td>Triggers one-shot SFX from a library of audio files</td></tr>
+    <tr><td>Lighting</td><td>Sends scene commands to WLED LED controllers over the network; crowd lighting tracks the hype meter</td></tr>
+    <tr><td>HDMI Display</td><td>Shows countdown timers, leaderboards, images, animations, crowd gauge, and live slides on a projector or TV</td></tr>
+    <tr><td>Timers</td><td>Skit timer with presets (and HDMI warning); games countdown timer; stopwatch</td></tr>
     <tr><td>Show Flow</td><td>A scripted sequence of steps that fire macros automatically, in order</td></tr>
+    <tr><td>Games</td><td>Countdown timer, stopwatch, leaderboard shown live on HDMI; Shell Game interactive display</td></tr>
+    <tr><td>Crowd Noise</td><td>Live animated hype gauge on the HDMI — operator drags a slider, gauge reacts, lights follow</td></tr>
+    <tr><td>Battery</td><td>Monitors Anker SOLIX C300 power stations over Bluetooth — shows charge level, controls AC/DC output</td></tr>
   </table>
 
-  <h2>Hardware You Need</h2>
+  <h2 id="hardware">Hardware You Need</h2>
   <ul>
-    <li><strong>Raspberry Pi</strong> (any model with Wi-Fi, Pi 3B+ or newer recommended)</li>
-    <li><strong>Power supply</strong> for the Pi</li>
-    <li><strong>Speakers</strong> connected to the audio output jack on the box</li>
+    <li><strong>Raspberry Pi 4B</strong> — the brain of the system (already set up)</li>
+    <li><strong>Power supply</strong> for the Pi (USB-C brick)</li>
+    <li><strong>Speakers / PA system</strong> connected to the audio output on the box</li>
     <li><strong>HDMI display, TV, or projector</strong> connected to the Pi's HDMI port</li>
     <li><strong>USB drive</strong> with your music, SFX, and image files</li>
-    <li><strong>Wi-Fi network</strong> that both the Pi and your control device share</li>
-    <li><strong>Control device</strong> — any phone, tablet, or laptop with a browser</li>
-    <li><strong>WLED lighting controllers</strong> (optional — lighting scenes require these)</li>
+    <li><strong>iPad or any device with a browser</strong> — connects to MusicMan WiFi</li>
+    <li><strong>WLED lighting controllers</strong> (optional — needed for lighting scenes and crowd lights)</li>
+    <li><strong>Anker SOLIX C300</strong> power stations (optional — for battery-powered pole lighting)</li>
   </ul>
 </div>
 
 <!-- ══════════════════ PART 2 ══════════════════ -->
-<div class="section">
+<div class="section" id="part2">
   <div class="section-badge">PART 2</div>
   <h1>Setup</h1>
 
-  <h2>Physical Connections</h2>
+  <h2 id="physical">Physical Connections</h2>
   <ol class="steps">
-    <li>Connect your <strong>speakers</strong> to the audio output jack on the box.</li>
-    <li>Connect the <strong>HDMI display or projector</strong> to the Pi's HDMI port.</li>
-    <li>Plug in your <strong>USB drive</strong> (with music/SFX files) into another USB port.</li>
-    <li>Connect the Pi to <strong>power</strong>. Give it about 30–60 seconds to fully boot.</li>
-    <li>Make sure the Pi and your control device are on the <strong>same Wi-Fi network</strong>.</li>
+    <li>Connect your <strong>speakers or PA system</strong> to the audio output jack on the box.</li>
+    <li>Connect the <strong>HDMI display or projector</strong> to the Pi's HDMI port. Do this <em>before</em> powering on.</li>
+    <li>Plug in your <strong>USB drive</strong> (with music/SFX files) into a USB port on the Pi.</li>
+    <li>Connect the Pi to <strong>power</strong>. Give it about 60 seconds to fully boot.</li>
   </ol>
 
-  <div class="callout callout-info">
-    <div class="callout-title">Finding the Pi's IP address</div>
-    If you don't know the Pi's IP address, check your router's connected device list, or look for a device named <span class="mono">musicmanpi</span> (or similar). The address typically looks like <span class="mono">192.168.x.x</span>.
-  </div>
-
-  <h2>The HDMI Display</h2>
+  <h2 id="hdmi">The HDMI Display</h2>
   <p>
     <strong>This is automatic. You don't need to do anything.</strong>
-    When the box powers on, it waits for the HDMI display to be connected and for the show software
-    to finish starting, then launches the audience display fullscreen on its own.
-    Just plug in the HDMI cable before you power on the box and it takes care of the rest.
+    When the box powers on, it launches the audience display fullscreen on its own.
+    Plug in the HDMI cable before you power on and it takes care of the rest.
   </p>
 
   <div class="callout callout-tip">
     <div class="callout-title">If the display isn't showing</div>
-    Make sure the HDMI cable was plugged in <em>before</em> powering on the box — the Pi needs to detect the display at boot. If the box is already on and the screen is blank, give it 30 seconds after connecting the cable. If it still doesn't appear, log into the admin panel and use <kbd>⚙ System → ↗ OPEN DISPLAY PAGE</kbd> to confirm the service is running, or try unplugging and replugging the HDMI cable.
+    Make sure the HDMI cable was plugged in <em>before</em> powering on. If the screen is blank
+    after 60 seconds, give it another 30. If it still doesn't appear, the display page is available
+    on any browser at <span class="mono">http://musicman.local/display</span> — press F11 to go
+    fullscreen. It shows the exact same content, synchronized live.
   </div>
 
-  <p><strong>Using a separate display device (laptop, second computer):</strong><br>
-    If you want a different device to drive the projector or TV instead of the box's HDMI output,
-    open a browser on that device and navigate to:
+  <h2 id="wifi">Connecting to MusicMan WiFi</h2>
+  <p>
+    The Pi creates its own WiFi network. Connect your iPad (or any control device) to it:
   </p>
-  <p><span class="mono">http://musicman.local/display</span></p>
-  <p>Press <strong>F11</strong> to go fullscreen. It will show exactly the same content as the HDMI output, synchronized live.</p>
+  <table>
+    <tr><th>Field</th><th>Value</th></tr>
+    <tr><td>Network name (SSID)</td><td><strong>MusicMan</strong></td></tr>
+    <tr><td>Password</td><td><span class="mono">BrokenArrow</span></td></tr>
+  </table>
 
-  <h2>Connecting from Your Control Device</h2>
-  <p>On any phone, tablet, or laptop on the same Wi-Fi, open a browser and go to:</p>
-  <p><span class="mono">http://&lt;Pi-IP-address&gt;</span></p>
-  <p>This is the operator console. Bookmark it.</p>
-  <p>For admin configuration, go to:</p>
-  <p><span class="mono">http://&lt;Pi-IP-address&gt;/admin</span></p>
+  <div class="callout callout-info">
+    <div class="callout-title">At home vs. at the campsite</div>
+    At a campsite, MusicMan is the only network — connect to it and everything works.
+    At home, you can also connect via your home WiFi network. The Pi is visible as
+    <span class="mono">musicman.local</span> from any device on the same home network.
+    Either way, the URL is <span class="mono">http://musicman.local</span>.
+  </div>
 
   <div class="callout callout-tip">
     <div class="callout-title">Tip — multiple devices</div>
-    You can have the console open on multiple devices at once. Changes on one appear on all of them instantly. Useful if you want a helper watching a tablet while you run the show from a phone.
+    You can have the console open on multiple devices at once. Changes on one appear on all of them instantly. Useful if you want a helper watching a tablet while you run from the iPad.
   </div>
 
-  <h2>Accessing Files from Your Computer</h2>
+  <h2 id="console-url">Opening the Console</h2>
+  <p>Once on MusicMan WiFi, open any browser and go to:</p>
+  <p><span class="mono">http://musicman.local</span></p>
+  <p>This is the operator console. <strong>Bookmark it.</strong></p>
+  <p>For admin configuration (circles, macros, show flow, etc.), go to:</p>
+  <p><span class="mono">http://musicman.local/admin</span></p>
+
+  <h2 id="file-access">Accessing Files from Your Computer</h2>
   <p>
     You can connect your Mac or Windows PC directly to the Pi's file system and drag files in
-    just like any other folder — no USB drives, no terminal commands. There are two ways to do it.
-    <strong>Option A (SFTP)</strong> works immediately with free software.
-    <strong>Option B (Network Folder/Samba)</strong> requires a one-time setup on the Pi but feels
-    more like a normal folder after that.
+    just like any other folder — no USB drives, no terminal commands.
   </p>
 
-  <h3>Option A — SFTP with Cyberduck or WinSCP (easiest, works immediately)</h3>
-  <p>SFTP is a secure file transfer protocol that uses the Pi's existing SSH access — no extra setup on the Pi needed.</p>
+  <h3>Option A — SFTP with Cyberduck or WinSCP (easiest)</h3>
   <p><strong>Mac:</strong> Download <strong>Cyberduck</strong> (free, cyberduck.io). Open it, click <kbd>Open Connection</kbd>, choose <strong>SFTP</strong>, and enter:</p>
   <table>
     <tr><th>Field</th><th>Value</th></tr>
-    <tr><td>Server</td><td><span class="mono">musicman.local</span> (or the Pi's IP address)</td></tr>
+    <tr><td>Server</td><td><span class="mono">musicman.local</span></td></tr>
     <tr><td>Username</td><td><span class="mono">pi</span></td></tr>
-    <tr><td>Password</td><td>The Pi's login password (default: <span class="mono">raspberry</span>)</td></tr>
+    <tr><td>Password</td><td><span class="mono">BrokenArrow</span></td></tr>
     <tr><td>Port</td><td>22</td></tr>
   </table>
-  <p>Once connected, navigate to <span class="mono">/home/pi/musicman/assets/</span> and drag files in.</p>
+  <p>Navigate to <span class="mono">/home/pi/musicman/assets/</span> and drag files in.</p>
+  <p><strong>Windows:</strong> Download <strong>WinSCP</strong> (free, winscp.net). Same settings as above.</p>
 
-  <p><strong>Windows:</strong> Download <strong>WinSCP</strong> (free, winscp.net). Create a new site, choose <strong>SFTP</strong>, and use the same server/username/password as above. The file manager shows the Pi's folders on the right and your PC on the left — drag files between them.</p>
-
-  <div class="callout callout-tip">
-    <div class="callout-title">Tip — you can bookmark it</div>
-    Both Cyberduck and WinSCP let you save the connection as a bookmark. Set it up once and it's a two-click connection from then on.
-  </div>
-
-  <h3>Option B — Map as a Network Folder</h3>
-  <p>
-    The box is already configured as a network file server. No setup required —
-    just connect from your computer using the credentials below.
-  </p>
+  <h3>Option B — Map as a Network Folder (Samba)</h3>
   <table>
     <tr><th>Field</th><th>Value</th></tr>
-    <tr><td>Address</td><td><span class="mono">smb://musicman.local</span> (Mac) &nbsp;/&nbsp; <span class="mono">\\musicman</span> (Windows)</td></tr>
+    <tr><td>Address (Mac)</td><td><span class="mono">smb://musicman.local</span></td></tr>
+    <tr><td>Address (Windows)</td><td><span class="mono">\\musicman</span></td></tr>
     <tr><td>Username</td><td><span class="mono">pi</span></td></tr>
     <tr><td>Password</td><td><span class="mono">BrokenArrow</span></td></tr>
     <tr><td>Share name</td><td><span class="mono">musicman</span></td></tr>
   </table>
-
-  <p><strong>Connecting on a Mac:</strong></p>
-  <ol class="steps">
-    <li>Open Finder. In the menu bar, click <strong>Go → Connect to Server…</strong></li>
-    <li>Type: <span class="mono">smb://musicman.local</span> and click <kbd>Connect</kbd></li>
-    <li>When prompted, enter username <span class="mono">pi</span> and the Samba password you set above.</li>
-    <li>Select the <strong>musicman</strong> share. It mounts as a drive on your Desktop and in Finder's sidebar.</li>
-    <li>Navigate to <span class="mono">assets/sfx/</span>, <span class="mono">assets/music/</span>, etc. and drag files in directly.</li>
-  </ol>
-  <div class="callout callout-tip">
-    <div class="callout-title">Mac tip — reconnect automatically</div>
-    After connecting once, you can add the share to your Login Items so it mounts automatically when you open your Mac. In System Settings → General → Login Items, click + and browse to the mounted drive.
-  </div>
-
-  <p><strong>Connecting on Windows:</strong></p>
-  <ol class="steps">
-    <li>Open File Explorer. Click in the address bar at the top.</li>
-    <li>Type: <span class="mono">\\musicman</span> and press Enter. (If that doesn't work, try <span class="mono">\\&lt;Pi-IP-address&gt;</span> instead.)</li>
-    <li>Enter username <span class="mono">pi</span> and the Samba password when prompted.</li>
-    <li>You'll see the <strong>musicman</strong> folder. Open it and navigate to <span class="mono">assets\sfx\</span>, <span class="mono">assets\music\</span>, etc.</li>
-    <li>To make it permanent: right-click <strong>This PC</strong> in File Explorer, choose <strong>Map Network Drive</strong>, pick a drive letter, and enter <span class="mono">\\musicman\musicman</span> as the folder path. Check <em>Reconnect at sign-in</em>.</li>
-  </ol>
+  <p><strong>Mac:</strong> Finder → Go → Connect to Server → type <span class="mono">smb://musicman.local</span> → Connect → enter credentials → select <em>musicman</em> share.</p>
+  <p><strong>Windows:</strong> File Explorer address bar → type <span class="mono">\\musicman</span> → press Enter → enter credentials.</p>
 
   <div class="callout callout-info">
-    <div class="callout-title">After adding files via network folder</div>
-    The app picks up new files in the SFX and Music folders automatically.
-    For images and videos added to <span class="mono">assets/display/</span>, refresh the Admin → Display page
-    to see them appear. After adding walk-up assets directly to circle/role folders,
-    you may need to refresh the Admin → Circles or Roles page.
+    <div class="callout-title">After adding files via network</div>
+    The app picks up new SFX and Music files automatically.
+    For images and videos, refresh Admin → Display.
+    After adding walk-up assets, refresh Admin → Circles or Roles.
   </div>
 
-  <h2>USB Drive File Layout</h2>
+  <h2 id="usb-layout">USB Drive File Layout</h2>
   <p>
-    The Pi reads media from a USB drive. The drive can contain any folder structure —
-    MusicMan scans the whole drive — but the app's own <strong>local asset folders</strong>
-    on the Pi itself use this structure:
+    The Pi reads media from a USB drive. The drive can have any folder structure —
+    MusicMan scans the whole drive — but the app's own local asset folders use this layout:
   </p>
   <table>
     <tr><th>Folder</th><th>Contents</th></tr>
-    <tr><td><span class="mono">assets/music/</span></td><td>Walk-up and background music tracks (.mp3, .wav)</td></tr>
-    <tr><td><span class="mono">assets/sfx/</span></td><td>Sound effects (.wav, .mp3)</td></tr>
+    <tr><td><span class="mono">assets/music/</span></td><td>Background music tracks</td></tr>
+    <tr><td><span class="mono">assets/sfx/</span></td><td>Sound effects</td></tr>
     <tr><td><span class="mono">assets/circles/</span></td><td>Circle-specific walk-up audio</td></tr>
-    <tr><td><span class="mono">assets/roles/</span></td><td>Role-specific walk-up audio (Chief, etc.)</td></tr>
-    <tr><td><span class="mono">assets/display/</span></td><td>Images shown on the HDMI display</td></tr>
+    <tr><td><span class="mono">assets/roles/</span></td><td>Role-specific walk-up audio</td></tr>
+    <tr><td><span class="mono">assets/display/</span></td><td>Images and videos shown on the HDMI display</td></tr>
+    <tr><td><span class="mono">assets/shell_game/</span></td><td>Shell game tent images, rock image, sound assets</td></tr>
   </table>
-  <p>
-    Music on the USB drive (any subfolder) also appears in the Music tab of the console,
-    so you can play anything on the drive without copying it to the Pi first.
-  </p>
-
-  <h2>Swapping USB Drives</h2>
-  <p>If you get a new USB drive and want to move everything over:</p>
-  <ol class="steps">
-    <li>Copy all folders and files from the old drive to the new drive, keeping the same folder structure.</li>
-    <li>Eject the old drive from the Pi, plug in the new one.</li>
-    <li>The system automatically detects it. No configuration change needed.</li>
-  </ol>
-
-  <div class="callout callout-tip">
-    <div class="callout-title">Tip — drive label doesn't matter</div>
-    The app finds USB drives by scanning the mount point, not by name. So the new drive can have any volume label.
-  </div>
+  <p>Audio on a USB drive (any subfolder) also appears in the console's Music tab without copying it.</p>
 </div>
 
 <!-- ══════════════════ PART 3 ══════════════════ -->
-<div class="section">
+<div class="section" id="part3">
   <div class="section-badge">PART 3</div>
   <h1>Admin Configuration</h1>
   <p>
     Everything in this section is done once (or updated before a show) from the Admin panel at
-    <span class="mono">http://&lt;Pi-IP&gt;/admin</span>.
-    Changes save immediately — there's no "Submit" button on most screens.
+    <span class="mono">http://musicman.local/admin</span>.
   </p>
 
-  <h2>Step 0: Load Your Media Files First</h2>
+  <h2 id="admin-overview">Admin Panel Overview</h2>
+  <table>
+    <tr><th>Sidebar Section</th><th>What it does</th></tr>
+    <tr><td><strong>⬡ Circles</strong></td><td>Configure each circle's walk-up music, logo, animations, timing, and lighting</td></tr>
+    <tr><td><strong>★ Roles</strong></td><td>Same as Circles but for individual roles (Expedition Navigator, Firestarter, etc.)</td></tr>
+    <tr><td><strong>♪ Audio</strong></td><td>Upload and manage the SFX library and Music library; audio normalization</td></tr>
+    <tr><td><strong>🖼 Display</strong></td><td>Upload and manage images and videos; configure visualization presets and video overlays</td></tr>
+    <tr><td><strong>▶ Show Flow</strong></td><td>Build the ordered show rundown — each step fires a macro</td></tr>
+    <tr><td><strong>⚡ Macros</strong></td><td>Create automated sequences of actions (music + lights + display + timer + slides)</td></tr>
+    <tr><td><strong>🎮 Games</strong></td><td>Shell Game configuration — tent/rock images, sounds, saved game themes</td></tr>
+    <tr><td><strong>📋 Slides</strong></td><td>Build and save custom text slides to push to the projector</td></tr>
+    <tr><td><strong>✦ Lighting Scenes</strong></td><td>Define named lighting states that macros and walk-ups can trigger</td></tr>
+    <tr><td><strong>⏱ Timer</strong></td><td>Configure skit timer defaults and save/manage timer presets</td></tr>
+    <tr><td><strong>⚙ System</strong></td><td>Pole nodes, battery monitor, Pi health stats, restart and shutdown</td></tr>
+  </table>
+
+  <h2 id="loading-media">Step 0: Load Your Media Files First</h2>
   <p>
-    Before you configure walk-ups, macros, or timers, you need to get your audio, image,
-    and video files onto the system. Everything else references these files by name —
-    if a file isn't loaded yet, it won't appear in any dropdown.
+    Before configuring walk-ups, macros, or timers, get your audio, image, and video files
+    onto the system. Everything else references files by name — if a file isn't loaded,
+    it won't appear in any dropdown.
   </p>
-  <p>All file loading is done from the Admin panel. Open a browser and go to
-    <span class="mono">http://&lt;Pi-IP&gt;/admin</span>.</p>
 
   <h3>Sound Effects (SFX)</h3>
-  <p>SFX are one-shot sounds fired from the SFX tab in the console: air horns, drum hits, crowd noise, etc.</p>
+  <p>One-shot sounds: air horns, drum hits, cheers, explosion sounds, buzzers.</p>
   <p><strong>Supported formats:</strong> MP3, WAV, FLAC, OGG, M4A, AAC, OPUS</p>
   <ol class="steps">
-    <li>In Admin, click <strong>♪ Audio</strong> in the left sidebar.</li>
-    <li>Under the <strong>SFX</strong> section, click the dashed upload zone (or drag files onto it).</li>
-    <li>Select one or more audio files. They upload immediately and appear in the list below.</li>
-    <li>Use the <kbd>▶</kbd> button next to any file to preview it through the Pi's speakers before a show.</li>
-    <li>Use the pencil icon to rename a file, or the trash icon to delete it.</li>
+    <li>In Admin, click <strong>♪ Audio</strong>.</li>
+    <li>Under <strong>SFX</strong>, click the dashed upload zone or drag files onto it.</li>
+    <li>Use <kbd>▶</kbd> to preview, pencil to rename, trash to delete.</li>
   </ol>
-  <div class="callout callout-tip">
-    <div class="callout-title">Tip — naming SFX</div>
-    The filename is what appears in every dropdown. Name files clearly:
-    <span class="mono">AirHorn.mp3</span>, <span class="mono">DrumRoll.wav</span>, <span class="mono">Crowd_Cheer.mp3</span>.
-    No spaces in filenames is safer — use underscores instead.
-  </div>
 
   <h3>Background Music (Music Library)</h3>
-  <p>
-    The music library is the pool of tracks used for walk-up music, skit timer background music,
-    and manual playback from the Music tab. These are longer pieces — songs, ambient tracks, etc.
-  </p>
-  <p><strong>Supported formats:</strong> MP3, WAV, FLAC, OGG, M4A, AAC, OPUS</p>
+  <p>Songs, ambient tracks, and walk-up music.</p>
   <ol class="steps">
-    <li>In Admin, click <strong>♪ Audio</strong> in the left sidebar.</li>
-    <li>Under the <strong>Music</strong> section (below SFX), click the dashed upload zone or drag files onto it.</li>
-    <li>Select one or more tracks. Multiple files can be uploaded at once.</li>
-    <li>The track name in dropdowns is the filename (minus extension). Rename files to be descriptive.</li>
+    <li>In Admin, click <strong>♪ Audio</strong>.</li>
+    <li>Under <strong>Music</strong> (below SFX), click the upload zone or drag tracks in.</li>
   </ol>
+
   <div class="callout callout-tip">
-    <div class="callout-title">Tip — USB drive as music source</div>
-    Any audio files on the USB drive (in any folder) automatically appear in the console's
-    Music tab without uploading anything. This is useful for large libraries you don't want
-    to copy onto the Pi. However, files must be on the USB drive and the drive must be plugged in —
-    they won't appear in Admin dropdowns for walk-up music. Upload to the Music library for those.
+    <div class="callout-title">Audio normalization</div>
+    The Audio tab has a <kbd>NORMALIZE NEW</kbd> button. This processes un-normalized files
+    to a consistent volume level (EBU R128, -14 LUFS) so walk-ups and skits don't jump
+    in level between tracks. Run it after adding new files.
   </div>
 
-  <h3>Display Images</h3>
-  <p>
-    Display images are shown fullscreen on the HDMI screen — circle logos, slide backgrounds,
-    photo backdrops, title cards, etc. They can be triggered from the Display tab in the console,
-    from macros, or automatically during a walk-up.
-  </p>
-  <p><strong>Supported formats:</strong> JPG, PNG, GIF (animated GIFs work), WebP</p>
-  <p><strong>Recommended size:</strong> 1920 × 1080 pixels (16:9, matching a standard HD projector or TV). Images are scaled to fit the screen, but starting at the right size looks sharpest.</p>
-  <ol class="steps">
-    <li>In Admin, click <strong>🖼 Display</strong> in the left sidebar.</li>
-    <li>Click the dashed upload zone at the top, or drag image files onto it.</li>
-    <li>Uploaded images appear as thumbnails. Click any thumbnail in the console's Display tab to show it on HDMI.</li>
-    <li>To delete an image, hover the thumbnail in the admin Display section and click the trash icon.</li>
-  </ol>
-
-  <h3>Display Video</h3>
-  <p>
-    Video files can also be displayed fullscreen on the HDMI screen. Use them for animated
-    backgrounds, intro sequences, countdown animations, or anything you want the audience to see.
-  </p>
-  <p><strong>Supported formats:</strong> MP4 (H.264), WebM, MOV, OGV</p>
-  <p><strong>Best bet:</strong> MP4 with H.264 encoding. It plays reliably on the Pi and works in any browser.</p>
-  <p><strong>Recommended size:</strong> 1920 × 1080 or smaller. Very large video files (over 500 MB) may stutter on the Pi — compress them if needed.</p>
+  <h3>Display Images and Videos</h3>
+  <p>Images and videos shown fullscreen on the HDMI: logos, title cards, animations, backgrounds.</p>
+  <p><strong>Images:</strong> JPG, PNG, GIF (animated works), WebP — 1920×1080 recommended.</p>
+  <p><strong>Videos:</strong> MP4 (H.264), WebM — MP4/H.264 plays most reliably on the Pi.</p>
   <ol class="steps">
     <li>In Admin, click <strong>🖼 Display</strong>.</li>
-    <li>Upload video files the same way as images — same upload zone accepts both.</li>
-    <li>Videos appear in the Display tab alongside images. Tapping a video file plays it fullscreen on the HDMI display (it loops until you clear the display or show something else).</li>
+    <li>Upload images and videos with the upload zone — it accepts both.</li>
   </ol>
-  <div class="callout callout-warn">
-    <div class="callout-title">Large files take time</div>
-    Uploading large audio or video files over Wi-Fi may take a minute. The browser tab will show
-    progress. Don't close the tab or refresh until it finishes. If a file is very large (&gt;200 MB),
-    it's faster to copy it directly onto the Pi via a USB drive or SSH — see the next tip.
-  </div>
+
   <div class="callout callout-tip">
-    <div class="callout-title">Tip — copy files directly onto the Pi via SSH</div>
-    If you're comfortable with a terminal, you can copy files directly to the Pi over the network
-    without using the browser uploader. From a Mac or Linux computer on the same Wi-Fi:
-    <br><br>
-    <span class="mono">scp myfile.mp3 pi@&lt;Pi-IP&gt;:/home/pi/musicman/assets/sfx/</span>
-    <br><br>
-    Replace <span class="mono">sfx</span> with <span class="mono">music</span> or <span class="mono">display</span>
-    as appropriate. The password is the Pi's normal login password (default: <span class="mono">raspberry</span>).
-    After copying, tap <kbd>↺ SCAN</kbd> or refresh the admin page to see the new files.
+    <div class="callout-title">Large files</div>
+    Files over 200 MB take a while over WiFi. For large video files, copy them
+    directly via the Samba share or SFTP — much faster than the browser uploader.
   </div>
 
   <h3>Walk-Up Assets (per Circle or Role)</h3>
-  <p>
-    Each circle and role has its own set of assets: a walk-up music track,
-    a logo image, and optionally two video clips that play on the HDMI screen during the walk-up.
-  </p>
   <table>
     <tr><th>Asset</th><th>What it does</th><th>Format</th></tr>
-    <tr><td>Walk-up Music</td><td>Plays when you fire their walk-up from the console</td><td>Audio (any)</td></tr>
-    <tr><td>Logo Image</td><td>Shown fullscreen on HDMI while music plays</td><td>Image (PNG recommended)</td></tr>
-    <tr><td>Intro Animation</td><td>Video that plays once <em>before</em> the music starts — a dramatic reveal</td><td>MP4, WebM</td></tr>
-    <tr><td>Main Animation</td><td>Video that plays <em>on loop while the music plays</em></td><td>MP4, WebM</td></tr>
+    <tr><td>Walk-up Music</td><td>Plays when the walk-up is triggered</td><td>Any audio</td></tr>
+    <tr><td>Logo Image</td><td>Shown fullscreen on HDMI while music plays (if no loop clip set)</td><td>PNG recommended</td></tr>
+    <tr><td>Intro Clip</td><td>Video that plays once <em>before</em> the music — a dramatic reveal</td><td>MP4, WebM</td></tr>
+    <tr><td>Loop Clip</td><td>Video that loops while the music plays</td><td>MP4, WebM</td></tr>
   </table>
-  <p>You don't need all four — Music and Logo are the most common. Intro and Main animations are optional extras.</p>
   <ol class="steps">
     <li>In Admin, click <strong>⬡ Circles</strong> (or <strong>★ Roles</strong>).</li>
-    <li>Select a circle from the list.</li>
-    <li>You'll see an asset slot for each type. Click any slot to open a file picker for that asset type.</li>
-    <li>Alternatively, for Walk-up Music: click <kbd>📚 PICK FROM LIBRARY</kbd> to choose a file you already uploaded to the Music library instead of uploading a new one.</li>
-    <li>A green checkmark on the slot means the file is loaded. Use the <kbd>▶ PREVIEW</kbd> button to hear or see the asset before the show.</li>
-    <li>Use <kbd>✕ CLEAR</kbd> to remove an asset from a slot without deleting the file.</li>
+    <li>Select a circle/role from the list.</li>
+    <li>Click any asset slot to upload a file — or click <kbd>📚 PICK FROM LIBRARY</kbd> to use a track already in the Music library.</li>
+    <li>Click <kbd>▶ PREVIEW</kbd> to verify before the show. Click <kbd>✕ CLEAR</kbd> to remove an asset.</li>
   </ol>
-  <div class="callout callout-tip">
-    <div class="callout-title">Tip — walk-up music vs. library music</div>
-    Walk-up music uploaded directly to a circle's slot is stored in that circle's own folder
-    (<span class="mono">assets/circles/MightyCreek/walkup.mp3</span>). Picking from the library
-    points to the shared music library instead. Either works — the "pick from library" option
-    is useful when multiple circles share the same walk-up track.
-  </div>
 
-  <h2>Admin Panel Overview</h2>
-  <p>The Admin panel is at <span class="mono">http://&lt;Pi-IP&gt;/admin</span>. The left sidebar navigates between sections.</p>
-  <table>
-    <tr><th>Sidebar Section</th><th>What it does</th></tr>
-    <tr><td><strong>⬡ Circles</strong></td><td>Create and configure each circle's walk-up music, logo, animations, timing, and lighting</td></tr>
-    <tr><td><strong>★ Roles</strong></td><td>Same as Circles but for individual roles (Expedition Navigator, Firestarter, etc.)</td></tr>
-    <tr><td><strong>♪ Audio</strong></td><td>Upload and manage the SFX library and Music library</td></tr>
-    <tr><td><strong>🖼 Display</strong></td><td>Upload and manage images and videos shown on the HDMI screen</td></tr>
-    <tr><td><strong>▶ Show Flow</strong></td><td>Build the ordered show rundown — each step fires a macro</td></tr>
-    <tr><td><strong>⚡ Macros</strong></td><td>Create automated sequences of actions (music + lights + display + timer + slides)</td></tr>
-    <tr><td><strong>📋 Slides</strong></td><td>Build and push custom text slides to the projector on the fly — announcements, next camp info, QR codes, spotlights</td></tr>
-    <tr><td><strong>✦ Lighting Scenes</strong></td><td>Define named lighting states that macros and walk-ups can trigger</td></tr>
-    <tr><td><strong>⏱ Timer</strong></td><td>Configure the skit timer defaults and save/manage timer presets</td></tr>
-    <tr><td><strong>⚙ System</strong></td><td>Pi health stats, standby display image, restart and shutdown controls</td></tr>
-  </table>
-
-  <h2>Circles (Walk-Ups)</h2>
+  <h2 id="circles">Circles (Walk-Ups)</h2>
   <p>
-    A <strong>Circle</strong> entry stores everything needed to announce that circle:
-    their music, their logo or animation on the HDMI screen, how long the music plays, and which lighting scene fires.
-    When you tap a circle button in the console, all of this happens automatically.
+    A Circle entry stores everything needed to announce that circle:
+    music, logo or animation, timing, and lighting scene.
+    One tap in the console fires all of it.
   </p>
 
   <h3>Creating a circle</h3>
   <ol class="steps">
-    <li>In Admin, click <strong>⬡ Circles</strong> in the sidebar.</li>
-    <li>Click <kbd>+ NEW CIRCLE</kbd>. Type the circle's name (e.g., "Mighty Creek") and click OK.</li>
-    <li>The circle appears in the list on the left. Click it to open the editor on the right.</li>
-    <li>Fill in the fields (see table below), then click <kbd>✓ SAVE CIRCLE</kbd>.</li>
+    <li>In Admin, click <strong>⬡ Circles</strong>.</li>
+    <li>Click <kbd>+ NEW CIRCLE</kbd>. Type the name (e.g., "Mighty Creek") and click OK.</li>
+    <li>Click the circle in the list to open the editor. Fill in the fields below, then click <kbd>✓ SAVE CIRCLE</kbd>.</li>
   </ol>
 
   <h3>Circle editor fields</h3>
   <table>
     <tr><th>Field</th><th>What it does</th></tr>
-    <tr><td>Name</td><td>The display name shown on the console button</td></tr>
-    <tr><td>Color / Color 2</td><td>Two colors used for the circle's name display on the HDMI screen (gradient). Enter as <span class="mono">#RRGGBB</span> hex codes.</td></tr>
-    <tr><td>Walk-up Music</td><td>Click the slot to upload an audio file, or click <kbd>📚 PICK FROM LIBRARY</kbd> to use a track already in the music library. This plays when the circle is announced.</td></tr>
-    <tr><td>Logo Image</td><td>Click the slot to upload a PNG/JPG. Shown fullscreen on the HDMI while the music plays (if no animation is set).</td></tr>
-    <tr><td>Intro Clip</td><td><em>Optional.</em> A video that plays once before the music starts — a dramatic reveal. MP4 recommended.</td></tr>
-    <tr><td>Loop Clip</td><td><em>Optional.</em> A video that loops while the walk-up music plays. If set, it replaces the static logo.</td></tr>
-    <tr><td>Start (sec)</td><td>How many seconds into the track to begin playback (0 = from the beginning).</td></tr>
-    <tr><td>Duration (sec)</td><td>How many seconds to play the walk-up music before it fades out.</td></tr>
-    <tr><td>Fade (sec)</td><td>How many seconds the fade-out takes at the end of the duration.</td></tr>
-    <tr><td>Music Volume Trim</td><td>Scale this circle's walk-up volume relative to the master volume (100% = normal; 120% = louder).</td></tr>
-    <tr><td>Walk-Up Scene</td><td>Lighting scene that fires the instant the circle is announced.</td></tr>
-    <tr><td>After-Fade Scene</td><td>Lighting scene that fires after the walk-up music fades out (the "settled" state).</td></tr>
+    <tr><td>Name</td><td>Display name on the console button</td></tr>
+    <tr><td>Color / Color 2</td><td>Two colors for the circle's name on the HDMI display (gradient). Enter as <span class="mono">#RRGGBB</span>.</td></tr>
+    <tr><td>Walk-up Music</td><td>Audio that plays when the circle is announced. Upload directly or pick from the library.</td></tr>
+    <tr><td>Logo Image</td><td>Shown fullscreen on HDMI (if no loop clip is set)</td></tr>
+    <tr><td>Intro Clip</td><td>Optional — video plays once before the music starts</td></tr>
+    <tr><td>Loop Clip</td><td>Optional — video loops while the music plays (replaces static logo)</td></tr>
+    <tr><td>Start (sec)</td><td>Seconds into the track to begin playback (0 = from the beginning)</td></tr>
+    <tr><td>Duration (sec)</td><td>Seconds to play before fading out</td></tr>
+    <tr><td>Fade (sec)</td><td>Fade-out duration at the end of the walk-up</td></tr>
+    <tr><td>Volume Trim</td><td>Scale this circle's volume relative to master (100% = normal; 120% = louder)</td></tr>
+    <tr><td>Walk-Up Scene</td><td>Lighting scene that fires the instant the circle is announced</td></tr>
+    <tr><td>After-Fade Scene</td><td>Lighting scene that fires after the music fades out</td></tr>
   </table>
 
   <div class="callout callout-tip">
     <div class="callout-title">Tip — you don't need everything</div>
-    Music and Logo are the essentials. Start there. Animations, lighting scenes, and volume trims are extras you can add later.
-    Click <kbd>▶ PREVIEW</kbd> on any asset slot to hear or see it through the Pi before the show.
+    Music and Logo are the essentials. Animations, scenes, and volume trims are optional extras.
   </div>
 
-  <h2>Roles (Walk-Ups)</h2>
+  <h2 id="roles">Roles (Walk-Ups)</h2>
   <p>
-    <strong>Roles</strong> work exactly like circles, but for individual positions —
-    Expedition Navigator, Firestarter, Story Teller, Chief, Dad of the Year, etc.
-    They have their own tab in the console (ROLES) and the same full editor as circles.
+    <strong>Roles</strong> work exactly like Circles but for individual positions —
+    Expedition Navigator, Firestarter, Candyman, Log Keepers, Cheer Directors, Wizards,
+    Storyteller, Campfire Directors, and more.
+    They have their own tab in the console and the same full editor as circles.
   </p>
   <ol class="steps">
-    <li>In Admin, click <strong>★ Roles</strong> in the sidebar.</li>
-    <li>Click <kbd>+ NEW ROLE</kbd>. Enter the role's name and click OK.</li>
-    <li>Click the role in the list to open its editor. All the same fields as circles apply (music, logo, clips, timing, lighting).</li>
-    <li>Click <kbd>✓ SAVE ROLE</kbd>.</li>
+    <li>In Admin, click <strong>★ Roles</strong>.</li>
+    <li>Click <kbd>+ NEW ROLE</kbd>. Enter the role name.</li>
+    <li>Fill in the same editor fields as circles. Click <kbd>✓ SAVE ROLE</kbd>.</li>
   </ol>
-  <p>Role buttons appear in the console's <span class="tab">ROLES</span> tab. Tapping one plays their music and fires their lighting scene, just like a circle walk-up.</p>
 
-  <h2>Lighting Scenes</h2>
+  <h2 id="scenes">Lighting Scenes</h2>
   <p>
-    A <strong>Scene</strong> is a named lighting state. Scenes are sent to WLED LED controllers
-    over Wi-Fi. You define the scene here, and MusicMan sends the command when it's triggered
-    (by a macro, a walk-up, or a console button).
+    A <strong>Scene</strong> is a named lighting state. When triggered by a macro, a walk-up,
+    or a console button it simultaneously fires the WLED strip preset, runs DMX fixture values
+    on the pole nodes, and sets any simple pole flashlight modes.
   </p>
   <ol class="steps">
-    <li>In Admin, click <strong>✦ Lighting Scenes</strong>.</li>
-    <li>Click <kbd>+ NEW SCENE</kbd>. A new scene card appears in the list.</li>
-    <li>Click the card to open the editor. Fill in:</li>
+    <li>In Admin, click <strong>✦ Lighting Scenes</strong> (under SHOW).</li>
+    <li>Click <kbd>+ ADD SCENE</kbd>. A new scene card appears.</li>
+    <li>Click the card to open the editor on the right.</li>
   </ol>
   <table>
     <tr><th>Field</th><th>What it does</th></tr>
     <tr><td>Name</td><td>Label shown on the console scene button (e.g., "Campfire", "Blackout")</td></tr>
-    <tr><td>ID</td><td>Internal identifier — lowercase, no spaces (e.g., <span class="mono">campfire</span>). Auto-filled from the name.</td></tr>
-    <tr><td>Icon</td><td>Emoji shown on the scene button (e.g., 🔥, 💡, ⚫)</td></tr>
-    <tr><td>Description</td><td>Short note for the operator — not shown to the audience</td></tr>
-    <tr><td>Zones</td><td>One row per WLED controller. Each row has: Zone ID (the WLED device's name or IP), Effect (the WLED preset number to activate), and Brightness (0–100).</td></tr>
+    <tr><td>ID</td><td>Internal identifier — lowercase, no spaces. Auto-filled from the name.</td></tr>
+    <tr><td>Icon</td><td>Emoji shown on the scene button</td></tr>
+    <tr><td>Description</td><td>Short note for the operator</td></tr>
+    <tr><td>Lighting Zones</td><td>One row per WLED device. Each row: Device ID, Effect number, Color, Brightness. Zone IDs must match your WLED device IDs.</td></tr>
+    <tr><td>Pole Lights</td><td>Simple flashlight mode per pole: off, low, high, or strobe</td></tr>
+    <tr><td>WLED Preset</td><td>Fires a saved WLED preset number on all pole nodes when the scene activates. Click <kbd>↺ POLL</kbd> to fetch named presets from a live node.</td></tr>
+    <tr><td>DMX Fixtures</td><td>Static or animated channel values for pole node DMX fixtures (pinspot and wash bar). See below.</td></tr>
   </table>
   <ol class="steps" start="4">
-    <li>To add a zone, click <kbd>+ ADD ZONE</kbd>. Enter the Zone ID (must match how you've set up your WLED device), the effect number, and brightness.</li>
-    <li>Click <kbd>SAVE SCENE</kbd>.</li>
+    <li>Click <kbd>+ ADD ZONE</kbd> to add a WLED device zone. Click <kbd>SAVE SCENE</kbd> when done.</li>
   </ol>
-  <div class="callout callout-info">
-    <div class="callout-title">No lighting? No problem.</div>
-    If you're not using WLED lighting, just ignore the Scenes section entirely.
-    Scenes assigned to walk-ups or macros will silently do nothing if no WLED devices are reachable.
+
+  <h3>DMX Fixtures — static values</h3>
+  <p>
+    Each pole node's fixtures (pinspot and wash bar) have named channels defined in the
+    Fixture Profiles (Admin → Settings → Lighting). In the scene editor, set a value
+    for each channel you want to control. Channels left blank are not sent.
+  </p>
+
+  <h3>DMX Animation</h3>
+  <p>
+    Enable the <strong>DMX ANIMATION</strong> toggle to make fixture values cycle
+    through a sequence of keyframes instead of holding a single static state.
+  </p>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Interval (ms)</td><td>How long the transition from one keyframe to the next takes, in milliseconds. 1000 = 1-second fade. 40 = near-instant cut.</td></tr>
+    <tr><td>Frames</td><td>Each frame is a snapshot of channel values across one or more pole nodes. The animation loops through all frames continuously.</td></tr>
+    <tr><td>+ ADD FRAME</td><td>Adds a new keyframe at the end of the sequence.</td></tr>
+  </table>
+  <p>
+    The Pi interpolates channel values smoothly between keyframes at ~25 steps per second,
+    so you only need to define the start and end states — not every intermediate value.
+    A two-frame animation (e.g., red→blue) will fade continuously: red → blue → red → blue…
+  </p>
+  <div class="callout callout-tip">
+    <div class="callout-title">Single frame = static DMX, held on activate</div>
+    If you define exactly one frame and leave animation off, those channel values are sent
+    once when the scene activates and held until another scene fires.
+    Enable animation with one frame only if you want to lock the values in a loop
+    (useful if another system might try to override the fixture).
   </div>
 
-  <h2>Macros</h2>
+  <div class="callout callout-info">
+    <div class="callout-title">No lighting? No problem.</div>
+    If you're not using WLED lighting or pole nodes, ignore the Scenes section entirely.
+    Scenes assigned to walk-ups or macros silently do nothing if no devices are reachable.
+  </div>
+
+  <h2 id="macros">Macros</h2>
   <p>
-    A <strong>Macro</strong> is an ordered list of steps that execute one after another
-    when triggered. A single tap on a show flow item can play music, set lights, show an image,
-    load a timer preset, and more — all from one macro.
+    A <strong>Macro</strong> is an ordered list of steps that execute in sequence
+    when triggered. One tap can play music, set lights, show an image, load a timer preset,
+    push a slide, and more — all automated.
   </p>
 
   <h3>Creating a macro</h3>
   <ol class="steps">
     <li>In Admin, click <strong>⚡ Macros</strong>.</li>
-    <li>Click <kbd>+ NEW MACRO</kbd>. Give it a name (e.g., "Circle 1 Intro"), an optional ID, and an optional description.</li>
-    <li>Optionally upload a <strong>Display Image</strong> — this image shows fullscreen on the HDMI the moment the macro fires (before any steps run).</li>
-    <li>Under <strong>STEPS</strong>, use the dropdown to pick a step type and click <kbd>+ ADD STEP</kbd>.</li>
-    <li>Configure each step's fields. Drag steps up/down to reorder.</li>
+    <li>Click <kbd>+ NEW MACRO</kbd>. Give it a name and optional description.</li>
+    <li>Under <strong>STEPS</strong>, pick a step type from the dropdown and click <kbd>+ ADD STEP</kbd>.</li>
+    <li>Configure each step's fields. Use <kbd>▲</kbd> / <kbd>▼</kbd> to reorder steps.</li>
     <li>Click <kbd>✓ SAVE MACRO</kbd>.</li>
-    <li>To test without going through the show flow, click <kbd>▶ TEST</kbd>.</li>
+    <li>Click <kbd>▶ TEST</kbd> to fire it immediately for testing.</li>
+    <li>Click <kbd>⧉ DUPLICATE</kbd> to copy a macro as a starting point for a similar one.</li>
   </ol>
 
   <h3>Macro step types — complete reference</h3>
   <table>
     <tr><th>Step Type</th><th>What it does</th><th>Key fields</th></tr>
-    <tr><td>🔊 Play SFX</td><td>Fires a one-shot sound effect immediately</td><td>Pick a file from the SFX library</td></tr>
-    <tr><td>🎵 Play Music</td><td>Starts a music track (replaces whatever is playing)</td><td>Pick a file from the Music library; optionally set start position (seconds) and fade-in</td></tr>
-    <tr><td>💿 USB Playlist</td><td>Starts playing a folder from the USB drive as a shuffled playlist</td><td>Folder path on the USB drive</td></tr>
-    <tr><td>⏹ Stop Audio</td><td>Cuts all music immediately (hard stop)</td><td>None</td></tr>
+    <tr><td>🔊 Play SFX</td><td>Fires a one-shot sound effect immediately</td><td>File from SFX library</td></tr>
+    <tr><td>🎵 Play Music</td><td>Starts a music track (replaces whatever is playing)</td><td>File; optional start (sec) and fade-in</td></tr>
+    <tr><td>💿 USB Playlist</td><td>Plays a folder from the USB drive as a shuffled playlist</td><td>Folder path on USB drive</td></tr>
+    <tr><td>⏹ Stop Audio</td><td>Hard stops all music immediately</td><td>None</td></tr>
     <tr><td>↘ Fade Out</td><td>Smoothly fades music to silence</td><td>Fade duration in seconds</td></tr>
-    <tr><td>⬡ Circle Walk-Up</td><td>Fires a circle's full walk-up (music + logo/animation + lighting)</td><td>Pick a circle from the list</td></tr>
-    <tr><td>★ Role Walk-Up</td><td>Fires a role's full walk-up</td><td>Pick a role from the list</td></tr>
-    <tr><td>🎬 Set Scene</td><td>Activates a lighting scene</td><td>Pick a scene from the list</td></tr>
-    <tr><td>⏱ Start Timer</td><td>Starts the skit timer immediately (uses whatever preset is loaded)</td><td>None</td></tr>
+    <tr><td>⬡ Circle Walk-Up</td><td>Fires a circle's full walk-up (music + logo/animation + lighting)</td><td>Pick a circle</td></tr>
+    <tr><td>★ Role Walk-Up</td><td>Fires a role's full walk-up</td><td>Pick a role</td></tr>
+    <tr><td>🎬 Set Scene</td><td>Activates a lighting scene</td><td>Pick a scene</td></tr>
+    <tr><td>⏱ Start Timer</td><td>Starts the skit timer (uses whatever preset is loaded)</td><td>None</td></tr>
     <tr><td>↺ Reset Timer</td><td>Stops and resets the skit timer</td><td>None</td></tr>
-    <tr><td>⚙ Load Timer Preset</td><td>Loads a saved timer preset (duration, sounds, etc.) without starting it</td><td>Pick a preset name</td></tr>
-    <tr><td>🖼 Show Image</td><td>Shows a specific image fullscreen on the HDMI</td><td>Pick an image from the Display library</td></tr>
-    <tr><td>🎬 Show Video</td><td>Plays a video fullscreen on the HDMI (loops until cleared)</td><td>Pick a video from the Display library; set Hold (seconds before looping) and Loop (yes/no)</td></tr>
+    <tr><td>⚙ Load Timer Preset</td><td>Loads a saved timer preset without starting it</td><td>Preset name</td></tr>
+    <tr><td>🖼 Show Image</td><td>Shows a specific image fullscreen on the HDMI</td><td>Pick from Display library</td></tr>
+    <tr><td>🎬 Show Video</td><td>Plays a video fullscreen on the HDMI (loops until cleared)</td><td>Pick video; set Hold (sec) and Loop (yes/no)</td></tr>
     <tr><td>⬡ Circle (logo only)</td><td>Shows a circle's logo on HDMI without playing music</td><td>Pick a circle</td></tr>
     <tr><td>★ Role (logo only)</td><td>Shows a role's logo on HDMI without playing music</td><td>Pick a role</td></tr>
-    <tr><td>📋 Custom Slide</td><td>Pushes a text slide to the projector — announcements, schedules, next camp, QR code, or spotlight</td><td>Template, headline, body text, accent color. See <em>Live Slides</em> below for template details.</td></tr>
+    <tr><td>📋 Saved Slide</td><td>Pushes a named slide you previously saved in the Slides tab</td><td>Slide name</td></tr>
+    <tr><td>📋 Custom Slide</td><td>Pushes a custom text slide to the projector (built inline)</td><td>Template, headline, body, accent color</td></tr>
     <tr><td>✕ Clear Slide</td><td>Removes the current custom slide from the projector</td><td>None</td></tr>
-    <tr><td>⏳ Wait</td><td>Pauses the macro for a set time before continuing to the next step</td><td>Duration in seconds</td></tr>
+    <tr><td>🎮 Shell Game</td><td>Launches the shell game on the HDMI display</td><td>Optional theme name</td></tr>
+    <tr><td>📊 Show Crowd Viz</td><td>Opens the crowd noise gauge on the HDMI</td><td>Optional preset name</td></tr>
+    <tr><td>⏳ Wait</td><td>Pauses the macro for a set time before the next step</td><td>Duration in seconds</td></tr>
   </table>
 
   <div class="callout callout-tip">
-    <div class="callout-title">Tip — steps run immediately, one after another</div>
-    Steps don't wait for audio to finish — they fire in rapid sequence unless you add a <strong>Wait</strong> step.
-    If you want music to play for 10 seconds before the lights change, add a Wait (10 sec) step between them.
-    The one exception is Walk-Up steps, which manage their own timing internally.
-  </div>
-  <div class="callout callout-tip">
-    <div class="callout-title">Tip — duplicating macros</div>
-    Click <kbd>⧉ DUPLICATE</kbd> on any macro to copy it as a starting point for a new one.
-    Useful when several show items have similar structure (play music → set scene → load timer).
+    <div class="callout-title">Steps fire instantly, one after another</div>
+    Steps don't wait for audio to finish. Add a <strong>Wait</strong> step if you need a pause between actions.
+    The exception: Walk-Up steps manage their own timing internally.
   </div>
 
-  <h2>Show Flow</h2>
+  <h2 id="show-flow">Show Flow</h2>
   <p>
-    The <strong>Show Flow</strong> is the master rundown for the show — an ordered list of named items,
-    each linked to a macro. During the show, you tap items one by one in the console's SHOW tab,
-    and each one fires its macro automatically.
+    The <strong>Show Flow</strong> is the master rundown — an ordered list of named items,
+    each linked to a macro. During the show, you tap items one by one, and each fires its
+    macro automatically.
   </p>
 
   <h3>Building the show flow</h3>
   <ol class="steps">
     <li>In Admin, click <strong>▶ Show Flow</strong>.</li>
     <li>Click <kbd>+ ADD STEP</kbd>.</li>
-    <li>In the editor panel on the right, fill in:</li>
-  </ol>
-  <table>
-    <tr><th>Field</th><th>What it does</th></tr>
-    <tr><td>Macro</td><td>The macro that fires when this item is tapped in the console</td></tr>
-    <tr><td>Display Name</td><td>The label shown on the button in the console (e.g., "Opening", "Circle 1 – Mighty Creek", "Games")</td></tr>
-    <tr><td>Notes</td><td>Reminder text shown below the button in the console — visible to the operator but not the audience. Use this to cue yourself: "Henry walks up, intro music plays, lights go warm."</td></tr>
-    <tr><td>Color</td><td>Button color in the console — purely visual, helps you scan the list quickly</td></tr>
-  </table>
-  <ol class="steps" start="4">
-    <li>Click <kbd>ADD TO SHOW</kbd> (or the equivalent save button in the panel).</li>
-    <li>Repeat for each show segment. Drag items in the left list to reorder them.</li>
-    <li>Click <kbd>SAVE SHOW FLOW</kbd> when done. This is the one place you need to explicitly save.</li>
+    <li>In the picker panel, fill in: Macro (which macro to fire), Display Name (label on the console button), Notes (operator reminder — not shown to audience), and Color (button color for scanning quickly).</li>
+    <li>Click <kbd>ADD TO SHOW</kbd>. Repeat for each show segment.</li>
+    <li>Drag items in the left list to reorder. Click <kbd>SAVE SHOW FLOW</kbd> when done.</li>
   </ol>
 
   <div class="callout callout-warn">
     <div class="callout-title">Always save the Show Flow</div>
-    Unlike most admin screens, the Show Flow requires you to click <kbd>SAVE SHOW FLOW</kbd>
-    at the bottom of the left panel before your order is persisted. If you reorder items and
-    close the browser without saving, the order reverts.
+    The Show Flow requires you to click <kbd>SAVE SHOW FLOW</kbd> before your order is persisted.
+    If you reorder items and close the browser without saving, the order reverts.
   </div>
 
-  <h2>Skit Timer</h2>
+  <h2 id="timer-admin">Skit Timer &amp; Presets</h2>
   <p>
-    The skit timer is the countdown shown in the left panel of the console during skits.
-    Configure it in Admin → <strong>⏱ Timer</strong>.
+    Configure the skit timer in Admin → <strong>⏱ Timer</strong>.
+    The skit timer is the countdown used during skits and ceremonies — separate from the
+    Games countdown timer.
   </p>
 
   <h3>Timer settings</h3>
   <table>
     <tr><th>Setting</th><th>What it does</th></tr>
-    <tr><td>Duration</td><td>How long the timer runs, in seconds (e.g., 180 = 3 minutes)</td></tr>
-    <tr><td>Warning At</td><td>Seconds remaining when the warning triggers on the HDMI screen (default: 15). A flashing countdown appears on screen even if "Show on Screen" is off.</td></tr>
-    <tr><td>Start Sound</td><td>Music track or SFX that plays the moment the timer starts. Pick from the music or SFX library.</td></tr>
-    <tr><td>Start Sound — Start At</td><td>Jump into the track at this many seconds (0 = from the beginning). Useful to skip a long intro.</td></tr>
-    <tr><td>Start Sound — Duration</td><td>How long to play the sound, in seconds. Set to 0 to play for the full timer duration.</td></tr>
-    <tr><td>Start Sound — Fade</td><td>How the sound ends: <strong>0 = play once and stop</strong>. Any positive number = loop continuously and fade out that many seconds before the end sound plays.</td></tr>
-    <tr><td>Warning Sound</td><td>SFX that plays at the warning point (e.g., a buzzer or drum roll)</td></tr>
+    <tr><td>Duration</td><td>Timer length in seconds (e.g., 180 = 3 minutes)</td></tr>
+    <tr><td>Warning At</td><td>Seconds remaining when the 15-second style warning triggers on the HDMI screen</td></tr>
+    <tr><td>Start Sound</td><td>Music track or SFX that plays when the timer starts</td></tr>
+    <tr><td>Start At (sec)</td><td>Jump into the start sound at this many seconds into the track</td></tr>
+    <tr><td>Sound Duration</td><td>How long to play the start sound (0 = full file duration)</td></tr>
+    <tr><td>Loop Start Sound</td><td>Check this to loop the start sound continuously and fade it out near the end</td></tr>
+    <tr><td>Fade (sec)</td><td>When Loop is on: how many seconds before zero to fade out the start sound. When Loop is off: ignored.</td></tr>
+    <tr><td>Warning Sound</td><td>SFX that plays at the warning point</td></tr>
     <tr><td>Warning Scene</td><td>Lighting scene to activate at the warning point</td></tr>
     <tr><td>End Sound</td><td>SFX that plays when the timer hits zero</td></tr>
     <tr><td>End Scene</td><td>Lighting scene to activate when the timer expires</td></tr>
   </table>
 
   <div class="callout callout-tip">
-    <div class="callout-title">Music that loops and fades — the key rule</div>
-    <strong>Fade = 0:</strong> plays the sound file once from beginning to end (or to the Duration limit), then stops.<br>
-    <strong>Fade &gt; 0:</strong> loops the sound continuously, then fades it out that many seconds before zero. Use this for background music you want to fill the whole skit.
-    Example: Duration = 120, Start Sound Fade = 5 → music loops for 115 seconds, then fades over 5 seconds as the end sound fires.
+    <div class="callout-title">Loop vs. play-once — the key rule</div>
+    <strong>Loop unchecked:</strong> plays the start sound once from beginning to end, then stops.<br>
+    <strong>Loop checked:</strong> loops the sound continuously, then fades it out that many seconds before zero — perfect for background skit music that fills the whole timer.<br><br>
+    Example: Duration = 180, Loop checked, Fade = 5 → music loops for 175 seconds, fades over 5 seconds as the End Sound fires.
   </div>
 
   <h3>Saving and loading timer presets</h3>
   <p>
-    A <strong>Timer Preset</strong> saves all the current timer settings under a name.
-    Presets can be loaded by a macro step (<em>Load Timer Preset</em>), so the timer is
-    always correctly configured when a show segment starts.
+    A <strong>Timer Preset</strong> saves all the current timer settings under a name so
+    a macro can load the right timer config for each segment automatically.
   </p>
   <ol class="steps">
-    <li>Configure all timer fields the way you want them for a particular segment.</li>
-    <li>Scroll down to <strong>Timer Presets</strong> at the bottom of the Timer page.</li>
-    <li>Check the <em>Will save:</em> summary line — it shows exactly what will be saved.</li>
-    <li>Type a name in the preset field (e.g., "3 Min Skit", "2 Min Game Intro").</li>
-    <li>Click <kbd>SAVE AS PRESET</kbd>.</li>
-    <li>To use a preset in a show: create a macro with a <em>Load Timer Preset</em> step and pick your preset name.</li>
+    <li>Configure all timer fields for a particular segment.</li>
+    <li>Scroll down to <strong>Timer Presets</strong>. Check the <em>Will save:</em> summary line — it shows exactly what will be saved.</li>
+    <li>Type a name (e.g., "Skit Timer", "2 Minute Timer") and click <kbd>SAVE AS PRESET</kbd>.</li>
+    <li>To use in a show: add a <em>⚙ Load Timer Preset</em> step to a macro and pick the preset name. The macro will load the right timer config before the skit starts — operator just presses START.</li>
     <li>To delete a preset: click the trash icon next to it in the presets list.</li>
   </ol>
 
-  <div class="callout callout-warn">
-    <div class="callout-title">The preset saves the form, not disk</div>
-    The preset captures whatever is in the timer form fields at that moment —
-    not necessarily what was last saved. Always glance at the <em>Will save:</em> summary before clicking.
-  </div>
-
-  <h2>Games Timer</h2>
+  <h2 id="slides-admin">Live Slides</h2>
   <p>
-    The Games Timer is a separate countdown used during games. It's configured directly
-    in the console's <span class="tab">GAMES</span> tab — no Admin panel needed.
-    See the <em>Running the Show</em> section for full details.
+    The <strong>📋 Slides</strong> tab lets you build and save custom text slides to push
+    to the projector — announcements, next-camp info, QR codes, spotlights.
+    The same builder is available in the console's DISPLAY tab for on-the-fly use during a show.
   </p>
-  <table>
-    <tr><th>Setting</th><th>What it does</th></tr>
-    <tr><td>Duration</td><td>Minutes and seconds. Click <kbd>SET</kbd> to apply.</td></tr>
-    <tr><td>Start SND</td><td>Sound that plays when countdown starts. Fade = 0 plays once; Fade &gt; 0 loops and fades.</td></tr>
-    <tr><td>Fade</td><td>Seconds before zero when the start sound fades out (0 = play once, don't loop).</td></tr>
-    <tr><td>End SND</td><td>Sound that plays when the countdown hits zero.</td></tr>
-    <tr><td>Display</td><td>Check to show the countdown timer on the HDMI screen.</td></tr>
-    <tr><td>End Anim</td><td>Check to show a "time's up" animation on the HDMI screen at zero.</td></tr>
-  </table>
-
-  <h2>Live Slides</h2>
-  <p>
-    The <strong>📋 Slides</strong> tab lets you build and push a custom text slide to the projector
-    without leaving the admin panel — useful for setting up announcements or next-camp info before the show.
-    The same slide builder is also available in the console's <span class="tab">DISPLAY</span> tab for on-the-fly use during a show.
-  </p>
-  <p>Slides appear as a full-screen overlay on the HDMI display and stay up until you push a new one, clear it, or fire a <em>Clear Slide</em> macro step.</p>
 
   <h3>Templates</h3>
   <table>
-    <tr><th>Template</th><th>Best for</th><th>Fields</th></tr>
-    <tr><td><strong>Big Title</strong></td><td>Single bold announcement — event name, countdown callout</td><td>Headline, optional subtitle</td></tr>
-    <tr><td><strong>Bulletin</strong></td><td>Schedule or short list — left-justified, line by line</td><td>Header, then lines (one per line)</td></tr>
-    <tr><td><strong>Next Event</strong></td><td>Upcoming camp announcement — left-justified layout</td><td>Label (e.g. "NEXT CAMP"), event name, date/location</td></tr>
-    <tr><td><strong>Spotlight</strong></td><td>Highlight an individual or circle with a logo image</td><td>Image (from display library), title, optional subtitle</td></tr>
-    <tr><td><strong>QR Code</strong></td><td>Show a scannable QR code with a headline and optional body text</td><td>Headline, optional body text, URL or text for the QR code</td></tr>
+    <tr><th>Template</th><th>Best for</th></tr>
+    <tr><td><strong>Big Title</strong></td><td>Single bold announcement — event name, countdown callout</td></tr>
+    <tr><td><strong>Bulletin</strong></td><td>Schedule or short list — line by line</td></tr>
+    <tr><td><strong>Next Event</strong></td><td>Upcoming camp announcement — label, event name, date/location</td></tr>
+    <tr><td><strong>Spotlight</strong></td><td>Highlight an individual or circle with a logo image</td></tr>
+    <tr><td><strong>QR Code</strong></td><td>Scannable QR code with headline — enter any URL or text</td></tr>
   </table>
-
-  <h3>Accent colors</h3>
-  <p>Each slide has a colored accent — the stripe, underline, or border that gives it personality. Choose from: <strong>Amber</strong> (default), Blue, Green, White, or Red.</p>
+  <p>Each slide has an accent color: Amber (default), Blue, Green, White, or Red.</p>
 
   <h3>Using the Slides tab</h3>
   <ol class="steps">
-    <li>In Admin, click <strong>📋 Slides</strong> in the sidebar.</li>
-    <li>Click a template button (BIG TITLE, BULLETIN, etc.) to select it.</li>
-    <li>Fill in the fields that appear below the template row.</li>
-    <li>Choose an accent color using the colored circles.</li>
-    <li>Click <kbd>▶ SEND TO DISPLAY</kbd>. The slide appears on the projector immediately.</li>
-    <li>To remove the slide, click <kbd>✕ CLEAR</kbd>.</li>
+    <li>Click a template button to select it.</li>
+    <li>Fill in the fields that appear. Pick an accent color.</li>
+    <li>Click <kbd>▶ SEND TO DISPLAY</kbd> to push it to the projector. Click <kbd>✕ CLEAR</kbd> to remove it.</li>
+    <li>To save for later: type a name and click <kbd>SAVE</kbd>. Saved slides appear in the list — click any to push it again.</li>
   </ol>
 
   <div class="callout callout-tip">
-    <div class="callout-title">Tip — slides survive reconnects</div>
-    If a browser refreshes or the display page reconnects, the current slide is restored automatically.
-    You don't have to re-send it.
+    <div class="callout-title">Slides in macros</div>
+    Use a <strong>📋 Saved Slide</strong> step in a macro to automatically push a saved slide when
+    the macro fires. Or use <strong>📋 Custom Slide</strong> to build one inline in the macro.
+    Pair it with a <strong>✕ Clear Slide</strong> step at the end of the segment.
   </div>
 
-  <div class="callout callout-tip">
-    <div class="callout-title">Tip — Bulletin lines</div>
-    For the Bulletin template, type each line in the text area with a line break between them.
-    Example:<br><br>
-    <span class="mono">Midnight Meat  10:00 PM</span><br>
-    <span class="mono">Polar Plunge  11:30 PM</span><br>
-    <span class="mono">Lights Out  12:00 AM</span>
-  </div>
-
-  <h3>Slides in macros</h3>
+  <h2 id="shell-game-admin">Shell Game</h2>
   <p>
-    Any slide can be baked into a macro using the <strong>📋 Custom Slide</strong> step type.
-    When the macro fires, the slide appears automatically — no manual action needed.
-    Pair it with a <strong>✕ Clear Slide</strong> step at the end of the segment to remove it.
+    The Shell Game is an interactive audience game shown fullscreen on the HDMI display.
+    Three tents shuffle positions around a hidden item (a rock). The audience guesses
+    which tent it's under.
+  </p>
+  <p>Configure it in Admin → <strong>🎮 Games</strong> → Shell Game section.</p>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Guess Time</td><td>Seconds the audience has to guess before the reveal</td></tr>
+    <tr><td>Title / Messages</td><td>Custom text shown on screen during the game phases (lobby, shuffle, guess)</td></tr>
+    <tr><td>Tent Image</td><td>Upload a custom tent graphic. Built-in default works fine.</td></tr>
+    <tr><td>Rock / Item Image</td><td>The item hidden under the winning tent.</td></tr>
+    <tr><td>Audio — Start Horn</td><td>Sound that plays when the game begins</td></tr>
+    <tr><td>Audio — Shuffle Music</td><td>Music that plays during the tent shuffle sequence</td></tr>
+    <tr><td>Audio — Reveal Cheer</td><td>Sound that plays when the winning tent is revealed</td></tr>
+  </table>
+  <p>
+    Click <kbd>SAVE CHANGES</kbd> to save. To save multiple game themes (e.g., different seasons
+    or events), type a theme name and click <kbd>SAVE CURRENT</kbd>. Saved themes appear in the
+    list and can be loaded or deleted.
   </p>
 
-  <h2>System</h2>
-  <p>The <strong>⚙ System</strong> tab in Admin has controls you rarely need but need to know about.</p>
+  <h2 id="crowd-admin">Crowd Noise — Gauge &amp; Lighting Setup</h2>
+  <p>
+    The Crowd Noise system puts a large animated gauge on the HDMI that the operator
+    drives in real time from the iPad. Configure it in Admin under <strong>🖼 Display</strong>.
+  </p>
+
+  <h3>Visualization presets</h3>
+  <p>
+    Visualization presets control how the gauge looks. Each preset combines a display mode
+    with color and animation settings. Create presets in the Display admin section.
+  </p>
+  <table>
+    <tr><th>Mode</th><th>What's shown</th></tr>
+    <tr><td>Needle + Bars</td><td>VU-meter needle above LED bar columns (default)</td></tr>
+    <tr><td>Needle only</td><td>Just the sweeping needle</td></tr>
+    <tr><td>Bars only</td><td>Just the vertical LED bar columns</td></tr>
+    <tr><td>Needle + Bars + Number</td><td>Needle, bars, and a numeric percentage readout</td></tr>
+  </table>
+
+  <h3>Crowd lighting</h3>
+  <p>
+    In the Display admin section, check any WLED devices or pole nodes you want to follow
+    the crowd slider. Their brightness and color track the level automatically —
+    cool green at low, amber at mid, red at high. On Climax, all assigned lights strobe white.
+  </p>
+  <table>
+    <tr><th>Color setting</th><th>What it controls</th></tr>
+    <tr><td>LOW color</td><td>Color of lights at 0–50% crowd level</td></tr>
+    <tr><td>MID color</td><td>Color at exactly 50%</td></tr>
+    <tr><td>HIGH color</td><td>Color at 100% crowd level</td></tr>
+  </table>
+
+  <h3>Text overlays (GET LOUD, LOUDER, LET'S GOOO)</h3>
+  <p>
+    Text overlays are video files (MP4 or WebM) that play on top of the gauge using
+    screen-blend compositing — the black background renders transparent and colored text
+    appears floating over the gauge. Upload them in the Display admin section.
+  </p>
+  <div class="callout callout-info">
+    <div class="callout-title">Preparing overlay videos</div>
+    Export your animation with a <strong>black background</strong> (not transparent/alpha).
+    Save as MP4 (H.264) or WebM. Black areas disappear via screen blend; everything else
+    shows over the gauge. H.264 MP4 is recommended for smooth Pi playback.
+  </div>
+
+  <h2 id="climax-admin">Climax FX Configuration</h2>
+  <p>
+    Climax FX is the big moment: one button that slams the gauge to maximum, fires an explosion
+    video fullscreen, and triggers an explosion sound — all simultaneously.
+    Configure in Admin → <strong>🖼 Display</strong> → Climax FX.
+  </p>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Video (MP4 / WebM)</td><td>The explosion video. Plays once, fullscreen, on top of everything. When it ends, the gauge hard-cuts to black.</td></tr>
+    <tr><td>SFX</td><td>The explosion sound effect. Fires the instant CLIMAX is tapped — in sync with the video.</td></tr>
+  </table>
+
+  <h2 id="lighting-settings">Lighting Settings — Pole Nodes &amp; Fixture Profiles</h2>
+  <p>
+    Admin → Settings → <strong>✦ Lighting</strong> is where you configure the physical pole hardware.
+    Everything here is one-time setup — do it before building scenes.
+  </p>
+
+  <h3>Pole Nodes</h3>
+  <p>
+    A <strong>Pole Node</strong> is the ESP32 controller on each pole. It runs custom WLED firmware
+    that drives both the WS2812B LED strip (via WLED) and the DMX fixtures (pinspot + wash bar)
+    over a MAX485 interface. Each node is controlled by the Pi over WiFi.
+  </p>
+  <ol class="steps">
+    <li>Click <kbd>+ ADD NODE</kbd>.</li>
+    <li>Enter a unique <strong>ID</strong> (e.g., <span class="mono">pole_a</span>), a <strong>Label</strong>, and the node's <strong>IP or hostname</strong> (e.g., <span class="mono">pole-a.local</span>).</li>
+    <li>Click <kbd>+ FIXTURE</kbd> to add each DMX fixture on that pole. Give each fixture a <strong>name</strong>, its <strong>DMX start channel</strong>, and its <strong>channel count</strong>.</li>
+    <li>Use the same fixture IDs (e.g., <span class="mono">pinspot</span>, <span class="mono">wash</span>) on every pole — this lets them share one Fixture Profile definition.</li>
+    <li>Click <kbd>✓ SAVE NODES</kbd>.</li>
+    <li>Click <kbd>↗ WLED UI</kbd> to open that node's WLED web interface directly — useful for testing strip effects and checking firmware status.</li>
+  </ol>
+  <table>
+    <tr><th>Fixture field</th><th>What it does</th></tr>
+    <tr><td>ID</td><td>Identifier used in scene DMX blocks. Must match across poles for shared profiles to work (e.g., <span class="mono">pinspot</span>).</td></tr>
+    <tr><td>Start channel</td><td>The DMX address of the fixture's first channel (1-based). Pinspot = 1, Wash Bar = 7 in our setup.</td></tr>
+    <tr><td>Channel count</td><td>Number of DMX channels this fixture uses. Pinspot = 6, Wash Bar = 8.</td></tr>
+  </table>
+
+  <h3>Fixture Profiles</h3>
+  <p>
+    A <strong>Fixture Profile</strong> names each channel of a fixture type and defines
+    quick-pick preset values — shown in the scene editor and the console test panel.
+    Profiles are defined once and shared across all poles that use the same fixture ID.
+  </p>
+  <ol class="steps">
+    <li>After saving Pole Nodes, the Fixture Profiles section populates automatically — one block per unique fixture ID.</li>
+    <li>Click a channel row to name it (e.g., "MODE", "RED", "DIMMER").</li>
+    <li>In the Presets column, enter <span class="mono">Label=Value</span> pairs separated by commas (e.g., <span class="mono">Manual=255, Strobe=187, Off=0</span>). These appear as quick buttons in the scene editor.</li>
+    <li>Click the <strong>≡</strong> icon to paste raw text from a fixture manual — the parser extracts channel ranges automatically.</li>
+    <li>Click <kbd>✓ SAVE PROFILES</kbd> when done.</li>
+  </ol>
+
+  <h3>WLED LED Segments</h3>
+  <p>
+    Each pole node's LED strip (300 × WS2812B) is divided into named <strong>segments</strong>
+    configured in WLED. Segments let scenes address different parts of the strip independently.
+  </p>
+  <table>
+    <tr><th>Segment</th><th>LEDs</th><th>What it covers</th></tr>
+    <tr><td>Stage 1</td><td>0 – 59</td><td>First stage-facing bar</td></tr>
+    <tr><td>Stage 2</td><td>60 – 119</td><td>Second stage-facing bar</td></tr>
+    <tr><td>Audience L</td><td>120 – 179</td><td>Left audience-facing bar</td></tr>
+    <tr><td>Audience C</td><td>180 – 239</td><td>Centre audience-facing bar</td></tr>
+    <tr><td>Audience R</td><td>240 – 299</td><td>Right audience-facing bar</td></tr>
+    <tr><td>Audience All</td><td>120 – 299</td><td>All three audience bars as one — use this for continuous chase/rainbow effects across the full audience face</td></tr>
+  </table>
+  <p>
+    Segments are saved as WLED preset 1 and loaded automatically on every boot.
+    They survive power cycles. They do <em>not</em> survive a firmware reflash — if you
+    ever reflash a node, re-upload <span class="mono">presets.json</span> to restore them.
+  </p>
+
+  <h3>WLED Sync (Pole A → Pole B)</h3>
+  <p>
+    Pole A is configured as the sync <strong>sender</strong>; Pole B is the sync <strong>receiver</strong>.
+    When the Pi fires a WLED preset or effect to Pole A, Pole A instantly broadcasts a UDP packet
+    and Pole B mirrors it — both strips fire in perfect sync from a single command.
+  </p>
+  <p>
+    The poles use sync group 4 (not the default group 1), so other WLED devices on the network
+    are not affected.
+  </p>
+  <div class="callout callout-warn">
+    <div class="callout-title">DMX is not synced</div>
+    WLED sync only covers the LED strip. DMX fixture commands (pinspot and wash bar) are
+    sent to each pole independently by the Pi. Both poles always receive their own DMX command.
+  </div>
+
+  <h2 id="system-admin">System Tab</h2>
+  <p>Admin → <strong>⚙ System</strong> has controls you rarely need but need to know about.</p>
+
+  <h3>Projector Display</h3>
   <table>
     <tr><th>Control</th><th>What it does</th></tr>
-    <tr><td>Standby Image</td><td>The image shown on the HDMI display when nothing else is happening. Upload a PNG or JPG here. Good for a lodge logo or event title card.</td></tr>
-    <tr><td>↗ OPEN DISPLAY PAGE</td><td>Opens the HDMI display page in a new browser tab — useful for confirming it's working from your phone.</td></tr>
-    <tr><td>CPU / Memory / Disk / Uptime</td><td>Live Pi health stats. Disk full is the most common problem — check here if things stop working.</td></tr>
-    <tr><td>🔈 RESET AUDIO</td><td>Restarts the audio system without rebooting the Pi. Try this if audio stops working unexpectedly.</td></tr>
-    <tr><td>⚠ RESTART SERVICE</td><td>Restarts the MusicMan software. Connected browsers will reconnect automatically within a few seconds. Use this after any config file edits done over SSH.</td></tr>
-    <tr><td>🔌 SHUTDOWN PI</td><td>Safely shuts down the Raspberry Pi. Wait for the activity light to stop blinking before unplugging power.</td></tr>
+    <tr><td>Standby Image</td><td>Image shown on HDMI when nothing else is happening. Good for a lodge logo or title card.</td></tr>
+    <tr><td>↗ OPEN DISPLAY PAGE</td><td>Opens the HDMI display page in a new browser tab — confirm it's working from your phone.</td></tr>
   </table>
+
+  <h3>Battery Monitor (Anker SOLIX)</h3>
+  <p>
+    The Anker SOLIX C300 power stations for the pole lighting rigs are monitored here
+    over Bluetooth. The card shows battery percentage, power in/out (watts), and has
+    toggle buttons for AC, DC, and the unit's built-in light.
+    Click <kbd>SCAN NOW</kbd> to force a refresh.
+  </p>
+  <div class="callout callout-tip">
+    <div class="callout-title">After a Pi restart</div>
+    The C300's Bluetooth light stays solid for about 2 minutes after a Pi restart
+    (it thinks it's still connected from before). Wait it out — it reconnects automatically.
+    No button press needed on the C300.
+  </div>
+
+  <h3>System Controls</h3>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>CPU / Memory / Disk / Uptime</td><td>Live Pi health stats. Disk full is the most common silent failure — check here if things stop working.</td></tr>
+    <tr><td>🔈 RESET AUDIO</td><td>Restarts the audio system without rebooting the Pi. Try this first if audio stops working.</td></tr>
+    <tr><td>⚠ RESTART SERVICE</td><td>Restarts the MusicMan software. Connected browsers reconnect automatically within seconds.</td></tr>
+    <tr><td>🔌 SHUTDOWN PI</td><td>Safely shuts down the Raspberry Pi. Wait for the activity light to stop blinking before removing power.</td></tr>
+  </table>
+
   <div class="callout callout-warn">
     <div class="callout-title">Always use Shutdown before unplugging</div>
     Pulling power while the Pi is running can corrupt the memory card. Click <kbd>🔌 SHUTDOWN PI</kbd>
@@ -971,248 +1033,300 @@
 </div>
 
 <!-- ══════════════════ PART 4 ══════════════════ -->
-<div class="section">
+<div class="section" id="part4">
   <div class="section-badge">PART 4</div>
   <h1>Running the Show</h1>
 
-  <h2>Console Overview</h2>
+  <h2 id="console-overview">Console Overview</h2>
   <p>
-    The console is at <span class="mono">http://&lt;Pi-IP&gt;</span>.
-    It has a <strong>left panel</strong> and a <strong>right panel with tabs</strong>.
+    The console is at <span class="mono">http://musicman.local</span>.
+    It has a <strong>left panel</strong> (always visible) and a <strong>right panel with tabs</strong>.
   </p>
 
   <h3>Left Panel (always visible)</h3>
   <table>
     <tr><th>Section</th><th>What it is</th></tr>
     <tr><td>Now Playing</td><td>Track name and playback progress bar</td></tr>
-    <tr><td>Transport Controls</td><td>STOP, CLEAR DISPLAY, PAUSE, FADE &amp; END, TRACK −/+, KILL ALL</td></tr>
+    <tr><td>Transport Controls</td><td>STOP, CLEAR DISPLAY, PAUSE, FADE &amp; END, TRACK −/+, BAE LOGO, KILL ALL</td></tr>
     <tr><td>Volume sliders</td><td>Music volume (top) and SFX volume (bottom)</td></tr>
-    <tr><td>Timer panel</td><td>Skit timer with START, RESET, and SHOW ON SCREEN toggle</td></tr>
-    <tr><td>Lighting Scenes</td><td>One-tap scene buttons and master brightness slider</td></tr>
+    <tr><td>Timer panel</td><td>Skit timer — large digit display, START/PAUSE, RESET, SET, SHOW ON SCREEN; preset select + LOAD/SAVE</td></tr>
+    <tr><td>Lighting Scenes</td><td>One-tap scene buttons and DIM slider (master brightness)</td></tr>
   </table>
 
   <h3>Right Panel Tabs</h3>
   <table>
     <tr><th>Tab</th><th>What it contains</th></tr>
-    <tr><td><span class="tab">SHOW</span></td><td>Show Flow — the main show script</td></tr>
-    <tr><td><span class="tab">WALKUPS</span></td><td>Walk-up buttons for each circle and role</td></tr>
-    <tr><td><span class="tab">ROLES</span></td><td>Role-specific walk-ups (Expedition Navigator, Firestarter, Story Teller, etc.)</td></tr>
+    <tr><td><span class="tab">SHOW</span></td><td>Show Flow — the main show script; tap items to advance</td></tr>
+    <tr><td><span class="tab">WALKUPS</span></td><td>Walk-up buttons for each circle</td></tr>
+    <tr><td><span class="tab">ROLES</span></td><td>Walk-up buttons for each role (Expedition Navigator, Firestarter, etc.)</td></tr>
     <tr><td><span class="tab">MACROS</span></td><td>Run any macro manually</td></tr>
-    <tr><td><span class="tab">SFX</span></td><td>Sound effect library — one-tap triggers</td></tr>
-    <tr><td><span class="tab">MUSIC</span></td><td>Music library — browse and play any track</td></tr>
-    <tr><td><span class="tab">DISPLAY</span></td><td>HDMI display controls — show images, clear screen, and the Live Slide Builder for on-the-fly custom slides</td></tr>
-    <tr><td><span class="tab">USB</span></td><td>USB playlist player — scan a drive and play folders as a shuffled playlist</td></tr>
-    <tr><td><span class="tab">GAMES</span></td><td>Games countdown timer, stopwatch, and leaderboard</td></tr>
+    <tr><td><span class="tab">SFX</span></td><td>Sound effect library — one-tap triggers; plays on top of current music</td></tr>
+    <tr><td><span class="tab">MUSIC</span></td><td>Music library browser; also USB playlist controls</td></tr>
+    <tr><td><span class="tab">DISPLAY</span></td><td>HDMI display controls — image/video list, live slide builder, crowd noise controls</td></tr>
+    <tr><td><span class="tab">GAMES/TIMERS</span></td><td>Games countdown timer, stopwatch, leaderboard, shell game controls</td></tr>
+    <tr><td><span class="tab">LIGHTS</span></td><td>Lighting scenes, DIM slider, pole battery status</td></tr>
+    <tr><td><span class="tab">WIFI</span></td><td>MusicMan AP info, connected devices, network scan and connect</td></tr>
+    <tr><td><span class="tab">HELP</span></td><td>This manual</td></tr>
   </table>
 
-  <h2>Running the Show Flow</h2>
-  <p>
-    The Show Flow is the core of the show. Each item is a button in the
-    <span class="tab">SHOW</span> tab.
-  </p>
+  <h2 id="show-flow-run">Running the Show Flow</h2>
   <ol class="steps">
     <li>Open the <span class="tab">SHOW</span> tab.</li>
-    <li>Tap the first show item. Its macro fires immediately — music plays, lights change, timer is configured, etc.</li>
-    <li>When ready to move on, tap the next show item.</li>
-    <li>The active item is highlighted. Previous items are dimmed.</li>
+    <li>Tap the first show item. Its macro fires immediately.</li>
+    <li>When ready to move on, tap the next item.</li>
+    <li>The active item is highlighted. Previous items are dimmed to show progress.</li>
   </ol>
 
   <div class="callout callout-tip">
     <div class="callout-title">Tip — macros run instantly</div>
-    Tapping a show flow item fires the macro right away — there's no "are you sure?"
-    prompt. Tap deliberately.
+    There's no confirmation prompt. Tapping a show flow item fires the macro right away. Tap deliberately.
   </div>
 
-  <h2>Transport Controls</h2>
+  <h2 id="transport">Transport Controls</h2>
   <table>
     <tr><th>Button</th><th>What it does</th></tr>
     <tr><td><kbd>STOP</kbd></td><td>Stops music immediately (hard cut)</td></tr>
-    <tr><td><kbd>CLEAR DISPLAY</kbd></td><td>Clears the HDMI screen (hides timer, images, leaderboard)</td></tr>
+    <tr><td><kbd>CLEAR DISPLAY</kbd></td><td>Clears the HDMI screen — hides timer, images, leaderboard, slides, everything</td></tr>
     <tr><td><kbd>PAUSE</kbd></td><td>Pauses / resumes music</td></tr>
-    <tr><td><kbd>FADE &amp; END</kbd></td><td>Fades music out gradually, then stops — smooth ending</td></tr>
+    <tr><td><kbd>FADE &amp; END</kbd></td><td>Fades music out smoothly, then stops — always prefer this over STOP</td></tr>
     <tr><td><kbd>◄◄ TRACK −</kbd></td><td>Skips to the previous track in the playlist</td></tr>
     <tr><td><kbd>TRACK + ►►</kbd></td><td>Skips to the next track in the playlist</td></tr>
-    <tr><td><kbd>KILL ALL</kbd></td><td>Emergency stop — cuts music, resets timer, clears everything</td></tr>
+    <tr><td><kbd>BAE LOGO</kbd></td><td>Shows the default Broken Arrow Expedition logo on the HDMI display</td></tr>
+    <tr><td><kbd>KILL ALL</kbd></td><td>Emergency stop — cuts music, resets timer, clears display</td></tr>
   </table>
 
-  <div class="callout callout-warn">
-    <div class="callout-title">Kill All</div>
-    <kbd>KILL ALL</kbd> is the big red emergency button. Use it if something goes badly wrong.
-    It stops all audio, resets the skit timer, and clears the display.
-    It does not reset the show flow position.
-  </div>
-
-  <h2>Walk-Up Music</h2>
-  <p>Walk-ups play a customized intro track for each circle or role.</p>
+  <h2 id="walkups-run">Walk-Up Music</h2>
   <ol class="steps">
-    <li>Go to the <span class="tab">WALKUPS</span> tab.</li>
-    <li>Tap the circle's button. The walk-up track starts, and their lighting scene fires.</li>
-    <li>The track plays through automatically. To stop it early, use <kbd>FADE &amp; END</kbd> or <kbd>STOP</kbd>.</li>
+    <li>Go to the <span class="tab">WALKUPS</span> tab (circles) or <span class="tab">ROLES</span> tab.</li>
+    <li>Tap the circle or role button. Their walk-up track starts, their logo appears on HDMI, and their lighting scene fires.</li>
+    <li>The walk-up plays through its configured duration and fades automatically. To stop early: <kbd>FADE &amp; END</kbd> or <kbd>STOP</kbd>.</li>
   </ol>
 
-  <div class="callout callout-info">
-    <div class="callout-title">Walk-up during a show flow item</div>
-    Walk-ups can be triggered at any time — they work independently of the show flow.
-    Walk-up music replaces whatever is currently playing.
-  </div>
-
-  <h2>Playing Music from the Library</h2>
+  <h2 id="music-run">Playing Music from the Library</h2>
   <ol class="steps">
     <li>Go to the <span class="tab">MUSIC</span> tab.</li>
-    <li>Browse or search for a track.</li>
-    <li>Tap it to play. It starts immediately.</li>
-    <li>Use the transport controls to pause, fade, or stop.</li>
+    <li>Browse or search for a track. Tap it to play immediately.</li>
+    <li>Use transport controls to pause, fade, or stop.</li>
   </ol>
 
-  <h2>Sound Effects</h2>
+  <h2 id="sfx-run">Sound Effects</h2>
   <ol class="steps">
     <li>Go to the <span class="tab">SFX</span> tab.</li>
-    <li>Tap any sound effect button to trigger it.</li>
-    <li>SFX play on a separate channel — they don't interrupt music.</li>
-    <li>Adjust the SFX volume with the bottom volume slider in the left panel.</li>
+    <li>Tap any button to trigger that sound effect.</li>
+    <li>SFX play on a separate channel — they don't interrupt or pause music.</li>
+    <li>Adjust SFX volume with the bottom slider in the left panel.</li>
   </ol>
 
-  <h2>Lighting Controls</h2>
+  <h2 id="lighting-run">Lighting Controls</h2>
   <p>
-    Lighting scenes appear as buttons in the left panel under <strong>Lighting Scenes</strong>.
+    Lighting scenes appear as buttons in the left panel under <strong>Lighting Scenes</strong>
+    and in the <span class="tab">LIGHTS</span> tab.
     The active scene is highlighted.
   </p>
   <ul>
     <li>Tap any scene button to activate it immediately.</li>
-    <li>Use the brightness slider to dim or brighten all lights.</li>
-    <li>Scenes can also be triggered automatically by macros and walk-ups.</li>
+    <li>Use the <strong>DIM</strong> slider to dim or brighten all lights at once.</li>
+    <li>Scenes are also triggered automatically by macros and walk-ups.</li>
   </ul>
 
-  <h2>The Skit Timer</h2>
+  <h2 id="skit-timer-run">The Skit Timer</h2>
   <p>
-    The skit timer lives in the left panel. Its label shows the name of whatever timer
-    preset is currently loaded (or "SKIT TIMER" if none).
+    The skit timer lives in the left panel. Its label shows the name of the currently loaded
+    timer preset — or <strong>SKIT TIMER</strong> if none is loaded.
   </p>
-
   <table>
     <tr><th>Control</th><th>What it does</th></tr>
     <tr><td><kbd>▶ START</kbd></td><td>Starts the countdown. Start sound plays if configured.</td></tr>
-    <tr><td><kbd>⏸ PAUSE</kbd></td><td>Pauses the countdown (and fades start sound if looping)</td></tr>
-    <tr><td><kbd>↺ RESET</kbd></td><td>Resets to full duration. Stops start sound. Clears timer from HDMI.</td></tr>
-    <tr><td>SHOW ON SCREEN</td><td>When checked, the timer appears on the HDMI display from the moment it starts. When unchecked, it only appears on HDMI at the 15-second warning.</td></tr>
+    <tr><td><kbd>⏸ PAUSE</kbd></td><td>Pauses the countdown (fades start sound if looping)</td></tr>
+    <tr><td><kbd>SET</kbd></td><td>Shows the timer on the HDMI display without starting it</td></tr>
+    <tr><td><kbd>↺ RESET</kbd></td><td>Stops the countdown, resets to full duration, clears timer from HDMI</td></tr>
+    <tr><td>SHOW ON SCREEN</td><td>When on: timer appears on HDMI from the moment it starts. When off: only appears at the 15-second warning.</td></tr>
   </table>
 
   <div class="callout callout-info">
-    <div class="callout-title">The 15-second warning</div>
+    <div class="callout-title">The 15-second warning always shows</div>
     Regardless of the SHOW ON SCREEN setting, a large countdown always appears on the
-    HDMI display when 15 seconds remain. This is intentional — it's visible to the audience
-    while the full timer runs silently for the operator.
+    HDMI display when 15 seconds remain. This is intentional — always visible to the audience,
+    letting the full timer stay hidden until then.
   </div>
 
+  <h3>Loading a preset from the console</h3>
   <p>
-    When the Games countdown is running, the timer panel mirrors its countdown and
-    the label changes to <strong>GAMES TIMER</strong>. It reverts when the countdown stops.
+    The timer panel has a preset dropdown. Select a preset and click <kbd>LOAD</kbd> to apply it —
+    the timer label, duration, and all sounds update immediately. Or use a macro with a
+    <em>Load Timer Preset</em> step to load the right preset automatically when a show item fires.
   </p>
 
-  <h2>Games Tab</h2>
+  <h2 id="games-run">Games Tab</h2>
 
   <h3>Games Countdown Timer</h3>
+  <p>A separate countdown timer for games — independent of the Skit Timer.</p>
   <ol class="steps">
-    <li>Go to the <span class="tab">GAMES</span> tab.</li>
+    <li>Go to the <span class="tab">GAMES/TIMERS</span> tab.</li>
     <li>Set the duration (minutes and seconds) and click <kbd>SET</kbd>.</li>
-    <li>Configure start and end sounds as needed.</li>
-    <li>Click <kbd>▶ START</kbd> to begin. The left panel mirrors the countdown.</li>
-    <li>Click <kbd>⏸ PAUSE</kbd> to pause, <kbd>↺ RESET</kbd> to reset.</li>
+    <li>Configure start and end sounds. Use the same Loop and Fade logic as the Skit Timer.</li>
+    <li>Check <strong>Display</strong> to show the countdown on HDMI. Check <strong>End Anim</strong> to show a time's-up animation.</li>
+    <li>Click <kbd>▶ START</kbd>. The left panel label changes to <strong>GAMES TIMER</strong> and mirrors the countdown.</li>
   </ol>
 
   <h3>Stopwatch</h3>
   <p>
-    The stopwatch is below the countdown timer. Use it to time individual game runs.
-    Hit <kbd>▶ START</kbd> to start, <kbd>■ STOP</kbd> to stop.
-    The elapsed time is ready to record.
+    Below the countdown timer. <kbd>▶ START</kbd> to start, <kbd>■ STOP</kbd> to stop.
+    Shows elapsed time in M:SS.T format. Check <strong>Show on Screen</strong> to display it on HDMI.
+    Use it to time individual game runs.
   </p>
 
   <h3>Leaderboard</h3>
   <ol class="steps">
     <li>Create a game with <kbd>+ NEW</kbd>.</li>
     <li>After each run, enter the participant's name and click <kbd>⏱ RECORD</kbd> to save the stopwatch time.</li>
-    <li>Click <kbd>▲ FASTEST FIRST</kbd> / <kbd>▼ LONGEST FIRST</kbd> to toggle sort order. The HDMI display updates automatically.</li>
-    <li>Click <kbd>📺 SHOW ON SCREEN</kbd> to display the leaderboard on the HDMI.</li>
+    <li>Click <kbd>▲ FASTEST FIRST</kbd> / <kbd>▼ MOST RECENT</kbd> to sort. The HDMI leaderboard updates automatically.</li>
+    <li>Click <kbd>📺 SHOW SCORES</kbd> to display the leaderboard on HDMI.</li>
     <li>Click <kbd>✕ CLEAR</kbd> to clear times for the current game.</li>
   </ol>
 
-  <h2>HDMI Display Controls</h2>
+  <h2 id="display-run">HDMI Display Controls</h2>
   <p>The <span class="tab">DISPLAY</span> tab controls what the audience sees on screen.</p>
-  <table>
-    <tr><th>Control</th><th>What it does</th></tr>
-    <tr><td>Image list</td><td>Tap any image to display it fullscreen on the HDMI</td></tr>
-    <tr><td>Clear Display</td><td>Hides everything — returns to standby/dark</td></tr>
-    <tr><td><kbd>CLEAR DISPLAY</kbd> (transport)</td><td>Same as above, accessible from anywhere in the console</td></tr>
-  </table>
+  <ul>
+    <li>Tap any image thumbnail to display it fullscreen on the HDMI.</li>
+    <li>Tap a video thumbnail to play it fullscreen (loops until cleared).</li>
+    <li>Use <kbd>CLEAR PROJECTOR</kbd> to return to standby/dark.</li>
+  </ul>
 
-  <p>The display is also controlled automatically by macros (show images, timers, leaderboards).</p>
-
-  <h2>Live Slide Builder</h2>
+  <h2 id="slides-run">Live Slide Builder</h2>
   <p>
-    The <span class="tab">DISPLAY</span> tab includes a slide builder at the top for pushing
-    custom text slides to the projector on the fly — no admin panel needed.
-    Use it for last-minute announcements, schedule changes, or anything that needs to go up quickly.
+    At the top of the <span class="tab">DISPLAY</span> tab. Use it for last-minute announcements
+    without going to the admin panel.
   </p>
   <ol class="steps">
-    <li>Go to the <span class="tab">DISPLAY</span> tab.</li>
-    <li>Under <strong>LIVE SLIDE</strong>, tap a template button: <kbd>BIG TITLE</kbd>, <kbd>BULLETIN</kbd>, <kbd>NEXT EVENT</kbd>, <kbd>SPOTLIGHT</kbd>, or <kbd>QR CODE</kbd>.</li>
-    <li>Fill in the fields that appear (headline, body text, date, URL, etc.).</li>
-    <li>Pick an accent color using the colored circles.</li>
-    <li>Tap <kbd>▶ SEND TO DISPLAY</kbd>. The slide goes live on the projector immediately.</li>
+    <li>Go to <span class="tab">DISPLAY</span>.</li>
+    <li>Under <strong>LIVE SLIDE</strong>, tap a template: <kbd>BIG TITLE</kbd>, <kbd>BULLETIN</kbd>, <kbd>NEXT EVENT</kbd>, <kbd>SPOTLIGHT</kbd>, or <kbd>QR CODE</kbd>.</li>
+    <li>Fill in the fields. Pick an accent color.</li>
+    <li>Tap <kbd>▶ SEND TO DISPLAY</kbd>. The slide goes live immediately.</li>
     <li>Tap <kbd>✕ CLEAR</kbd> to remove it.</li>
+    <li>To save for reuse: type a name and tap <kbd>SAVE</kbd>. It appears in the saved slides list below.</li>
   </ol>
+
   <div class="callout callout-info">
     <div class="callout-title">Slides layer over everything</div>
     A custom slide appears on top of any image or animation already showing. Clearing the slide
-    reveals whatever was underneath. <kbd>CLEAR DISPLAY</kbd> (transport bar) removes everything —
-    slides included.
+    reveals whatever was underneath. <kbd>CLEAR DISPLAY</kbd> (transport bar) removes everything, slides included.
   </div>
 
-  <h2>USB Playlist Tab</h2>
+  <h2 id="crowd-run">Crowd Noise — Live Operation</h2>
   <p>
-    The <span class="tab">USB</span> tab lets you browse and play music folders directly from a USB drive,
-    without needing to configure anything in advance. Great for pre-show or post-show background music.
+    Crowd noise controls are in the <span class="tab">DISPLAY</span> tab under
+    <strong>CROWD CONTROL</strong>. Tap <kbd>📢 SHOW VIZ</kbd> to bring the gauge up on HDMI.
+  </p>
+
+  <h3>Manual vs. Auto mode</h3>
+  <table>
+    <tr><th>Mode</th><th>How it works</th></tr>
+    <tr><td><strong>Manual</strong></td><td>Operator drags a slider to set the crowd level. Gauge and lights update on release.</td></tr>
+    <tr><td><strong>Auto (Mic)</strong></td><td>Level is driven automatically by the microphone input from a pole node. The dB meter bars show the live input level.</td></tr>
+  </table>
+
+  <h3>The slider (Manual mode)</h3>
+  <p>
+    Drag the slider to set the crowd level (0–100%). The gauge needle and crowd lighting update
+    on release — the needle ramps naturally, like a real VU meter.
+    The gauge stays at whatever level you set until you move it again.
+  </p>
+
+  <h3>Text overlays</h3>
+  <p>
+    Below the slider is a list of uploaded overlay videos (GET LOUD, LOUDER, LET'S GOOO, etc.).
+    Tap one to play it looping over the gauge. Tap another to switch — it crossfades without a flash.
+    Tap <kbd>✕ STOP OVERLAY</kbd> to clear and show just the gauge.
+  </p>
+
+  <h3>CLIMAX</h3>
+  <ol class="steps">
+    <li>Tap <kbd>⚡ CLIMAX</kbd>.</li>
+    <li>The gauge needle slams instantly to maximum.</li>
+    <li>Any text overlay stops immediately.</li>
+    <li>The explosion video fires fullscreen — in sync with the explosion SFX.</li>
+    <li>When the video ends, the gauge hard-cuts to black. The crowd viz closes.</li>
+  </ol>
+
+  <div class="callout callout-warn">
+    <div class="callout-title">Climax is one-way</div>
+    After Climax fires, the crowd viz closes automatically. To use it again, tap
+    <kbd>📢 SHOW VIZ</kbd> and bring the slider back up from zero.
+  </div>
+
+  <h3>Dismissing the gauge</h3>
+  <p>
+    Tap <kbd>✕</kbd> (or <kbd>STOP VIZ</kbd>) to fade the gauge off HDMI and
+    reset the slider and lights to zero.
+  </p>
+
+  <h2 id="shell-game-run">Shell Game — Live Operation</h2>
+  <p>
+    The Shell Game puts a full-screen animated campfire scene on the HDMI —
+    three tents shuffling around a hidden item. The audience guesses which tent it's under.
+  </p>
+  <p>
+    Launch it from the <span class="tab">GAMES/TIMERS</span> tab → Shell Game section,
+    or from a macro with a <em>🎮 Shell Game</em> step.
+    The HDMI display switches to the shell game page automatically.
+  </p>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td><kbd>OPEN ON DISPLAY</kbd></td><td>Navigates the HDMI kiosk to the shell game page</td></tr>
+    <tr><td><kbd>START GAME</kbd></td><td>Begins the shuffle sequence with sounds</td></tr>
+    <tr><td><kbd>RESET TO LOBBY</kbd></td><td>Resets for another round, returns to the lobby screen</td></tr>
+  </table>
+  <p>When done, the HDMI returns to the normal display page automatically.</p>
+
+  <h2 id="usb-run">USB Playlist Tab</h2>
+  <p>
+    Play music folders directly from a USB drive — no configuration needed.
+    Great for pre-show and post-show background music.
   </p>
   <ol class="steps">
     <li>Plug a USB drive into the Pi.</li>
-    <li>Go to the <span class="tab">USB</span> tab and tap <kbd>↺ SCAN</kbd>. The tab lists all folders found on the drive.</li>
-    <li>Tap any folder to start playing all tracks in it as a shuffled playlist. The track name appears in Now Playing.</li>
-    <li>Use <kbd>⏭ NEXT TRACK</kbd> to skip to the next song.</li>
-    <li>Tap <kbd>🔀 SHUFFLE: ON/OFF</kbd> to toggle shuffle before selecting a folder.</li>
+    <li>Go to the <span class="tab">MUSIC</span> tab. In the USB Playlist section, tap <kbd>↺ SCAN</kbd>. All folders appear in the list.</li>
+    <li>Tap any folder to play all tracks in it as a playlist.</li>
+    <li>Toggle <kbd>🔀 SHUFFLE</kbd> before selecting to shuffle the order.</li>
+    <li>Use <kbd>⏭ NEXT TRACK</kbd> to skip ahead.</li>
   </ol>
 
-  <div class="callout callout-tip">
-    <div class="callout-title">Tip — no setup required</div>
-    The USB tab reads whatever is on the drive at the time you tap SCAN. You can swap drives or add folders
-    without touching any configuration — just plug it in, scan, and play.
+  <h2 id="kill-all">Emergency Stop — Kill All</h2>
+  <div class="callout callout-warn">
+    <div class="callout-title">Kill All</div>
+    <kbd>KILL ALL</kbd> is the big red emergency button. Press it if something goes badly wrong.
+    It stops all audio, resets the skit timer, clears the display, and turns off active lights.
+    It does <strong>not</strong> reset the show flow position — you can pick back up exactly where you were.
   </div>
 </div>
 
 <!-- ══════════════════ PART 5 ══════════════════ -->
-<div class="section">
+<div class="section" id="part5">
   <div class="section-badge">PART 5</div>
   <h1>Quick Reference</h1>
 
-  <h2>Pre-Show Checklist</h2>
+  <h2 id="checklist">Pre-Show Checklist</h2>
   <ul class="steps">
     <li>Pi is powered on and fully booted (~60 seconds after power-up)</li>
     <li>USB drive is plugged in</li>
-    <li>Speakers are connected and working — test with any SFX</li>
-    <li>HDMI display is connected, Chromium is open and showing <span class="mono">/display</span> in fullscreen</li>
-    <li>Your control device is on the same Wi-Fi and the console loads at the Pi's IP</li>
-    <li>Show Flow is in the correct order (check Admin → Show)</li>
+    <li>Speakers are connected and working — test with any SFX button</li>
+    <li>HDMI display is connected and showing the display page fullscreen</li>
+    <li>iPad is connected to <strong>MusicMan</strong> WiFi and the console loads at <span class="mono">http://musicman.local</span></li>
+    <li>Show Flow is in the correct order — check Admin → Show Flow</li>
     <li>Timer presets are correct — fire a test macro and confirm the timer label updates and the duration is right</li>
-    <li>Volume levels are set. Music slider is at your starting level; SFX slider is set.</li>
-    <li>Lighting scenes are working — tap one and confirm the lights respond</li>
+    <li>Volume levels set — Music slider at starting level, SFX slider set</li>
+    <li>Lighting scenes working — tap one and confirm lights respond</li>
+    <li>Battery stations checked — Admin → System → Battery shows SOLIX state</li>
   </ul>
 
-  <h2>Common Workflows</h2>
+  <h2 id="workflows">Common Workflows</h2>
 
   <h3>Announcing a Circle</h3>
   <div class="flow">
     <span class="flow-box">SHOW TAB</span>
     <span class="flow-arrow">→</span>
-    <span class="flow-box">TAP CIRCLE'S SHOW ITEM</span>
+    <span class="flow-box">TAP CIRCLE'S ITEM</span>
     <span class="flow-arrow">→</span>
     <span class="flow-box">WALKUPS TAB</span>
     <span class="flow-arrow">→</span>
@@ -1230,19 +1344,30 @@
     <span class="flow-box">15s WARNING ON HDMI</span>
   </div>
 
+  <h3>Crowd Noise Sequence</h3>
+  <div class="flow">
+    <span class="flow-box">SHOW VIZ</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">DRAG SLIDER UP</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">TAP OVERLAY</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">CLIMAX</span>
+  </div>
+
   <h3>Running a Game</h3>
   <div class="flow">
-    <span class="flow-box">GAMES TAB</span>
+    <span class="flow-box">GAMES/TIMERS TAB</span>
     <span class="flow-arrow">→</span>
     <span class="flow-box">SET DURATION</span>
     <span class="flow-arrow">→</span>
     <span class="flow-box">START</span>
     <span class="flow-arrow">→</span>
-    <span class="flow-box">STOPWATCH FOR TIMES</span>
+    <span class="flow-box">STOPWATCH</span>
     <span class="flow-arrow">→</span>
     <span class="flow-box">RECORD TIMES</span>
     <span class="flow-arrow">→</span>
-    <span class="flow-box">SHOW ON SCREEN</span>
+    <span class="flow-box">SHOW SCORES</span>
   </div>
 
   <h3>Smooth Track Ending</h3>
@@ -1251,43 +1376,49 @@
     <span class="flow-arrow">→</span>
     <span class="flow-box">MUSIC FADES OUT</span>
   </div>
-  <p>Use <kbd>FADE &amp; END</kbd> instead of <kbd>STOP</kbd> whenever possible — it sounds much better than a hard cut.</p>
 
-  <h2>Troubleshooting</h2>
-
+  <h2 id="troubleshooting">Troubleshooting</h2>
   <table>
     <tr><th>Problem</th><th>Fix</th></tr>
     <tr>
       <td>Console won't load in browser</td>
-      <td>Check that your device is on the same Wi-Fi as the Pi. Verify the Pi is powered on and fully booted. Try the IP address directly in your browser.</td>
+      <td>Check that your device is connected to <strong>MusicMan</strong> WiFi. Verify the Pi is powered on and fully booted. Try <span class="mono">http://musicman.local</span> directly.</td>
     </tr>
     <tr>
       <td>No audio from speakers</td>
-      <td>Check the Music volume slider isn't at 0. Try playing an SFX — if that works but music doesn't, the music file may be missing or incorrectly named. If nothing plays at all, check speaker connections to the Audio HAT.</td>
+      <td>Check Music volume slider isn't at 0. Try an SFX — if that works but music doesn't, the music file may be missing. If nothing plays at all, check speaker connections to the Audio HAT.</td>
     </tr>
     <tr>
       <td>HDMI display shows nothing</td>
-      <td>Make sure the display browser is open at <span class="mono">/display</span> and is fullscreen. Try refreshing that browser window. Click <kbd>CLEAR DISPLAY</kbd> then show something new.</td>
+      <td>Make sure the HDMI cable was plugged in <em>before</em> the Pi powered on. Try refreshing the display browser. Click <kbd>CLEAR DISPLAY</kbd> then show an image to test.</td>
     </tr>
     <tr>
       <td>Timer label still says "SKIT TIMER" after firing a macro</td>
-      <td>The macro's Load Timer Preset step may point to a preset that doesn't exist. Check Admin → Macros and verify the preset name matches exactly what's in Admin → Timer presets.</td>
+      <td>The macro's Load Timer Preset step may point to a preset that doesn't exist. Check Admin → Macros and verify the preset name matches exactly what's in Admin → Timer → Presets.</td>
     </tr>
     <tr>
       <td>Walk-up music not playing</td>
-      <td>Check that the audio file assigned to that circle still exists in the music folder. Go to Admin → Walkups and re-select the track.</td>
+      <td>Check that the audio file assigned to that circle still exists. Go to Admin → Circles and re-select or re-upload the walk-up music track.</td>
     </tr>
     <tr>
-      <td>Start sound keeps playing after timer ends</td>
-      <td>This should not happen with current software. If it does, use <kbd>KILL ALL</kbd> to stop everything, then reload the page (Cmd/Ctrl + Shift + R).</td>
+      <td>Lighting scenes not working</td>
+      <td>Verify WLED devices are powered on and connected to MusicMan WiFi. Check that the Zone IDs in the scene match the device IDs in your WLED device list.</td>
+    </tr>
+    <tr>
+      <td>Shell Game won't open on the display</td>
+      <td>Tap <kbd>OPEN ON DISPLAY</kbd> first, then <kbd>START GAME</kbd>. The display browser must be on the shell game page before the game can start.</td>
     </tr>
     <tr>
       <td>Something is badly wrong</td>
-      <td>Press <kbd>KILL ALL</kbd>. This stops all audio, resets the timer, and clears the display. It's safe to press at any time.</td>
+      <td>Press <kbd>KILL ALL</kbd>. It stops all audio, resets the timer, and clears the display. The show flow remembers where you were — pick up from the next step.</td>
     </tr>
     <tr>
       <td>Changes in Admin aren't taking effect</td>
-      <td>Hard-refresh the admin page (Cmd/Ctrl + Shift + R on Mac, Ctrl + Shift + R on Windows/Android).</td>
+      <td>Hard-refresh the admin page: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows).</td>
+    </tr>
+    <tr>
+      <td>Pi is unresponsive</td>
+      <td>Try Admin → System → <kbd>⚠ RESTART SERVICE</kbd> first. If that fails, wait 60 seconds and reload. Last resort: power off — but always use <kbd>🔌 SHUTDOWN PI</kbd> when you can to avoid SD card corruption.</td>
     </tr>
   </table>
 

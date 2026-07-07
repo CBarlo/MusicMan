@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Shell Game</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { width:100vw; height:100vh; overflow:hidden; background:#060318; font-family:'Georgia',serif; user-select:none; cursor:default; }
+
+#sky  { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 120%, #2a1a4a 0%, #0d0828 50%, #060318 100%); }
+
+/* Moon — upper-left corner, clear of centered title text */
+#moon { position:absolute; top:28vh; left:4vw; width:8vh; height:8vh; border-radius:50%; background:radial-gradient(circle at 40% 40%,#fffbe0,#f0d070); box-shadow:0 0 40px 12px rgba(240,210,80,.3); }
+
+#ground { position:absolute; bottom:0; left:0; right:0; height:20vh; background:linear-gradient(to bottom,#243b12 0%,#1a2b0c 60%,#111a07 100%); }
+#ground::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:#3a5a1e; }
+#fire-glow { position:absolute; bottom:20vh; left:50%; transform:translateX(-50%); width:30vw; height:20vh; background:radial-gradient(ellipse at 50% 100%,rgba(255,140,20,.13) 0%,transparent 70%); pointer-events:none; }
+
+/* ── Message text — z-index above tents so tents can pass behind ── */
+#message { position:absolute; top:3vh; left:0; right:0; text-align:center; font-size:9vh; font-weight:bold; color:#f5d060; text-shadow:0 0 40px rgba(255,200,40,.7),0 3px 12px rgba(0,0,0,.9); opacity:0; transition:opacity .6s ease; pointer-events:none; z-index:20; }
+#submsg  { position:absolute; top:14vh; left:0; right:0; text-align:center; font-size:4vh; color:rgba(255,220,100,.7); opacity:0; transition:opacity .5s ease; pointer-events:none; z-index:20; }
+
+/* ── Tent area — full viewport, no clip; text stays above tents via z-index ── */
+#tent-area {
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+
+/* Rock — sits on the ground */
+#rock {
+  position:absolute;
+  bottom:20vh; left:50vw;
+  width:12vw; height:9vh;
+  transform:translateX(-50%);
+  transition:none;
+  opacity:0;
+  z-index:2;
+}
+#rock img { width:100%; height:100%; object-fit:contain; object-position:bottom; display:block; }
+#rock .rock-svg { width:100%; height:100%; display:block; }
+
+/* Tents — z-index 3 (below message text at z-index 20) */
+.tent {
+  position:absolute;
+  bottom:20vh;
+  width:26vw; height:42vh;
+  transform:translateX(-50%) translateY(0);
+  transition:left .8s ease-in-out, transform .9s cubic-bezier(.4,0,.2,1);
+  z-index:3;
+}
+.tent img { width:100%; height:100%; object-fit:contain; object-position:bottom; display:block; }
+.tent .tent-svg { width:100%; height:100%; display:block; }
+
+/* ── Countdown bar ── */
+#countdown { position:absolute; bottom:3vh; left:15%; right:15%; height:1.5vh; background:rgba(255,255,255,.1); border-radius:1vh; overflow:hidden; display:none; z-index:20; }
+#cd-bar    { height:100%; width:100%; background:linear-gradient(to right,#f0d020,#e06010); border-radius:1vh; transition:width 5s linear; }
+
+.star { position:absolute; border-radius:50%; background:white; animation:twinkle 2s ease-in-out infinite alternate; }
+@keyframes twinkle { from{opacity:.2} to{opacity:1} }
+
+/* ── Slot numbers (1 / 2 / 3) shown during guess phase ── */
+.slot-num {
+  position:absolute;
+  bottom:48vh;
+  width:14vw;
+  text-align:center;
+  font-size:12vh;
+  font-weight:bold;
+  color:rgba(255,230,80,.95);
+  text-shadow:0 0 40px rgba(255,200,40,.9),0 4px 12px rgba(0,0,0,.95);
+  opacity:0;
+  transition:opacity 1s ease;
+  z-index:15;
+  transform:translateX(-50%);
+  pointer-events:none;
+}
+</style>
+</head>
+<body>
+
+<div id="sky"></div>
+<div id="moon"></div>
+<div id="ground"></div>
+<div id="fire-glow"></div>
+<div id="message"></div>
+<div id="submsg"></div>
+
+<div id="tent-area">
+  <!-- Rock: z-index 2, covered by tents (z-index 3) when at same position -->
+  <div id="rock">
+    <img src="/api/shell-game/asset/rock"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='block'" alt="rock">
+    <svg class="rock-svg" style="display:none" viewBox="0 0 160 100">
+      <defs><radialGradient id="rg" cx="38%" cy="32%" r="60%">
+        <stop offset="0%"   stop-color="#9a9a9a"/>
+        <stop offset="55%"  stop-color="#6a6a6a"/>
+        <stop offset="100%" stop-color="#3a3a3a"/>
+      </radialGradient></defs>
+      <ellipse cx="80" cy="62" rx="76" ry="36" fill="#555"/>
+      <ellipse cx="80" cy="56" rx="72" ry="32" fill="url(#rg)"/>
+      <path d="M40,50 Q55,42 70,48" stroke="#888" stroke-width="1.5" fill="none" opacity=".5"/>
+      <path d="M90,38 Q110,34 120,44" stroke="#888" stroke-width="1.2" fill="none" opacity=".4"/>
+    </svg>
+  </div>
+  <!-- Three identical tents -->
+  <div class="tent" id="tent0"></div>
+  <div class="tent" id="tent1"></div>
+  <div class="tent" id="tent2"></div>
+  <!-- Slot numbers 1/2/3 shown during guess phase -->
+  <div class="slot-num" id="num0" style="left:22vw">1</div>
+  <div class="slot-num" id="num1" style="left:50vw">2</div>
+  <div class="slot-num" id="num2" style="left:78vw">3</div>
+</div>
+
+<div id="countdown"><div id="cd-bar"></div></div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────
+const params        = new URLSearchParams(location.search);
+const AUTOSTART     = params.get('autostart') === '1';
+const SLOTS         = [22, 50, 78]; // vw — left edge of each slot
+const SHUFFLE_COUNT = 18;
+const SPEED_START   = 1000;
+const SPEED_END     = 220;
+
+let SG = {};  // server config — populated by init()
+// URL param > server config > built-in default
+function sgText(key, def) { return params.get(key) || SG[key] || def; }
+function sgHold()         { return parseFloat(params.get('hold') || SG.hold || 5); }
+
+// ── TENT HTML — identical for all three ─────────────────────────
+const TENT_HTML = `
+  <img src="/api/shell-game/asset/tent"
+       onerror="this.style.display='none';this.nextElementSibling.style.display='block'" alt="tent">
+  <svg class="tent-svg" style="display:none" viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="60,6 0,160 120,160" fill="#8a6e3a"/>
+    <polygon points="60,6 0,160 60,160"  fill="#2a1e08" opacity=".35"/>
+    <line x1="60" y1="6" x2="60" y2="160" stroke="#5a4020" stroke-width="2" opacity=".5"/>
+    <path d="M30,160 Q60,132 90,160 Z" fill="#1a1005"/>
+    <line x1="60" y1="6" x2="5"   y2="0" stroke="#c0a060" stroke-width="1.5" opacity=".6"/>
+    <line x1="60" y1="6" x2="115" y2="0" stroke="#c0a060" stroke-width="1.5" opacity=".6"/>
+  </svg>`;
+
+// ── DOM REFS ─────────────────────────────────────────────────────
+const tentEls = [0,1,2].map(i => {
+  const t = document.getElementById('tent'+i);
+  t.innerHTML = TENT_HTML;
+  return t;
+});
+const rock   = document.getElementById('rock');
+const msgEl  = document.getElementById('message');
+const subEl  = document.getElementById('submsg');
+const cdEl   = document.getElementById('countdown');
+const cdBar  = document.getElementById('cd-bar');
+const numEls = [0,1,2].map(i => document.getElementById('num'+i));
+
+// Stars
+(()=>{
+  const sky = document.getElementById('sky');
+  for (let i=0;i<100;i++) {
+    const s = document.createElement('div'); s.className='star';
+    const z = Math.random()*2.5+.5;
+    s.style.cssText=`width:${z}px;height:${z}px;left:${Math.random()*100}%;top:${Math.random()*65}%;animation-delay:${Math.random()*3}s;animation-duration:${1.5+Math.random()*2.5}s;`;
+    sky.appendChild(s);
+  }
+})();
+
+// ── AUDIO (server-side via pygame) ───────────────────────────────
+function setupAudio() { /* files resolved server-side */ }
+function _playSfx(slot)   { fetch('/api/shell-game/audio/sfx',   { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({slot}) }).catch(()=>{}); }
+function _playMusic()     { fetch('/api/shell-game/audio/music',  { method:'POST' }).catch(()=>{}); }
+function _stopMusic()     { fetch('/api/shell-game/audio/stop',   { method:'POST' }).catch(()=>{}); }
+
+// ── STATE ────────────────────────────────────────────────────────
+let slotOfTent = [0,1,2];
+let tentInSlot = [0,1,2];
+let rockTent;
+let gameRunning = false;
+
+// ── HELPERS ──────────────────────────────────────────────────────
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function msg(text, sub='') {
+  msgEl.textContent = text; msgEl.style.opacity = text ? 1 : 0;
+  subEl.textContent = sub;  subEl.style.opacity  = sub  ? 1 : 0;
+}
+
+function lift(i, up) {
+  tentEls[i].style.transform = up
+    ? 'translateX(-50%) translateY(-88%)'
+    : 'translateX(-50%) translateY(0)';
+}
+
+function setTentLeft(i, pct, durMs) {
+  tentEls[i].style.transition = `left ${durMs}ms ease-in-out, transform .9s cubic-bezier(.4,0,.2,1)`;
+  tentEls[i].style.left = pct + 'vw';
+}
+
+function doSwap(sA, sB, dur) {
+  const tA = tentInSlot[sA], tB = tentInSlot[sB];
+  tentEls[tA].style.zIndex = sA < sB ? 4 : 3;
+  tentEls[tB].style.zIndex = sB < sA ? 4 : 3;
+  slotOfTent[tA]=sB; slotOfTent[tB]=sA;
+  tentInSlot[sA]=tB; tentInSlot[sB]=tA;
+  setTentLeft(tA, SLOTS[sB], dur);
+  setTentLeft(tB, SLOTS[sA], dur);
+}
+
+// ── SESSION GUARD — prevents concurrent runGame() after reset+start ──
+let _gameSession = 0;
+
+// ── LOBBY ────────────────────────────────────────────────────────
+function showLobby() {
+  _stopMusic();
+  _gameSession++;  // invalidate any in-progress runGame
+  slotOfTent=[0,1,2]; tentInSlot=[0,1,2]; gameRunning=false;
+  tentEls.forEach((t,i)=>{
+    t.style.transition='none';
+    t.style.left = SLOTS[i]+'vw';
+    t.style.transform = 'translateX(-50%) translateY(0)';
+    t.style.zIndex = 3;
+    t.getBoundingClientRect();
+  });
+  rock.style.transition='none';
+  rock.style.opacity=0;
+  rock.style.left = SLOTS[1]+'vw';
+  cdEl.style.display='none';
+  numEls.forEach(el => el.style.opacity='0');
+  msg(sgText('title', 'THE SHELL GAME'));
+}
+
+// ── GAME ─────────────────────────────────────────────────────────
+async function runGame() {
+  if (gameRunning) return;
+  gameRunning = true;
+  const mySession = ++_gameSession;
+  const ok = () => _gameSession === mySession;
+  msg('');
+
+  rockTent = Math.floor(Math.random() * 3);
+  rock.style.transition='none';
+  rock.style.left = SLOTS[rockTent]+'vw';
+  rock.getBoundingClientRect();
+
+  // Phase 1 — tents rise + start sound
+  _playSfx('start_sfx');
+  tentEls.forEach((_,i)=>{
+    tentEls[i].style.transition='left .8s ease-in-out, transform .9s cubic-bezier(.4,0,.2,1)';
+    lift(i, true);
+  });
+  await sleep(900); if (!ok()) return;
+
+  // Phase 2 — rock visible
+  msg(sgText('watch_msg', 'Watch the rock carefully...'));
+  rock.style.opacity=1;
+  await sleep(1800); if (!ok()) return;
+
+  // Phase 3 — tents descend
+  msg(sgText('track_msg', "Don't lose track..."));
+  tentEls.forEach((_,i)=>{
+    tentEls[i].style.transition='left .8s ease-in-out, transform .9s cubic-bezier(.4,0,.2,1)';
+    lift(i, false);
+  });
+  await sleep(1200); if (!ok()) return;
+  rock.style.opacity=0;
+  msg('');
+  await sleep(300); if (!ok()) return;
+
+  // Phase 4 — shuffle (slow → fast) + music
+  _playMusic();
+  const pairs = [[0,1],[1,2],[0,2]]; let last=-1;
+  for (let i=0;i<SHUFFLE_COUNT;i++) {
+    if (!ok()) return;
+    const t = i/(SHUFFLE_COUNT-1);
+    const dur = Math.round(SPEED_START + (SPEED_END-SPEED_START)*t);
+    let p; do { p=Math.floor(Math.random()*3); } while(p===last); last=p;
+    doSwap(pairs[p][0], pairs[p][1], dur);
+    await sleep(Math.round(dur*.9));
+  }
+
+  // Phase 5 — audience guess; schedule music fade so it finishes before reveal
+  await sleep(400); if (!ok()) return;
+  msg(sgText('guess_msg', 'Which tent?'), sgText('guess_sub', 'Shout it out!'));
+  numEls.forEach(el => el.style.opacity='1');
+  const holdSecs = sgHold();
+  setTimeout(() => { if (ok()) _stopMusic(); }, Math.max(0, (holdSecs - 2) * 1000));
+  cdEl.style.display='block';
+  cdBar.style.transition='none'; cdBar.style.width='100%';
+  cdBar.getBoundingClientRect();
+  cdBar.style.transition=`width ${holdSecs}s linear`;
+  cdBar.style.width='0%';
+  await sleep(holdSecs*1000); if (!ok()) return;
+
+  // Phase 6 — reveal (only one instance can ever reach here per session)
+  _playSfx('reveal_sfx');
+  numEls.forEach(el => el.style.opacity='0');
+  cdEl.style.display='none';
+  msg('');
+  rock.style.left = SLOTS[slotOfTent[rockTent]] + 'vw';
+  rock.style.opacity=1;
+  tentEls.forEach((_,i)=>{
+    tentEls[i].style.transition='left .8s ease-in-out, transform 1s cubic-bezier(.4,0,.2,1)';
+    lift(i, true);
+  });
+  // HOLD — frozen on reveal
+}
+
+// ── INPUT ────────────────────────────────────────────────────────
+function tryStart(e) {
+  if (gameRunning) return;
+  if (e && e.type==='keydown' && e.code!=='Space') return;
+  runGame();
+}
+document.addEventListener('keydown', tryStart);
+document.addEventListener('click',   tryStart);
+
+// WebSocket trigger from Stream Deck / console button
+function connectWS() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.event==='shell_game_start')   tryStart();
+      if (d.event==='shell_game_reset')   showLobby();
+      if (d.event==='shell_game_reload' && !gameRunning) location.reload();
+      if (d.event==='display_navigate')   location.href = (d.data||{}).url || '/display';
+      if (d.event==='display_reload')     location.href = '/display?v=' + Date.now();
+    } catch {}
+  };
+  ws.onclose = () => setTimeout(connectWS, 3000);
+  ws.onerror = () => ws.close();
+}
+connectWS();
+
+// ── INIT — fetch config, apply background, then show lobby ───────
+async function init() {
+  try {
+    const r = await fetch('/api/shell-game/config');
+    SG = await r.json();
+  } catch {}
+
+  // Background image (replaces night sky gradient if uploaded)
+  if (SG.bg_image_file) {
+    const sky = document.getElementById('sky');
+    sky.style.background = `url('/api/shell-game/asset/bg_image') center/cover no-repeat`;
+    // Hide the moon when using a custom background
+    document.getElementById('moon').style.display = 'none';
+  }
+
+  setupAudio();
+  showLobby();
+  if (AUTOSTART) setTimeout(runGame, 1500);
+}
+init();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 {
   "Name": "Music Man",
-  "Version": "1.0.0",
+  "Version": "1.1.0",
   "Author": "Broken Arrow Expedition",
   "Description": "Control the Music Man campfire show system from your Stream Deck.",
   "Category": "Music Man",
@@ -25,6 +25,29 @@
       "States": [
         { "Image": "imgs/action-walkup", "Name": "Idle" },
         { "Image": "imgs/action-walkup-active", "Name": "Playing" }
+      ]
+    },
+    {
+      "Name": "Role Walk-Up",
+      "UUID": "com.musicman.streamdeck.role",
+      "Icon": "imgs/action-walkup",
+      "Tooltip": "Fire a role's walk-up music and lighting",
+      "SupportedInMultiActions": true,
+      "PropertyInspectorPath": "property_inspector/index.html",
+      "States": [
+        { "Image": "imgs/action-walkup",        "Name": "Idle"    },
+        { "Image": "imgs/action-walkup-active", "Name": "Playing" }
+      ]
+    },
+    {
+      "Name": "Show Step",
+      "UUID": "com.musicman.streamdeck.showstep",
+      "Icon": "imgs/action-macro",
+      "Tooltip": "Fire a show flow step — glows when active, dims when completed",
+      "SupportedInMultiActions": true,
+      "PropertyInspectorPath": "property_inspector/index.html",
+      "States": [
+        { "Image": "imgs/action-macro", "Name": "Ready" }
       ]
     },
     {
@@ -59,6 +82,17 @@
       "PropertyInspectorPath": "property_inspector/index.html",
       "States": [
         { "Image": "imgs/action-macro", "Name": "Ready" }
+      ]
+    },
+    {
+      "Name": "Volume",
+      "UUID": "com.musicman.streamdeck.volume",
+      "Icon": "imgs/action-transport",
+      "Tooltip": "Adjust music or SFX volume in steps",
+      "SupportedInMultiActions": true,
+      "PropertyInspectorPath": "property_inspector/index.html",
+      "States": [
+        { "Image": "imgs/action-transport", "Name": "Default" }
       ]
     },
     {

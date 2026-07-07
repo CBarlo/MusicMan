@@ -1,0 +1,146 @@
+<svg viewBox="0 0 520 440" width="3120" height="2640" xmlns="http://www.w3.org/2000/svg">
+<rect width="520" height="440" fill="#1a1a1a"/>
+
+<text x="260" y="16" text-anchor="middle" font-family="monospace" font-size="12" font-weight="bold" fill="#ccc">Pole Node Enclosure — 240×80×40mm</text>
+<text x="260" y="29" text-anchor="middle" font-family="monospace" font-size="8" fill="#666">inside layout (top view) · power face · lighting face · all dims in mm</text>
+
+<!-- INSIDE LAYOUT -->
+<text x="55" y="44" font-family="monospace" font-size="9" font-weight="bold" fill="#aaa">INSIDE — lid removed (240×80mm internal)</text>
+
+<rect x="55" y="48" width="360" height="120" fill="#101810" rx="3" stroke="#3c6c3c" stroke-width="1.5"/>
+
+<rect x="48" y="48" width="8" height="120" fill="#aa5010" rx="1" opacity="0.9"/>
+<rect x="416" y="48" width="8" height="120" fill="#1a4a7a" rx="1" opacity="0.9"/>
+<text x="44" y="112" text-anchor="middle" font-family="monospace" font-size="7" fill="#ff8030" font-weight="bold" transform="rotate(-90,44,112)">POWER FACE</text>
+<text x="428" y="112" text-anchor="middle" font-family="monospace" font-size="7" fill="#40a0ff" font-weight="bold" transform="rotate(90,428,112)">LIGHT FACE</text>
+
+<!-- Buck converter -->
+<rect x="83" y="62" width="105" height="67" fill="#2a1a4a" rx="2" stroke="#7a5add" stroke-width="1.2"/>
+<text x="135" y="84" text-anchor="middle" font-family="monospace" font-size="9" fill="#bb99ff" font-weight="bold">BUCK 75W</text>
+<text x="135" y="96" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#9977cc">12V → 5V</text>
+<text x="135" y="108" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#7755aa">adj trimpot →</text>
+<circle cx="182" cy="104" r="4" fill="none" stroke="#aa88ff" stroke-width="1"/>
+<text x="182" y="107" text-anchor="middle" font-family="monospace" font-size="5.5" fill="#aa88ff">+</text>
+
+<!-- PCB -->
+<rect x="280" y="60" width="91" height="69" fill="#1c3d1c" rx="2" stroke="#4caa4c" stroke-width="1.2"/>
+<text x="325" y="80" text-anchor="middle" font-family="monospace" font-size="8" fill="#88ee88" font-weight="bold">PCB</text>
+<text x="325" y="92" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#66bb66">18×24 perf</text>
+<text x="285" y="105" font-family="monospace" font-size="6" fill="#888">USB end</text>
+<text x="348" y="105" text-anchor="end" font-family="monospace" font-size="6" fill="#888">conn end</text>
+<line x1="280" y1="60" x2="280" y2="129" stroke="#55aa55" stroke-width="0.7" stroke-dasharray="3,2"/>
+<line x1="371" y1="60" x2="371" y2="129" stroke="#55aa55" stroke-width="0.7" stroke-dasharray="3,2"/>
+
+<!-- Fuse -->
+<rect x="57" y="102" width="18" height="9" fill="#555" rx="1" stroke="#999" stroke-width="0.8"/>
+<text x="66" y="109" text-anchor="middle" font-family="monospace" font-size="6" fill="#ddd">F1 3A</text>
+
+<!-- Wires -->
+<line x1="48" y1="106" x2="57" y2="106" stroke="#ff4400" stroke-width="1.8"/>
+<line x1="75" y1="106" x2="83" y2="106" stroke="#ff4400" stroke-width="1.8"/>
+<line x1="188" y1="95" x2="280" y2="95" stroke="#ff9900" stroke-width="1.8"/>
+<text x="234" y="91" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#ffaa33">5V</text>
+<line x1="83" y1="118" x2="280" y2="118" stroke="#4466ff" stroke-width="1.2" stroke-dasharray="4,2"/>
+<text x="234" y="116" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#6688ff">GND</text>
+<line x1="371" y1="68" x2="416" y2="68" stroke="#5588cc" stroke-width="1.2"/>
+<line x1="371" y1="76" x2="416" y2="76" stroke="#5588cc" stroke-width="1.2"/>
+<line x1="371" y1="84" x2="416" y2="84" stroke="#5588cc" stroke-width="1.2"/>
+<line x1="371" y1="92" x2="416" y2="92" stroke="#5588cc" stroke-width="1.2"/>
+<line x1="371" y1="100" x2="416" y2="100" stroke="#5588cc" stroke-width="1.2"/>
+<line x1="371" y1="108" x2="416" y2="108" stroke="#8877cc" stroke-width="1.2"/>
+<text x="393" y="63" text-anchor="middle" font-family="monospace" font-size="6" fill="#88aadd">strips ×5</text>
+<text x="393" y="121" text-anchor="middle" font-family="monospace" font-size="6" fill="#aa99dd">DMX</text>
+
+<!-- Wire legend -->
+<line x1="60" y1="183" x2="78" y2="183" stroke="#ff4400" stroke-width="1.8"/>
+<text x="82" y="186" font-family="monospace" font-size="7.5" fill="#aaa">12V</text>
+<line x1="108" y1="183" x2="126" y2="183" stroke="#ff9900" stroke-width="1.8"/>
+<text x="130" y="186" font-family="monospace" font-size="7.5" fill="#aaa">5V</text>
+<line x1="155" y1="183" x2="173" y2="183" stroke="#4466ff" stroke-width="1.2" stroke-dasharray="4,2"/>
+<text x="177" y="186" font-family="monospace" font-size="7.5" fill="#aaa">GND</text>
+<line x1="200" y1="183" x2="218" y2="183" stroke="#5588cc" stroke-width="1.2"/>
+<text x="222" y="186" font-family="monospace" font-size="7.5" fill="#aaa">cables to light face</text>
+
+<!-- Divider -->
+<line x1="20" y1="197" x2="500" y2="197" stroke="#333" stroke-width="0.8"/>
+
+<!-- POWER FACE -->
+<text x="140" y="210" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#ff8030">POWER FACE — 80×40mm</text>
+<rect x="20" y="214" width="240" height="120" fill="#0e0e0e" stroke="#774422" stroke-width="2" rx="2"/>
+
+<!-- Barrel connector 10mm -->
+<circle cx="74" cy="274" r="15" fill="#222" stroke="#ccc" stroke-width="1.5"/>
+<circle cx="74" cy="274" r="5" fill="#555"/>
+<text x="74" y="303" text-anchor="middle" font-family="monospace" font-size="7" fill="#bbb">10mm</text>
+<text x="74" y="313" text-anchor="middle" font-family="monospace" font-size="7" fill="#bbb">barrel</text>
+<text x="74" y="323" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#888">12V in</text>
+
+<!-- SW1 button 16mm -->
+<circle cx="164" cy="274" r="24" fill="#222" stroke="#ccc" stroke-width="1.5"/>
+<circle cx="164" cy="274" r="8" fill="#ff4400" opacity="0.7"/>
+<text x="164" y="307" text-anchor="middle" font-family="monospace" font-size="7" fill="#bbb">16mm</text>
+<text x="164" y="317" text-anchor="middle" font-family="monospace" font-size="7" fill="#bbb">SW1</text>
+<text x="164" y="327" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#888">override btn</text>
+
+<!-- Status LEDs -->
+<circle cx="232" cy="241" r="7.5" fill="#00cc44" opacity="0.9"/>
+<text x="245" y="244" font-family="monospace" font-size="7" fill="#00cc44">PWR</text>
+<circle cx="232" cy="264" r="7.5" fill="#ffaa00" opacity="0.9"/>
+<text x="245" y="267" font-family="monospace" font-size="7" fill="#ffaa00">WiFi</text>
+<circle cx="232" cy="287" r="7.5" fill="#ff3322" opacity="0.9"/>
+<text x="245" y="290" font-family="monospace" font-size="7" fill="#ff4433">DMX</text>
+<text x="232" y="315" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#888">5mm ×3</text>
+
+<!-- Power face dims -->
+<text x="22" y="226" font-family="monospace" font-size="6.5" fill="#555">0</text>
+<text x="255" y="226" font-family="monospace" font-size="6.5" fill="#555">80mm</text>
+<line x1="20" y1="221" x2="260" y2="221" stroke="#333" stroke-width="0.5"/>
+<text x="8" y="274" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#555" transform="rotate(-90,8,274)">40mm</text>
+<line x1="13" y1="214" x2="13" y2="334" stroke="#333" stroke-width="0.5"/>
+
+<!-- LIGHTING FACE -->
+<text x="395" y="210" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#40a0ff">LIGHTING FACE — 80×40mm</text>
+<rect x="275" y="214" width="240" height="120" fill="#0e0e0e" stroke="#224477" stroke-width="2" rx="2"/>
+
+<!-- 5 strip holes 8mm -->
+<circle cx="299" cy="240" r="12" fill="#1a2a3a" stroke="#ccc" stroke-width="1.5"/>
+<circle cx="326" cy="240" r="12" fill="#1a2a3a" stroke="#ccc" stroke-width="1.5"/>
+<circle cx="353" cy="240" r="12" fill="#1a2a3a" stroke="#ccc" stroke-width="1.5"/>
+<circle cx="380" cy="240" r="12" fill="#1a2a3a" stroke="#ccc" stroke-width="1.5"/>
+<circle cx="407" cy="240" r="12" fill="#1a2a3a" stroke="#ccc" stroke-width="1.5"/>
+<text x="299" y="243" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#aad" font-weight="bold">S1</text>
+<text x="326" y="243" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#aad" font-weight="bold">S2</text>
+<text x="353" y="243" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#aad" font-weight="bold">S3</text>
+<text x="380" y="243" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#aad" font-weight="bold">S4</text>
+<text x="407" y="243" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#aad" font-weight="bold">S5</text>
+<text x="353" y="262" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#668">8mm holes — strip pigtails</text>
+<text x="299" y="272" text-anchor="middle" font-family="monospace" font-size="6" fill="#557">STAGE</text>
+<text x="326" y="272" text-anchor="middle" font-family="monospace" font-size="6" fill="#557">STAGE</text>
+<text x="353" y="272" text-anchor="middle" font-family="monospace" font-size="6" fill="#557">AUD L</text>
+<text x="380" y="272" text-anchor="middle" font-family="monospace" font-size="6" fill="#557">AUD C</text>
+<text x="407" y="272" text-anchor="middle" font-family="monospace" font-size="6" fill="#557">AUD R</text>
+
+<!-- XLR-3F 24mm -->
+<circle cx="464" cy="284" r="36" fill="#1a1a2a" stroke="#ccc" stroke-width="1.5"/>
+<circle cx="464" cy="284" r="22" fill="none" stroke="#777" stroke-width="0.8"/>
+<circle cx="455" cy="279" r="3" fill="#555" stroke="#aaa" stroke-width="0.5"/>
+<circle cx="473" cy="279" r="3" fill="#555" stroke="#aaa" stroke-width="0.5"/>
+<circle cx="464" cy="295" r="3" fill="#555" stroke="#aaa" stroke-width="0.5"/>
+<text x="464" y="288" text-anchor="middle" font-family="monospace" font-size="7" fill="#9988ee">XLR-3F</text>
+<text x="464" y="314" text-anchor="middle" font-family="monospace" font-size="7" fill="#aaa">24mm hole</text>
+<text x="464" y="324" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#888">DMX out</text>
+
+<!-- Lighting face dims -->
+<text x="277" y="226" font-family="monospace" font-size="6.5" fill="#555">0</text>
+<text x="508" y="226" font-family="monospace" font-size="6.5" fill="#555">80mm</text>
+<line x1="275" y1="221" x2="515" y2="221" stroke="#333" stroke-width="0.5"/>
+
+<!-- NOTES -->
+<line x1="20" y1="342" x2="500" y2="342" stroke="#222" stroke-width="0.5"/>
+<text x="20" y="355" font-family="monospace" font-size="7" fill="#777">• Strip holes: PG7 cable glands or bare 8mm holes with heat-shrink strain relief for JST-SM pigtails</text>
+<text x="20" y="367" font-family="monospace" font-size="7" fill="#777">• USB access: slot in the LONG WALL of enclosure, aligned to PCB USB end (~30mm from power face)</text>
+<text x="20" y="379" font-family="monospace" font-size="7" fill="#777">• Buck trimpot: small access hole in lid above buck (pre-set to 5.0V, then seal with tape)</text>
+<text x="20" y="391" font-family="monospace" font-size="7" fill="#777">• Vent slots: 4–6 slots (2×10mm) in long wall near buck converter for heat dissipation</text>
+<text x="20" y="403" font-family="monospace" font-size="7" fill="#777">• Standoffs: 4× M3 brass inserts for PCB (3mm height), 4× M3 for buck board</text>
+<text x="20" y="415" font-family="monospace" font-size="7" fill="#777">• PCB orientation: lighting connectors face LIGHT face, USB end faces POWER face</text>
+</svg>

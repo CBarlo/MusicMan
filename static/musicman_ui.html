@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Music Man Console — Broken Arrow Expedition</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="/static/fonts/fonts.css" rel="stylesheet">
 <style>
   :root {
     --amber:    #F5A623;
@@ -37,7 +37,7 @@
   .status-label { font-size: 10px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; letter-spacing: 2px; }
   .clock { font-family: 'Share Tech Mono', monospace; font-size: 18px; color: var(--amber); letter-spacing: 2px; }
   .main { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 58px); height: calc(100dvh - 58px); }
-  .left { display: flex; flex-direction: column; border-right: 2px solid var(--border); overflow-y: auto; }
+  .left { display: flex; flex-direction: column; border-right: 2px solid var(--border); overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .now-playing { padding: 14px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
   .section-label { font-size: 9px; color: var(--text-dim); letter-spacing: 4px; font-family: 'Share Tech Mono', monospace; margin-bottom: 10px; }
   .track-title { font-size: 18px; font-weight: 700; color: var(--amber); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -69,6 +69,8 @@
   .btn-timer.start.running { background: var(--surface); border-color: var(--green); color: var(--green); }
   .btn-timer.reset { background: var(--surface); border-color: var(--border); color: var(--text-dim); }
   .btn-timer.reset:hover { border-color: var(--red); color: var(--red); background: #1a0000; }
+  .btn-timer.set { background: var(--surface); border-color: var(--amber); color: var(--amber); flex: 0 0 64px; font-size: 11px; letter-spacing: 1px; }
+  .btn-timer.set:hover { background: #2a1f00; }
   .games-section { padding: 14px 0; border-bottom: 1px solid var(--border); }
   .games-section:last-child { border-bottom: none; padding-bottom: 0; }
   .games-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
@@ -85,7 +87,7 @@
   .lb-table th { padding: 6px 10px; font-size: 10px; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; border-bottom: 1px solid var(--border); }
   .lb-table td { padding: 8px 10px; font-size: 14px; border-bottom: 1px solid var(--border); }
   .lb-table tr:last-child td { border-bottom: none; }
-  .lighting-panel { padding: 14px 16px; background: var(--bg2); flex: 1; overflow-y: auto; }
+  .lighting-panel { padding: 14px 16px; background: var(--bg2); }
   .scene-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
   .scene-btn { height: 46px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .scene-btn:hover { background: var(--bg3); }
@@ -120,6 +122,10 @@
   .slide-tpl-btn { padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;cursor:pointer;transition:all .15s; }
   .slide-tpl-btn.active { border-color:var(--amber);color:var(--amber);background:var(--amber-dim); }
   .slide-color-btn { width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all .15s; }
+  .swatch-row { display:flex;gap:5px;flex-wrap:wrap; }
+  .swatch { width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s; }
+  .swatch:hover { transform:scale(1.1); }
+  .swatch.selected { border-color:#fff;box-shadow:0 0 0 2px var(--amber); }
   .slide-color-btn.active { border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.35); }
   .slide-field { width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:.5px;box-sizing:border-box;margin-bottom:6px; }
   .slide-field::placeholder { color:var(--text-dim); }
@@ -138,6 +144,36 @@
   .alert-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 20px; background: var(--red); color: #fff; font-weight: 800; letter-spacing: 3px; text-align: center; font-size: 14px; transform: translateY(100%); transition: transform .3s; z-index: 100; }
   .alert-bar.show { transform: translateY(0); }
   .credits { font-size: 9px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; letter-spacing: 2px; text-align: center; padding: 6px; border-top: 1px solid var(--border); }
+
+  /* ── SLIDE PREVIEW (shared) ── */
+  .sl-prev {
+    container-type: inline-size; overflow: hidden;
+    border-radius: 8px; border: 1px solid rgba(255,255,255,.15);
+    background: #060504; display: flex; align-items: center; justify-content: center;
+  }
+  .sl-prev--full  { width: 100%; aspect-ratio: 16/9; }
+  .sl-prev--thumb { width: 80px; flex-shrink: 0; aspect-ratio: 16/9; border-radius: 5px; }
+  .sl-prev .sl-big          { text-align:center; padding:0 8cqw; }
+  .sl-prev .sl-big .sl-head { font-size:15cqw; font-weight:900; letter-spacing:.06em; text-transform:uppercase; line-height:.9; color:var(--sl-a,#F5A623); text-shadow:0 0 8cqw currentColor; }
+  .sl-prev .sl-big .sl-sub  { font-size:4cqw; font-weight:600; letter-spacing:.22em; text-transform:uppercase; color:rgba(255,255,255,.82); margin-top:2cqw; }
+  .sl-prev .sl-bul          { padding:0 10cqw; width:100%; }
+  .sl-prev .sl-bul .sl-head { font-size:7cqw; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:var(--sl-a,#F5A623); line-height:1; }
+  .sl-prev .sl-rule         { width:100%; height:.3cqw; background:var(--sl-a,#F5A623); margin:1.5cqw 0; opacity:.7; }
+  .sl-prev .sl-line         { font-size:3.8cqw; font-weight:700; text-transform:uppercase; color:rgba(255,255,255,.9); line-height:1.6; padding-left:1.5cqw; border-left:.5cqw solid var(--sl-a,#F5A623); margin:.5cqw 0; }
+  .sl-prev .sl-nxt          { text-align:center; padding:0 8cqw; }
+  .sl-prev .sl-nxt .sl-label{ font-size:2.4cqw; font-weight:700; letter-spacing:.5em; text-transform:uppercase; color:rgba(255,255,255,.45); margin-bottom:1.5cqw; }
+  .sl-prev .sl-nxt .sl-name { font-size:11cqw; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:var(--sl-a,#F5A623); line-height:.88; margin:1.5cqw 0; }
+  .sl-prev .sl-nxt .sl-date { font-size:4.2cqw; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.8); margin-top:1.5cqw; }
+  .sl-prev .sl-spot         { display:flex; align-items:center; gap:6cqw; padding:0 7cqw; width:100%; }
+  .sl-prev .sl-spot .sl-img { max-width:36cqw; object-fit:contain; flex-shrink:0; }
+  .sl-prev .sl-spot .sl-txt { flex:1; }
+  .sl-prev .sl-spot .sl-head{ font-size:8cqw; font-weight:900; text-transform:uppercase; color:var(--sl-a,#F5A623); line-height:.88; }
+  .sl-prev .sl-spot .sl-sub { font-size:3.4cqw; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:rgba(255,255,255,.75); margin-top:2cqw; }
+  .sl-prev .sl-qr           { text-align:center; padding:0 8cqw; }
+  .sl-prev .sl-qr .sl-head  { font-size:6cqw; font-weight:900; text-transform:uppercase; color:var(--sl-a,#F5A623); line-height:1; }
+  .sl-prev .sl-qr .sl-body  { font-size:2.6cqw; font-weight:600; text-transform:uppercase; color:rgba(255,255,255,.65); margin:1.2cqw 0; }
+  .sl-prev .sl-qr .sl-qimg  { width:24cqw; height:24cqw; margin:1.2cqw auto; display:block; border:.2cqw solid #fff; border-radius:.6cqw; image-rendering:pixelated; }
+  .sl-prev .sl-qr .sl-url   { font-size:1.7cqw; color:rgba(255,255,255,.38); font-family:'Share Tech Mono',monospace; margin-top:.4cqw; }
 </style>
 </head>
 <body>
@@ -163,13 +199,17 @@
       <div class="progress-times"><span id="timeElapsed">0:00</span><span id="timeTotal">0:00</span></div>
       <div class="transport">
         <button class="btn-transport danger" onclick="stopAll()">&#9632; STOP</button>
-        <button class="btn-transport" onclick="clearDisplay()" style="font-size:10px;letter-spacing:1px">&#9723; CLEAR DISPLAY</button>
+        <button class="btn-transport" onclick="fetch('/api/display/standby').catch(()=>{})" style="font-size:10px;letter-spacing:1px">&#9723; CLEAR DISPLAY</button>
         <button class="btn-transport" id="pauseBtn" onclick="togglePause()">&#9208; PAUSE</button>
         <button class="btn-transport" onclick="fadeOut()" style="font-size:10px;letter-spacing:1px">&#8595; FADE &amp; END</button>
       </div>
       <div class="transport" style="margin-top:6px">
         <button class="btn-transport" onclick="trackPrev()" style="flex:1">&#9664;&#9664; TRACK &minus;</button>
         <button class="btn-transport" onclick="trackNext()" style="flex:1">TRACK + &#9654;&#9654;</button>
+      </div>
+      <div class="transport" style="margin-top:6px">
+        <button class="btn-transport" onclick="if(_displayLogo){fetch('/api/display/show_file?file='+encodeURIComponent(_displayLogo)).catch(()=>{})}else{showAlert('No default logo set — configure in Admin > Display',2500)}" style="flex:1;font-size:10px;letter-spacing:1px">&#127989; BAE LOGO</button>
+        <button class="btn-transport" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Display cleared',1500)" style="flex:1;font-size:10px;letter-spacing:1px">&#9723; CLEAR</button>
       </div>
       <button onclick="killAll()" style="width:100%;margin-top:8px;height:42px;border-radius:8px;border:2px solid #c0392b;background:#2d0a0a;color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;cursor:pointer">&#9760; KILL ALL</button>
       <div class="vol-row">
@@ -188,16 +228,11 @@
       <div class="timer-display" id="timerDisplay">3:00</div>
       <div class="timer-btns">
         <button class="btn-timer start" id="timerStartBtn" onclick="toggleTimer()">&#9654; START</button>
+        <button class="btn-timer set" onclick="showTimer()" title="Show timer on display without starting">&#9645; SET</button>
+        <button class="btn-timer set" id="timerHideBtn" onclick="timerHideToggle()" title="Show/hide timer on display">&#10005; HIDE</button>
         <button class="btn-timer reset" onclick="resetTimer()">&#8634; RESET</button>
       </div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px">
-        <input type="checkbox" id="timerShowDisplay" style="width:15px;height:15px;cursor:pointer;accent-color:var(--amber)" onchange="timerSetShowDisplay(this.checked)">
-        <label for="timerShowDisplay" style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;cursor:pointer">SHOW ON SCREEN</label>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px">
-        <input type="checkbox" id="timerSoundLoop" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--amber)" onchange="timerSetSoundLoop(this.checked)">
-        <label for="timerSoundLoop" style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;cursor:pointer">LOOP START SOUND</label>
-      </div>
+
       <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
         <select id="timerPresetSelect" style="flex:1;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px">
           <option value="">— presets —</option>
@@ -225,10 +260,9 @@
       <div class="page-tab" onclick="showPage('walkup',this)">WALKUPS</div>
       <div class="page-tab" onclick="showPage('roles',this)">ROLES</div>
       <div class="page-tab" onclick="showPage('macros',this)">MACROS</div>
-      <div class="page-tab" onclick="showPage('sfx',this)">SFX</div>
+      <div class="page-tab" onclick="showPage('sfx',this);buildSfxGrid()">SFX</div>
       <div class="page-tab" onclick="showPage('music',this);loadMusicTracks()">MUSIC</div>
-      <div class="page-tab" onclick="showPage('display',this);loadSavedSlidesConsole()">DISPLAY</div>
-      <div class="page-tab" onclick="showPage('playlist',this);refreshUsbList()">USB</div>
+      <div class="page-tab" onclick="showPage('display',this);loadSavedSlidesConsole();setTimeout(updateConsPreview,100);vizConsoleLoadPresets()">DISPLAY</div>
       <div class="page-tab" onclick="showPage('games',this);loadGamesTab()">GAMES/TIMERS</div>
       <div class="page-tab" onclick="showPage('lights',this);loadLightsTab()">LIGHTS</div>
       <div class="page-tab" onclick="showPage('wifi',this);loadWifi()">WIFI</div>
@@ -254,25 +288,6 @@
       <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Tap a macro to fire a pre-programmed sequence of sound and lights.</div>
       <div class="macro-grid" id="macroGrid"></div>
     </div>
-    <div class="page" id="page-playlist">
-      <div style="padding:4px 0">
-        <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Plug in a USB stick, tap SCAN, then tap a folder to play it as a shuffled playlist.</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div id="usb-label" style="font-size:11px;letter-spacing:2px;color:var(--text-dim)">TAP SCAN TO FIND USB</div>
-          <div style="display:flex;gap:6px">
-            <button id="pl-shuffle-btn" onclick="togglePlShuffle()" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber);font-weight:700;font-family:'Barlow Condensed',sans-serif">🔀 SHUFFLE: ON</button>
-            <button onclick="refreshUsbList()" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-weight:700;font-family:'Barlow Condensed',sans-serif">↺ SCAN</button>
-          </div>
-        </div>
-        <div id="usb-items" style="display:flex;flex-direction:column;gap:6px"></div>
-        <div id="pl-now-playing" style="display:none;border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
-          <div style="font-size:10px;letter-spacing:2px;color:var(--amber);margin-bottom:6px">NOW PLAYING — PLAYLIST</div>
-          <div id="pl-track-pos" style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:3px">Track 1 of 1</div>
-          <div id="pl-track-name" style="font-size:15px;font-weight:700;letter-spacing:0.5px;color:var(--text);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-          <button onclick="fetch('/api/playlist/next').catch(()=>{})" style="width:100%;height:38px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">⏭ NEXT TRACK</button>
-        </div>
-      </div>
-    </div>
     <div class="page" id="page-display">
       <div style="padding:4px 0">
 
@@ -290,16 +305,27 @@
           </div>
 
           <!-- Dynamic fields -->
-          <div id="slideFields"></div>
+          <div id="slideFields" oninput="updateConsPreview()" onchange="updateConsPreview()"></div>
 
           <!-- Accent color -->
-          <div style="display:flex;align-items:center;gap:8px;margin:10px 0 12px">
-            <span style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;white-space:nowrap">ACCENT</span>
-            <button class="slide-color-btn active" data-color="amber" onclick="selectSlideColor('amber',this)" style="background:#F5A623" title="Amber"></button>
-            <button class="slide-color-btn"        data-color="blue"  onclick="selectSlideColor('blue',this)"  style="background:#4A9FD4" title="Blue"></button>
-            <button class="slide-color-btn"        data-color="green" onclick="selectSlideColor('green',this)" style="background:#3CB96A" title="Green"></button>
-            <button class="slide-color-btn"        data-color="white" onclick="selectSlideColor('white',this)" style="background:#FFFFFF" title="White"></button>
-            <button class="slide-color-btn"        data-color="red"   onclick="selectSlideColor('red',this)"   style="background:#E83A3A" title="Red"></button>
+          <div style="margin:10px 0 12px">
+            <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin-bottom:5px">ACCENT</div>
+            <div class="color-row" style="margin-bottom:5px">
+              <input type="color" id="cons-sl-color" value="#F5A623" oninput="consSlColorWheel(this.value)">
+              <input type="text" id="cons-sl-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="consSlColorHex(this.value)" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 7px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600">
+            </div>
+            <div class="swatch-row" id="cons-sl-swatches">
+              <button class="swatch selected" data-color="#F5A623" style="background:#F5A623" onclick="consSlColorSwatch('#F5A623')" title="Amber"></button>
+              <button class="swatch"           data-color="#4A9FD4" style="background:#4A9FD4" onclick="consSlColorSwatch('#4A9FD4')" title="Blue"></button>
+              <button class="swatch"           data-color="#3CB96A" style="background:#3CB96A" onclick="consSlColorSwatch('#3CB96A')" title="Green"></button>
+              <button class="swatch"           data-color="#FFFFFF" style="background:#FFFFFF" onclick="consSlColorSwatch('#FFFFFF')" title="White"></button>
+              <button class="swatch"           data-color="#E83A3A" style="background:#E83A3A" onclick="consSlColorSwatch('#E83A3A')" title="Red"></button>
+            </div>
+          </div>
+
+          <!-- Live preview -->
+          <div class="sl-prev sl-prev--full" id="cons-slide-preview" style="margin:0 0 12px">
+            <div style="color:rgba(255,255,255,.2);font-size:9px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SLIDE</div>
           </div>
 
           <!-- Send / Clear / Save -->
@@ -324,6 +350,116 @@
           </div>
         </div>
 
+        <!-- VISUALIZER -->
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">📺 VISUALIZER</div>
+            <span id="viz-status-badge" style="font-size:9px;letter-spacing:2px;padding:3px 10px;border-radius:12px;font-weight:700;background:var(--surface);color:var(--text-dim);border:1px solid var(--border)">OFF</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button onclick="vizConsoleGo('music')"
+              style="padding:9px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
+              🎵 MUSIC
+            </button>
+            <select id="viz-console-preset"
+              style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:7px;font-size:12px">
+              <option value="">— any preset —</option>
+            </select>
+            <button onclick="vizConsoleGo('crowd')"
+              style="padding:9px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
+              📢 CROWD
+            </button>
+            <button onclick="vizConsoleHide()"
+              style="padding:9px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+              ■
+            </button>
+          </div>
+        </div>
+
+        <!-- CROWD CONTROL -->
+        <div id="crowd-control-section" style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">📢 CROWD CONTROL</div>
+            <div style="display:flex;gap:5px">
+              <button id="crowd-mode-manual" onclick="crowdSetMode('manual')"
+                style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber)">MANUAL</button>
+              <button id="crowd-mode-auto" onclick="crowdSetMode('auto')"
+                style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">AUTO (MIC)</button>
+            </div>
+          </div>
+
+          <!-- dB meter bars per node -->
+          <div id="crowd-db-meters" style="display:flex;gap:8px;margin-bottom:12px;min-height:28px">
+            <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;align-self:center">NO POLE NODES</div>
+          </div>
+
+          <!-- Manual controls -->
+          <div id="crowd-manual-panel">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <span style="font-size:9px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;width:24px">LOW</span>
+              <!-- fat crowd slider: 48px track, 36px thumb, pointer-event drag -->
+              <div id="crowd-slider-wrap" style="flex:1;position:relative;height:48px;cursor:pointer;touch-action:none"
+                onpointerdown="crowdSliderPointer(event,'down')"
+                onpointermove="crowdSliderPointer(event,'move')"
+                onpointerup="crowdSliderPointer(event,'up')"
+                onpointercancel="crowdSliderPointer(event,'up')">
+                <!-- track -->
+                <div style="position:absolute;top:50%;left:0;right:0;height:10px;transform:translateY(-50%);background:var(--bg3);border-radius:5px;overflow:hidden">
+                  <div id="crowd-slider-fill" style="height:100%;width:0%;background:var(--amber);border-radius:5px;transition:width 0.05s"></div>
+                </div>
+                <!-- thumb -->
+                <div id="crowd-slider-thumb" style="position:absolute;top:50%;left:0%;width:36px;height:36px;transform:translate(-50%,-50%);background:var(--amber);border-radius:50%;border:3px solid #fff2;box-shadow:0 2px 8px #0006"></div>
+              </div>
+              <span id="crowd-level-pct" style="font-size:13px;font-weight:700;color:var(--amber);font-family:'Share Tech Mono',monospace;min-width:38px">0%</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button onclick="crowdClimax()"
+                style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--red,#c0392b);background:rgba(192,57,43,0.18);color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer">
+                ⚡ CLIMAX
+              </button>
+              <button onclick="crowdShowViz()"
+                style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">
+                📺 SHOW VIZ
+              </button>
+              <button onclick="crowdHideViz()"
+                style="padding:10px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">
+                ✕
+              </button>
+            </div>
+            <!-- Overlay buttons -->
+            <div id="crowd-overlay-row" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              <button id="overlay-btn-0" onclick="crowdOverlay(0)"
+                style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">
+                —
+              </button>
+              <button id="overlay-btn-1" onclick="crowdOverlay(1)"
+                style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">
+                —
+              </button>
+              <button id="overlay-btn-2" onclick="crowdOverlay(2)"
+                style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">
+                —
+              </button>
+              <button onclick="crowdOverlayStop()"
+                style="padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
+                ■
+              </button>
+            </div>
+            <!-- Record to leaderboard -->
+            <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;display:flex;gap:8px;align-items:center">
+              <select id="crowd-record-game" class="games-select" style="flex:1">
+                <option value="">— select game —</option>
+              </select>
+              <input id="crowd-record-label" type="text" placeholder="Team name"
+                style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
+              <button onclick="crowdRecord()"
+                style="padding:7px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(60,185,106,0.15);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
+                ⏺ REC
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Existing display images -->
         <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Tap an image to send it to the connected display. Use CLEAR PROJECTOR to blank the screen.</div>
         <button id="clearDisplayBtn" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Projector cleared',1500)" style="margin-bottom:12px;background:var(--surface);border:1px solid var(--border2);color:var(--text-dim);padding:6px 16px;border-radius:6px;font-size:11px;letter-spacing:2px;cursor:pointer;font-weight:700">&#x2715; CLEAR PROJECTOR</button>
@@ -338,6 +474,28 @@
           <button onclick="loadMusicTracks()" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-weight:700;font-family:'Barlow Condensed',sans-serif">↺ REFRESH</button>
         </div>
         <div id="music-track-list" style="display:flex;flex-direction:column;gap:6px"></div>
+
+        <!-- ── USB ── -->
+        <div style="margin-top:20px;border-top:1px solid var(--border2);padding-top:14px">
+
+          <!-- USB PLAYLIST -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">USB PLAYLIST</div>
+            <div style="display:flex;gap:6px">
+              <button id="pl-shuffle-btn" onclick="togglePlShuffle()" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber);font-weight:700;font-family:'Barlow Condensed',sans-serif">🔀 SHUFFLE: ON</button>
+              <button onclick="refreshUsbList()" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-weight:700;font-family:'Barlow Condensed',sans-serif">↺ SCAN</button>
+            </div>
+          </div>
+          <div id="usb-label" style="font-size:11px;letter-spacing:2px;color:var(--text-dim);margin-bottom:8px">TAP SCAN TO FIND USB</div>
+          <div id="usb-items" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div id="pl-now-playing" style="display:none;border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+            <div style="font-size:10px;letter-spacing:2px;color:var(--amber);margin-bottom:6px">NOW PLAYING — PLAYLIST</div>
+            <div id="pl-track-pos" style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:3px">Track 1 of 1</div>
+            <div id="pl-track-name" style="font-size:15px;font-weight:700;letter-spacing:0.5px;color:var(--text);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+            <button onclick="fetch('/api/playlist/next').catch(()=>{})" style="width:100%;height:38px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">⏭ NEXT TRACK</button>
+          </div>
+
+</div>
       </div>
     </div>
 
@@ -357,13 +515,26 @@
         <div class="games-row">
           <span class="games-label">START SND</span>
           <select id="cdStartAudio" class="games-select" style="flex:1" onchange="cdSave()"><option value="">— none —</option></select>
+          <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">dur</span>
+          <input id="cdStartDuration" type="number" min="0" max="999" value="0" class="games-input" style="width:44px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--amber)" onchange="cdSave()" title="Play duration in seconds (0 = auto, plays whole file)">
           <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">fade</span>
           <input id="cdStartFade" type="number" min="0" max="60" value="3" class="games-input" style="width:44px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--amber)" onchange="cdSave()">
           <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">s</span>
         </div>
         <div class="games-row">
+          <span class="games-label">LOOP SND</span>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+            <input type="checkbox" id="cdStartLoop" onchange="cdSave()" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
+            <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Loop start sound</span>
+          </label>
+        </div>
+        <div class="games-row">
           <span class="games-label">END SND</span>
           <select id="cdEndAudio" class="games-select" style="flex:1" onchange="cdSave()"><option value="">— none —</option></select>
+        </div>
+        <div class="games-row">
+          <span class="games-label">END DISP</span>
+          <select id="cdEndDisplay" class="games-select" style="flex:1" onchange="cdSave()"><option value="">— none —</option></select>
         </div>
         <div class="games-row">
           <span class="games-label">DISPLAY</span>
@@ -382,6 +553,8 @@
         <div class="timer-display" id="cdDisplay" style="font-size:88px;line-height:1;margin-bottom:10px">3:00</div>
         <div class="timer-btns">
           <button class="btn-timer start" id="cdStartBtn" onclick="cdToggle()">&#9654; START</button>
+          <button class="btn-timer set" onclick="cdShow()" title="Show timer on display without starting">&#9645; SET</button>
+          <button class="btn-timer set" id="cdHideBtn" onclick="cdHideToggle()" title="Show/hide timer on display">&#10005; HIDE</button>
           <button class="btn-timer reset" onclick="cdReset()">&#8634; RESET</button>
         </div>
       </div>
@@ -415,7 +588,7 @@
           <button class="games-btn danger" onclick="gtDelete()">DEL</button>
         </div>
         <div class="games-row" style="margin-top:4px">
-          <input id="gtLabel" type="text" placeholder="Runner name…" class="games-input" style="flex:1">
+          <input id="gtLabel" type="text" placeholder="Runner name…" class="games-input" style="flex:1" autocomplete="off">
           <button class="games-btn primary" onclick="gtRecord()">&#9203; RECORD</button>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;margin-bottom:4px">
@@ -428,6 +601,51 @@
         <div style="display:flex;gap:8px;margin-top:10px">
           <button class="games-btn" onclick="gtShowOnScreen()" style="flex:1;border-color:var(--amber-dim);color:var(--amber);font-size:13px;padding:9px">&#128250; SHOW SCORES</button>
           <button class="games-btn" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('DISPLAY CLEARED',1500)" style="border-color:var(--border);color:var(--text-dim);font-size:13px;padding:9px">&#10005; CLEAR</button>
+        </div>
+      </div>
+
+      <!-- SHELL GAME -->
+      <div class="games-section">
+        <div class="section-label">⛺ SHELL GAME</div>
+        <div class="games-row" style="margin-bottom:8px">
+          <span class="games-label">VARIATION</span>
+          <select id="sg-variant-select" class="games-select" style="flex:1">
+            <option value="">— default —</option>
+          </select>
+          <button class="games-btn" onclick="sgUiLoadVariant()" style="border-color:var(--amber-dim);color:var(--amber)">LOAD</button>
+        </div>
+        <div class="games-row" style="margin-bottom:10px">
+          <span class="games-label">GUESS TIME</span>
+          <input id="sg-hold-ui" type="number" min="2" max="30" step="1" value="5" class="games-input"
+                 style="width:52px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:18px;color:var(--amber)"
+                 oninput="sgUiMarkDirty()">
+          <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">SEC</span>
+          <button id="sg-ui-save-btn" class="games-btn" onclick="sgUiSave()" style="display:none;border-color:var(--amber-dim);color:var(--amber)">SAVE</button>
+        </div>
+        <div class="games-row" style="flex-wrap:wrap;gap:6px">
+          <button class="games-btn primary" onclick="sgUiNavigate()" style="flex:1">&#8599; OPEN ON DISPLAY</button>
+          <button class="games-btn" onclick="sgUiStart()" style="flex:1;border-color:var(--green);color:var(--green)">&#9654; START</button>
+          <button class="games-btn" onclick="sgUiReset()" style="flex:1">&#8634; RESET</button>
+        </div>
+      </div>
+
+      <!-- SOUND LEVELS -->
+      <div class="games-section">
+        <div class="section-label">🎙 SOUND LEVELS</div>
+        <div id="games-db-meters" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;min-height:48px">
+          <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;align-self:center">NO POLE NODES CONFIGURED</div>
+        </div>
+        <!-- Record peak to leaderboard -->
+        <div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);padding-top:10px">
+          <select id="db-record-game" class="games-select" style="flex:1">
+            <option value="">— select game —</option>
+          </select>
+          <input id="db-record-label" type="text" placeholder="Team name"
+            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
+          <button onclick="dbRecord()"
+            style="padding:7px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(60,185,106,0.15);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
+            ⏺ REC
+          </button>
         </div>
       </div>
 
@@ -457,6 +675,14 @@
           <div id="batteryList">
             <div style="padding:14px 16px;color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;text-align:center">SCANNING...</div>
           </div>
+        </div>
+      </div>
+
+      <!-- POLE NODES TEST -->
+      <div class="games-section">
+        <div class="section-label">POLE NODES — DIRECT TEST</div>
+        <div id="lightsNodeList">
+          <div style="padding:14px 16px;color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;text-align:center">LOADING...</div>
         </div>
       </div>
 
@@ -580,6 +806,17 @@
   </div>
 </div>
 <div class="alert-bar" id="alertBar"></div>
+
+<!-- Crowd Bug — floating shortcut to Display > Crowd Control -->
+<div id="crowd-bug" onclick="crowdBugTap()"
+  style="display:none;position:fixed;bottom:56px;right:14px;z-index:90;
+         background:rgba(220,40,10,0.92);border-radius:50px;padding:7px 14px 7px 10px;
+         box-shadow:0 2px 14px rgba(0,0,0,0.5);cursor:pointer;
+         display:none;align-items:center;gap:7px;backdrop-filter:blur(6px)">
+  <span style="font-size:18px;line-height:1">📢</span>
+  <span style="font-size:10px;font-weight:800;letter-spacing:2px;color:#fff;font-family:'Barlow Condensed',sans-serif">CROWD</span>
+  <span id="crowd-bug-level" style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.85);font-family:'Share Tech Mono',monospace">0%</span>
+</div>
 <script>
 function updateClock() {
   const n = new Date();
@@ -652,6 +889,7 @@ function startPlaylist(path) {
   showAlert('▶ PLAYLIST STARTED', 1500);
 }
 
+
 function updatePlaylistStatus(data) {
   // USB tab panel
   const panel = document.getElementById('pl-now-playing');
@@ -686,7 +924,7 @@ function clearDisplay() {
 
 // ── LIVE SLIDE BUILDER ────────────────────────────────────────────────────────
 let _slideTpl   = 'big_title';
-let _slideColor = 'amber';
+let _slideColor = '#F5A623';
 let _slideImages = [];
 
 const _SLIDE_FIELDS = {
@@ -732,12 +970,66 @@ function selectSlideTemplate(tpl, btn) {
   document.querySelectorAll('.slide-tpl-btn').forEach(b => b.classList.toggle('active', b === btn));
   document.getElementById('slideFields').innerHTML = _SLIDE_FIELDS[tpl] || '';
   if (tpl === 'spotlight') _populateSlideImages();
+  setTimeout(updateConsPreview, 0);
 }
 
-function selectSlideColor(color, btn) {
-  _slideColor = color;
-  document.querySelectorAll('.slide-color-btn').forEach(b => b.classList.toggle('active', b === btn));
+function updateSwatchSel(containerId, color) {
+  document.querySelectorAll('#' + containerId + ' .swatch').forEach(s => {
+    s.classList.toggle('selected', s.dataset.color.toLowerCase() === color.toLowerCase());
+  });
 }
+function consSlColorWheel(hex) {
+  _slideColor = hex;
+  document.getElementById('cons-sl-color-hex').value = hex;
+  updateSwatchSel('cons-sl-swatches', hex);
+  updateConsPreview();
+}
+function consSlColorHex(hex) {
+  if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    _slideColor = hex;
+    document.getElementById('cons-sl-color').value = hex;
+    updateSwatchSel('cons-sl-swatches', hex);
+    updateConsPreview();
+  }
+}
+function consSlColorSwatch(hex) {
+  _slideColor = hex;
+  document.getElementById('cons-sl-color').value = hex;
+  document.getElementById('cons-sl-color-hex').value = hex;
+  updateSwatchSel('cons-sl-swatches', hex);
+  updateConsPreview();
+}
+const _SL_ACC = {amber:'#F5A623', blue:'#4A9FD4', green:'#3CB96A', white:'#FFFFFF', red:'#E83A3A'};
+function _slH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _slBuildHtml(data) {
+  const t = data.template;
+  if (t==='big_title')  return `<div class="sl-big"><div class="sl-head">${_slH(data.headline)}</div>${data.subtitle?`<div class="sl-sub">${_slH(data.subtitle)}</div>`:''}</div>`;
+  if (t==='bulletin')   { const lines=(data.lines||'').split('\n').filter(l=>l.trim()).map(l=>`<div class="sl-line">${_slH(l)}</div>`).join(''); return `<div class="sl-bul"><div class="sl-head">${_slH(data.headline)}</div><div class="sl-rule"></div>${lines}</div>`; }
+  if (t==='next_event') return `<div class="sl-nxt"><div class="sl-label">${_slH(data.label||'NEXT CAMP')}</div><div class="sl-rule"></div><div class="sl-name">${_slH(data.event_name)}</div>${data.date_text?`<div class="sl-date">${_slH(data.date_text)}</div>`:''}</div>`;
+  if (t==='spotlight')  { const img=data.image?`<img class="sl-img" src="/assets/${_slH(data.image)}" alt="">`:''; return `<div class="sl-spot">${img}<div class="sl-txt"><div class="sl-head">${_slH(data.headline)}</div>${data.subtitle?`<div class="sl-sub">${_slH(data.subtitle)}</div>`:''}</div></div>`; }
+  if (t==='qr')         { const qi=data.qr_data_url?`<img class="sl-qimg" src="${data.qr_data_url}" alt="QR">`:''; return `<div class="sl-qr"><div class="sl-head">${_slH(data.headline)}</div>${data.body?`<div class="sl-body">${_slH(data.body)}</div>`:''}<div class="sl-rule" style="width:20cqw;margin:1.2cqw auto"></div>${qi}</div>`; }
+  return '';
+}
+function renderSlPreview(data, el) {
+  if (!el) return;
+  if (!data || !data.template) { el.style.background='#060504'; el.innerHTML='<div style="color:rgba(255,255,255,.2);font-size:9px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace">NO SLIDE</div>'; return; }
+  const acc = (data.theme && data.theme.startsWith('#')) ? data.theme : (_SL_ACC[data.theme] || _SL_ACC.amber);
+  const [r,g,b] = [parseInt(acc.slice(1,3),16), parseInt(acc.slice(3,5),16), parseInt(acc.slice(5,7),16)];
+  el.style.background = `radial-gradient(ellipse at 50% 40%, rgba(${r},${g},${b},.09) 0%, #060504 65%)`;
+  el.style.setProperty('--sl-a', acc);
+  el.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${_slBuildHtml(data)}</div>`;
+}
+function _consCollectSlide() {
+  const data = { template: _slideTpl, theme: _slideColor };
+  if (_slideTpl==='big_title')  { data.headline=_slVal('sl_headline'); data.subtitle=_slVal('sl_subtitle'); }
+  if (_slideTpl==='bulletin')   { data.headline=_slVal('sl_headline'); data.lines=_slVal('sl_lines'); }
+  if (_slideTpl==='next_event') { data.label=_slVal('sl_label')||'NEXT CAMP'; data.event_name=_slVal('sl_event_name'); data.date_text=_slVal('sl_date_text'); }
+  if (_slideTpl==='spotlight')  { data.headline=_slVal('sl_headline'); data.subtitle=_slVal('sl_subtitle'); data.image=_slVal('sl_image'); }
+  if (_slideTpl==='qr')         { data.headline=_slVal('sl_headline'); data.body=_slVal('sl_body'); data.qr_url=_slVal('sl_qr_url'); }
+  return data;
+}
+function updateConsPreview() { renderSlPreview(_consCollectSlide(), document.getElementById('cons-slide-preview')); }
+
 
 function _populateSlideImages() {
   const sel = document.getElementById('sl_image');
@@ -830,6 +1122,7 @@ async function loadSavedSlidesConsole() {
   }
   el.innerHTML = slides.map(s => `
     <div style="display:flex;gap:6px;align-items:center">
+      <div class="sl-prev sl-prev--thumb" data-slide-id="${s.id}"></div>
       <button onclick="pushSavedSlide('${s.id}')"
         style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;text-align:left;font-family:'Barlow Condensed',sans-serif">
         <span style="font-size:14px;font-weight:700;letter-spacing:.5px">${s.name}</span>
@@ -838,6 +1131,10 @@ async function loadSavedSlidesConsole() {
       <button onclick="deleteSavedSlideConsole('${s.id}')"
         style="padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-size:13px;font-family:'Barlow Condensed',sans-serif;font-weight:700">✕</button>
     </div>`).join('');
+  slides.forEach(s => {
+    const el2 = document.querySelector('.sl-prev[data-slide-id="' + s.id + '"]');
+    if (el2) renderSlPreview(s, el2);
+  });
 }
 
 async function deleteSavedSlideConsole(id) {
@@ -888,6 +1185,17 @@ function updateBright(v) {
 }
 
 let timerRunning=false, timerSecs=180, timerInterval=null, timerDuration=180, timerPresetName='';
+let timerOnDisplay=false, cdOnDisplay=false;
+function _setTimerOnDisplay(val) {
+  timerOnDisplay=val;
+  const b=document.getElementById('timerHideBtn');
+  if(b) b.textContent = val ? '✕ HIDE' : '■ SHOW';
+}
+function _setCdOnDisplay(val) {
+  cdOnDisplay=val;
+  const b=document.getElementById('cdHideBtn');
+  if(b) b.textContent = val ? '✕ HIDE' : '■ SHOW';
+}
 function toggleTimer() {
   if(!timerRunning) {
     timerRunning=true;
@@ -971,7 +1279,24 @@ function resetTimer() {
   document.getElementById('timerDisplay').className='timer-display';
   document.getElementById('timerStartBtn').textContent='▶ START';
   document.getElementById('timerStartBtn').classList.remove('running');
+  _setTimerOnDisplay(false);
   fetch('/api/timer/reset').catch(()=>{});
+}
+function showTimer() {
+  fetch('/api/timer/show').then(r=>r.json()).then(d=>{
+    if (d.timer && typeof d.timer.seconds_remaining === 'number') {
+      timerSecs = d.timer.seconds_remaining;
+      renderTimer();
+    }
+    _setTimerOnDisplay(true); _setCdOnDisplay(false);
+  }).catch(()=>{});
+}
+function timerHideToggle() {
+  if (timerOnDisplay) {
+    fetch('/api/timer/hide').then(()=>{ _setTimerOnDisplay(false); }).catch(()=>{});
+  } else {
+    showTimer();
+  }
 }
 
 // ── GAMES TAB ─────────────────────────────────────────────────────────────────
@@ -979,9 +1304,73 @@ function resetTimer() {
 // ─ Countdown (cd*) ─
 let cdRunning=false, cdSecs=180, cdTotal=180, cdInterval=null, cdDirty=false;
 
+// ── Shell Game (console) ─────────────────────────────────────────
+async function sgUiLoadConfig() {
+  try {
+    const d = await fetch('/api/shell-game/config').then(r=>r.json());
+    const inp = document.getElementById('sg-hold-ui');
+    if (inp) inp.value = d.hold ?? 5;
+  } catch {}
+}
+async function sgUiLoadThemes() {
+  const sel = document.getElementById('sg-variant-select');
+  if (!sel) return;
+  try {
+    const themes = await fetch('/api/shell-game/themes').then(r=>r.json());
+    sel.innerHTML = '<option value="">— default —</option>' +
+      themes.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  } catch {}
+}
+async function sgUiLoadVariant() {
+  const sel = document.getElementById('sg-variant-select');
+  const id = sel?.value;
+  if (!id) return;
+  try {
+    await fetch(`/api/shell-game/themes/${id}/load`, { method:'POST' });
+    showAlert('✓ VARIATION LOADED', 1500);
+  } catch {}
+}
+function sgUiMarkDirty() {
+  const btn = document.getElementById('sg-ui-save-btn');
+  if (btn) btn.style.display = 'inline-block';
+}
+async function sgUiSave() {
+  const hold = parseFloat(document.getElementById('sg-hold-ui')?.value || 5);
+  try {
+    await fetch('/api/shell-game/config', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ hold }) });
+    const btn = document.getElementById('sg-ui-save-btn');
+    if (btn) btn.style.display = 'none';
+  } catch {}
+}
+async function sgUiNavigate() {
+  const hold = parseFloat(document.getElementById('sg-hold-ui')?.value || 5);
+  await fetch('/api/display/navigate', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ url: `/shell-game?hold=${hold}` }) }).catch(()=>{});
+}
+async function sgUiStart() {
+  await fetch('/api/shell-game/start', { method:'POST' }).catch(()=>{});
+}
+async function sgUiReset() {
+  await fetch('/api/shell-game/reset', { method:'POST' }).catch(()=>{});
+}
+
+function sfInlineAction(type) {
+  if (type === 'shell_game') {
+    fetch('/api/shell-game/start', { method:'POST' }).catch(()=>{});
+    showAlert('▶ SHELL GAME STARTED', 2000);
+  } else if (type === 'timer') {
+    fetch('/api/timer/start').catch(()=>{});
+    showAlert('⏱ TIMER STARTED', 2000);
+  }
+}
+
 async function loadGamesTab() {
   await loadCdAudioOptions();
+  await loadCdDisplayOptions();
   await loadGamesList();
+  await sgUiLoadConfig();
+  await sgUiLoadThemes();
   try {
     const t = await fetch('/api/countdown/config').then(r=>r.json());
     if (t.duration) {
@@ -991,13 +1380,27 @@ async function loadGamesTab() {
       renderCd();
     }
     if (t.start_sound)     { const s=document.getElementById('cdStartAudio'); if(s) s.value=t.start_sound; }
+    if (t.start_sound_duration!==undefined) document.getElementById('cdStartDuration').value=t.start_sound_duration;
     if (t.start_sound_fade!==undefined) document.getElementById('cdStartFade').value=t.start_sound_fade;
     if (t.end_sound)       { const s=document.getElementById('cdEndAudio'); if(s) s.value=t.end_sound; }
+    if (t.end_display)     { const s=document.getElementById('cdEndDisplay'); if(s) s.value=t.end_display; }
     document.getElementById('cdShowEndAnim').checked  = t.show_end_display !== false;
+    const cdLpEl = document.getElementById('cdStartLoop'); if (cdLpEl) cdLpEl.checked = t.start_sound_loop !== false;
   } catch(e) {}
   cdDirty = false;
   document.getElementById('cdSetBtn').style.borderColor='';
   document.getElementById('cdSetBtn').style.color='';
+}
+
+async function loadCdDisplayOptions() {
+  let files = [];
+  try { files = await fetch('/api/display/list').then(r=>r.json()); } catch(e){}
+  const sel = document.getElementById('cdEndDisplay');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— none —</option>' +
+    files.map(f => `<option value="${f}">${f.replace(/\.[^.]+$/,'').replace(/_/g,' ').toUpperCase()}</option>`).join('');
+  if (cur) sel.value = cur;
 }
 
 async function loadCdAudioOptions() {
@@ -1050,8 +1453,11 @@ function cdSave() {
     body:JSON.stringify({
       duration: dur>0?dur:undefined,
       start_sound: document.getElementById('cdStartAudio').value,
+      start_sound_duration: parseFloat(document.getElementById('cdStartDuration').value)||0,
       start_sound_fade: parseFloat(document.getElementById('cdStartFade').value)||0,
       end_sound: document.getElementById('cdEndAudio').value,
+      end_display: document.getElementById('cdEndDisplay')?.value || '',
+      start_sound_loop: document.getElementById('cdStartLoop')?.checked ?? true,
       show_end_display: document.getElementById('cdShowEndAnim') ? document.getElementById('cdShowEndAnim').checked : true,
     })
   }).catch(()=>{});
@@ -1095,7 +1501,24 @@ function cdReset() {
   document.getElementById('cdDisplay').style.color='var(--amber)';
   document.getElementById('cdStartBtn').textContent='▶ START';
   document.getElementById('cdStartBtn').classList.remove('running');
+  _setCdOnDisplay(false);
   fetch('/api/countdown/reset').catch(()=>{});
+}
+function cdShow() {
+  fetch('/api/countdown/show').then(r=>r.json()).then(d=>{
+    if (d.countdown && typeof d.countdown.seconds_remaining === 'number') {
+      cdSecs = d.countdown.seconds_remaining;
+      renderCd();
+    }
+    _setCdOnDisplay(true); _setTimerOnDisplay(false);
+  }).catch(()=>{});
+}
+function cdHideToggle() {
+  if (cdOnDisplay) {
+    fetch('/api/timer/hide').then(()=>{ _setCdOnDisplay(false); }).catch(()=>{});
+  } else {
+    cdShow();
+  }
 }
 
 // ─ Stopwatch (sw*) ─
@@ -1173,19 +1596,29 @@ function renderLeaderboard() {
   if(!lb) return;
   if(!game){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">SELECT A GAME TO VIEW TIMES</div>';return;}
   const raw=(_gamesData[game]||[]);
-  if(!raw.length){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">NO TIMES YET — STOP THE STOPWATCH AND HIT RECORD</div>';return;}
-  const times=[...raw].sort((a,b)=>_lbSortAsc?a.ms-b.ms:b.ms-a.ms);
-  const medals=['🥇','🥈','🥉'];
-  const rows=times.map((t,i)=>{
-    const tot=t.ms/1000, min=Math.floor(tot/60), sec=Math.floor(tot%60), tenth=Math.floor((tot%1)*10);
-    const tStr=min>0?min+':'+String(sec).padStart(2,'0')+'.'+tenth:sec+'.'+tenth+'s';
-    const medal=medals[i]||(i+1)+'.';
-    return `<tr><td style="padding:7px 10px;text-align:center;font-size:15px">${medal}</td>
+  if(!raw.length){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">NO ENTRIES YET</div>';return;}
+  const isScore = raw.some(e => 'score' in e);
+  let sorted;
+  if (isScore) {
+    sorted = [...raw].sort((a,b) => (b.score||0)-(a.score||0));
+  } else {
+    sorted = [...raw].sort((a,b)=>_lbSortAsc?a.ms-b.ms:b.ms-a.ms);
+  }
+  const rows=sorted.map((t,i)=>{
+    let valStr;
+    if (isScore) {
+      valStr = Math.round(t.score||0) + (t.score != null && t.score <= 100 ? '%' : '');
+    } else {
+      const tot=t.ms/1000, min=Math.floor(tot/60), sec=Math.floor(tot%60), tenth=Math.floor((tot%1)*10);
+      valStr = min>0 ? min+':'+String(sec).padStart(2,'0')+'.'+tenth : sec+'.'+tenth+'s';
+    }
+    return `<tr><td style="padding:7px 10px;text-align:center;font-size:15px">${i+1}.</td>
       <td style="padding:7px 10px;font-weight:700;font-size:15px;letter-spacing:1px">${escHtml(t.label)}</td>
-      <td style="padding:7px 10px;font-family:'Share Tech Mono',monospace;font-size:16px;text-align:right;color:${i===0?'var(--amber)':'var(--text)'}">${tStr}</td></tr>`;
+      <td style="padding:7px 10px;font-family:'Share Tech Mono',monospace;font-size:16px;text-align:right;color:${i===0?'var(--amber)':'var(--text)'}">${valStr}</td></tr>`;
   }).join('');
+  const colHead = isScore ? 'SCORE' : 'TIME';
   lb.innerHTML=`<table class="lb-table"><thead><tr>
-    <th style="text-align:center">#</th><th>NAME</th><th style="text-align:right">TIME</th>
+    <th style="text-align:center">#</th><th>NAME</th><th style="text-align:right">${colHead}</th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -1299,9 +1732,17 @@ function playMusicTrack(filename, btn) {
 // ── SHOW FLOW GRID ─────────────────────────────────────────────────────────
 let showStep = null;  // index of last-pressed show step
 
+let _sfgMacroCache = null;
 async function buildShowFlowGrid() {
   let flow = [];
   try { const r = await fetch('/api/show_flow'); flow = await r.json(); } catch(e) {}
+  if (!_sfgMacroCache) {
+    try { const r = await fetch('/api/macros'); _sfgMacroCache = await r.json(); } catch(e) { _sfgMacroCache = []; }
+  }
+  const macros = _sfgMacroCache;
+  const macroMap = {};
+  macros.forEach(m => { macroMap[m.id] = m; });
+
   const grid = document.getElementById('showGrid');
   grid.innerHTML = '';
   if (!flow.length) {
@@ -1309,7 +1750,8 @@ async function buildShowFlowGrid() {
     return;
   }
   flow.forEach((step, i) => {
-    const btn = document.createElement('button');
+    // Use div so we can nest real <button> elements inside
+    const btn = document.createElement('div');
     btn.id = 'show-step-' + i;
     const col = step.color || '#F5A623';
     const isDone   = showStep !== null && i < showStep;
@@ -1325,6 +1767,31 @@ async function buildShowFlowGrid() {
       'min-height:52px;overflow:hidden',
       isActive ? `box-shadow:0 0 12px ${col}44` : ''
     ].join(';');
+
+    // Detect inline actions from macro steps
+    const macro = macroMap[step.macro_id];
+    const steps = macro?.steps || [];
+    const hasShellGame = steps.some(s => s.action === 'shell_game');
+    const hasViz       = steps.some(s => s.action === 'viz' || s.action === 'viz_hide');
+    const vizScene     = (steps.find(s => s.action === 'viz') || {}).scene || 'crowd';
+
+    const actionBtnHtml = [
+      hasShellGame ? `
+        <button data-inline-action="shell_game"
+          style="flex-shrink:0;padding:5px 9px;border-radius:20px;border:1.5px solid ${col};
+                 background:${col}22;color:${col};font-size:10px;font-weight:800;
+                 letter-spacing:0.5px;cursor:pointer;white-space:nowrap;line-height:1">
+          ▶ START
+        </button>` : '',
+      hasViz ? `
+        <button data-inline-action="viz_display" data-viz-scene="${vizScene}"
+          style="flex-shrink:0;padding:5px 9px;border-radius:20px;border:1.5px solid ${col};
+                 background:${col}22;color:${col};font-size:10px;font-weight:800;
+                 letter-spacing:0.5px;cursor:pointer;white-space:nowrap;line-height:1">
+          📺 →
+        </button>` : '',
+    ].join('');
+
     btn.innerHTML = `
       <div style="width:26px;height:26px;min-width:26px;border-radius:6px;
                   background:${col}${isActive?'33':'20'};border:2px solid ${col};
@@ -1343,8 +1810,31 @@ async function buildShowFlowGrid() {
           ${isActive ? '▶ NOW' : isNext ? 'NEXT' : '.'}
         </div>
         ${step.desc ? `<div style="font-size:9px;color:var(--text-dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.8">${escHtml(step.desc)}</div>` : ''}
-      </div>`;
-    btn.onclick = () => fireShowStep(i, step, flow.length);
+      </div>
+      ${actionBtnHtml}`;
+
+    // Use closest() check so clicking the inline START button doesn't also fire the show step
+    btn.onclick = (e) => {
+      if (e.target.closest('[data-inline-action]')) {
+        const el = e.target.closest('[data-inline-action]');
+        if (el.dataset.inlineAction === 'viz_display') {
+          const scene = el.dataset.vizScene || 'crowd';
+          const displayTab = document.querySelector('[onclick*="showPage(\'display\'"]');
+          showPage('display', displayTab);
+          loadSavedSlidesConsole();
+          vizConsoleLoadPresets();
+          setTimeout(() => {
+            if (scene === 'crowd') {
+              document.getElementById('crowd-control-section')?.scrollIntoView({behavior:'smooth', block:'start'});
+            }
+          }, 150);
+        } else {
+          sfInlineAction(el.dataset.inlineAction);
+        }
+        return;
+      }
+      fireShowStep(i, step, flow.length);
+    };
     grid.appendChild(btn);
   });
 
@@ -1654,7 +2144,155 @@ async function buildSceneGrid(){
 
 function loadLightsTab() {
   batteryLoad();
+  loadPoleNodesForLights();
 }
+
+// ── POLE NODES DIRECT TEST (Lights tab) ──────────────────────────────────────
+let _lightsNodes    = [];
+let _lightsProfiles = {};
+
+const _LIGHTS_DMX_DEFS = {
+  pinspot: [
+    {name:'MODE',   kind:'select', opts:[[255,'Manual'],[187,'Strobe'],[72,'Auto Bri'],[0,'Off']]},
+    {name:'RED',    kind:'num'}, {name:'GREEN', kind:'num'}, {name:'BLUE',  kind:'num'},
+    {name:'WHITE',  kind:'num'},
+    {name:'EFFECT', kind:'select', opts:[[0,'Manual'],[10,'Chase'],[100,'Pulse'],[200,'Sound']]},
+  ],
+  wash: [
+    {name:'DIMMER', kind:'num'}, {name:'RED',   kind:'num'}, {name:'GREEN', kind:'num'},
+    {name:'BLUE',   kind:'num'}, {name:'WHITE', kind:'num'},
+    {name:'STROBE', kind:'num'}, {name:'MODE',  kind:'select', opts:[[0,'Manual'],[51,'Auto 1'],[101,'Auto 2'],[151,'Auto 3']]},
+    {name:'SPEED',  kind:'num'},
+  ],
+};
+
+function _lightsChDefs(fix) {
+  const profile = _lightsProfiles[(fix.id||'').toLowerCase()] || _lightsProfiles[fix.id];
+  if (profile && profile.length) {
+    return profile.map(ch => ({
+      name: ch.name||'CH',
+      kind: (ch.presets && ch.presets.length) ? 'select' : 'num',
+      opts: (ch.presets||[]).map(p => [p.val, p.label]),
+    }));
+  }
+  const id = (fix.id||'').toLowerCase();
+  if (id.includes('pinspot')||id.includes('spot')) return _LIGHTS_DMX_DEFS.pinspot;
+  if (id.includes('wash')||id.includes('bar'))     return _LIGHTS_DMX_DEFS.wash;
+  return Array.from({length: fix.channels||1}, (_,i) => ({name:`CH${i+1}`, kind:'num'}));
+}
+
+async function loadPoleNodesForLights() {
+  try { _lightsNodes    = await fetch('/api/admin/pole_nodes').then(r=>r.json()); } catch(e) { _lightsNodes = []; }
+  try { _lightsProfiles = await fetch('/api/admin/fixture_profiles').then(r=>r.json()); } catch(e) { _lightsProfiles = {}; }
+  renderLightsNodes();
+}
+
+function renderLightsNodes() {
+  const c = document.getElementById('lightsNodeList');
+  if (!c) return;
+  if (!_lightsNodes.length) {
+    c.innerHTML = '<div style="padding:14px 16px;color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;letter-spacing:2px;text-align:center">NO POLE NODES CONFIGURED</div>';
+    return;
+  }
+  c.innerHTML = _lightsNodes.map((node, ni) => {
+    const fixHtml = (node.fixtures||[]).map(fix => {
+      const defs = _lightsChDefs(fix);
+      const inputs = defs.map((def, ci) => {
+        if (def.kind === 'select') {
+          const opts = def.opts.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+          return `<div style="flex:1;min-width:88px">
+            <div style="font-size:8px;letter-spacing:1px;color:var(--text-dim);margin-bottom:2px">${def.name}</div>
+            <select class="ltest-ch" style="width:100%;font-size:10px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px">${opts}</select>
+          </div>`;
+        }
+        return `<div style="flex:1;min-width:72px">
+          <div style="font-size:8px;letter-spacing:1px;color:var(--text-dim);margin-bottom:2px">${def.name}</div>
+          <input type="number" value="0" min="0" max="255" class="ltest-ch" style="width:100%;font-size:10px;font-family:'Share Tech Mono',monospace;padding:4px 5px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:4px">
+        </div>`;
+      }).join('');
+      return `<div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px" data-ltest-fix="${fix.id}">
+        <div style="font-size:10px;letter-spacing:1px;font-weight:700;color:var(--text);margin-bottom:6px">${fix.name||fix.id}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${inputs}</div>
+      </div>`;
+    }).join('');
+
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px" data-ltest-node="${node.id}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div style="font-size:12px;font-family:'Share Tech Mono',monospace;font-weight:700;color:var(--amber);letter-spacing:2px;flex:1">${node.name||node.id}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:9px;letter-spacing:1px;color:var(--text-dim)">WLED PRESET</span>
+          <input type="number" class="ltest-wled-preset" placeholder="—" min="1" max="250" style="width:56px;font-size:11px;font-family:'Share Tech Mono',monospace;padding:4px 5px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:4px;text-align:center">
+          <button onclick="fireWledPreset(this,'${node.id}','${node.ip||''}')" style="font-size:10px;padding:5px 10px;border-radius:4px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">▶ FIRE</button>
+        </div>
+      </div>
+      ${fixHtml}
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button onclick="fireLtestDmx(this,'${node.id}')" style="flex:1;font-size:11px;padding:8px;border-radius:4px;border:1px solid var(--green,#4CAF50);background:transparent;color:var(--green,#4CAF50);font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">⚡ FIRE DMX</button>
+        <button onclick="clearLtestDmx(this,'${node.id}')" style="flex:0 0 auto;font-size:11px;padding:8px 14px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">✕ ALL OFF</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function fireWledPreset(btn, nodeId, nodeIp) {
+  const card   = btn.closest('[data-ltest-node]');
+  const preset = parseInt(card.querySelector('.ltest-wled-preset').value);
+  if (!nodeIp || isNaN(preset) || preset < 1) { uiToast('Enter a preset number first'); return; }
+  try {
+    const r = await fetch(`http://${nodeIp}/json`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ps: preset})});
+    uiToast(r.ok ? `▶ Preset ${preset} fired` : 'Error');
+  } catch(e) { uiToast('Node unreachable'); }
+}
+
+async function fireLtestDmx(btn, nodeId) {
+  const card    = btn.closest('[data-ltest-node]');
+  const fixtures = {};
+  card.querySelectorAll('[data-ltest-fix]').forEach(div => {
+    fixtures[div.dataset.ltestFix] = [...div.querySelectorAll('.ltest-ch')]
+      .map(i => Math.min(255, Math.max(0, parseInt(i.value)||0)));
+  });
+  try {
+    const r = await fetch('/api/admin/pole_dmx_test', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({node_id: nodeId, fixtures})
+    });
+    const d = await r.json();
+    uiToast(d.ok ? '⚡ DMX fired' : (d.error||'Error'));
+  } catch(e) { uiToast('Server unreachable'); }
+}
+
+async function clearLtestDmx(btn, nodeId) {
+  const card    = btn.closest('[data-ltest-node]');
+  card.querySelectorAll('.ltest-ch').forEach(i => { i.value = 0; });
+  const fixtures = {};
+  card.querySelectorAll('[data-ltest-fix]').forEach(div => {
+    fixtures[div.dataset.ltestFix] = [...div.querySelectorAll('.ltest-ch')].map(()=>0);
+  });
+  try {
+    await fetch('/api/admin/pole_dmx_test', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({node_id: nodeId, fixtures})
+    });
+    uiToast('All off');
+  } catch(e) { uiToast('Server unreachable'); }
+}
+
+function uiToast(msg) {
+  let el = document.getElementById('ui-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'ui-toast';
+    el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border);color:var(--text);font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:1px;padding:8px 16px;border-radius:6px;z-index:9999;pointer-events:none;opacity:0;transition:opacity .2s';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, 2000);
+}
+let _displayLogo = '';
+fetch('/api/admin/display-logo').then(r=>r.json()).then(d=>{ _displayLogo = d.logo || ''; }).catch(()=>{});
+
 Promise.all([
   buildShowFlowGrid(), buildWalkupGrid(), buildRolesGrid(),
   buildSfxGrid(), buildMacroGrid(), buildSceneGrid(), buildDisplayGrid()
@@ -1701,6 +2339,7 @@ function initWebSocket() {
         if (s.countdown.duration) cdTotal = s.countdown.duration;
         if (s.countdown.seconds_remaining !== undefined) { cdSecs = s.countdown.seconds_remaining; renderCd(); }
       }
+      if (s.viz_scene !== undefined) vizConsoleUpdateStatus(s.viz_scene);
       if (s.stopwatch) {
         swRunning = !!s.stopwatch.running;
         swElapsedMs = s.stopwatch.elapsed_ms || 0;
@@ -1933,6 +2572,14 @@ function initWebSocket() {
         }
       }
 
+      else if (event === 'display_navigate') {
+        const url = (data.url || '');
+        if (url.startsWith('/shell-game')) {
+          switchTab('games');
+          sgUiLoadConfig();
+        }
+      }
+
       else if (event === 'timer_preset_loaded') {
         const m = Math.floor(data.duration/60), s = data.duration%60;
         showAlert('⚙ TIMER: ' + data.name + '  (' + m + ':' + String(s).padStart(2,'0') + ')', 3500);
@@ -1953,8 +2600,13 @@ function initWebSocket() {
         document.getElementById('timerDisplay').classList.remove('warning');
         document.getElementById('timerDisplay').classList.add('expired');
         if (document.getElementById('cdDisplay')) document.getElementById('cdDisplay').style.color='var(--red)';
+        _setTimerOnDisplay(false); _setCdOnDisplay(false);
         showAlert('🚨 TIME IS UP!', 5000);
       }
+
+      else if (event === 'timer_show')    { _setTimerOnDisplay(true);  _setCdOnDisplay(false); }
+      else if (event === 'countdown_show'){ _setCdOnDisplay(true);  _setTimerOnDisplay(false); }
+      else if (event === 'timer_hide')    { _setTimerOnDisplay(false); _setCdOnDisplay(false); }
 
       else if (event === 'stopwatch_state') {
         const wasRun = swRunning;
@@ -1977,6 +2629,42 @@ function initWebSocket() {
         _gamesData = data;
         updateGameSelect();
         renderLeaderboard();
+        crowdPopulateGameSelects();
+      }
+
+      else if (event === 'sound_levels') {
+        _soundLevels = data;
+        renderDbMeters();
+      }
+
+      else if (event === 'crowd_mode') {
+        _crowdMode = data.mode || 'manual';
+        crowdUpdateModeUI();
+      }
+
+      else if (event === 'viz_show') { vizConsoleUpdateStatus(data.scene); }
+      else if (event === 'viz_hide') {
+        vizConsoleUpdateStatus(null);
+        _crowdSliderSet(0);
+        fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({level:0, climax:false})}).catch(()=>{});
+      }
+      else if (['display_walkup','display_step','display_animation','display_clear','display_standby','display_leaderboard'].includes(event)) {
+        vizConsoleUpdateStatus(null);
+        _crowdSliderSet(0);
+        fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({level:0, climax:false})}).catch(()=>{});
+      }
+
+      else if (event === 'viz_crowd') {
+        if (!_vizActiveScene) return;
+        const lv = data.level || 0;
+        _crowdSliderSet(lv);
+        const bug = document.getElementById('crowd-bug');
+        if (bug) {
+          document.getElementById('crowd-bug-level').textContent = lv + '%';
+          bug.style.display = 'flex';
+        }
       }
 
     } catch(e) { console.warn('WS parse error', e); }
@@ -1988,6 +2676,281 @@ function initWebSocket() {
   ws.onerror = function() { ws.close(); };
 }
 initWebSocket();
+
+// ── VISUALIZER CONSOLE ────────────────────
+let _vizActiveScene = null;
+
+function vizConsoleUpdateStatus(scene) {
+  _vizActiveScene = scene;
+  const badge = document.getElementById('viz-status-badge');
+  if (!badge) return;
+  if (scene === 'music') {
+    badge.textContent = '🎵 MUSIC VIZ';
+    badge.style.cssText += ';color:var(--amber);border-color:var(--amber);background:var(--amber-dim)';
+  } else if (scene === 'crowd') {
+    badge.textContent = '📢 CROWD VIZ';
+    badge.style.cssText += ';color:var(--green);border-color:var(--green);background:rgba(60,185,106,.15)';
+  } else {
+    badge.textContent = 'OFF';
+    badge.style.cssText += ';color:var(--text-dim);border-color:var(--border);background:var(--surface)';
+  }
+}
+
+async function vizConsoleLoadPresets() {
+  try {
+    const presets = await fetch('/api/viz/presets').then(r => r.json());
+    const sel = document.getElementById('viz-console-preset');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— any preset —</option>' +
+      presets.map(p => `<option value="${p.id}" ${p.id===cur?'selected':''}>${escHtml(p.name)}</option>`).join('');
+  } catch(e) {}
+}
+
+function vizConsoleGo(scene) {
+  const pid = document.getElementById('viz-console-preset')?.value || '';
+  fetch('/api/viz/show', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({scene, preset_id: pid})}).catch(()=>{});
+  if (scene === 'crowd') {
+    setTimeout(() => document.getElementById('crowd-control-section')
+      ?.scrollIntoView({behavior:'smooth', block:'start'}), 120);
+  }
+}
+
+function vizConsoleHide() {
+  fetch('/api/viz/hide', {method:'POST'}).catch(()=>{});
+}
+
+// ── CROWD CONTROL ─────────────────────────
+let _crowdMode   = 'manual';
+let _soundLevels = {};
+let _crowdClimax = false;
+let _peakLevel   = 0;   // peak across all nodes this session
+
+function crowdSetMode(mode) {
+  _crowdMode = mode;
+  fetch('/api/crowd/mode', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({mode})}).catch(()=>{});
+  crowdUpdateModeUI();
+}
+
+function crowdUpdateModeUI() {
+  const manual = document.getElementById('crowd-mode-manual');
+  const auto   = document.getElementById('crowd-mode-auto');
+  const panel  = document.getElementById('crowd-manual-panel');
+  if (!manual) return;
+  const isManual = (_crowdMode === 'manual');
+  manual.style.border   = isManual ? '1px solid var(--amber)' : '1px solid var(--border)';
+  manual.style.background = isManual ? 'var(--amber-dim)' : 'var(--surface)';
+  manual.style.color    = isManual ? 'var(--amber)' : 'var(--text-dim)';
+  auto.style.border     = !isManual ? '1px solid var(--green)' : '1px solid var(--border)';
+  auto.style.background = !isManual ? 'rgba(60,185,106,0.15)' : 'var(--surface)';
+  auto.style.color      = !isManual ? 'var(--green)' : 'var(--text-dim)';
+  if (panel) panel.style.opacity = isManual ? '1' : '0.45';
+}
+
+let _crowdSliderDragging = false;
+let _crowdSliderVal = 0;
+
+function _crowdSliderSet(pct) {
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+  _crowdSliderVal = pct;
+  const fill  = document.getElementById('crowd-slider-fill');
+  const thumb = document.getElementById('crowd-slider-thumb');
+  const label = document.getElementById('crowd-level-pct');
+  if (fill)  fill.style.width = pct + '%';
+  if (thumb) thumb.style.left = pct + '%';
+  if (label) label.textContent = pct + '%';
+}
+
+function crowdSliderPointer(e, phase) {
+  const wrap = document.getElementById('crowd-slider-wrap');
+  if (!wrap) return;
+  if (phase === 'down') {
+    _crowdSliderDragging = true;
+    wrap.setPointerCapture(e.pointerId);
+  }
+  if (!_crowdSliderDragging) return;
+  const rect = wrap.getBoundingClientRect();
+  const pct  = Math.max(0, Math.min(100, (e.clientX - rect.left) / rect.width * 100));
+  _crowdSliderSet(pct);
+  if (phase === 'up') {
+    crowdSendLevel(_crowdSliderVal);
+    _crowdSliderDragging = false;
+  }
+}
+
+function crowdSendLevel(val) {
+  val = parseInt(val);
+  _crowdSliderSet(val);
+  _peakLevel = Math.max(_peakLevel, val);
+  fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({level: val, climax: false})}).catch(()=>{});
+}
+
+let _climaxFx = {};
+
+async function loadClimaxFx() {
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    _climaxFx = cfg.climax_fx || {};
+  } catch(e) {}
+}
+
+function crowdClimax() {
+  _peakLevel = 100;
+  fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({level: 100, climax: true})}).catch(()=>{});
+  // Fire explosion video (plays once, auto-hides when done)
+  if (_climaxFx.video) {
+    fetch('/api/viz/overlay', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'play', src: _climaxFx.video, loop: false, fullscreen: true})}).catch(()=>{});
+  }
+  // Fire explosion SFX
+  if (_climaxFx.sfx) {
+    fetch('/api/sfx/play?name=' + encodeURIComponent(_climaxFx.sfx)).catch(()=>{});
+  }
+  setTimeout(() => {
+    _crowdSliderSet(0);
+    fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({level: 0, climax: false})}).catch(()=>{});
+  }, 3000);
+  showAlert('⚡ CLIMAX!', 1500);
+}
+
+function crowdShowViz() {
+  fetch('/api/viz/show', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({scene:'crowd'})}).catch(()=>{});
+  showAlert('📺 CROWD VIZ ON', 1500);
+}
+
+let _overlaySlots = [];
+
+async function overlayLoadSlots() {
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    _overlaySlots = cfg.overlay_slots || [];
+    for (let i = 0; i < 3; i++) {
+      const slot = _overlaySlots[i];
+      const btn  = document.getElementById('overlay-btn-' + i);
+      if (!btn) continue;
+      if (slot && slot.file) {
+        btn.textContent    = slot.name || ('OVERLAY ' + (i + 1));
+        btn.style.display  = '';
+        btn.style.color    = 'var(--amber)';
+        btn.style.borderColor = 'var(--amber)';
+      } else {
+        btn.style.display  = 'none';
+      }
+    }
+  } catch(e) {}
+}
+
+function crowdOverlay(i) {
+  const slot = _overlaySlots[i];
+  if (!slot || !slot.file) return;
+  fetch('/api/viz/overlay', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action:'play', src: slot.file, loop: slot.loop !== false})}).catch(()=>{});
+}
+
+function crowdOverlayStop() {
+  fetch('/api/viz/overlay', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action:'hide'})}).catch(()=>{});
+}
+
+function crowdHideViz() {
+  fetch('/api/viz/hide', {method:'POST'}).catch(()=>{});
+  const bug = document.getElementById('crowd-bug');
+  if (bug) bug.style.display = 'none';
+  showAlert('VIZ OFF', 1000);
+}
+
+function crowdBugTap() {
+  showPage('display', document.querySelector('[onclick*="showPage(\'display\'"]'));
+  setTimeout(() => {
+    const el = document.getElementById('crowd-control-section');
+    if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 150);
+}
+
+async function crowdRecord() {
+  const game  = document.getElementById('crowd-record-game').value.trim();
+  const label = (document.getElementById('crowd-record-label').value || '').trim() || 'Team';
+  if (!game) { showAlert('SELECT A GAME FIRST', 2000); return; }
+  const level = _crowdSliderVal || 0;
+  try {
+    const r = await fetch('/api/games/record', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({game, label, score: level})}).then(r=>r.json());
+    _gamesData = r.games;
+    updateGameSelect(); renderLeaderboard();
+    document.getElementById('crowd-record-label').value = '';
+    showAlert('📢 SCORE RECORDED!', 2000);
+  } catch(e) {}
+}
+
+// record peak dB from Games page
+async function dbRecord() {
+  const game  = document.getElementById('db-record-game').value.trim();
+  const label = (document.getElementById('db-record-label').value || '').trim() || 'Team';
+  if (!game) { showAlert('SELECT A GAME FIRST', 2000); return; }
+  const vals = Object.values(_soundLevels).map(n => n.level).filter(l => l >= 0);
+  const peak = vals.length ? Math.max(...vals) : 0;
+  if (!peak) { showAlert('NO SOUND DATA', 2000); return; }
+  try {
+    const r = await fetch('/api/games/record', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({game, label, score: peak})}).then(r=>r.json());
+    _gamesData = r.games;
+    updateGameSelect(); renderLeaderboard();
+    document.getElementById('db-record-label').value = '';
+    showAlert('🎙 dB RECORDED!', 2000);
+  } catch(e) {}
+}
+
+function crowdPopulateGameSelects() {
+  const names = Object.keys(_gamesData || {});
+  const opts  = '<option value="">— select game —</option>' +
+    names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+  const s1 = document.getElementById('crowd-record-game');
+  const s2 = document.getElementById('db-record-game');
+  if (s1) s1.innerHTML = opts;
+  if (s2) s2.innerHTML = opts;
+}
+
+function renderDbMeters() {
+  const nodes = Object.entries(_soundLevels);
+  const c1 = document.getElementById('crowd-db-meters');
+  const c2 = document.getElementById('games-db-meters');
+  if (!nodes.length) return;
+
+  function meterHTML(id, info, compact) {
+    const lv     = Math.max(0, info.level);
+    const dead   = info.level < 0;
+    const pct    = dead ? 0 : lv;
+    const color  = pct > 75 ? '#e74c3c' : pct > 45 ? '#f5a623' : '#3cb96a';
+    const bh     = compact ? 28 : 44;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:${compact?44:56}px">
+      <div style="font-size:${compact?18:24}px;font-weight:700;color:${dead?'var(--text-dim)':color};font-family:'Share Tech Mono',monospace;line-height:1">${dead?'—':lv}</div>
+      <div style="width:100%;height:${bh}px;background:var(--bg3);border-radius:4px;overflow:hidden;position:relative">
+        <div style="position:absolute;bottom:0;left:0;right:0;height:${pct}%;background:${color};border-radius:4px;transition:height 0.4s ease"></div>
+      </div>
+      <div style="font-size:9px;letter-spacing:1px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52px">${escHtml(info.name||id)}</div>
+    </div>`;
+  }
+
+  const html1 = nodes.map(([id,info]) => meterHTML(id, info, true)).join('');
+  const html2 = nodes.map(([id,info]) => meterHTML(id, info, false)).join('');
+  if (c1) c1.innerHTML = html1;
+  if (c2) c2.innerHTML = html2;
+}
+
+// Bootstrap crowd state on page load
+fetch('/api/sound/levels').then(r=>r.json()).then(d=>{ _soundLevels=d; renderDbMeters(); }).catch(()=>{});
+fetch('/api/crowd/mode').then(r=>r.json()).then(d=>{ _crowdMode=d.mode||'manual'; crowdUpdateModeUI(); }).catch(()=>{});
+fetch('/api/games').then(r=>r.json()).then(d=>{ _gamesData=d; crowdPopulateGameSelects(); }).catch(()=>{});
+overlayLoadSlots();
+loadClimaxFx();
 
 // ── WIFI ──────────────────────────────────
 let _wifiConnectSSID = '';

@@ -196,6 +196,23 @@
   .sl-qr .sl-body    { font-size:2.6vw; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.65); margin:1.2vw 0; }
   .sl-qr .sl-qimg    { width:24vw; height:24vw; margin:1.2vw auto; display:block; border:1vw solid #fff; border-radius:.6vw; image-rendering:pixelated; }
   .sl-qr .sl-url     { font-size:1.7vw; font-weight:600; letter-spacing:.08em; color:rgba(255,255,255,.38); font-family:'Share Tech Mono','Courier New',monospace; margin-top:.4vw; }
+
+  /* ── VIZ LAYERS ─────────────────────────────────────────────── */
+  #layer-viz-music, #layer-viz-crowd {
+    position: fixed;
+    inset: 0;
+    z-index: 6;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease;
+    background: #080808;
+  }
+  #layer-viz-music canvas, #layer-viz-crowd canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
 </style>
 </head>
 <body>
@@ -234,6 +251,28 @@
 
 <!-- SLIDE LAYER -->
 <div id="layer-slide"></div>
+
+<!-- MUSIC REACTIVE VIZ LAYER -->
+<div id="layer-viz-music">
+  <canvas id="eq-canvas"></canvas>
+</div>
+
+<!-- CROWD REACTIVE VIZ LAYER -->
+<div id="layer-viz-crowd">
+  <canvas id="crowd-canvas"></canvas>
+  <!-- Two overlay video elements — we load into the hidden one and swap on first frame to avoid GPU texture flash -->
+  <video id="crowd-overlay-video-a" playsinline muted
+    style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+           pointer-events:none;opacity:0;background:black;mix-blend-mode:screen"></video>
+  <video id="crowd-overlay-video-b" playsinline muted
+    style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+           pointer-events:none;opacity:0;background:black;mix-blend-mode:screen"></video>
+</div>
+
+<!-- FULL-SCREEN CLIMAX VIDEO — sits above everything -->
+<video id="climax-fullscreen-video" playsinline muted
+  style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;
+         pointer-events:none;opacity:0;z-index:20"></video>
 
 <!-- WALKUP LAYER -->
 <div id="layer-walkup">
@@ -278,6 +317,7 @@ loadStandbyConfig();
 let standbyActive  = true;
 let _displaySeq    = 0; // incremented on every display change to cancel stale onload callbacks
 let _titleImgSlot  = 'a'; // which img slot is currently showing
+let _startupId     = null; // server startup_id from first connect; changes only on service restart
 
 const layerStandby = document.getElementById('layer-standby');
 const layerWalkup  = document.getElementById('layer-walkup');
@@ -305,6 +345,7 @@ function showStep(data) {
   if (!imageUrl) return;
 
   hideSlide();
+  hideLeaderboard();
   standbyActive = false;
   const seq = ++_displaySeq;
 
@@ -338,6 +379,7 @@ function showStep(data) {
 
 function clearAllLayers() {
   hideSlide();
+  hideLeaderboard();
   standbyActive = true;
   const t = 'opacity 1s ease';
   layerWalkup.style.transition = t;
@@ -360,6 +402,7 @@ function showTitleVideo(data) {
   const videoUrl = data.video || '';
   if (!videoUrl) return;
   hideSlide();
+  hideLeaderboard();
   standbyActive = false;
   const seq = ++_displaySeq;
 
@@ -393,6 +436,7 @@ function showTitleVideo(data) {
 
 function showWalkup(data) {
   hideSlide();
+  hideLeaderboard();
   standbyActive = false;
   _displaySeq++; // cancel any pending showStep image load
   _resetTitleVideo();
@@ -498,6 +542,8 @@ function tryLogo(itemType, id, logoFile) {
 }
 
 function showStandby(fadeDurMs) {
+  hideLeaderboard();
+  hideSlide();
   standbyActive = true;
   _displaySeq++; // cancel any pending showStep image load
 
@@ -533,7 +579,9 @@ const _SLIDE_ACCENTS = {amber:'#F5A623', blue:'#4A9FD4', green:'#3CB96A', white:
 
 function showSlide(data) {
   if (!data || !data.template) return;
-  const acc = _SLIDE_ACCENTS[data.theme] || _SLIDE_ACCENTS.amber;
+  _displaySeq++;        // cancel any pending showStep/showTitleVideo load callbacks
+  _resetTitleVideo();   // stop any title video still playing under us
+  const acc = (data.theme && data.theme.startsWith('#')) ? data.theme : (_SLIDE_ACCENTS[data.theme] || _SLIDE_ACCENTS.amber);
   layerSlide.style.setProperty('--sl-a', acc);
   const [r,g,b] = [parseInt(acc.slice(1,3),16), parseInt(acc.slice(3,5),16), parseInt(acc.slice(5,7),16)];
   layerSlide.style.background = `radial-gradient(ellipse at 50% 40%, rgba(${r},${g},${b},.07) 0%, #060504 65%)`;
@@ -562,6 +610,7 @@ function showSlide(data) {
   layerTitle.style.opacity   = '0';
   layerStandby.style.opacity = '0';
   layerSlide.style.opacity   = '1'; layerSlide.style.pointerEvents   = 'auto';
+  hideLeaderboard();
   standbyActive = false;
 }
 
@@ -569,6 +618,28 @@ function hideSlide() {
   layerSlide.style.transition   = 'opacity .7s ease';
   layerSlide.style.opacity      = '0';
   layerSlide.style.pointerEvents = 'none';
+}
+
+function blackout() {
+  hideChronoOverlay();
+  hideLeaderboard();
+  hideSlide();
+  standbyActive = false;
+  _displaySeq++;
+  const t = 'opacity 1s ease';
+  layerStandby.style.transition = t;
+  layerWalkup.style.transition  = t;
+  layerTitle.style.transition   = t;
+  layerStandby.style.opacity = '0';
+  layerWalkup.style.opacity  = '0';
+  layerTitle.style.opacity   = '0';
+  layerWalkup.style.pointerEvents = 'none';
+  setTimeout(() => {
+    wuVideo.pause(); wuVideo.src = '';
+    wuLogo.style.display = 'none'; wuLogo.src = '';
+    _resetTitleVideo();
+    _resetTitleImgs();
+  }, 1200);
 }
 
 // ── COLOR HELPER ──────────────────────────────────────────────────────────────
@@ -587,17 +658,17 @@ function _escHtml(s) {
 }
 
 function showLeaderboard(data) {
+  hideSlide();
   const game  = data.game  || '';
   const times = data.times || [];
   document.getElementById('lb-game-name').textContent = game.toUpperCase();
-  const medals = ['🥇','🥈','🥉'];
   document.getElementById('lb-rows').innerHTML = times.slice(0, 8).map((t, i) => {
     const tot   = t.ms / 1000;
     const m     = Math.floor(tot / 60);
     const s     = Math.floor(tot % 60);
     const tenth = Math.floor((tot % 1) * 10);
     const tStr  = m > 0 ? m+':'+String(s).padStart(2,'0')+'.'+tenth : s+'.'+tenth+'s';
-    const medal = medals[i] || (i + 1) + '.';
+    const medal = (i + 1) + '.';
     const gold  = i === 0;
     const sz    = gold ? '5.2vw' : i < 3 ? '4.2vw' : '3.5vw';
     const col   = gold ? '#F5A623' : 'rgba(255,255,255,0.88)';
@@ -722,11 +793,22 @@ function connectWS() {
       // First connect: load standby config (handles Chromium beating musicman to start)
       _wsFirstConnect = false;
       loadStandbyConfig();
-      fetch('/api/state').then(r=>r.json()).then(s=>{ if (s.slide && s.slide.template) showSlide(s.slide); }).catch(()=>{});
+      fetch('/api/state').then(r=>r.json()).then(s=>{
+        _startupId = s.startup_id || null;
+        if (s.slide && s.slide.template) showSlide(s.slide);
+      }).catch(()=>{});
     } else {
-      // Reconnect after a drop = service restarted.
-      // Hard-navigate with cache-buster so we always get the latest display.html.
-      location.href = '/display?v=' + Date.now();
+      // Reconnect: check if the service actually restarted (startup_id changed)
+      // vs. a mere network hiccup. Only hard-navigate on a true restart.
+      fetch('/api/state').then(r=>r.json()).then(s=>{
+        if (s.startup_id && _startupId && s.startup_id !== _startupId) {
+          // Service restarted — get fresh HTML
+          location.href = '/display?v=' + Date.now();
+        }
+        // else: network hiccup, service still running — stay on current display
+      }).catch(()=>{
+        // Can't reach server yet; retry will happen via ws reconnect loop
+      });
       return;
     }
     // Keepalive ping every 20s — prevents the server's 30s receive-timeout
@@ -742,14 +824,17 @@ function connectWS() {
       const msg  = JSON.parse(evt.data);
       const data = msg.data || {};
 
-      if      (msg.event === 'display_walkup')    { showWalkup(data); }
-      else if (msg.event === 'display_step')      { showStep(data); }
-      else if (msg.event === 'display_animation') { showTitleVideo(data); }
-      else if (msg.event === 'display_clear')     { hideChronoOverlay(); hideLeaderboard(); hideSlide(); showStandby(); }
-      else if (msg.event === 'display_slide')     { showSlide(data); }
+      if      (msg.event === 'display_walkup')    { hideChronoOverlay(); hideViz(); showWalkup(data); }
+      else if (msg.event === 'display_step')      { hideChronoOverlay(); hideViz(); showStep(data); }
+      else if (msg.event === 'display_animation') { hideChronoOverlay(); hideViz(); showTitleVideo(data); }
+      else if (msg.event === 'display_clear')     { hideChronoOverlay(); hideViz(); blackout(); }
+      else if (msg.event === 'display_standby')   { hideChronoOverlay(); hideViz(); showStandby(); }
+      else if (msg.event === 'display_slide')     { hideChronoOverlay(); showSlide(data); }
       else if (msg.event === 'display_slide_clear') { hideSlide(); }
-      else if (msg.event === 'display_leaderboard') { showLeaderboard(data); }
+      else if (msg.event === 'display_leaderboard') { hideChronoOverlay(); hideViz(); showLeaderboard(data); }
+      else if (msg.event === 'timer_hide')        { hideChronoOverlay(); }
       else if (msg.event === 'display_reload')    { location.href = '/display?v=' + Date.now(); }
+      else if (msg.event === 'display_navigate')  { location.href = data.url; }
       else if (msg.event === 'timer_show')        { showChronoOverlay('countdown', {seconds: data.seconds || 0}, 'skit'); }
       else if (msg.event === 'timer_warning')     { showChronoOverlay('countdown', {seconds: data.seconds_remaining || 0}, 'skit'); }
       else if (msg.event === 'timer_state')       { handleTimerState(data); }
@@ -758,12 +843,654 @@ function connectWS() {
       else if (msg.event === 'countdown_state')   { handleCountdownState(data); }
       else if (msg.event === 'countdown_expired') { hideChronoOverlay('countdown'); }
       else if (msg.event === 'stopwatch_state')   { handleStopwatchState(data); }
+      else if (msg.event === 'viz_show')    { if (data.scene === 'crowd') showCrowdViz(data.settings); else showMusicViz(data.settings); }
+      else if (msg.event === 'viz_hide')    { hideViz(); }
+      else if (msg.event === 'viz_music')   { _eqReceive(data); }
+      else if (msg.event === 'viz_crowd')   { _crowdReceive(data); }
+      else if (msg.event === 'viz_overlay') { if (data.action === 'hide') _overlayHide(); else _overlayPlay(data); }
     } catch(e) {}
   };
 
   ws.onclose = () => { clearInterval(_pingTimer); setTimeout(connectWS, 3000); };
   ws.onerror = () => ws.close();
 }
+
+// ── VIZ: SHARED ──────────────────────────────────────────────────────────────
+let _activeViz = null;
+
+function _resizeCanvas(c) {
+  c.width  = c.offsetWidth  || window.innerWidth;
+  c.height = c.offsetHeight || window.innerHeight;
+}
+
+// ── VIZ: MUSIC EQ ────────────────────────────────────────────────────────────
+const _eqLayer  = document.getElementById('layer-viz-music');
+const _eqCanvas = document.getElementById('eq-canvas');
+const _eqCtx    = _eqCanvas.getContext('2d');
+const EQ_MAX    = 32;   // maximum bars (array capacity)
+let   _eqBarCount = 24; // runtime bar count (16 | 24 | 32)
+
+const _eqSmooth  = new Float32Array(EQ_MAX);
+const _eqTarget  = new Float32Array(EQ_MAX);
+const _eqPeak    = new Float32Array(EQ_MAX);
+const _eqPeakTtl = new Int32Array(EQ_MAX);
+let _eqBeat    = 0;
+let _eqTrack   = '';
+let _eqRunning = false;
+let _eqColors  = { low: '#c84a0a', mid: '#f5a623', high: '#fffff0' };
+
+function _drawEQ() {
+  if (!_eqRunning) return;
+  const W = _eqCanvas.width, H = _eqCanvas.height, ctx = _eqCtx;
+
+  ctx.fillStyle = '#080808';
+  ctx.fillRect(0, 0, W, H);
+
+  if (_eqBeat > 0) {
+    ctx.fillStyle = `rgba(245,166,35,${(_eqBeat * 0.10).toFixed(3)})`;
+    ctx.fillRect(0, 0, W, H);
+    _eqBeat = Math.max(0, _eqBeat - 0.055);
+  }
+
+  const N = _eqBarCount;
+  for (let i = 0; i < N; i++) {
+    _eqSmooth[i] = _eqTarget[i] > _eqSmooth[i]
+      ? _eqTarget[i]
+      : Math.max(0, _eqSmooth[i] - 0.020);
+    _eqTarget[i] = Math.max(0, _eqTarget[i] - 0.012);
+
+    if (_eqSmooth[i] >= _eqPeak[i]) {
+      _eqPeak[i] = _eqSmooth[i]; _eqPeakTtl[i] = 45;
+    } else if (--_eqPeakTtl[i] < 0) {
+      _eqPeak[i] = Math.max(0, _eqPeak[i] - 0.005);
+    }
+  }
+
+  const baseline = H * 0.64;
+  const maxBarH  = baseline * 0.93;
+  const totalW   = W * 0.86;
+  const startX   = (W - totalW) / 2;
+  const slot     = totalW / N;
+  const barW     = slot * 0.70;
+  const gapH     = slot * 0.30;
+
+  // Build bar gradient colors from _eqColors
+  function eqGrad(top) {
+    const g = ctx.createLinearGradient(0, baseline, 0, top);
+    g.addColorStop(0,    _eqColors.low  + 'dd');
+    g.addColorStop(0.45, _eqColors.mid  + 'eb');
+    g.addColorStop(1,    _eqColors.high + 'fa');
+    return g;
+  }
+
+  for (let i = 0; i < N; i++) {
+    const x    = startX + i * slot + gapH / 2;
+    const barH = _eqSmooth[i] * maxBarH;
+    const pkH  = _eqPeak[i]   * maxBarH;
+    if (barH < 1) continue;
+
+    const top  = baseline - barH;
+    ctx.fillStyle = eqGrad(top);
+    ctx.fillRect(x, top, barW, barH);
+
+    // Glow cap
+    ctx.shadowColor = _eqColors.mid + 'a6';
+    ctx.shadowBlur  = 14;
+    ctx.fillStyle   = _eqColors.high + `${Math.round(_eqSmooth[i] * 255).toString(16).padStart(2,'0')}`;
+    ctx.fillRect(x, top, barW, 3);
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+
+    // Mirror reflection
+    const mGrad = ctx.createLinearGradient(0, baseline, 0, baseline + barH * 0.26);
+    mGrad.addColorStop(0, _eqColors.low + '52');
+    mGrad.addColorStop(1, _eqColors.low + '00');
+    ctx.fillStyle = mGrad;
+    ctx.fillRect(x, baseline, barW, barH * 0.26);
+
+    // Peak hold dot
+    if (pkH > 3 && _eqSmooth[i] < _eqPeak[i] - 0.04) {
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fillRect(x, baseline - pkH - 2, barW, 2);
+    }
+  }
+
+  // Baseline rule
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(startX, baseline); ctx.lineTo(startX + totalW, baseline);
+  ctx.stroke();
+
+  // Track name
+  if (_eqTrack) {
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.font      = `400 ${Math.round(W * 0.016)}px 'Barlow Condensed','Arial Narrow',Arial,sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(_eqTrack.toUpperCase(), W / 2, H - 26);
+  }
+
+  requestAnimationFrame(_drawEQ);
+}
+
+function _eqReceive(data) {
+  const raw = data.fft || [], n = raw.length || 1, N = _eqBarCount;
+  for (let i = 0; i < N; i++) {
+    const src = Math.min(n - 1, Math.floor(Math.pow(i / (N - 1), 0.65) * n));
+    const v = raw[src] || 0;
+    if (v > _eqTarget[i]) _eqTarget[i] = v;
+  }
+  if (data.beat)  _eqBeat  = 1.0;
+  if (data.track) _eqTrack = data.track;
+}
+
+// ── VIZ: CROWD — VU METER + LED BARS ─────────────────────────────────────────
+const _crowdLayer   = document.getElementById('layer-viz-crowd');
+const _crowdCanvas  = document.getElementById('crowd-canvas');
+const _crowdCtx     = _crowdCanvas.getContext('2d');
+// Two overlay elements — we always load into the hidden one and crossfade to avoid GPU texture flash
+const _overlayA     = document.getElementById('crowd-overlay-video-a');
+const _overlayB     = document.getElementById('crowd-overlay-video-b');
+let   _activeOv     = _overlayA;   // currently visible
+let   _stagingOv    = _overlayB;   // loading target
+
+let _crowdTarget    = 0;
+let _crowdSmoothed  = 0;
+let _crowdLastTick  = 0;  // performance.now() of last draw frame
+let _crowdClimax   = false;
+let _climaxFrame   = 0;
+let _particles     = [];
+let _lightningArcs = [];
+let _crowdRunning  = false;
+let _crowdVizType  = 'needle_bars';  // needle_bars | bars_only | needle_only | needle_number | needle_bars_number | bars_number
+let _crowdColors   = { low: '#3cb96a', mid: '#f5a623', high: '#e74c3c' };
+let _crowdFrame    = 0;
+
+// Per-column wobble phases for animated bars (14 columns max)
+const _colPhases = Float32Array.from({length: 14}, () => Math.random() * Math.PI * 2);
+const _colFreqs  = Float32Array.from({length: 14}, (_, i) => 0.038 + i * 0.004 + Math.random() * 0.008);
+
+// Interpolate between the 3 user colors based on level 0-1
+function _crowdColorAt(lv) {
+  function h2r(h) { return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+  const [lr,lg,lb] = h2r(_crowdColors.low);
+  const [mr,mg,mb] = h2r(_crowdColors.mid);
+  const [hr,hg,hb] = h2r(_crowdColors.high);
+  let r,g,b;
+  if (lv < 0.5) { const t=lv*2; r=lr+(mr-lr)*t; g=lg+(mg-lg)*t; b=lb+(mb-lb)*t; }
+  else           { const t=(lv-0.5)*2; r=mr+(hr-mr)*t; g=mg+(hg-mg)*t; b=mb+(hb-mb)*t; }
+  return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
+}
+
+// Color for a specific LED segment row (0=bottom, N_SEG-1=top)
+function _segColor(s, N_SEG) {
+  const frac = s / (N_SEG - 1);
+  return _crowdColorAt(frac);
+}
+
+const _MAX_PARTICLES = 120;
+
+function _spawnSparks(W, H, n, cx, cy, R) {
+  if (_particles.length >= _MAX_PARTICLES) return;
+  const deg = (205 + _crowdSmoothed * 130) * Math.PI / 180;
+  const nx = cx + R * 0.89 * Math.cos(deg);
+  const ny = cy + R * 0.89 * Math.sin(deg);
+
+  const room = _MAX_PARTICLES - _particles.length;
+  for (let i = 0; i < Math.min(n, room); i++) _particles.push({
+    x: nx, y: ny,
+    vx: (Math.random() - 0.5) * 22,
+    vy: -(Math.random() * 14 + 3),
+    life: 0,
+    max: 60 + Math.random() * 40,
+    sz:  5 + Math.random() * 10,
+  });
+
+  // Lightning arcs: only spawn when particle pool has room to breathe
+  if (_lightningArcs.length < 4) {
+    const numArcs = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < numArcs; i++) {
+      const spreadDeg = (Math.random() * 260 - 220) * Math.PI / 180;
+      const dist = 90 + Math.random() * 160;
+      _lightningArcs.push({
+        sx: nx, sy: ny,
+        ex: nx + Math.cos(spreadDeg) * dist,
+        ey: ny + Math.sin(spreadDeg) * dist,
+        life: 0,
+        max: 7 + Math.floor(Math.random() * 5),
+      });
+    }
+  }
+}
+
+function _drawLightning(ctx) {
+  // single-pass — no shadowBlur, just bright stroked zigzag
+  ctx.lineCap  = 'round';
+  ctx.lineJoin = 'round';
+  for (let i = _lightningArcs.length - 1; i >= 0; i--) {
+    const arc = _lightningArcs[i];
+    arc.life++;
+    if (arc.life > arc.max) { _lightningArcs.splice(i, 1); continue; }
+    const a  = 1 - arc.life / arc.max;
+    const dx = arc.ex - arc.sx, dy = arc.ey - arc.sy;
+    // thick amber-white bolt
+    ctx.strokeStyle = `rgba(255,230,80,${(a * 0.9).toFixed(2)})`;
+    ctx.lineWidth   = 1.5 + a * 2.5;
+    ctx.beginPath();
+    ctx.moveTo(arc.sx, arc.sy);
+    for (let s = 1; s <= 10; s++) {
+      const t = s / 10;
+      const j = s < 10 ? (Math.random() - 0.5) * 40 : 0;
+      ctx.lineTo(arc.sx + dx * t + j, arc.sy + dy * t + j);
+    }
+    ctx.stroke();
+  }
+}
+
+function _drawParticles(ctx, lv) {
+  // No per-particle save/restore or shadowBlur — batch all in one path set
+  const [sr, sg, sb] = lv > 0.78 ? [255, 60, 15] : [255, 200, 50];
+  for (let i = _particles.length - 1; i >= 0; i--) {
+    const p = _particles[i];
+    p.x  += p.vx; p.y += p.vy;
+    p.vy += 0.28; p.vx *= 0.97;
+    p.life++;
+    if (p.life > p.max) { _particles.splice(i, 1); continue; }
+    const a = (1 - p.life / p.max) * 0.95;
+    ctx.fillStyle = `rgba(${sr},${sg},${sb},${a.toFixed(2)})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.sz * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ── SHARED DRAWING HELPERS ─────────────────────────────────────────────────────
+
+function _drawLEDBank(ctx, bankX, bankW, H, lv, colCount, animated) {
+  const N_SEG  = 18;
+  const BAR_TOP = H * 0.08, BAR_BOT = H * 0.88;
+  const SEG_UNIT = (BAR_BOT - BAR_TOP) / N_SEG;
+  const SEG_H   = SEG_UNIT * 0.80;
+  const colW    = bankW / colCount;
+  const segW    = colW * 0.70;
+  const xOff    = (colW - segW) / 2;
+  for (let c = 0; c < colCount; c++) {
+    // Animate each column independently
+    let colLv = lv;
+    if (animated) {
+      const wobble = lv * 0.16 * Math.sin(_crowdFrame * _colFreqs[c] + _colPhases[c]);
+      colLv = Math.max(0, Math.min(1, lv + wobble));
+    }
+    const litN = Math.min(N_SEG, Math.round(colLv * N_SEG));
+    for (let s = 0; s < N_SEG; s++) {
+      const lit    = s < litN;
+      const topIdx = N_SEG - 1 - s;
+      const y      = BAR_TOP + topIdx * SEG_UNIT;
+      const x      = bankX + c * colW + xOff;
+      const col    = _segColor(s, N_SEG);
+      // Parse rgb for alpha
+      const opacity = lit ? 0.92 : 0.08;
+      ctx.fillStyle = lit ? col.replace('rgb(', 'rgba(').replace(')', `,${opacity})`) :
+                            col.replace('rgb(', 'rgba(').replace(')', `,${opacity})`);
+      if (lit) { ctx.shadowColor = col; ctx.shadowBlur = 7; }
+      ctx.fillRect(x, y, segW, SEG_H);
+      if (lit) { ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; }
+    }
+  }
+}
+
+function _drawNeedle(ctx, W, H, lv, R_scale) {
+  const CX = W / 2, CY = H * 0.82;
+  const R   = Math.min(W * (R_scale || 0.30), H * 0.68);
+  const t2r = d => d * Math.PI / 180;
+  const VU_A = 205, VU_B = 335, VU_SW = 130;
+  const shake     = _crowdClimax ? (Math.random() - 0.5) * 5 : 0;
+  const needleDeg = VU_A + lv * VU_SW + shake;
+  const hiColor   = _crowdColors.high;
+  const loColor   = _crowdColors.low;
+  const midColor  = _crowdColors.mid;
+
+  // Meter face
+  ctx.beginPath(); ctx.moveTo(CX, CY);
+  ctx.arc(CX, CY, R, t2r(VU_A), t2r(VU_B), false);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(12,9,7,0.92)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(90,65,40,0.55)';
+  ctx.lineWidth = 2; ctx.stroke();
+
+  // Zone arcs using user colors
+  const R_OUT = R * 0.97, R_IN = R * 0.74, RM = (R_OUT + R_IN) / 2;
+  ctx.lineWidth = R_OUT - R_IN; ctx.lineCap = 'butt';
+  const gE = VU_A + VU_SW * 0.58, yE = VU_A + VU_SW * 0.80;
+  ctx.beginPath(); ctx.arc(CX, CY, RM, t2r(VU_A), t2r(gE), false);
+  ctx.strokeStyle = loColor + '55'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(CX, CY, RM, t2r(gE), t2r(yE), false);
+  ctx.strokeStyle = midColor + '66'; ctx.stroke();
+  const redA = lv > 0.80 ? Math.min(1, 0.42 + (lv - 0.80) * 3) : 0.42;
+  ctx.beginPath(); ctx.arc(CX, CY, RM, t2r(yE), t2r(VU_B), false);
+  ctx.strokeStyle = hiColor.replace('rgb(','rgba(').replace(')',`,${redA.toFixed(3)})`).replace('#','');
+  // Simpler:
+  ctx.strokeStyle = `rgba(220,30,20,${redA.toFixed(3)})`; ctx.stroke();
+  ctx.lineWidth = 1; ctx.lineCap = 'butt';
+
+  // Tick marks
+  for (let i = 0; i <= 10; i++) {
+    const rad = t2r(VU_A + (i/10) * VU_SW), major = (i%2===0);
+    const r1 = R*(major?0.68:0.76), r2 = R*0.97;
+    ctx.beginPath();
+    ctx.moveTo(CX + r1*Math.cos(rad), CY + r1*Math.sin(rad));
+    ctx.lineTo(CX + r2*Math.cos(rad), CY + r2*Math.sin(rad));
+    ctx.strokeStyle = `rgba(210,185,145,${major?0.80:0.40})`;
+    ctx.lineWidth = major ? 2.5 : 1; ctx.stroke();
+  }
+
+  // Scale labels
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font = `600 ${Math.round(R*0.095)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.fillStyle = 'rgba(215,190,145,0.72)';
+  for (const [frac,label] of [[0,'0'],[0.25,'25'],[0.5,'50'],[0.75,'75'],[1,'100']]) {
+    const rad = t2r(VU_A + frac*VU_SW), lr = R*0.57;
+    ctx.fillText(label, CX + lr*Math.cos(rad), CY + lr*Math.sin(rad));
+  }
+
+  // Needle
+  const nRad = t2r(needleDeg);
+  const NX = CX + R*0.89*Math.cos(nRad), NY = CY + R*0.89*Math.sin(nRad);
+  ctx.shadowColor = lv>0.55 ? `rgba(255,55,10,${((lv-0.55)/0.45*0.9).toFixed(3)})` : 'transparent';
+  ctx.shadowBlur  = 24;
+  ctx.beginPath(); ctx.moveTo(CX,CY); ctx.lineTo(NX,NY);
+  ctx.strokeStyle = lv>0.78 ? 'rgba(255,50,10,0.97)' : 'rgba(225,100,20,0.92)';
+  ctx.lineWidth = Math.max(2.5, R*0.014); ctx.stroke();
+  ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+
+  // Pivot cap
+  ctx.beginPath(); ctx.arc(CX, CY, R*0.055, 0, Math.PI*2);
+  ctx.fillStyle='rgba(185,130,65,0.92)'; ctx.fill();
+  ctx.strokeStyle='rgba(120,80,30,0.8)'; ctx.lineWidth=2; ctx.stroke();
+
+  return {CX, CY, R};
+}
+
+// ── CROWD VIZ DRAW MODES ───────────────────────────────────────────────────────
+
+function _crowdDrawNeedleBars(ctx, W, H, lv) {
+  const BANK_W = W * 0.185;
+  _drawLEDBank(ctx, W*0.018, BANK_W, H, lv, 7, false);
+  _drawLEDBank(ctx, W - W*0.018 - BANK_W, BANK_W, H, lv, 7, false);
+  const {CX, CY, R} = _drawNeedle(ctx, W, H, lv, 0.30);
+  ctx.fillStyle = `rgba(195,170,125,${(0.45+lv*0.50).toFixed(3)})`;
+  ctx.font = `700 ${Math.round(H*0.038)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('CROWD LEVEL', W/2, H*0.895);
+  return {CX, CY, R};
+}
+
+function _crowdDrawBarsOnly(ctx, W, H, lv) {
+  // 3 wide animated banks spanning the full width
+  const BANK_W = W * 0.30;
+  const GAP    = (W - 3 * BANK_W) / 4;
+  _drawLEDBank(ctx, GAP,             BANK_W, H, lv, 9, true);
+  _drawLEDBank(ctx, GAP*2 + BANK_W,  BANK_W, H, lv, 9, true);
+  _drawLEDBank(ctx, GAP*3 + BANK_W*2,BANK_W, H, lv, 9, true);
+  // Level number at bottom center
+  const numStr = Math.round(lv * 100) + '%';
+  ctx.fillStyle = _crowdColorAt(lv);
+  ctx.font = `800 ${Math.round(H*0.10)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(numStr, W/2, H*0.97);
+}
+
+function _crowdDrawNeedleOnly(ctx, W, H, lv) {
+  const {CX, CY, R} = _drawNeedle(ctx, W, H, lv, 0.38);
+  ctx.fillStyle = `rgba(195,170,125,${(0.45+lv*0.50).toFixed(3)})`;
+  ctx.font = `700 ${Math.round(H*0.038)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('CROWD LEVEL', W/2, H*0.895);
+}
+
+function _crowdDrawNeedleNumber(ctx, W, H, lv) {
+  const {CX, CY, R} = _drawNeedle(ctx, W, H, lv, 0.32);
+  // Big number inside the meter face
+  const numStr = Math.round(lv * 100) + '%';
+  ctx.fillStyle = _crowdColorAt(lv);
+  ctx.font = `800 ${Math.round(R*0.44)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(numStr, CX, CY - R*0.26);
+  ctx.fillStyle = 'rgba(195,170,125,0.55)';
+  ctx.font = `700 ${Math.round(H*0.030)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.fillText('CROWD LEVEL', W/2, H*0.895);
+}
+
+function _crowdDrawNeedleBarsNumber(ctx, W, H, lv) {
+  const BANK_W = W * 0.185;
+  _drawLEDBank(ctx, W*0.018, BANK_W, H, lv, 7, false);
+  _drawLEDBank(ctx, W - W*0.018 - BANK_W, BANK_W, H, lv, 7, false);
+  const {CX, CY, R} = _drawNeedle(ctx, W, H, lv, 0.30);
+  // Number inside face
+  const numStr = Math.round(lv * 100) + '%';
+  ctx.fillStyle = _crowdColorAt(lv);
+  ctx.font = `800 ${Math.round(R*0.38)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(numStr, CX, CY - R*0.24);
+  ctx.fillStyle = `rgba(195,170,125,${(0.45+lv*0.50).toFixed(3)})`;
+  ctx.font = `700 ${Math.round(H*0.030)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.fillText('CROWD LEVEL', W/2, H*0.895);
+}
+
+function _crowdDrawBarsNumber(ctx, W, H, lv) {
+  const BANK_W = W * 0.44;
+  _drawLEDBank(ctx, W*0.018, BANK_W, H, lv, 12, true);
+  _drawLEDBank(ctx, W - W*0.018 - BANK_W, BANK_W, H, lv, 12, true);
+  // Big number in the gap between the two banks
+  const numStr = Math.round(lv * 100) + '%';
+  ctx.fillStyle = _crowdColorAt(lv);
+  ctx.font = `800 ${Math.round(W*0.10)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(numStr, W/2, H*0.5);
+  ctx.fillStyle = 'rgba(195,170,125,0.55)';
+  ctx.font = `600 ${Math.round(H*0.028)}px 'Barlow Condensed',Arial,sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.fillText('CROWD LEVEL', W/2, H*0.895);
+}
+
+// ── CROWD VIZ MAIN LOOP ────────────────────────────────────────────────────────
+
+function _drawCrowd() {
+  if (!_crowdRunning) return;
+
+  // Cap at 24fps — saves significant CPU on the Pi
+  const _now = performance.now();
+  if (_crowdLastTick > 0 && (_now - _crowdLastTick) < 40) {
+    requestAnimationFrame(_drawCrowd);
+    return;
+  }
+
+  const W = _crowdCanvas.width, H = _crowdCanvas.height, ctx = _crowdCtx;
+  _crowdFrame++;
+
+  const _dt  = Math.min((_crowdLastTick > 0 ? _now - _crowdLastTick : 41), 80) / 1000;
+  _crowdLastTick = _now;
+  const _diff  = _crowdTarget - _crowdSmoothed;
+  // exponential approach: 95% in ~4s rising, ~2s falling — frame-rate independent
+  const _rate  = _diff > 0 ? 0.75 : 1.5;
+  const _alpha = 1 - Math.exp(-_rate * _dt);
+  _crowdSmoothed += _diff * _alpha;
+  // gentle needle wavering near target, like a real gauge
+  if (Math.abs(_diff) < 0.06 && _crowdTarget > 0) {
+    const _t = _now / 1000;
+    _crowdSmoothed += 0.006 * Math.sin(_t * 0.7) + 0.003 * Math.sin(_t * 1.9 + 1.2);
+  }
+  const lv = Math.max(0, Math.min(1, _crowdSmoothed));
+
+  _climaxFrame   = 0;
+  _lightningArcs.length = 0;
+  if (_crowdClimax) _crowdSmoothed = 1.0; // keep needle pegged at max while video plays
+
+  // Background + ambient glow
+  ctx.fillStyle = '#080808'; ctx.fillRect(0, 0, W, H);
+  if (lv > 0.55) {
+    const a = ((lv - 0.55) / 0.45 * 0.18).toFixed(3);
+    const gr = ctx.createRadialGradient(W/2, H*0.4, 0, W/2, H*0.4, W*0.65);
+    gr.addColorStop(0, `rgba(220,40,10,${a})`); gr.addColorStop(1, 'rgba(220,40,10,0)');
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+  }
+
+  // Dispatch to mode
+  switch (_crowdVizType) {
+    case 'bars_only':           _crowdDrawBarsOnly(ctx, W, H, lv);          break;
+    case 'needle_only':         _crowdDrawNeedleOnly(ctx, W, H, lv);        break;
+    case 'needle_number':       _crowdDrawNeedleNumber(ctx, W, H, lv);      break;
+    case 'needle_bars_number':  _crowdDrawNeedleBarsNumber(ctx, W, H, lv);  break;
+    case 'bars_number':         _crowdDrawBarsNumber(ctx, W, H, lv);        break;
+    default:                    _crowdDrawNeedleBars(ctx, W, H, lv);        break;
+  }
+
+  requestAnimationFrame(_drawCrowd);
+}
+
+function _crowdReceive(data) {
+  const newClimax = data.climax || false;
+  _crowdTarget = Math.max(0, Math.min(1, (data.level || 0) / 100));
+  if (newClimax && !_crowdClimax) _crowdSmoothed = _crowdTarget; // slam needle instantly
+  _crowdClimax = newClimax;
+}
+
+// ── VIZ: VIDEO OVERLAY ───────────────────────────────────────────────────────
+const _climaxVideo = document.getElementById('climax-fullscreen-video');
+
+function _overlayPlay(data) {
+  const src = data.src ? '/assets/display/' + data.src : '';
+  if (!src) { _overlayHide(); return; }
+  if (data.fullscreen) {
+    _overlayHide();         // kill any looping text overlay immediately
+    _climaxVideo.pause();
+    _climaxVideo.oncanplay = null;
+    _climaxVideo.loop    = data.loop !== false;
+    _climaxVideo.onended = data.loop === false ? _climaxVideoHide : null;
+    _climaxVideo.src = src;
+    _climaxVideo.load();
+    _climaxVideo.style.opacity = '1';
+    _climaxVideo.play().catch(() => {});
+  } else {
+    // Load into the staging (hidden) element — never touch the visible one until first frame ready
+    const next = _stagingOv;
+    next.oncanplay = null;
+    next.onended   = null;
+    next.pause();
+    next.style.opacity = '0';
+    next.loop  = data.loop !== false;
+    next.src   = src;
+    next.load();
+    next.play().catch(() => {});
+    next.oncanplay = function() {
+      next.oncanplay = null;
+      next.onended   = data.loop === false ? _overlayHide : null;
+      const prev = _activeOv;
+      function _doSwap() {
+        next.style.opacity = '1';
+        prev.style.opacity = '0';
+        prev.pause(); prev.src = ''; prev.load();
+        _stagingOv = prev;
+        _activeOv  = next;
+      }
+      // Wait until the GPU has committed the first real frame before showing
+      if (next.requestVideoFrameCallback) {
+        next.requestVideoFrameCallback(_doSwap);
+      } else {
+        requestAnimationFrame(() => requestAnimationFrame(_doSwap));
+      }
+    };
+  }
+}
+function _overlayHide() {
+  [_overlayA, _overlayB].forEach(v => {
+    v.oncanplay = null; v.onended = null;
+    v.pause(); v.src = ''; v.load();
+    v.style.opacity = '0';
+  });
+  _activeOv  = _overlayA;
+  _stagingOv = _overlayB;
+}
+function _climaxVideoHide() {
+  _climaxVideo.pause();
+  _climaxVideo.src = '';
+  _climaxVideo.load();
+  _climaxVideo.style.opacity = '0';
+  // Hard cut — no fade, gauge is just gone
+  _crowdRunning  = false;
+  _crowdClimax   = false;
+  _crowdLayer.style.transition = 'none';
+  _crowdLayer.style.opacity    = '0';
+}
+
+// ── VIZ: SHOW / HIDE ─────────────────────────────────────────────────────────
+function showMusicViz(settings) {
+  if (settings) {
+    if (settings.bars)        _eqBarCount      = Math.min(EQ_MAX, Math.max(8, parseInt(settings.bars) || 24));
+    if (settings.color_low)   _eqColors.low    = settings.color_low;
+    if (settings.color_mid)   _eqColors.mid    = settings.color_mid;
+    if (settings.color_high)  _eqColors.high   = settings.color_high;
+  }
+  _activeViz = 'music';
+  _resizeCanvas(_eqCanvas);
+  _crowdRunning = false;
+  if (!_eqRunning) { _eqRunning = true; requestAnimationFrame(_drawEQ); }
+  _eqLayer.style.transition    = 'opacity 5s ease';
+  _crowdLayer.style.transition = 'opacity 5s ease';
+  _eqLayer.style.opacity    = '1';
+  _crowdLayer.style.opacity = '0';
+}
+
+function showCrowdViz(settings) {
+  // always start needle at zero
+  _crowdTarget   = 0;
+  _crowdSmoothed = 0;
+  _crowdLastTick  = 0;
+  _crowdClimax   = false;
+  _climaxFrame   = 0;
+  _particles     = [];
+  _lightningArcs = [];
+  if (settings) {
+    if (settings.display_type)  _crowdVizType = settings.display_type;
+    if (settings.color_low)     _crowdColors.low  = settings.color_low;
+    if (settings.color_mid)     _crowdColors.mid  = settings.color_mid;
+    if (settings.color_high)    _crowdColors.high = settings.color_high;
+  }
+  _activeViz = 'crowd';
+  _resizeCanvas(_crowdCanvas);
+  _eqRunning = false;
+  if (!_crowdRunning) { _crowdRunning = true; requestAnimationFrame(_drawCrowd); }
+  _crowdLayer.style.transition = 'opacity 5s ease';
+  _eqLayer.style.transition    = 'opacity 5s ease';
+  _crowdLayer.style.opacity = '1';
+  _eqLayer.style.opacity    = '0';
+}
+
+function hideViz() {
+  _activeViz     = null;
+  _eqRunning     = false;
+  _crowdRunning  = false;
+  _crowdTarget   = 0;
+  _crowdSmoothed = 0;
+  _crowdLastTick  = 0;
+  _crowdClimax   = false;
+  _climaxFrame   = 0;
+  _particles     = [];
+  _lightningArcs = [];
+  _eqLayer.style.transition    = 'opacity 5s ease';
+  _crowdLayer.style.transition = 'opacity 5s ease';
+  _eqLayer.style.opacity    = '0';
+  _crowdLayer.style.opacity = '0';
+  _overlayHide();
+  _climaxVideoHide();
+}
+
+window.addEventListener('resize', () => {
+  if (_activeViz === 'music') _resizeCanvas(_eqCanvas);
+  if (_activeViz === 'crowd') _resizeCanvas(_crowdCanvas);
+});
 
 connectWS();
 </script>

@@ -14,3 +14,4 @@ good vibes only*/
 !assets/**
 .DS_Store
 .claude/
+backups/

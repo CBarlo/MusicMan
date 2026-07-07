@@ -1,0 +1,136 @@
+<svg viewBox="0 0 520 410" width="3120" height="2460" xmlns="http://www.w3.org/2000/svg">
+<rect width="520" height="410" fill="#1a1a1a"/>
+<defs>
+  <pattern id="h" width="15" height="15" patternUnits="userSpaceOnUse" patternTransform="translate(50,50)">
+    <circle cx="7.5" cy="7.5" r="1.8" fill="#2a5c2a" opacity="0.85"/>
+  </pattern>
+</defs>
+
+<text x="260" y="20" text-anchor="middle" font-family="monospace" font-size="13" font-weight="bold" fill="#ccc">Pole Node — 18×24 Perfboard Layout</text>
+<text x="260" y="34" text-anchor="middle" font-family="monospace" font-size="9" fill="#666">24 cols (long) × 18 rows (short) · 2.54mm pitch · POWER ← left · right → LIGHT</text>
+<text x="260" y="47" text-anchor="middle" font-family="monospace" font-size="8" fill="#555">col: 1──2──3────────────────────────────21──22──23──24</text>
+
+<rect x="50" y="50" width="360" height="270" fill="#182e18" rx="4" stroke="#3c6a3c" stroke-width="1.5"/>
+<rect x="50" y="50" width="360" height="270" fill="url(#h)"/>
+
+<rect x="50" y="50" width="30" height="270" fill="#ff8830" opacity="0.13" rx="2"/>
+<rect x="365" y="50" width="45" height="270" fill="#40a8ff" opacity="0.14" rx="2"/>
+
+<line x1="80" y1="50" x2="80" y2="320" stroke="#ff7020" stroke-width="0.8" stroke-dasharray="3,4" opacity="0.6"/>
+<line x1="365" y1="50" x2="365" y2="320" stroke="#40a0ff" stroke-width="0.8" stroke-dasharray="3,4" opacity="0.6"/>
+
+<text x="65" y="46" text-anchor="middle" font-family="monospace" font-size="8" fill="#ff8030" font-weight="bold">POWER</text>
+<text x="388" y="46" text-anchor="middle" font-family="monospace" font-size="8" fill="#40b0ff" font-weight="bold">LIGHT</text>
+
+<line x1="80" y1="57" x2="365" y2="57" stroke="#ff5500" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.65"/>
+<text x="220" y="55" text-anchor="middle" font-family="monospace" font-size="7" fill="#ff7733">+5V bus (row 1)</text>
+
+<line x1="80" y1="313" x2="365" y2="313" stroke="#4466ff" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.65"/>
+<text x="220" y="325" text-anchor="middle" font-family="monospace" font-size="7" fill="#6688ff">GND bus (row 18)</text>
+
+<!-- POWER SIDE -->
+<rect x="50" y="95" width="30" height="30" fill="#aa5010" rx="2" stroke="#dd8040" stroke-width="1"/>
+<text x="65" y="107" text-anchor="middle" font-family="monospace" font-size="7" fill="white" font-weight="bold">J_PWR</text>
+<text x="65" y="118" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#ffcc99">2-pin</text>
+
+<rect x="50" y="230" width="30" height="30" fill="#aa5010" rx="2" stroke="#dd8040" stroke-width="1"/>
+<text x="65" y="242" text-anchor="middle" font-family="monospace" font-size="7" fill="white" font-weight="bold">SW1</text>
+<text x="65" y="253" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#ffcc99">2-pin</text>
+
+<!-- ESP32 + MAX485 STACK -->
+<rect x="80" y="95" width="285" height="165" fill="#1c3d1c" rx="3" stroke="#4caa4c" stroke-width="1.5"/>
+<rect x="80" y="164" width="7" height="22" fill="#444" rx="1" stroke="#777" stroke-width="0.5"/>
+<text x="83" y="179" text-anchor="middle" font-family="monospace" font-size="5" fill="#bbb">USB</text>
+<text x="125" y="178" text-anchor="middle" font-family="monospace" font-size="8" fill="#7abb7a">MAX485</text>
+<text x="125" y="190" text-anchor="middle" font-family="monospace" font-size="8" fill="#7abb7a">CARRIER</text>
+<rect x="195" y="120" width="130" height="110" fill="#204020" rx="2" stroke="#66cc66" stroke-width="1"/>
+<rect x="210" y="138" width="95" height="70" fill="#0e200e" rx="2" stroke="#4aaa4a" stroke-width="0.8"/>
+<text x="258" y="172" text-anchor="middle" font-family="monospace" font-size="11" fill="#88ee88" font-weight="bold">ESP-32</text>
+<text x="258" y="186" text-anchor="middle" font-family="monospace" font-size="7" fill="#55bb55">WROOM-32</text>
+<line x1="80" y1="110" x2="365" y2="110" stroke="#55aa55" stroke-width="0.6" stroke-dasharray="2,4" opacity="0.45"/>
+<line x1="80" y1="245" x2="365" y2="245" stroke="#55aa55" stroke-width="0.6" stroke-dasharray="2,4" opacity="0.45"/>
+<text x="86" y="108" font-family="monospace" font-size="6" fill="#558855">row 4 pins ▾</text>
+<text x="86" y="258" font-family="monospace" font-size="6" fill="#558855">row 14 pins ▴</text>
+
+<!-- INMP441 -->
+<rect x="155" y="50" width="75" height="45" fill="#1a2a5a" rx="2" stroke="#4a5aaa" stroke-width="1"/>
+<text x="192" y="65" text-anchor="middle" font-family="monospace" font-size="8" fill="#8898ee" font-weight="bold">INMP441</text>
+<text x="192" y="76" text-anchor="middle" font-family="monospace" font-size="7" fill="#6878cc">I2S mic</text>
+<text x="192" y="87" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#ff9944">▲ vent hole</text>
+
+<!-- Caps -->
+<rect x="95" y="65" width="14" height="28" fill="#4a4818" rx="1" stroke="#9a9838" stroke-width="1"/>
+<text x="102" y="82" text-anchor="middle" font-family="monospace" font-size="5.5" fill="#ddcc55" transform="rotate(-90,102,82)">100nF</text>
+<rect x="110" y="65" width="14" height="28" fill="#4a4818" rx="1" stroke="#9a9838" stroke-width="1"/>
+<text x="117" y="82" text-anchor="middle" font-family="monospace" font-size="5.5" fill="#ddcc55" transform="rotate(-90,117,82)">10µF</text>
+
+<!-- 74AHCT125 -->
+<rect x="140" y="260" width="105" height="57" fill="#1a4550" rx="2" stroke="#3a90a0" stroke-width="1"/>
+<rect x="148" y="265" width="88" height="46" fill="#102030" rx="1" stroke="#2a6070" stroke-width="0.5"/>
+<text x="193" y="285" text-anchor="middle" font-family="monospace" font-size="9" fill="#7ad8e8" font-weight="bold">74AHCT125</text>
+<text x="193" y="297" text-anchor="middle" font-family="monospace" font-size="7" fill="#50a8b8">3.3V→5V level shift</text>
+<text x="193" y="309" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#3888a0">GPIO2 out → J2 DATA</text>
+
+<!-- Resistors -->
+<rect x="320" y="275" width="30" height="12" fill="#504018" rx="1" stroke="#a08030" stroke-width="1"/>
+<text x="335" y="284" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#ddbb50">R5 470Ω</text>
+<rect x="320" y="289" width="30" height="12" fill="#504018" rx="1" stroke="#a08030" stroke-width="1"/>
+<text x="335" y="298" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#ddbb50">R6 330Ω</text>
+<rect x="320" y="303" width="30" height="12" fill="#504018" rx="1" stroke="#a08030" stroke-width="1"/>
+<text x="335" y="312" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#ddbb50">R7 330Ω</text>
+
+<!-- LIGHTING ZONE CONNECTORS -->
+<rect x="365" y="65" width="44" height="13" fill="#1a3a5a" rx="2" stroke="#3a6aaa" stroke-width="1"/>
+<text x="387" y="74" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#70aaee">J2 STAG1</text>
+<rect x="365" y="95" width="44" height="13" fill="#1a3a5a" rx="2" stroke="#3a6aaa" stroke-width="1"/>
+<text x="387" y="104" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#70aaee">J3 STAG2</text>
+<rect x="365" y="140" width="44" height="13" fill="#1a3a5a" rx="2" stroke="#3a6aaa" stroke-width="1"/>
+<text x="387" y="149" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#70aaee">J4 AUD L</text>
+<rect x="365" y="185" width="44" height="13" fill="#1a3a5a" rx="2" stroke="#3a6aaa" stroke-width="1"/>
+<text x="387" y="194" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#70aaee">J5 AUD C</text>
+<rect x="365" y="230" width="44" height="13" fill="#1a3a5a" rx="2" stroke="#3a6aaa" stroke-width="1"/>
+<text x="387" y="239" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#70aaee">J6 AUD R</text>
+<rect x="365" y="260" width="44" height="13" fill="#2a1a5a" rx="2" stroke="#5a3aaa" stroke-width="1"/>
+<text x="387" y="269" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#aa99ee">J7 DMX</text>
+
+<!-- Status LEDs -->
+<circle cx="373" cy="282" r="5.5" fill="#00cc44" opacity="0.9" stroke="#008822" stroke-width="0.5"/>
+<text x="373" y="285" text-anchor="middle" font-family="monospace" font-size="5" fill="white" font-weight="bold">P</text>
+<circle cx="373" cy="297" r="5.5" fill="#ffaa00" opacity="0.9" stroke="#bb7700" stroke-width="0.5"/>
+<text x="373" y="300" text-anchor="middle" font-family="monospace" font-size="5" fill="white" font-weight="bold">W</text>
+<circle cx="373" cy="312" r="5.5" fill="#ff3322" opacity="0.9" stroke="#cc1100" stroke-width="0.5"/>
+<text x="373" y="315" text-anchor="middle" font-family="monospace" font-size="5" fill="white" font-weight="bold">D</text>
+
+<!-- Right labels -->
+<text x="412" y="73" font-family="monospace" font-size="7" fill="#60a8ee">→ JST strip 1</text>
+<text x="412" y="103" font-family="monospace" font-size="7" fill="#60a8ee">→ JST strip 2</text>
+<text x="412" y="148" font-family="monospace" font-size="7" fill="#60a8ee">→ JST strip 3</text>
+<text x="412" y="193" font-family="monospace" font-size="7" fill="#60a8ee">→ JST strip 4</text>
+<text x="412" y="238" font-family="monospace" font-size="7" fill="#60a8ee">→ JST strip 5</text>
+<text x="412" y="268" font-family="monospace" font-size="7" fill="#9988ee">→ XLR-3F DMX</text>
+<text x="412" y="283" font-family="monospace" font-size="7" fill="#00cc44">● PWR</text>
+<text x="412" y="298" font-family="monospace" font-size="7" fill="#ffaa00">● WiFi</text>
+<text x="412" y="313" font-family="monospace" font-size="7" fill="#ff5544">● DMX TX</text>
+
+<!-- Left labels -->
+<text x="47" y="112" text-anchor="end" font-family="monospace" font-size="7" fill="#ff8030">XT60 →</text>
+<text x="47" y="247" text-anchor="end" font-family="monospace" font-size="7" fill="#ff8030">BTN →</text>
+<text x="47" y="178" text-anchor="end" font-family="monospace" font-size="7" fill="#aaa">USB →</text>
+<line x1="48" y1="174" x2="80" y2="174" stroke="#777" stroke-width="0.8" stroke-dasharray="2,2"/>
+
+<!-- Legend -->
+<rect x="50" y="336" width="460" height="65" fill="#111" rx="3" opacity="0.6"/>
+<text x="60" y="350" font-family="monospace" font-size="8" fill="#999" font-weight="bold">LEGEND</text>
+<rect x="60" y="356" width="10" height="8" fill="#1c3d1c" stroke="#4caa4c" stroke-width="1"/>
+<text x="75" y="364" font-family="monospace" font-size="7.5" fill="#aaa">ESP32 + MAX485 stack (mates as shown in photo)</text>
+<rect x="60" y="368" width="10" height="8" fill="#1a4550" stroke="#3a90a0" stroke-width="1"/>
+<text x="75" y="376" font-family="monospace" font-size="7.5" fill="#aaa">74AHCT125 DIP-14</text>
+<rect x="175" y="368" width="10" height="8" fill="#1a2a5a" stroke="#4a5aaa" stroke-width="1"/>
+<text x="190" y="376" font-family="monospace" font-size="7.5" fill="#aaa">INMP441 mic</text>
+<rect x="265" y="368" width="10" height="8" fill="#aa5010"/>
+<text x="280" y="376" font-family="monospace" font-size="7.5" fill="#aaa">Power connectors</text>
+<rect x="370" y="368" width="10" height="8" fill="#504018"/>
+<text x="385" y="376" font-family="monospace" font-size="7.5" fill="#aaa">Resistors</text>
+<text x="60" y="390" font-family="monospace" font-size="7" fill="#777">Data: 74AHCT125 1Y → J2 DATA only. Strips 2–5 chain DOUT→DIN strip-to-strip.</text>
+<text x="60" y="401" font-family="monospace" font-size="7" fill="#777">USB slot in left panel wall. INMP441 needs 6mm vent hole in lid directly above.</text>
+</svg>
