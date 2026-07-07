@@ -1170,6 +1170,19 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         </div>
       </div>
 
+      <!-- DHCP RESERVATIONS -->
+      <div style="max-width:560px;margin-bottom:28px">
+        <div class="editor-panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div>
+            <div class="editor-label" style="margin-bottom:4px">⊞ DHCP RESERVATIONS</div>
+            <div id="dhcp-status" style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">
+              Locks each node to its configured IP by MAC address. Run after adding or changing nodes.
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="syncDhcp(this)">⊞ SYNC NOW</button>
+        </div>
+      </div>
+
       <!-- FIXTURE PROFILES -->
       <div style="max-width:560px;margin-bottom:28px">
         <div class="editor-panel">
@@ -1770,6 +1783,20 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         </div>
       </div>
 
+      <!-- HEALTH DASHBOARD -->
+      <div class="editor-panel" style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div class="editor-label" style="margin-bottom:0">PRE-SHOW HEALTH CHECK</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="health-ts" style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px"></span>
+            <button class="btn btn-secondary" style="padding:4px 12px;font-size:10px" onclick="loadHealth()">↻ REFRESH</button>
+          </div>
+        </div>
+        <div id="health-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+          <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;padding:8px 0">LOADING…</div>
+        </div>
+      </div>
+
       <div class="sys-grid">
         <div class="sys-card"><div class="sys-label">CPU</div><div class="sys-value" id="s-cpu">—</div></div>
         <div class="sys-card"><div class="sys-label">MEMORY</div><div class="sys-value" id="s-mem">—</div></div>
@@ -1834,7 +1861,7 @@ function switchTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   const navEl = document.querySelector(`.nav-item[data-tab="${name}"]`);
   if (navEl) navEl.classList.add('active');
-  if (name === 'system')        { loadSystemStatus(); }
+  if (name === 'system')        { loadHealth(); startHealthAutoRefresh(); } else { stopHealthAutoRefresh(); }
   if (name === 'lighting')      { loadPoleNodes(); }
   if (name === 'scenes')        { loadPoleNodes(); renderSceneGrid && renderSceneGrid(); }
   if (name === 'showflow')        loadShowFlow();
@@ -4740,6 +4767,8 @@ function renderTimerPresets() {
 }
 
 // ── SYSTEM ─────────────────────────────────────────────────────────────────
+let _healthTimer = null;
+
 async function loadSystemStatus() {
   try {
     const res = await fetch('/api/system/status');
@@ -4753,6 +4782,97 @@ async function loadSystemStatus() {
   } catch(e) {
     ['s-cpu','s-mem','s-disk','s-uptime'].forEach(id => document.getElementById(id).textContent = '—');
   }
+}
+
+function _hRow(label, ok, detail) {
+  const dot = ok == null ? '●' : ok ? '●' : '●';
+  const col = ok == null ? 'var(--text-dim)' : ok ? 'var(--green)' : 'var(--red)';
+  return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--border)">
+    <span style="color:${col};font-size:14px">${dot}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">${label}</div>
+      <div style="font-size:12px;color:${ok == null ? 'var(--text-dim)' : ok ? 'var(--text)' : 'var(--red)'};font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${detail}</div>
+    </div>
+  </div>`;
+}
+
+async function loadHealth() {
+  const grid = document.getElementById('health-grid');
+  if (!grid) return;
+  try {
+    const res = await fetch('/api/health');
+    const d   = await res.json();
+
+    // Also update the simple sys-grid
+    const pi = d.pi || {};
+    if (document.getElementById('s-cpu'))    document.getElementById('s-cpu').textContent    = (pi.cpu_pct ?? '—') + '%';
+    if (document.getElementById('s-mem'))    document.getElementById('s-mem').textContent    = (pi.mem_pct ?? '—') + '%';
+    if (document.getElementById('s-disk'))   document.getElementById('s-disk').textContent   = (pi.disk_pct ?? '—') + '%';
+    if (document.getElementById('s-uptime')) {
+      const h = Math.floor((pi.uptime_s||0) / 3600), m = Math.floor(((pi.uptime_s||0) % 3600) / 60);
+      document.getElementById('s-uptime').textContent = `${h}h ${m}m`;
+    }
+
+    const rows = [];
+
+    // Pi vitals
+    const temp = pi.cpu_temp != null ? pi.cpu_temp + '°C' : 'N/A';
+    const tempOk = pi.cpu_temp == null ? null : pi.cpu_temp < 75;
+    rows.push(_hRow('PI CPU', pi.cpu_pct < 90, `${pi.cpu_pct}%  ${temp}`));
+    rows.push(_hRow('PI MEMORY', pi.mem_pct < 85, `${pi.mem_pct}%`));
+    rows.push(_hRow('PI DISK', pi.disk_pct < 90, `${pi.disk_pct}%  (${pi.disk_free_gb}GB free)`));
+
+    // Services
+    const svc = d.services || {};
+    rows.push(_hRow('MUSICMAN SVC', svc.musicman, svc.musicman ? 'RUNNING' : 'DOWN'));
+    rows.push(_hRow('STREAM DECK', svc.streamdeck, svc.streamdeck ? 'RUNNING' : 'STOPPED'));
+    rows.push(_hRow('DISPLAY KIOSK', svc.display, svc.display ? 'RUNNING' : 'STOPPED'));
+
+    // Audio
+    rows.push(_hRow('AUDIO ENGINE', d.audio?.ok, d.audio?.ok ? 'INITIALIZED' : 'NOT READY'));
+
+    // Network / clients
+    const net = d.network || {};
+    const remoteOk = net.remote_count > 0;
+    rows.push(_hRow('IPAD / TABLET', remoteOk, remoteOk ? `${net.remote_count} CLIENT${net.remote_count>1?'S':''}` : 'NOT CONNECTED'));
+    rows.push(_hRow('WS CONNECTIONS', net.total_ws >= 0, `${net.total_ws} TOTAL`));
+
+    // Pole nodes
+    for (const n of (d.pole_nodes || [])) {
+      rows.push(_hRow(`POLE: ${(n.name||n.id||'?').toUpperCase()}`, n.ok,
+        n.ok ? `OK  ${n.ms}ms` : `OFFLINE  ${n.ip}`));
+    }
+
+    // WLED devices
+    for (const w of (d.wled_devices || [])) {
+      rows.push(_hRow(`WLED: ${(w.name||w.id||'?').toUpperCase()}`, w.ok,
+        w.ok ? `OK  ${w.ms}ms` : `OFFLINE  ${w.ip}`));
+    }
+
+    // Battery
+    for (const b of (d.battery || [])) {
+      const soc = b.soc != null ? b.soc + '%' : 'N/A';
+      const charging = b.charging ? ' ⚡' : '';
+      const battOk = b.soc == null ? null : b.soc > 20;
+      rows.push(_hRow(`BATTERY: ${(b.label||'?').toUpperCase()}`, battOk, soc + charging));
+    }
+
+    grid.innerHTML = rows.join('');
+
+    const ts = document.getElementById('health-ts');
+    if (ts) ts.textContent = 'UPDATED ' + new Date().toLocaleTimeString();
+  } catch(e) {
+    grid.innerHTML = `<div style="color:var(--red);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;padding:8px 0">HEALTH CHECK FAILED — ${e.message}</div>`;
+  }
+}
+
+function startHealthAutoRefresh() {
+  clearInterval(_healthTimer);
+  _healthTimer = setInterval(loadHealth, 30000);
+}
+function stopHealthAutoRefresh() {
+  clearInterval(_healthTimer);
+  _healthTimer = null;
 }
 
 async function restartService() {
@@ -4973,9 +5093,39 @@ async function saveWledNodes() {
       body: JSON.stringify(_wledDevices)
     });
     const d = await r.json();
-    if (d.ok) toast('WLED nodes saved', 'ok');
+    if (d.ok) { toast('WLED nodes saved', 'ok'); _showDhcpStatus(d.dhcp); }
     else toast('Save failed', 'err');
   } catch(e) { toast('Save failed', 'err'); }
+}
+
+async function syncDhcp(btn) {
+  const prev = btn.textContent;
+  btn.textContent = '…';
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/admin/sync_dhcp', {method:'POST'});
+    const d = await r.json();
+    _showDhcpStatus(d);
+    if (d.ok) toast(`DHCP synced — ${d.reserved} reserved`, 'ok');
+    else toast('DHCP sync failed: ' + (d.error||'unknown'), 'err');
+  } catch(e) { toast('DHCP sync failed', 'err'); }
+  btn.textContent = prev;
+  btn.disabled = false;
+}
+
+function _showDhcpStatus(dhcp) {
+  const el = document.getElementById('dhcp-status');
+  if (!el || !dhcp) return;
+  if (!dhcp.ok) {
+    el.style.color = 'var(--red)';
+    el.textContent = 'SYNC FAILED: ' + (dhcp.error || 'unknown error');
+    return;
+  }
+  const parts = [`${dhcp.reserved} RESERVED`];
+  if (dhcp.pending && dhcp.pending.length)
+    parts.push(`${dhcp.pending.length} PENDING (${dhcp.pending.join(', ')} — connect device first)`);
+  el.style.color = dhcp.pending && dhcp.pending.length ? 'var(--amber,#f0a500)' : 'var(--green)';
+  el.textContent = parts.join(' · ');
 }
 
 // ── DMX LOOKS ────────────────────────────────────────────────────────────────
@@ -5295,7 +5445,7 @@ async function savePoleNodes() {
   try {
     const r = await fetch('/api/admin/pole_nodes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(nodes) });
     const d = await r.json();
-    if (d.ok) { _poleNodes = nodes; toast('Pole nodes saved', 'ok'); }
+    if (d.ok) { _poleNodes = nodes; toast('Pole nodes saved', 'ok'); _showDhcpStatus(d.dhcp); }
     else toast('Save failed', 'err');
   } catch(e) { toast('Save failed', 'err'); }
 }

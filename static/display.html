@@ -212,6 +212,9 @@
     inset: 0;
     width: 100%;
     height: 100%;
+    will-change: transform;
+    transform: translateZ(0);
+    image-rendering: optimizeSpeed;
   }
 </style>
 </head>
@@ -859,8 +862,9 @@ function connectWS() {
 let _activeViz = null;
 
 function _resizeCanvas(c) {
-  c.width  = c.offsetWidth  || window.innerWidth;
-  c.height = c.offsetHeight || window.innerHeight;
+  // Render at half resolution — CSS stretches to fill, cuts GPU work to ~25% on Pi
+  c.width  = Math.round((c.offsetWidth  || window.innerWidth)  / 2);
+  c.height = Math.round((c.offsetHeight || window.innerHeight) / 2);
 }
 
 // ── VIZ: MUSIC EQ ────────────────────────────────────────────────────────────

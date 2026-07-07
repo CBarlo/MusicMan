@@ -746,7 +746,7 @@ def ws_thread():
     while True:
         try:
             ws_app = websocket.WebSocketApp(
-                'ws://localhost/ws',
+                'ws://127.0.0.1/ws',
                 on_message=on_ws_message,
                 on_error=lambda ws, e: print(f'WS error: {e}'),
                 on_close=lambda ws, c, m: print('WS closed, reconnecting…'),

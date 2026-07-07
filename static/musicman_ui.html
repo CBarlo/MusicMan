@@ -32,9 +32,14 @@
   .header-title h1 { font-size: 22px; font-weight: 800; color: var(--amber); letter-spacing: 3px; line-height: 1; text-shadow: 0 0 20px #F5A62333; }
   .header-title p { font-size: 10px; color: var(--text-dim); letter-spacing: 4px; font-family: 'Share Tech Mono', monospace; }
   .header-status { display: flex; gap: 10px; align-items: center; }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; will-change: opacity; transform: translateZ(0); }
+  .status-dot.err  { background: var(--red,#CC2222); box-shadow: 0 0 6px var(--red,#CC2222); }
+  .status-dot.warn { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .status-dot.dim  { background: var(--text-dim); box-shadow: none; animation: none; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   .status-label { font-size: 10px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; letter-spacing: 2px; }
+  .hstat { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .hstat-label { font-size:8px; letter-spacing:1px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; white-space:nowrap; }
   .clock { font-family: 'Share Tech Mono', monospace; font-size: 18px; color: var(--amber); letter-spacing: 2px; }
   .main { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 58px); height: calc(100dvh - 58px); }
   .left { display: flex; flex-direction: column; border-right: 2px solid var(--border); overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -184,8 +189,12 @@
     <p>BROKEN ARROW EXPEDITION &middot; CAMPFIRE SHOW</p>
   </div>
   <div class="header-status">
-    <div class="status-dot"></div>
-    <span class="status-label">ONLINE</span>
+    <div class="hstat"><div class="status-dot dim" id="hs-svc"></div><div class="hstat-label">SVC</div></div>
+    <div class="hstat"><div class="status-dot dim" id="hs-deck"></div><div class="hstat-label">DECK</div></div>
+    <div class="hstat"><div class="status-dot dim" id="hs-audio"></div><div class="hstat-label">AUDIO</div></div>
+    <div class="hstat"><div class="status-dot dim" id="hs-ipad"></div><div class="hstat-label">IPAD</div></div>
+    <div id="hs-poles" style="display:flex;gap:8px"></div>
+    <div style="width:1px;height:28px;background:var(--border);margin:0 4px"></div>
     <span class="clock" id="clock">00:00:00</span>
   </div>
 </div>
@@ -828,12 +837,50 @@ function updateClock() {
 setInterval(updateClock,1000); updateClock();
 setInterval(batteryLoad, 10000);
 setInterval(() => { apLoadStatus(); apLoadClients(); }, 30000);
+loadUiHealth(); setInterval(loadUiHealth, 30000);
 
 function showPage(id,tab) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   tab.classList.add('active');
+}
+
+function _hsDot(id, ok) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'status-dot' + (ok == null ? ' dim' : ok ? '' : ' err');
+}
+
+async function loadUiHealth() {
+  try {
+    const d = await fetch('/api/health').then(r=>r.json());
+    const svc = d.services || {};
+    const net = d.network || {};
+
+    _hsDot('hs-svc',   svc.musicman && svc.display);
+    _hsDot('hs-deck',  svc.streamdeck ?? null);
+    _hsDot('hs-audio', d.audio?.ok ?? null);
+    _hsDot('hs-ipad',  net.remote_count > 0);
+
+    // Pole nodes + WLED devices — all render dynamically
+    const polesEl = document.getElementById('hs-poles');
+    if (polesEl) {
+      const poleDots = (d.pole_nodes || []).map(n => {
+        const cls = 'status-dot' + (n.ok ? '' : ' err');
+        const label = (n.name || n.id || '?').replace(/pole[_\s]?/i,'').trim().toUpperCase() || '?';
+        return `<div class="hstat"><div class="${cls}"></div><div class="hstat-label">POLE ${label}</div></div>`;
+      });
+      const wledDots = (d.wled_devices || []).map(w => {
+        const cls = 'status-dot' + (w.ok ? '' : ' err');
+        const label = (w.name || w.id || '?').toUpperCase();
+        return `<div class="hstat"><div class="${cls}"></div><div class="hstat-label">${label}</div></div>`;
+      });
+      polesEl.innerHTML = [...poleDots, ...wledDots].join('');
+    }
+  } catch(e) {
+    ['hs-svc','hs-audio','hs-ipad'].forEach(id => _hsDot(id, null));
+  }
 }
 
 let _plShuffle = true;
@@ -2663,7 +2710,7 @@ function initWebSocket() {
         const bug = document.getElementById('crowd-bug');
         if (bug) {
           document.getElementById('crowd-bug-level').textContent = lv + '%';
-          bug.style.display = 'flex';
+          bug.style.display = lv > 0 ? 'flex' : 'none';
         }
       }
 
