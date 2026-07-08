@@ -2373,32 +2373,34 @@ def _sync_dhcp_reservations():
     pending = []
 
     for node in cfg.get('pole_nodes', []):
-        ip  = (node.get('ip') or '').strip()
-        nid = (node.get('id') or '').strip()
+        ip   = (node.get('ip')   or '').strip()
+        nid  = (node.get('id')   or '').strip()
+        name = (node.get('name') or nid).strip()
         if not ip or not nid:
             continue
-        mac = arp.get(ip)
-        slug = _id_to_slug(nid)
+        mac  = arp.get(ip)
+        slug = _id_to_slug(name or nid)
         if mac:
             lines.append(f'dhcp-host={mac},{slug},{ip}\n')
             reserved += 1
         else:
-            pending.append(f'{nid} ({ip})')
-            lines.append(f'# {nid}: not in ARP cache — connect device first\n')
+            pending.append(f'{name} ({ip})')
+            lines.append(f'# {name}: not in ARP cache — connect device first\n')
 
     for dev in cfg.get('wled_devices', []):
-        ip  = (dev.get('ip') or '').strip()
-        did = (dev.get('id') or '').strip()
+        ip   = (dev.get('ip')   or '').strip()
+        did  = (dev.get('id')   or '').strip()
+        name = (dev.get('name') or did).strip()
         if not ip or not did:
             continue
-        mac = arp.get(ip)
-        slug = _id_to_slug(did)
+        mac  = arp.get(ip)
+        slug = _id_to_slug(name or did)
         if mac:
             lines.append(f'dhcp-host={mac},{slug},{ip}\n')
             reserved += 1
         else:
-            pending.append(f'{did} ({ip})')
-            lines.append(f'# {did}: not in ARP cache — connect device first\n')
+            pending.append(f'{name} ({ip})')
+            lines.append(f'# {name}: not in ARP cache — connect device first\n')
 
     content = ''.join(lines)
     try:
