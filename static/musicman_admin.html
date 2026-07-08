@@ -5346,11 +5346,11 @@ function renderPoleNodeConfig() {
 
     return `
     <div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px" data-node-idx="${ni}">
-      <input type="hidden" class="pn-name" value="${escHtml(node.name||node.id||'')}">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-        <input type="text" placeholder="ID (e.g. pole_A)" value="${escHtml(node.id||'')}" class="pn-id" style="flex:1;font-family:'Share Tech Mono',monospace;font-size:11px">
-        <input type="text" placeholder="Label" value="${escHtml(node.label||'')}" class="pn-label" style="width:52px;font-family:'Share Tech Mono',monospace;font-size:11px;text-transform:uppercase">
-        <input type="text" placeholder="IP or hostname" value="${escHtml(node.ip||'')}" class="pn-ip" style="flex:1.2;font-family:'Share Tech Mono',monospace;font-size:11px">
+        <input type="text" placeholder="ID (e.g. pole_a)" value="${escHtml(node.id||'')}" class="pn-id" style="width:90px;font-family:'Share Tech Mono',monospace;font-size:11px" title="Internal ID — used in scene DMX blocks">
+        <input type="text" placeholder="Name (e.g. Tent Pole)" value="${escHtml(node.name||'')}" class="pn-name" style="flex:1.5;font-size:11px" title="Human-readable name — used for DHCP hostname">
+        <input type="text" placeholder="Lbl" value="${escHtml(node.label||'')}" class="pn-label" style="width:44px;font-family:'Share Tech Mono',monospace;font-size:11px;text-transform:uppercase" title="Short label for status dots (e.g. A, B)">
+        <input type="text" placeholder="IP or hostname" value="${escHtml(node.ip||'')}" class="pn-ip" style="flex:1;font-family:'Share Tech Mono',monospace;font-size:11px">
         <button class="btn btn-danger btn-sm" onclick="removePoleNode(${ni})" style="padding:2px 8px">✕</button>
       </div>
       <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px">FIXTURES <span style="font-size:9px;font-weight:400">— assign a type from the Fixture Types library below</span></div>
