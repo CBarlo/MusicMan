@@ -1,0 +1,20 @@
+# MusicMan — Python dependencies
+# Install into a virtualenv:  python3 -m venv venv && venv/bin/pip install -r requirements.txt
+#
+# Core server (musicman.py)
+Flask>=3.1
+flask-sock>=0.7
+gunicorn>=26.0
+pygame>=2.6
+mutagen>=1.47
+PyYAML>=6.0
+requests>=2.34
+bleak>=0.22                # BLE battery monitor (Anker Solix C300)
+numpy>=2.0                 # optional — required for EQ visualizer
+
+# Stream Deck driver (streamdeck.py — runs separately on Pi)
+streamdeck>=0.9.8
+Pillow>=11.0
+websocket-client>=1.9
+
+# Note: npm dependency for streamdeck/ plugin.js  →  ws  (run: npm install in streamdeck/)

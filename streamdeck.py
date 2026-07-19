@@ -15,6 +15,7 @@ Pages:
 """
 
 import threading, time, json, os, sys, signal, subprocess
+from pathlib import Path
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from StreamDeck.DeviceManager import DeviceManager
@@ -23,8 +24,13 @@ import websocket
 
 # ── CONFIG ───────────────────────────────────────────────────────────────────
 BASE_URL   = 'http://localhost'
-ASSETS_DIR = '/home/pi/musicman/assets'
-FONT_BOLD  = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+ASSETS_DIR = str(Path(__file__).parent / 'assets')
+_FONT_CANDIDATES = [
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+    '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
+]
+FONT_BOLD = next((f for f in _FONT_CANDIDATES if os.path.exists(f)), _FONT_CANDIDATES[0])
 BRIGHTNESS = 80   # 0–100
 
 KEYS_TOTAL = 15
