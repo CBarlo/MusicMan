@@ -333,6 +333,7 @@ current_scene  = None   # id of last activated scene
 current_circle = None   # id of last activated circle walk-up
 current_slide  = {}     # live custom slide currently shown on projector
 _walkup_fade_cancel  = threading.Event()  # set to cancel the in-flight auto-fade
+_macro_cancel        = threading.Event()  # set to cancel any in-flight macro; replaced per-fire
 _walkup_led_active   = False              # True while circle color animation is running
 _dmx_anim_stop = threading.Event()       # set to cancel running DMX animation loop
 _audio_session      = 0                  # increments on every play_audio call
@@ -670,11 +671,12 @@ playlist_state = {
 _playlist_tracks     = []
 _playlist_advance_id = 0
 
-def _find_usb_mount():
-    """Return first mounted, non-empty USB storage partition mount point, or None."""
+_usb_mount_cache  = (None, 0.0)  # (result, timestamp)
+_USB_MOUNT_TTL    = 5.0
+
+def _find_usb_mount_raw():
+    """Scan for USB mount with no caching."""
     import re, os
-    # Primary: parse /proc/mounts for actual USB block devices (sda*, sdb*, sdc*...)
-    # This catches any mount point regardless of where it landed.
     try:
         with open('/proc/mounts') as mf:
             for line in mf:
@@ -685,7 +687,7 @@ def _find_usb_mount():
                 if not re.match(r'/dev/sd[a-z]\d+$', dev):
                     continue
                 if not Path(dev).exists():
-                    continue  # stale /proc/mounts entry, device gone
+                    continue
                 mount = Path(mount_raw.replace('\\040', ' '))
                 if mount.is_dir() and os.path.ismount(str(mount)):
                     try:
@@ -695,7 +697,6 @@ def _find_usb_mount():
                         pass
     except OSError:
         pass
-    # Fallback: check common fixed paths
     for path in ['/media/usb0', '/media/usb1', '/media/usb2', '/media/usb3', '/media/usb']:
         if os.path.ismount(path):
             try:
@@ -703,7 +704,6 @@ def _find_usb_mount():
                 return path
             except (StopIteration, FileNotFoundError):
                 pass
-    # Fallback: /media/pi/{label} (udisks2 desktop auto-mount)
     try:
         for child in sorted(Path('/media/pi').iterdir()):
             if child.is_dir() and os.path.ismount(str(child)):
@@ -715,6 +715,16 @@ def _find_usb_mount():
     except FileNotFoundError:
         pass
     return None
+
+def _find_usb_mount():
+    """Return first mounted, non-empty USB storage partition, or None. Cached 5s."""
+    global _usb_mount_cache
+    result, ts = _usb_mount_cache
+    if time.monotonic() - ts < _USB_MOUNT_TTL:
+        return result
+    result = _find_usb_mount_raw()
+    _usb_mount_cache = (result, time.monotonic())
+    return result
 
 def scan_playlist(path):
     p = Path(path)
@@ -851,7 +861,12 @@ def play_sfx(filepath, volume=None, fade_ms=0):
     try:
         if filepath not in _sfx_cache:
             if len(_sfx_cache) >= _SFX_CACHE_MAX:
-                _sfx_cache.pop(next(iter(_sfx_cache)))
+                for k in list(_sfx_cache):
+                    if not _sfx_cache[k].get_num_channels():
+                        _sfx_cache.pop(k)
+                        break
+                else:
+                    _sfx_cache.pop(next(iter(_sfx_cache)))
             _sfx_cache[filepath] = pygame.mixer.Sound(filepath)
         sound = _sfx_cache[filepath]
         vol = (volume or sfx_state['volume']) / 100
@@ -2342,6 +2357,12 @@ def api_state():
         'slide':      current_slide,
         'viz_scene':  _viz_scene,
         'startup_id': _startup_id,
+        'display_state': {
+            'circle': current_circle,
+            'slide':  current_slide,
+            'viz':    _viz_scene,
+            'url':    _display_url,
+        },
         'system': {
             'hostname':   config['system']['hostname'],
             'expedition': config['expedition']['name'],
@@ -3306,7 +3327,10 @@ def api_macro_run():
     if img:
         disp['image'] = f'/assets/macros/{name}/{img}'
     _ensure_display_for('display_step', disp)
-    threading.Thread(target=execute_macro, args=(macro_obj,), daemon=True).start()
+    global _macro_cancel
+    _macro_cancel.set()
+    _macro_cancel = threading.Event()
+    threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel), daemon=True).start()
     return jsonify({'ok': True})
 
 @app.route('/api/show/fire')
@@ -3349,7 +3373,10 @@ def api_show_fire():
         if img:
             disp['image'] = f'/assets/macros/{macro_id}/{img}'
         _ensure_display_for('display_step', disp)
-        threading.Thread(target=execute_macro, args=(macro_obj,), daemon=True).start()
+        global _macro_cancel
+        _macro_cancel.set()
+        _macro_cancel = threading.Event()
+        threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel), daemon=True).start()
     return jsonify({'ok': True})
 
 @app.route('/api/show/reset')
@@ -3382,8 +3409,10 @@ def _broadcast_timer_display(filename):
 
 _AUDIO_ACTIONS = {'music', 'play_playlist', 'audio_stop', 'audio_fade', 'walkup_circle', 'walkup_role', 'walkup_game_entry'}
 
-def execute_macro(macro):
+def execute_macro(macro, cancel=None):
     global config, current_slide, _viz_scene
+    if cancel is None:
+        cancel = threading.Event()
     log.info(f"Executing macro: {macro.get('id')}")
     steps = macro.get('steps', [])
     if not any(s.get('action') in _AUDIO_ACTIONS for s in steps):
@@ -3485,7 +3514,9 @@ def execute_macro(macro):
                     _navigate_home_if_needed()
                     threading.Thread(target=fire_game_entry, kwargs={'entry_id': entry_id}, daemon=True).start()
             elif action == 'wait':
-                time.sleep(float(step.get('seconds', 1)))
+                if cancel.wait(timeout=float(step.get('seconds', 1))):
+                    log.info(f"Macro {macro.get('id')} cancelled during wait")
+                    return
             elif action == 'display_image':
                 file = step.get('file', '')
                 if file:
@@ -3493,7 +3524,9 @@ def execute_macro(macro):
                     _ensure_display_for('display_step', payload)
                 dur = float(step.get('duration', 3))
                 if dur > 0:
-                    time.sleep(dur)
+                    if cancel.wait(timeout=dur):
+                        log.info(f"Macro {macro.get('id')} cancelled during display_image")
+                        return
             elif action == 'display_anim':
                 file = step.get('file', '')
                 dur  = float(step.get('duration', 5))
@@ -3504,7 +3537,9 @@ def execute_macro(macro):
                     payload = {'video': f'/assets/display/{file}', 'hold': hold, 'loop': loop}
                     _ensure_display_for('display_animation', payload)
                 if dur > 0 and not loop:
-                    time.sleep(dur)
+                    if cancel.wait(timeout=dur):
+                        log.info(f"Macro {macro.get('id')} cancelled during display_anim")
+                        return
             elif action == 'display_circle':
                 cid  = step.get('circle_id', '')
                 _cfg = config
@@ -3674,9 +3709,12 @@ def api_config_get():
 @app.route('/api/config', methods=['POST'])
 def api_config_save():
     data = request.get_json()
-    save_config(data)
-    global config
-    config = load_config()
+    if not isinstance(data, dict):
+        return jsonify({'ok': False, 'error': 'invalid payload — expected object'}), 400
+    for field in ('circles', 'roles', 'macros', 'scenes', 'show_flow', 'slides', 'sfx', 'battery_units'):
+        if field in data and not isinstance(data[field], list):
+            return jsonify({'ok': False, 'error': f'{field} must be a list'}), 400
+    save_config(data)  # save_config already updates global config
     log.info("Config saved and reloaded")
     return jsonify({'ok': True})
 
@@ -5270,6 +5308,12 @@ def _analyze_track_ffmpeg(filepath):
             '-f', 'f32le', '-ac', '1', '-ar', str(_FFT_SR), '-',
         ]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        def _kill_after(n):
+            time.sleep(n)
+            if proc.poll() is None:
+                proc.kill()
+                log.warning(f'Viz: ffmpeg analysis timed out for {Path(filepath).name}')
+        threading.Thread(target=_kill_after, args=(90,), daemon=True).start()
         frames   = []
         n_bytes  = _FFT_CHUNK * 4  # float32 = 4 bytes per sample
         window   = _np.hanning(_FFT_CHUNK)
