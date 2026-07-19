@@ -142,6 +142,12 @@ log.info(f"Music Man Console starting — {config['expedition']['name']}")
 app = Flask(__name__, static_folder=str(STATIC_DIR))
 sock = Sock(app)
 
+if not (BASE_DIR / 'generator.py').exists():
+    import logging as _logging
+    _logging.getLogger('musicman').warning(
+        'generator.py not found — /api/admin/generate will fail at runtime'
+    )
+
 # ── ADMIN AUTH ──
 _admin_password = config.get('system', {}).get('admin_password', 'BrokenArrow')
 app.secret_key  = _admin_password  # signs session cookies
@@ -1748,13 +1754,6 @@ def _collect_norm_files(mode: str) -> list:
                 if f.is_file() and f.suffix.lower() in _NORM_EXTS:
                     _add(f)
 
-    # Entire USB drive, recursively
-    mount = _find_usb_mount()
-    if mount:
-        for f in sorted(Path(mount).rglob('*')):
-            if f.is_file() and f.suffix.lower() in _NORM_EXTS:
-                _add(f)
-
     return files
 
 def _run_normalization(mode: str):
@@ -3270,9 +3269,27 @@ def api_save_scene():
 @app.route('/api/admin/scene/delete', methods=['POST'])
 def api_delete_scene():
     global config
-    data = request.get_json()
-    cfg  = load_config()
-    cfg['scenes'] = [s for s in cfg.get('scenes', []) if s['id'] != data.get('id')]
+    data    = request.get_json()
+    scene_id = data.get('id', '')
+    force   = data.get('force', False)
+    cfg     = load_config()
+    if not force:
+        refs = []
+        for c in cfg.get('circles', []):
+            if c.get('stage_scene') == scene_id or c.get('walkup_scene') == scene_id:
+                refs.append(f"circle:{c.get('name', c.get('id', '?'))}")
+        for r in cfg.get('roles', []):
+            if r.get('stage_scene') == scene_id or r.get('walkup_scene') == scene_id:
+                refs.append(f"role:{r.get('name', r.get('id', '?'))}")
+        for m in cfg.get('macros', []):
+            for step in m.get('steps', []):
+                if step.get('action') == 'scene' and step.get('scene') == scene_id:
+                    refs.append(f"macro:{m.get('name', m.get('id', '?'))}")
+                    break
+        if refs:
+            return jsonify({'ok': False, 'refs': refs,
+                            'error': 'Scene in use by: ' + ', '.join(refs)}), 409
+    cfg['scenes'] = [s for s in cfg.get('scenes', []) if s['id'] != scene_id]
     save_config(cfg)
     config = cfg
     return jsonify({'ok': True})
@@ -3697,7 +3714,7 @@ def _apply_applause(level):
     color_high = cfg.get('color_high', '#CC2222')
     color = color_low if level < 40 else color_mid if level < 75 else color_high
     brightness = int(level * 0.8)
-    for device_id in ['tower_a', 'tower_b']:
+    for device_id in cfg.get('devices', ['tower_a', 'tower_b']):
         wled_set_color(device_id, color, brightness=brightness, seg_id=0)
     broadcast('applause_level', {'level': level, 'color': color})
 

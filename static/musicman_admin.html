@@ -3852,11 +3852,19 @@ async function saveScene() {
   } catch(e) { toast('Save failed', 'err'); }
 }
 
-async function deleteScene() {
+async function deleteScene(force) {
   if (!selectedSceneId) return;
-  if (!confirm('Delete scene "' + (scenes.find(s=>s.id===selectedSceneId)||{}).name + '"?')) return;
+  const sceneName = (scenes.find(s=>s.id===selectedSceneId)||{}).name || selectedSceneId;
+  if (!force && !confirm('Delete scene "' + sceneName + '"?')) return;
   try {
-    await fetch('/api/admin/scene/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:selectedSceneId})});
+    const r = await fetch('/api/admin/scene/delete', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:selectedSceneId, force:!!force})});
+    const d = await r.json();
+    if (r.status === 409 && d.refs) {
+      const msg = 'Scene is used by:\n  ' + d.refs.join('\n  ') + '\n\nDelete anyway?';
+      if (confirm(msg)) deleteScene(true);
+      return;
+    }
     selectedSceneId = null;
     document.getElementById('scene-editor').style.display = 'none';
     document.getElementById('scene-editor-placeholder').style.display = '';

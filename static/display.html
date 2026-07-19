@@ -818,6 +818,7 @@ function connectWS() {
 
   ws.onopen = () => {
     ws.send(JSON.stringify({event: 'page_ready', url: '/display'}));
+    fetch('/api/preload_assets').then(r=>r.json()).then(d=>preloadAssets(d.urls)).catch(()=>{});
     if (_wsFirstConnect) {
       // First connect: load standby config (handles Chromium beating musicman to start)
       _wsFirstConnect = false;

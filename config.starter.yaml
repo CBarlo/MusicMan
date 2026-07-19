@@ -36,7 +36,6 @@ system:
 battery_units: []
 circles: []
 macros: []
-moving_heads: []
 playlist:
   files: []
   loop: true
