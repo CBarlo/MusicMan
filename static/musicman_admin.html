@@ -5919,6 +5919,11 @@ function renderPoleNodeConfig() {
         <input type="text" placeholder="IP or hostname" value="${escHtml(node.ip||'')}" class="pn-ip" style="flex:1;font-family:'Share Tech Mono',monospace;font-size:11px">
         <button class="btn btn-danger btn-sm" onclick="removePoleNode(${ni})" style="padding:2px 8px">✕</button>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:9px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;flex-shrink:0">MIC GAIN</span>
+        <input type="number" value="${(node.mic_gain !== undefined ? node.mic_gain : 1.0)}" min="0" max="2" step="0.1" class="pn-mic-gain" style="width:62px;font-family:'Share Tech Mono',monospace;font-size:11px" title="Scale factor applied to raw mic level before crowd meter (1.0 = normal, 0.5 = half sensitivity)">
+        <span style="font-size:9px;color:var(--text-dim)">× raw level&nbsp;&nbsp;0 – 2.0 &nbsp;(1.0 = full)</span>
+      </div>
       <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px">FIXTURES <span style="font-size:9px;font-weight:400">— assign a type from the Fixture Types library below</span></div>
       <div class="pn-fixtures">${fixHtml}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
@@ -5990,6 +5995,7 @@ function _collectPoleNodes() {
       name:     el.querySelector('.pn-name').value.trim(),
       label:    el.querySelector('.pn-label').value.trim().toUpperCase(),
       ip:       el.querySelector('.pn-ip').value.trim(),
+      mic_gain: parseFloat(el.querySelector('.pn-mic-gain')?.value ?? 1.0),
       fixtures: [],
     };
     el.querySelectorAll('.pn-fixtures [data-fix-idx]').forEach((row, fi) => {

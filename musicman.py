@@ -5203,12 +5203,13 @@ def _start_sound_poll():
                 name = node.get('name', nid)
                 if not ip:
                     continue
+                gain = max(0.0, float(node.get('mic_gain', 1.0)))
                 try:
                     r = requests.get(f'http://{ip}/json/si', timeout=1.0)
                     if r.ok:
                         d = r.json()
                         raw   = float(d.get('info', {}).get('u', {}).get('mm_sampleAvg', 0))
-                        level = min(100, int(raw / 255 * 100))
+                        level = min(100, int((raw / 255 * 100) * gain))
                     else:
                         level = 0
                 except Exception:

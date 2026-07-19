@@ -221,6 +221,10 @@
         <button class="btn-transport" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Display cleared',1500)" style="flex:1;font-size:10px;letter-spacing:1px">&#9723; CLEAR</button>
       </div>
       <button onclick="killAll()" style="width:100%;margin-top:8px;height:42px;border-radius:8px;border:2px solid #c0392b;background:#2d0a0a;color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;cursor:pointer">&#9760; KILL ALL</button>
+      <div id="panel-mic-wrap" style="display:none;margin-top:10px">
+        <div style="font-size:8px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;margin-bottom:5px">MIC LEVELS</div>
+        <div id="panel-db-meters" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
       <div class="vol-row">
         <span class="vol-label">MUSIC</span>
         <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="80" oninput="updateVol(this.value)">
@@ -3294,6 +3298,8 @@ function renderDbMeters() {
   const nodes = Object.entries(_soundLevels);
   const c1 = document.getElementById('crowd-db-meters');
   const c2 = document.getElementById('games-db-meters');
+  const cp = document.getElementById('panel-db-meters');
+  const pw = document.getElementById('panel-mic-wrap');
   if (!nodes.length) return;
 
   function meterHTML(id, info, compact) {
@@ -3311,10 +3317,27 @@ function renderDbMeters() {
     </div>`;
   }
 
+  function panelRowHTML(id, info) {
+    const lv    = Math.max(0, info.level);
+    const dead  = info.level < 0;
+    const pct   = dead ? 0 : lv;
+    const color = pct > 75 ? '#e74c3c' : pct > 45 ? '#f5a623' : '#3cb96a';
+    const label = (info.name || id).toUpperCase().slice(0, 8);
+    return `<div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:9px;letter-spacing:1px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;width:46px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(label)}</span>
+      <div style="flex:1;height:10px;background:var(--bg3);border-radius:3px;overflow:hidden;position:relative">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:${color};border-radius:3px;transition:width 0.4s ease"></div>
+      </div>
+      <span style="font-size:10px;font-weight:700;color:${dead?'var(--text-dim)':color};font-family:'Share Tech Mono',monospace;width:22px;text-align:right">${dead?'—':lv}</span>
+    </div>`;
+  }
+
   const html1 = nodes.map(([id,info]) => meterHTML(id, info, true)).join('');
   const html2 = nodes.map(([id,info]) => meterHTML(id, info, false)).join('');
+  const htmlp = nodes.map(([id,info]) => panelRowHTML(id, info)).join('');
   if (c1) c1.innerHTML = html1;
   if (c2) c2.innerHTML = html2;
+  if (cp) { cp.innerHTML = htmlp; if (pw) pw.style.display = ''; }
 }
 
 // Bootstrap crowd state on page load
