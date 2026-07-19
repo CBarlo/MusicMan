@@ -26,17 +26,15 @@ Set segment 0 to mirror (reversed clone of itself) if strips face opposite direc
 
 ## WiFi / Network
 
-- **At campsite (field):** Connect to `MusicMan` AP (password `BrokenArrow`); DHCP pool is 192.168.4.10–50
-- **At home (testing):** Connect to home WiFi; update IP in MusicMan config.yaml
-- **Home test IP (current):** 192.168.0.149 (MAC b4:bf:e9:12:60:08)
+- **At campsite (field):** Connect to the MusicMan AP (SSID and password set during Pi setup); DHCP pool is 192.168.4.10–50
+- **At home (testing):** Connect to home WiFi; update IP in MusicMan admin (Nodes tab)
 - Suggested field DHCP reservations: Pole A → 192.168.4.51, Pole B → 192.168.4.52
 - Reserve by MAC in dnsmasq: `/etc/dnsmasq.conf` on Pi
 
 ## Build Notes
 
-- WLED source at `~/Documents/WLED` (cloned v0.15.4, built July 2026)
-- Firmware at `~/Documents/WLED/build_output/release/WLED_0.15.4_ESP32.bin`
-- Usermod at `pole_node/usermod_musicman.h` (also copied to `~/Documents/WLED/usermods/musicman/`)
+- WLED v0.15.4 (clone from https://github.com/Aircoookie/WLED)
+- Usermod at `pole_node/usermod_musicman.h` (copy to `usermods/musicman/` in your WLED source tree)
 - `usermods_list.cpp`: `UsermodManager::add(new MusicManUsermod());` (already done)
 - `/dmx` route registered in usermod's own `setup()` — no wled_server.cpp edit needed
 - Usermod ID: 100 (clear of all WLED built-ins up to 54)
@@ -47,21 +45,22 @@ Set segment 0 to mirror (reversed clone of itself) if strips face opposite direc
 
 ```bash
 # Use esptool from PlatformIO's newer package (v4.9.0 — NOT the bundled v3.1):
+# Replace ~/WLED with wherever you cloned the WLED repo
 python3 ~/.platformio/packages/tool-esptoolpy/esptool.py \
   --chip esp32 --port /dev/cu.usbserial-0001 --baud 460800 \
   --before default_reset --after hard_reset write_flash -z \
   --flash_mode dout --flash_freq 40m --flash_size detect \
-  0x1000 ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/bin/bootloader_dout_40m.bin \
-  0x8000 ~/Documents/WLED/.pio/build/esp32dev/partitions.bin \
-  0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-  0x10000 ~/Documents/WLED/.pio/build/esp32dev/firmware.bin
+  0x1000  ~/.platformio/packages/framework-arduinoespressif32/tools/sdk/bin/bootloader_dout_40m.bin \
+  0x8000  ~/WLED/.pio/build/esp32dev/partitions.bin \
+  0xe000  ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+  0x10000 ~/WLED/.pio/build/esp32dev/firmware.bin
 ```
 
 ## Pi → Pole API
 
 **Set DMX channels:**
 ```
-POST http://192.168.0.149/dmx   ← home test; use 192.168.4.51 at campsite
+POST http://192.168.4.51/dmx
 Content-Type: application/json
 
 {
@@ -80,5 +79,5 @@ POST http://192.168.0.149/json/state
 
 **Check status (includes mm_dmx_ch1, mm_dmx_ch7 from usermod):**
 ```
-GET http://192.168.0.149/json/info
+GET http://192.168.4.51/json/info
 ```

@@ -6,7 +6,7 @@ install.yaml
 # ── Media assets (personal + copyright; live on the device, not in the repo) ──
 assets/
 
-# ── Loose media files (anywhere in the tree) ──
+# ── Loose media files ──
 *.mov
 *.mp4
 *.mp3
@@ -17,6 +17,10 @@ assets/
 *.png
 *.gif
 *.webp
+# ...but allow documentation images in pole_node/
+!pole_node/*.png
+!pole_node/*.jpg
+!pole_node/*.svg
 
 # ── Runtime files ──
 logs/
