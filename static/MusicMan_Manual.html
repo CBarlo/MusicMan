@@ -294,6 +294,7 @@
       <li><a href="#timer-admin">Configuring the Skit Timer &amp; Presets</a></li>
       <li><a href="#slides-admin">Live Slides (admin builder)</a></li>
       <li><a href="#shell-game-admin">Shell Game configuration</a></li>
+      <li><a href="#game-entries-admin">Game Entries configuration</a></li>
       <li><a href="#crowd-admin">Crowd Noise — gauge &amp; lighting setup</a></li>
       <li><a href="#climax-admin">Climax FX configuration</a></li>
       <li><a href="#lighting-settings">Lighting settings (Pole Nodes, Fixture Profiles)</a></li>
@@ -313,6 +314,7 @@
       <li><a href="#lighting-run">Lighting controls</a></li>
       <li><a href="#skit-timer-run">The Skit Timer</a></li>
       <li><a href="#games-run">Games tab &amp; leaderboard</a></li>
+      <li><a href="#game-entries-run">Game Entries — firing walk-ups</a></li>
       <li><a href="#display-run">HDMI display controls</a></li>
       <li><a href="#slides-run">Live Slide Builder (console)</a></li>
       <li><a href="#crowd-run">Crowd Noise — live operation</a></li>
@@ -473,21 +475,31 @@
     After adding walk-up assets, refresh Admin → Circles or Roles.
   </div>
 
-  <h2 id="usb-layout">USB Drive File Layout</h2>
+  <h2 id="usb-layout">Pi Asset Folder Layout</h2>
   <p>
-    The Pi reads media from a USB drive. The drive can have any folder structure —
-    MusicMan scans the whole drive — but the app's own local asset folders use this layout:
+    All media — music, SFX, walk-up audio, display images, and videos — is stored locally on the Pi
+    at <span class="mono">/home/pi/musicman/assets/</span>. Nothing is read live from a USB drive during a show.
   </p>
   <table>
-    <tr><th>Folder</th><th>Contents</th></tr>
-    <tr><td><span class="mono">assets/music/</span></td><td>Background music tracks</td></tr>
+    <tr><th>Folder on Pi</th><th>Contents</th></tr>
+    <tr><td><span class="mono">assets/music/</span></td><td>Background music tracks (Music library)</td></tr>
     <tr><td><span class="mono">assets/sfx/</span></td><td>Sound effects</td></tr>
-    <tr><td><span class="mono">assets/circles/</span></td><td>Circle-specific walk-up audio</td></tr>
-    <tr><td><span class="mono">assets/roles/</span></td><td>Role-specific walk-up audio</td></tr>
-    <tr><td><span class="mono">assets/display/</span></td><td>Images and videos shown on the HDMI display</td></tr>
+    <tr><td><span class="mono">assets/circles/{id}/</span></td><td>Per-circle walk-up audio, intro clips, loop animations</td></tr>
+    <tr><td><span class="mono">assets/roles/{id}/</span></td><td>Per-role walk-up audio</td></tr>
+    <tr><td><span class="mono">assets/game_entries/{id}/</span></td><td>Game entry walk-up audio and video</td></tr>
+    <tr><td><span class="mono">assets/display/</span></td><td>Images and videos available in the Display library</td></tr>
     <tr><td><span class="mono">assets/shell_game/</span></td><td>Shell game tent images, rock image, sound assets</td></tr>
   </table>
-  <p>Audio on a USB drive (any subfolder) also appears in the console's Music tab without copying it.</p>
+  <h3>Getting files onto the Pi</h3>
+  <ul>
+    <li><strong>Admin upload</strong> — upload directly from the browser on any file field in Admin.</li>
+    <li><strong>USB Import</strong> — plug in a USB drive, go to Admin → USB Import, browse the drive, and copy files into any asset folder. The USB drive can have any folder structure.</li>
+    <li><strong>Samba share</strong> — drag files into <span class="mono">\\musicman.local\musicman</span> from a Mac or PC on the same network.</li>
+  </ul>
+  <p>
+    To play audio directly from a USB drive without copying it to the Pi, use the <strong>USB Playlist</strong>
+    feature in the console's <span class="tab">MUSIC</span> tab — see <a href="#usb-run">USB Playlist</a>.
+  </p>
 </div>
 
 <!-- ══════════════════ PART 3 ══════════════════ -->
@@ -508,7 +520,7 @@
     <tr><td><strong>🖼 Display</strong></td><td>Upload and manage images and videos; configure visualization presets and video overlays</td></tr>
     <tr><td><strong>▶ Show Flow</strong></td><td>Build the ordered show rundown — each step fires a macro</td></tr>
     <tr><td><strong>⚡ Macros</strong></td><td>Create automated sequences of actions (music + lights + display + timer + slides)</td></tr>
-    <tr><td><strong>🎮 Games</strong></td><td>Shell Game configuration — tent/rock images, sounds, saved game themes</td></tr>
+    <tr><td><strong>🎮 Games</strong></td><td>Shell Game configuration — tent/rock images, sounds, saved game themes; Game Entries — named walk-up moments with music, video, and lighting</td></tr>
     <tr><td><strong>📋 Slides</strong></td><td>Build and save custom text slides to push to the projector</td></tr>
     <tr><td><strong>✦ Lighting Scenes</strong></td><td>Define named lighting states that macros and walk-ups can trigger</td></tr>
     <tr><td><strong>⏱ Timer</strong></td><td>Configure skit timer defaults and save/manage timer presets</td></tr>
@@ -652,9 +664,15 @@
 
   <h3>DMX Fixtures — static values</h3>
   <p>
-    Each pole node's fixtures (pinspot and wash bar) have named channels defined in the
-    Fixture Profiles (Admin → Settings → Lighting). In the scene editor, set a value
-    for each channel you want to control. Channels left blank are not sent.
+    Each pole node's fixtures are described by a <strong>Fixture Type</strong> (e.g., "Pin Spot 6ch",
+    "Stage Wash 8ch") configured in Admin → Lighting. In the scene editor, channels with named preset
+    values appear as dropdown selects; intensity channels appear as number inputs.
+    Channels left at their default are not sent.
+  </p>
+  <p>
+    To quickly load a complete channel snapshot from a saved look, use the <strong>load look…</strong>
+    dropdown in the fixture row. Select a look name and all channel values update instantly.
+    The scene is not saved until you click <kbd>SAVE SCENE</kbd>.
   </p>
 
   <h3>DMX Animation</h3>
@@ -726,6 +744,7 @@
     <tr><td>📋 Saved Slide</td><td>Pushes a named slide you previously saved in the Slides tab</td><td>Slide name</td></tr>
     <tr><td>📋 Custom Slide</td><td>Pushes a custom text slide to the projector (built inline)</td><td>Template, headline, body, accent color</td></tr>
     <tr><td>✕ Clear Slide</td><td>Removes the current custom slide from the projector</td><td>None</td></tr>
+    <tr><td>🎲 Game Entry Walk-Up</td><td>Fires a game entry's full walk-up (music + animation + lighting), same as tapping it on the console</td><td>Pick a game entry</td></tr>
     <tr><td>🎮 Shell Game</td><td>Launches the shell game on the HDMI display</td><td>Optional theme name</td></tr>
     <tr><td>📊 Show Crowd Viz</td><td>Opens the crowd noise gauge on the HDMI</td><td>Optional preset name</td></tr>
     <tr><td>⏳ Wait</td><td>Pauses the macro for a set time before the next step</td><td>Duration in seconds</td></tr>
@@ -858,6 +877,34 @@
     list and can be loaded or deleted.
   </p>
 
+  <h2 id="game-entries-admin">Game Entries</h2>
+  <p>
+    A <strong>Game Entry</strong> is a named walk-up moment for a specific game or participant —
+    like Chubby Bunny, a skit intro, or any named moment that needs its own music, video,
+    lighting, and name on screen. It works exactly like a circle or role walk-up, but without
+    the circle/role structure.
+  </p>
+  <p>Configure entries in Admin → <strong>🎮 Games</strong> → Game Entries section.</p>
+  <ol class="steps">
+    <li>Click <kbd>+ ADD ENTRY</kbd> to create a new entry.</li>
+    <li>Set an <strong>Emoji</strong> (shown as the button icon on the console) and a <strong>Name</strong> (shown on the HDMI).</li>
+    <li>Upload or link walk-up music, an optional intro clip, and a loop animation — same options as circles and roles (upload, music library, USB import).</li>
+    <li>Set timing: start offset, duration, and fade-out.</li>
+    <li>Optionally assign a <strong>Walk-Up Scene</strong> (fires when the entry is triggered) and an <strong>After-Fade Scene</strong> (fires when music fades out).</li>
+    <li>Click <kbd>SAVE</kbd>.</li>
+  </ol>
+  <table>
+    <tr><th>Field</th><th>What it does</th></tr>
+    <tr><td>Emoji</td><td>Icon shown on the console button (defaults to 🎲)</td></tr>
+    <tr><td>Name</td><td>Displayed on the HDMI walk-up overlay and on the console button</td></tr>
+    <tr><td>Walk-Up Music</td><td>Plays when the entry is fired</td></tr>
+    <tr><td>Intro Clip</td><td>Optional video that plays once, before the loop animation starts</td></tr>
+    <tr><td>Loop Animation</td><td>Video that loops during the walk-up</td></tr>
+    <tr><td>Start / Duration / Fade</td><td>Same timing controls as circle walk-ups</td></tr>
+    <tr><td>Walk-Up Scene</td><td>Lighting scene that fires instantly when the entry is triggered</td></tr>
+    <tr><td>After-Fade Scene</td><td>Lighting scene that fires once the music fades out</td></tr>
+  </table>
+
   <h2 id="crowd-admin">Crowd Noise — Gauge &amp; Lighting Setup</h2>
   <p>
     The Crowd Noise system puts a large animated gauge on the HDMI that the operator
@@ -879,9 +926,9 @@
 
   <h3>Crowd lighting</h3>
   <p>
-    In the Display admin section, check any WLED devices or pole nodes you want to follow
-    the crowd slider. Their brightness and color track the level automatically —
-    cool green at low, amber at mid, red at high. On Climax, all assigned lights strobe white.
+    In Admin → <strong>Lighting</strong> → Crowd Lighting, check any WLED devices or pole nodes
+    you want to follow the crowd slider. Their brightness and color track the level automatically —
+    cool green at low, amber at mid, red at high.
   </p>
   <table>
     <tr><th>Color setting</th><th>What it controls</th></tr>
@@ -889,6 +936,27 @@
     <tr><td>MID color</td><td>Color at exactly 50%</td></tr>
     <tr><td>HIGH color</td><td>Color at 100% crowd level</td></tr>
   </table>
+
+  <h3>Climax DMX — scenes</h3>
+  <p>
+    When CLIMAX fires, MusicMan can optionally trigger a full lighting scene instead of the
+    default raw brightness blast. Two scene fields appear at the bottom of the Climax DMX section:
+  </p>
+  <table>
+    <tr><th>Field</th><th>What it does</th></tr>
+    <tr><td><strong>⚡ Climax Scene</strong></td><td>Lighting scene to fire the instant CLIMAX is triggered. If set, this replaces the raw max-DMX blast — the scene controls fixtures precisely (strobe, color, whatever is programmed). If left blank, the existing raw behavior (all fixture channels to 255) applies.</td></tr>
+    <tr><td><strong>↩ Revert Scene</strong></td><td>Lighting scene to fire after the BLACKOUT AFTER delay expires. If set, the system snaps to this scene rather than blacking everything out — useful for returning to a post-climax ambient state automatically. If left blank, blackout applies.</td></tr>
+  </table>
+  <p>
+    The <strong>BLACKOUT AFTER</strong> timer controls how long the climax state holds before the
+    revert (or blackout) fires. Set it in milliseconds (default 2500 = 2.5 seconds).
+  </p>
+
+  <div class="callout callout-info">
+    <div class="callout-title">Climax also stops all music</div>
+    When CLIMAX fires, all audio — music, SFX, and the active playlist — stops immediately.
+    The crowd noise moment is designed to stand alone.
+  </div>
 
   <h3>Text overlays (GET LOUD, LOUDER, LET'S GOOO)</h3>
   <p>
@@ -905,8 +973,9 @@
 
   <h2 id="climax-admin">Climax FX Configuration</h2>
   <p>
-    Climax FX is the big moment: one button that slams the gauge to maximum, fires an explosion
-    video fullscreen, and triggers an explosion sound — all simultaneously.
+    Climax FX is the big moment: one button that slams the gauge to maximum, stops all music,
+    fires an explosion video fullscreen, triggers an explosion sound, and fires your configured
+    lighting scene — all simultaneously.
     Configure in Admin → <strong>🖼 Display</strong> → Climax FX.
   </p>
   <table>
@@ -915,9 +984,17 @@
     <tr><td>SFX</td><td>The explosion sound effect. Fires the instant CLIMAX is tapped — in sync with the video.</td></tr>
   </table>
 
-  <h2 id="lighting-settings">Lighting Settings — Pole Nodes &amp; Fixture Profiles</h2>
+  <div class="callout callout-info">
+    <div class="callout-title">Full climax sequence</div>
+    When CLIMAX fires: (1) all music stops, (2) gauge slams to max, (3) explosion video fires fullscreen,
+    (4) explosion SFX plays, (5) lighting climax scene fires (if configured),
+    (6) after the BLACKOUT AFTER delay, the revert scene fires or everything blacks out.
+    The crowd viz closes when the explosion video ends.
+  </div>
+
+  <h2 id="lighting-settings">Lighting Settings — Pole Nodes &amp; Fixture Types</h2>
   <p>
-    Admin → Settings → <strong>✦ Lighting</strong> is where you configure the physical pole hardware.
+    Admin → <strong>✦ Lighting</strong> is where you configure the physical pole hardware.
     Everything here is one-time setup — do it before building scenes.
   </p>
 
@@ -929,32 +1006,49 @@
   </p>
   <ol class="steps">
     <li>Click <kbd>+ ADD NODE</kbd>.</li>
-    <li>Enter a unique <strong>ID</strong> (e.g., <span class="mono">pole_a</span>), a <strong>Label</strong>, and the node's <strong>IP or hostname</strong> (e.g., <span class="mono">pole-a.local</span>).</li>
-    <li>Click <kbd>+ FIXTURE</kbd> to add each DMX fixture on that pole. Give each fixture a <strong>name</strong>, its <strong>DMX start channel</strong>, and its <strong>channel count</strong>.</li>
-    <li>Use the same fixture IDs (e.g., <span class="mono">pinspot</span>, <span class="mono">wash</span>) on every pole — this lets them share one Fixture Profile definition.</li>
+    <li>Enter a unique <strong>ID</strong> (e.g., <span class="mono">pole_a</span>), a <strong>Name</strong>, and the node's <strong>IP or hostname</strong> (e.g., <span class="mono">pole-a.local</span>).</li>
+    <li>Click <kbd>+ FIXTURE</kbd> to add each DMX fixture on that pole. Set the fixture's <strong>Fixture Type</strong>, <strong>Name</strong>, <strong>DMX start channel</strong>, and <strong>channel count</strong>.</li>
     <li>Click <kbd>✓ SAVE NODES</kbd>.</li>
-    <li>Click <kbd>↗ WLED UI</kbd> to open that node's WLED web interface directly — useful for testing strip effects and checking firmware status.</li>
+    <li>Click <kbd>↗ WLED UI</kbd> to open that node's WLED web interface directly.</li>
   </ol>
   <table>
     <tr><th>Fixture field</th><th>What it does</th></tr>
-    <tr><td>ID</td><td>Identifier used in scene DMX blocks. Must match across poles for shared profiles to work (e.g., <span class="mono">pinspot</span>).</td></tr>
+    <tr><td>Fixture Type</td><td>Links to a Fixture Type definition that names channels and defines presets (e.g., "Pin Spot 6ch").</td></tr>
+    <tr><td>ID</td><td>Identifier used in scene DMX blocks (e.g., <span class="mono">pinspot</span>, <span class="mono">wash</span>).</td></tr>
     <tr><td>Start channel</td><td>The DMX address of the fixture's first channel (1-based). Pinspot = 1, Wash Bar = 7 in our setup.</td></tr>
     <tr><td>Channel count</td><td>Number of DMX channels this fixture uses. Pinspot = 6, Wash Bar = 8.</td></tr>
   </table>
 
-  <h3>Fixture Profiles</h3>
+  <h3>Fixture Types</h3>
   <p>
-    A <strong>Fixture Profile</strong> names each channel of a fixture type and defines
-    quick-pick preset values — shown in the scene editor and the console test panel.
-    Profiles are defined once and shared across all poles that use the same fixture ID.
+    A <strong>Fixture Type</strong> describes a category of DMX fixture — it names each channel,
+    defines preset values, and stores saved looks. Fixture Types are configured once and shared
+    across every pole that uses that kind of fixture.
   </p>
   <ol class="steps">
-    <li>After saving Pole Nodes, the Fixture Profiles section populates automatically — one block per unique fixture ID.</li>
-    <li>Click a channel row to name it (e.g., "MODE", "RED", "DIMMER").</li>
-    <li>In the Presets column, enter <span class="mono">Label=Value</span> pairs separated by commas (e.g., <span class="mono">Manual=255, Strobe=187, Off=0</span>). These appear as quick buttons in the scene editor.</li>
-    <li>Click the <strong>≡</strong> icon to paste raw text from a fixture manual — the parser extracts channel ranges automatically.</li>
-    <li>Click <kbd>✓ SAVE PROFILES</kbd> when done.</li>
+    <li>Click <kbd>+ ADD TYPE</kbd> and give the type a name matching the fixture model (e.g., "Pin Spot 6ch").</li>
+    <li>Click <kbd>+ ADD CHANNEL</kbd> for each DMX channel. Name it (e.g., "MODE", "RED", "DIMMER").</li>
+    <li>For control channels (MODE, EFFECT, STROBE RATE), add presets: click <kbd>+ PRESET</kbd> and enter a label and value for each named mode (e.g., Manual = 255, Strobe = 187, Sound Active = 0). Preset channels appear as dropdowns in the scene editor and are <strong>never dimmed</strong> by the master DIM slider.</li>
+    <li>Leave intensity channels (RED, GREEN, BLUE, WHITE, DIMMER) with no presets — they appear as number inputs and scale correctly with the master DIM slider.</li>
+    <li>Click <kbd>✓ SAVE TYPE</kbd>.</li>
   </ol>
+
+  <div class="callout callout-tip">
+    <div class="callout-title">Why this matters for dimming</div>
+    The master DIM slider only scales intensity channels. Channels with presets (MODE, EFFECT) are
+    protected — the slider can never accidentally push a fixture into strobe mode or an unexpected operating state.
+  </div>
+
+  <h3>DMX Looks</h3>
+  <p>
+    Within each Fixture Type you can save named <strong>looks</strong> — a complete snapshot of
+    all channel values for a common state (e.g., "White Fast Strobe", "Orange Wash", "Off").
+  </p>
+  <ul>
+    <li>In <strong>Admin → Lighting</strong>: use the DMX LOOKS section. Select a fixture type, set channel values with sliders/buttons, then click <kbd>💾 SAVE LOOK</kbd>.</li>
+    <li>In the <strong>Console → LIGHTS tab</strong>: the same look editor is available. Use it to build and test looks live against real fixtures, then save for later use in scenes.</li>
+    <li>In the <strong>Scene editor</strong>: every fixture row has a <strong>load look…</strong> dropdown. Selecting a look fills all channel values instantly.</li>
+  </ul>
 
   <h3>WLED LED Segments</h3>
   <p>
@@ -1057,7 +1151,7 @@
   <table>
     <tr><th>Tab</th><th>What it contains</th></tr>
     <tr><td><span class="tab">SHOW</span></td><td>Show Flow — the main show script; tap items to advance</td></tr>
-    <tr><td><span class="tab">WALKUPS</span></td><td>Walk-up buttons for each circle</td></tr>
+    <tr><td><span class="tab">CIRCLES</span></td><td>Walk-up buttons for each circle</td></tr>
     <tr><td><span class="tab">ROLES</span></td><td>Walk-up buttons for each role (Expedition Navigator, Firestarter, etc.)</td></tr>
     <tr><td><span class="tab">MACROS</span></td><td>Run any macro manually</td></tr>
     <tr><td><span class="tab">SFX</span></td><td>Sound effect library — one-tap triggers; plays on top of current music</td></tr>
@@ -1097,7 +1191,7 @@
 
   <h2 id="walkups-run">Walk-Up Music</h2>
   <ol class="steps">
-    <li>Go to the <span class="tab">WALKUPS</span> tab (circles) or <span class="tab">ROLES</span> tab.</li>
+    <li>Go to the <span class="tab">CIRCLES</span> tab or <span class="tab">ROLES</span> tab.</li>
     <li>Tap the circle or role button. Their walk-up track starts, their logo appears on HDMI, and their lighting scene fires.</li>
     <li>The walk-up plays through its configured duration and fades automatically. To stop early: <kbd>FADE &amp; END</kbd> or <kbd>STOP</kbd>.</li>
   </ol>
@@ -1125,9 +1219,22 @@
   </p>
   <ul>
     <li>Tap any scene button to activate it immediately.</li>
-    <li>Use the <strong>DIM</strong> slider to dim or brighten all lights at once.</li>
+    <li>Use the <strong>DIM</strong> slider to dim or brighten all lights at once. Only intensity channels (RED, GREEN, BLUE, WHITE, DIMMER) are affected — control channels like MODE and EFFECT are never scaled.</li>
     <li>Scenes are also triggered automatically by macros and walk-ups.</li>
   </ul>
+
+  <h3>DMX Looks (Lights tab)</h3>
+  <p>
+    The <span class="tab">LIGHTS</span> tab also includes a live DMX look editor for building
+    and testing fixture states without going to Admin.
+  </p>
+  <ol class="steps">
+    <li>Under <strong>DMX LOOKS</strong>, select a fixture type from the dropdown.</li>
+    <li>Adjust channel sliders and use preset buttons to set the fixture state you want.</li>
+    <li>Tap <kbd>⚡ TEST</kbd> to fire the current values live to all matching pole nodes.</li>
+    <li>Tap <kbd>💾 SAVE LOOK</kbd>, enter a name, and the look is saved under that fixture type — it then appears in the scene editor's "load look…" dropdown.</li>
+    <li>Previously saved looks appear below. Tap <kbd>LOAD</kbd> to recall a look into the sliders, or <kbd>DELETE</kbd> to remove it.</li>
+  </ol>
 
   <h2 id="skit-timer-run">The Skit Timer</h2>
   <p>
@@ -1184,6 +1291,22 @@
     <li>Click <kbd>📺 SHOW SCORES</kbd> to display the leaderboard on HDMI.</li>
     <li>Click <kbd>✕ CLEAR</kbd> to clear times for the current game.</li>
   </ol>
+
+  <h2 id="game-entries-run">Game Entries</h2>
+  <p>
+    When at least one Game Entry is configured, a <strong>GAME ENTRIES</strong> section appears
+    at the top of the <span class="tab">GAMES/TIMERS</span> tab. Each entry is a button showing
+    its emoji and name.
+  </p>
+  <ol class="steps">
+    <li>Go to the <span class="tab">GAMES/TIMERS</span> tab.</li>
+    <li>Tap the entry button. Music starts, the HDMI shows the name and animation, and the lighting scene fires.</li>
+    <li>The walk-up runs for the configured duration and fades out automatically — same behavior as a circle or role walk-up.</li>
+  </ol>
+  <p>
+    Game entries can also be triggered from a macro step (<em>🎲 Game Entry Walk-Up</em> under the
+    GAMES group in the step type dropdown) or as a step in a Show Flow macro.
+  </p>
 
   <h2 id="display-run">HDMI Display Controls</h2>
   <p>The <span class="tab">DISPLAY</span> tab controls what the audience sees on screen.</p>
@@ -1243,9 +1366,12 @@
   <h3>CLIMAX</h3>
   <ol class="steps">
     <li>Tap <kbd>⚡ CLIMAX</kbd>.</li>
+    <li>All music and audio stops immediately.</li>
     <li>The gauge needle slams instantly to maximum.</li>
     <li>Any text overlay stops immediately.</li>
     <li>The explosion video fires fullscreen — in sync with the explosion SFX.</li>
+    <li>The configured climax lighting scene fires (if set in Admin → Crowd Lighting).</li>
+    <li>After the configured delay, the revert lighting scene fires — or everything blacks out.</li>
     <li>When the video ends, the gauge hard-cuts to black. The crowd viz closes.</li>
   </ol>
 
@@ -1328,7 +1454,7 @@
     <span class="flow-arrow">→</span>
     <span class="flow-box">TAP CIRCLE'S ITEM</span>
     <span class="flow-arrow">→</span>
-    <span class="flow-box">WALKUPS TAB</span>
+    <span class="flow-box">CIRCLES TAB</span>
     <span class="flow-arrow">→</span>
     <span class="flow-box">TAP CIRCLE BUTTON</span>
   </div>
@@ -1415,6 +1541,18 @@
     <tr>
       <td>Changes in Admin aren't taking effect</td>
       <td>Hard-refresh the admin page: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows).</td>
+    </tr>
+    <tr>
+      <td>Fixture "load look…" dropdown missing in scene editor</td>
+      <td>The scene editor needs fixture data loaded before it can show looks. Hard-refresh Admin (Cmd+Shift+R) and re-open the scene. If the DMX Fixtures section says "NO POLE NODES CONFIGURED," it means data didn't load — navigate away and back to the Scenes tab, then click the scene again.</td>
+    </tr>
+    <tr>
+      <td>Pinspot strobing or stuck in wrong mode after using the DIM slider</td>
+      <td>Fire any scene that includes the pinspot — this pushes a fresh, correct DMX frame to the ESP32 and snaps it out. The DIM slider now protects MODE channels, so this shouldn't happen with current firmware. If it recurs, check that the fixture's Fixture Type is set correctly in Admin → Lighting → Pole Nodes.</td>
+    </tr>
+    <tr>
+      <td>Climax scene or revert scene not firing</td>
+      <td>Check Admin → Lighting → Crowd Lighting — confirm a scene is selected in the ⚡ CLIMAX SCENE or ↩ REVERT SCENE dropdown and that you clicked <kbd>✓ SAVE</kbd> after selecting it.</td>
     </tr>
     <tr>
       <td>Pi is unresponsive</td>

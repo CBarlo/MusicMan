@@ -98,7 +98,7 @@
   .scene-btn:hover { background: var(--bg3); }
   .scene-btn.active { border-color: var(--amber); background: var(--amber-dim); color: var(--amber); box-shadow: 0 0 12px #F5A62333; }
   .scene-icon { font-size: 16px; }
-  .dim-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .dim-row { display: flex; align-items: center; gap: 8px; margin-top: 22px; }
   .right { display: flex; flex-direction: column; overflow: hidden; }
   .page-tabs { display: flex; background: var(--bg2); border-bottom: 2px solid var(--border); padding: 0 16px; gap: 4px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
   .page-tab { padding: 10px 14px; font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--text-dim); border-bottom: 2px solid transparent; cursor: pointer; transition: all .15s; margin-bottom: -2px; flex-shrink: 0; white-space: nowrap; }
@@ -212,11 +212,11 @@
         <button class="btn-transport" id="pauseBtn" onclick="togglePause()">&#9208; PAUSE</button>
         <button class="btn-transport" onclick="fadeOut()" style="font-size:10px;letter-spacing:1px">&#8595; FADE &amp; END</button>
       </div>
-      <div class="transport" style="margin-top:6px">
+      <div class="transport" style="margin-top:14px">
         <button class="btn-transport" onclick="trackPrev()" style="flex:1">&#9664;&#9664; TRACK &minus;</button>
         <button class="btn-transport" onclick="trackNext()" style="flex:1">TRACK + &#9654;&#9654;</button>
       </div>
-      <div class="transport" style="margin-top:6px">
+      <div class="transport" style="margin-top:14px">
         <button class="btn-transport" onclick="if(_displayLogo){fetch('/api/display/show_file?file='+encodeURIComponent(_displayLogo)).catch(()=>{})}else{showAlert('No default logo set — configure in Admin > Display',2500)}" style="flex:1;font-size:10px;letter-spacing:1px">&#127989; BAE LOGO</button>
         <button class="btn-transport" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Display cleared',1500)" style="flex:1;font-size:10px;letter-spacing:1px">&#9723; CLEAR</button>
       </div>
@@ -260,13 +260,47 @@
         <input type="range" class="vol-slider" min="0" max="100" value="75" oninput="updateBright(this.value)">
         <span class="vol-val" id="brightVal">75%</span>
       </div>
-      <div class="credits" style="margin-top:12px">MUSIC MAN CONSOLE &middot; BROKEN ARROW EXPEDITION<br>BORING BADGER (CHRIS) &middot; GAMING GECKO (HENRY) &middot; LITTLE RED MACHINE (NOLAN)</div>
+      <div style="margin-top:20px">
+        <div class="section-label">WLED LIVE TUNE</div>
+        <select id="wledTuneDevice" onchange="wledTuneDeviceChange()"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;margin-bottom:10px">
+          <option value="">— select device —</option>
+        </select>
+        <div id="wledTuneSliders" style="display:none">
+          <div class="dim-row" style="margin-top:4px">
+            <span class="vol-label" style="width:40px;font-size:9px">SPEED</span>
+            <input type="range" class="vol-slider" id="wts_sx" min="0" max="255" value="128" oninput="wledTuneInput('sx',this.value);document.getElementById('wtv_sx').textContent=this.value">
+            <span class="vol-val" id="wtv_sx" style="width:28px">128</span>
+          </div>
+          <div class="dim-row" style="margin-top:14px">
+            <span class="vol-label" style="width:40px;font-size:9px">INTENS</span>
+            <input type="range" class="vol-slider" id="wts_ix" min="0" max="255" value="128" oninput="wledTuneInput('ix',this.value);document.getElementById('wtv_ix').textContent=this.value">
+            <span class="vol-val" id="wtv_ix" style="width:28px">128</span>
+          </div>
+          <div class="dim-row" style="margin-top:14px">
+            <span class="vol-label" style="width:40px;font-size:9px">C1</span>
+            <input type="range" class="vol-slider" id="wts_c1" min="0" max="255" value="128" oninput="wledTuneInput('c1',this.value);document.getElementById('wtv_c1').textContent=this.value">
+            <span class="vol-val" id="wtv_c1" style="width:28px">128</span>
+          </div>
+          <div class="dim-row" style="margin-top:14px">
+            <span class="vol-label" style="width:40px;font-size:9px">C2</span>
+            <input type="range" class="vol-slider" id="wts_c2" min="0" max="255" value="128" oninput="wledTuneInput('c2',this.value);document.getElementById('wtv_c2').textContent=this.value">
+            <span class="vol-val" id="wtv_c2" style="width:28px">128</span>
+          </div>
+          <div class="dim-row" style="margin-top:14px">
+            <span class="vol-label" style="width:40px;font-size:9px">C3</span>
+            <input type="range" class="vol-slider" id="wts_c3" min="0" max="255" value="128" oninput="wledTuneInput('c3',this.value);document.getElementById('wtv_c3').textContent=this.value">
+            <span class="vol-val" id="wtv_c3" style="width:28px">128</span>
+          </div>
+        </div>
+      </div>
+      <div class="credits" style="margin-top:16px">MUSIC MAN CONSOLE &middot; BROKEN ARROW EXPEDITION<br>BORING BADGER (CHRIS) &middot; GAMING GECKO (HENRY) &middot; LITTLE RED MACHINE (NOLAN)</div>
     </div>
   </div>
   <div class="right">
     <div class="page-tabs">
       <div class="page-tab active" onclick="showPage('show',this)">SHOW</div>
-      <div class="page-tab" onclick="showPage('walkup',this)">WALKUPS</div>
+      <div class="page-tab" onclick="showPage('walkup',this)">CIRCLES</div>
       <div class="page-tab" onclick="showPage('roles',this)">ROLES</div>
       <div class="page-tab" onclick="showPage('macros',this)">MACROS</div>
       <div class="page-tab" onclick="showPage('sfx',this);buildSfxGrid()">SFX</div>
@@ -511,6 +545,12 @@
     <!-- ── GAMES TAB ── -->
     <div class="page" id="page-games">
 
+      <!-- GAME ENTRIES -->
+      <div class="games-section" id="ge-section" style="display:none">
+        <div class="section-label">GAME ENTRIES</div>
+        <div class="walkup-grid" id="geGrid"></div>
+      </div>
+
       <!-- COUNTDOWN TIMER -->
       <div class="games-section">
         <div class="section-label">COUNTDOWN TIMER</div>
@@ -559,6 +599,13 @@
             <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Show end animation on screen</span>
           </label>
         </div>
+        <div class="games-row" style="margin-bottom:12px">
+          <span class="games-label">LED STRIPS</span>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+            <input type="checkbox" id="cdCountdownLeds" onchange="cdSave()" style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
+            <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Yellow→red countdown fill on strips</span>
+          </label>
+        </div>
         <div class="timer-display" id="cdDisplay" style="font-size:88px;line-height:1;margin-bottom:10px">3:00</div>
         <div class="timer-btns">
           <button class="btn-timer start" id="cdStartBtn" onclick="cdToggle()">&#9654; START</button>
@@ -583,12 +630,7 @@
           <button class="btn-timer start" id="swStartBtn" onclick="swToggle()" style="background:var(--green);border-color:var(--green)">&#9654; START</button>
           <button class="btn-timer reset" onclick="swReset()">&#8634; RESET</button>
         </div>
-      </div>
-
-      <!-- GAME TIMES -->
-      <div class="games-section">
-        <div class="section-label">GAME TIMES</div>
-        <div class="games-row" style="flex-wrap:wrap">
+        <div class="games-row" style="flex-wrap:wrap;margin-top:10px">
           <select id="gameSelect" class="games-select" style="flex:1;min-width:130px" onchange="renderLeaderboard()">
             <option value="">— select game —</option>
           </select>
@@ -600,6 +642,10 @@
           <input id="gtLabel" type="text" placeholder="Runner name…" class="games-input" style="flex:1" autocomplete="off">
           <button class="games-btn primary" onclick="gtRecord()">&#9203; RECORD</button>
         </div>
+      </div>
+
+      <!-- GAME TIMES -->
+      <div class="games-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;margin-bottom:4px">
           <span style="font-size:10px;letter-spacing:2px;color:var(--text-dim)">RANKINGS</span>
           <button id="lbSortBtn" onclick="lbToggleSort()" style="font-size:10px;letter-spacing:1px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text-dim)">&#9650; FASTEST FIRST</button>
@@ -687,11 +733,33 @@
         </div>
       </div>
 
-      <!-- POLE NODES TEST -->
+      <!-- POLE NODES — WLED PRESETS -->
       <div class="games-section">
-        <div class="section-label">POLE NODES — DIRECT TEST</div>
-        <div id="lightsNodeList">
+        <div class="section-label">POLE NODES</div>
+        <div id="lightsNodeList" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden">
           <div style="padding:14px 16px;color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;text-align:center">LOADING...</div>
+        </div>
+      </div>
+
+      <!-- DMX LOOKS -->
+      <div class="games-section">
+        <div class="section-label">DMX LOOKS</div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <span style="font-size:10px;letter-spacing:1px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap">FIXTURE TYPE</span>
+            <select id="dlk-type-sel" onchange="renderDmxLookEditor()" style="flex:1;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px">
+              <option value="">— select type —</option>
+            </select>
+          </div>
+          <div id="dlk-editor" style="display:none">
+            <div id="dlk-channels" style="margin-bottom:12px"></div>
+            <div style="display:flex;gap:8px;margin-bottom:14px">
+              <button onclick="testDmxLook()" class="games-btn" style="flex:1">⚡ TEST</button>
+              <button onclick="saveDmxLook()" class="games-btn" style="flex:1;border-color:var(--green);color:var(--green)">💾 SAVE LOOK</button>
+            </div>
+            <div id="dlk-saved"></div>
+          </div>
+          <div id="dlk-empty" style="color:var(--text-dim);font-size:10px;font-family:'Share Tech Mono',monospace;letter-spacing:2px">NO FIXTURE TYPES CONFIGURED IN ADMIN</div>
         </div>
       </div>
 
@@ -838,6 +906,7 @@ setInterval(updateClock,1000); updateClock();
 setInterval(batteryLoad, 10000);
 setInterval(() => { apLoadStatus(); apLoadClients(); }, 30000);
 loadUiHealth(); setInterval(loadUiHealth, 30000);
+loadWledTuneDevices();
 
 function showPage(id,tab) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -914,6 +983,9 @@ async function refreshUsbList() {
     }
     items.innerHTML = '';
     data.items.forEach(item => {
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'display:flex;flex-direction:column;gap:0';
+
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 10px';
       const icon = item.type === 'm3u' ? '🎵' : '📁';
@@ -923,8 +995,25 @@ async function refreshUsbList() {
           <div style="font-size:13px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(item.name)}</div>
           ${item.count ? `<div style="font-size:10px;color:var(--text-dim);letter-spacing:1px">${item.count} TRACKS</div>` : ''}
         </div>
-        <button onclick="startPlaylist('${escHtml(item.path).replace(/'/g,'&#39;')}')" style="height:34px;padding:0 14px;border-radius:6px;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ PLAY</button>`;
-      items.appendChild(row);
+        <button class="usb-play-folder" style="height:38px;padding:0 14px;border-radius:6px;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ PLAY</button>
+        ${item.type === 'dir' ? `<button class="usb-browse-btn" style="height:38px;padding:0 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2,var(--surface));color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap;flex-shrink:0">📂 BROWSE</button>` : ''}`;
+
+      const panel = document.createElement('div');
+      panel.className = 'usb-browse-panel';
+      panel.style.cssText = 'display:none;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;max-height:320px;overflow-y:auto';
+
+      const playFolderBtn = row.querySelector('.usb-play-folder');
+      playFolderBtn.onclick = () => startPlaylist(item.path);
+
+      if (item.type === 'dir') {
+        const browseBtn = row.querySelector('.usb-browse-btn');
+        browseBtn.onclick = () => usbToggleBrowse(item.path, browseBtn, panel, row);
+        row.style.borderRadius = '8px';
+      }
+
+      wrapper.appendChild(row);
+      wrapper.appendChild(panel);
+      items.appendChild(wrapper);
     });
   } catch(e) {
     if (label) label.textContent = 'USB SCAN ERROR';
@@ -934,6 +1023,74 @@ async function refreshUsbList() {
 function startPlaylist(path) {
   fetch('/api/playlist/play?path=' + encodeURIComponent(path) + '&shuffle=' + (_plShuffle ? '1' : '0')).catch(() => {});
   showAlert('▶ PLAYLIST STARTED', 1500);
+}
+
+function usbToggleBrowse(path, btn, panel, row) {
+  const open = panel.style.display !== 'none';
+  if (open) {
+    panel.style.display = 'none';
+    btn.textContent = '📂 BROWSE';
+    row.style.borderRadius = '8px';
+    return;
+  }
+  panel.style.display = 'block';
+  btn.textContent = '✕ CLOSE';
+  row.style.borderRadius = '8px 8px 0 0';
+  panel.innerHTML = '<div style="padding:14px;font-size:11px;letter-spacing:2px;color:var(--text-dim);text-align:center">LOADING…</div>';
+  fetch('/api/usb/files?path=' + encodeURIComponent(path))
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok || !data.files || !data.files.length) {
+        panel.innerHTML = '<div style="padding:14px;font-size:11px;letter-spacing:2px;color:var(--text-dim);text-align:center">NO AUDIO FILES FOUND</div>';
+        return;
+      }
+      panel.innerHTML = '';
+      data.files.forEach(f => {
+        const trackRow = document.createElement('div');
+        trackRow.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)';
+        const name = f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+        const sizeEl = f.size_mb ? `<span style="font-size:10px;color:var(--text-dim);flex-shrink:0">${f.size_mb}MB</span>` : '';
+        trackRow.innerHTML = `
+          <span style="font-size:13px;flex-shrink:0">♪</span>
+          <div style="flex:1;min-width:0;font-size:12px;font-weight:600;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(name)}</div>
+          ${sizeEl}
+          <button style="height:38px;width:44px;border-radius:6px;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber);font-size:15px;cursor:pointer;flex-shrink:0">▶</button>
+          <button style="height:38px;padding:0 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;flex-shrink:0">⬇ COPY</button>`;
+        trackRow.querySelectorAll('button')[0].onclick = () => usbPlayTrack(f.path);
+        trackRow.querySelectorAll('button')[1].onclick = (e) => usbCopyTrack(f.path, e.currentTarget);
+        panel.appendChild(trackRow);
+      });
+    })
+    .catch(() => {
+      panel.innerHTML = '<div style="padding:14px;font-size:11px;letter-spacing:2px;color:var(--text-dim);text-align:center">ERROR LOADING TRACKS</div>';
+    });
+}
+
+function usbPlayTrack(path) {
+  fetch('/api/usb/play', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path})})
+    .then(r => r.json())
+    .then(d => showAlert(d.ok ? '▶ PLAYING' : '✕ ' + (d.error || 'ERROR'), 1500))
+    .catch(() => showAlert('✕ ERROR', 1500));
+}
+
+function usbCopyTrack(path, btn) {
+  const orig = btn.textContent;
+  btn.textContent = '…';
+  btn.disabled = true;
+  fetch('/api/usb/import', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({src: path, dest: 'music'})})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        btn.textContent = '✓ COPIED';
+        btn.style.color = 'var(--green, #5f5)';
+      } else {
+        btn.textContent = orig;
+        btn.disabled = false;
+        showAlert('✕ ' + (d.error || 'COPY FAILED'), 2000);
+      }
+    })
+    .catch(() => { btn.textContent = orig; btn.disabled = false; });
 }
 
 
@@ -1231,6 +1388,47 @@ function updateBright(v) {
   fetch('/api/lights/brightness?v='+v).catch(()=>{});
 }
 
+// ── WLED LIVE TUNE ──────────────────────────────────────────────────────────
+let _wledTuneTimer = null;
+function loadWledTuneDevices() {
+  fetch('/api/config').then(r=>r.json()).then(cfg => {
+    const sel = document.getElementById('wledTuneDevice');
+    if (!sel) return;
+    const devices = [
+      ...(cfg.wled_devices||[]).filter(d=>d.ip).map(d=>({id:d.id, name:d.name||d.id})),
+      ...(cfg.pole_nodes||[]).filter(n=>n.ip).map(n=>({id:n.id, name:n.name||n.id}))
+    ];
+    sel.innerHTML = '<option value="">— select device —</option>' +
+      devices.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  }).catch(()=>{});
+}
+function wledTuneDeviceChange() {
+  const id = document.getElementById('wledTuneDevice').value;
+  const panel = document.getElementById('wledTuneSliders');
+  if (!id) { panel.style.display='none'; return; }
+  panel.style.display='block';
+  fetch(`/api/wled/state/${encodeURIComponent(id)}`).then(r=>r.json()).then(d=>{
+    if (!d.ok) return;
+    ['sx','ix','c1','c2','c3'].forEach(p => {
+      const sl = document.getElementById('wts_'+p);
+      const vl = document.getElementById('wtv_'+p);
+      if (sl) sl.value = d[p];
+      if (vl) vl.textContent = d[p];
+    });
+  }).catch(()=>{});
+}
+function wledTuneInput(param, value) {
+  clearTimeout(_wledTuneTimer);
+  _wledTuneTimer = setTimeout(() => {
+    const id = document.getElementById('wledTuneDevice').value;
+    if (!id) return;
+    fetch('/api/wled/tune', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({device_id: id, [param]: parseInt(value)})
+    }).catch(()=>{});
+  }, 80);
+}
+
 let timerRunning=false, timerSecs=180, timerInterval=null, timerDuration=180, timerPresetName='';
 let timerOnDisplay=false, cdOnDisplay=false;
 function _setTimerOnDisplay(val) {
@@ -1244,36 +1442,17 @@ function _setCdOnDisplay(val) {
   if(b) b.textContent = val ? '✕ HIDE' : '■ SHOW';
 }
 function toggleTimer() {
+  // Update button text optimistically; authoritative state arrives via timer_state WS event
   if(!timerRunning) {
-    timerRunning=true;
     document.getElementById('timerStartBtn').textContent='⏸ PAUSE';
     document.getElementById('timerStartBtn').classList.add('running');
-    timerInterval=setInterval(timerTick,1000);
     fetch('/api/timer/start').catch(()=>{});
   } else {
-    clearInterval(timerInterval); timerRunning=false;
     document.getElementById('timerStartBtn').textContent='▶ START';
     document.getElementById('timerStartBtn').classList.remove('running');
     fetch('/api/timer/pause').catch(()=>{});
   }
-}
-function timerTick() {
-  timerSecs--;
-  renderTimer();
-  if(timerSecs===15) {
-    document.getElementById('timerDisplay').classList.add('warning');
-    fetch('/api/sfx/play?name=warning').catch(()=>{});
-    showAlert('⚠ 15 SECONDS REMAINING!',3000);
-  }
-  if(timerSecs<=0) {
-    clearInterval(timerInterval); timerRunning=false; timerSecs=0;
-    document.getElementById('timerDisplay').classList.remove('warning');
-    document.getElementById('timerDisplay').classList.add('expired');
-    document.getElementById('timerStartBtn').textContent='▶ START';
-    document.getElementById('timerStartBtn').classList.remove('running');
-    fetch('/api/sfx/play?name=airhorn').catch(()=>{});
-    showAlert('🚨 TIME IS UP — AIRHORN FIRED!',4000);
-  }
+  // timerRunning will be confirmed/corrected by the server's timer_state broadcast
 }
 function renderTimer() {
   const m=Math.floor(timerSecs/60), s=timerSecs%60;
@@ -1322,7 +1501,7 @@ async function consoleSavePreset() {
   } catch(e) {}
 }
 function resetTimer() {
-  clearInterval(timerInterval); timerRunning=false; timerSecs=timerDuration; renderTimer();
+  timerRunning=false; timerSecs=timerDuration; renderTimer();
   document.getElementById('timerDisplay').className='timer-display';
   document.getElementById('timerStartBtn').textContent='▶ START';
   document.getElementById('timerStartBtn').classList.remove('running');
@@ -1344,6 +1523,42 @@ function timerHideToggle() {
   } else {
     showTimer();
   }
+}
+
+// ── GAME ENTRIES GRID ──────────────────────────────────────────────────────────
+async function buildGameEntriesGrid() {
+  let entries = [];
+  try { const r = await fetch('/api/game-entries'); entries = await r.json(); } catch(e) {}
+  const section = document.getElementById('ge-section');
+  const grid    = document.getElementById('geGrid');
+  if (!entries.length) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = '';
+  grid.innerHTML = '';
+  entries.forEach(e => {
+    const btn = document.createElement('button');
+    btn.className = 'walkup-btn';
+    btn.id = 'ge-' + e.id;
+    btn.style.setProperty('--glow-color', '#5A4FCF55');
+    btn.style.borderColor = '#5A4FCF55';
+    const song = (e.assets || {}).walkup_music || (e.assets || {}).walkup_music_lib || '';
+    btn.innerHTML = `
+      <div class="walkup-circle" style="background:#5A4FCF22;color:#8B7FE8;border:1px solid #5A4FCF66">${escHtml(e.emoji || '🎲')}</div>
+      <div class="walkup-name" style="color:#8B7FE8">${escHtml(e.name)}</div>
+      <div class="walkup-song">${escHtml(song)}</div>`;
+    btn.onclick = () => fireGameEntry(e);
+    grid.appendChild(btn);
+  });
+}
+
+function fireGameEntry(e) {
+  fetch('/api/game-entry/fire?id=' + e.id).catch(()=>{});
+  document.querySelectorAll('.walkup-btn').forEach(b => b.classList.remove('playing'));
+  const btn = document.getElementById('ge-' + e.id);
+  if (btn) btn.classList.add('playing');
+  document.getElementById('trackTitle').textContent = e.name;
+  const assets = e.assets || {};
+  document.getElementById('trackSub').textContent = assets.walkup_music || assets.walkup_music_lib || '—';
+  _startProgress(((e.walkup || {}).duration || 30) * 1000);
 }
 
 // ── GAMES TAB ─────────────────────────────────────────────────────────────────
@@ -1413,6 +1628,7 @@ function sfInlineAction(type) {
 }
 
 async function loadGamesTab() {
+  await buildGameEntriesGrid();
   await loadCdAudioOptions();
   await loadCdDisplayOptions();
   await loadGamesList();
@@ -1433,6 +1649,7 @@ async function loadGamesTab() {
     if (t.end_display)     { const s=document.getElementById('cdEndDisplay'); if(s) s.value=t.end_display; }
     document.getElementById('cdShowEndAnim').checked  = t.show_end_display !== false;
     const cdLpEl = document.getElementById('cdStartLoop'); if (cdLpEl) cdLpEl.checked = t.start_sound_loop !== false;
+    const cdLedEl = document.getElementById('cdCountdownLeds'); if (cdLedEl) cdLedEl.checked = !!t.countdown_leds;
   } catch(e) {}
   cdDirty = false;
   document.getElementById('cdSetBtn').style.borderColor='';
@@ -1506,6 +1723,7 @@ function cdSave() {
       end_display: document.getElementById('cdEndDisplay')?.value || '',
       start_sound_loop: document.getElementById('cdStartLoop')?.checked ?? true,
       show_end_display: document.getElementById('cdShowEndAnim') ? document.getElementById('cdShowEndAnim').checked : true,
+      countdown_leds: document.getElementById('cdCountdownLeds')?.checked ?? false,
     })
   }).catch(()=>{});
 }
@@ -1516,6 +1734,9 @@ function cdToggle() {
     cdRunning=true;
     document.getElementById('cdStartBtn').textContent='⏸ PAUSE';
     document.getElementById('cdStartBtn').classList.add('running');
+    // Clear expired red color when restarting
+    const cdDisp = document.getElementById('cdDisplay');
+    if (cdDisp) cdDisp.style.color = '';
     cdInterval=setInterval(cdTick,1000);
     fetch('/api/countdown/start').catch(()=>{});
   } else {
@@ -1722,7 +1943,8 @@ async function gtDelete() {
 function setScene(name,btn) {
   document.querySelectorAll('.scene-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  fetch('/api/lights/scene?name='+name).catch(()=>{});
+  fetch('/api/lights/scene', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name})}).catch(()=>{});
 }
 
 let alertTimeout;
@@ -1781,12 +2003,14 @@ let showStep = null;  // index of last-pressed show step
 
 let _sfgMacroCache = null;
 async function buildShowFlowGrid() {
-  let flow = [];
-  try { const r = await fetch('/api/show_flow'); flow = await r.json(); } catch(e) {}
-  if (!_sfgMacroCache) {
-    try { const r = await fetch('/api/macros'); _sfgMacroCache = await r.json(); } catch(e) { _sfgMacroCache = []; }
-  }
-  const macros = _sfgMacroCache;
+  let flow = [], macros = [];
+  try {
+    [flow, macros] = await Promise.all([
+      fetch('/api/show_flow').then(r => r.json()),
+      fetch('/api/macros').then(r => r.json())
+    ]);
+    _sfgMacroCache = macros; // keep in sync for other callers
+  } catch(e) { macros = _sfgMacroCache || []; }
   const macroMap = {};
   macros.forEach(m => { macroMap[m.id] = m; });
 
@@ -2194,44 +2418,16 @@ function loadLightsTab() {
   loadPoleNodesForLights();
 }
 
-// ── POLE NODES DIRECT TEST (Lights tab) ──────────────────────────────────────
-let _lightsNodes    = [];
-let _lightsProfiles = {};
-
-const _LIGHTS_DMX_DEFS = {
-  pinspot: [
-    {name:'MODE',   kind:'select', opts:[[255,'Manual'],[187,'Strobe'],[72,'Auto Bri'],[0,'Off']]},
-    {name:'RED',    kind:'num'}, {name:'GREEN', kind:'num'}, {name:'BLUE',  kind:'num'},
-    {name:'WHITE',  kind:'num'},
-    {name:'EFFECT', kind:'select', opts:[[0,'Manual'],[10,'Chase'],[100,'Pulse'],[200,'Sound']]},
-  ],
-  wash: [
-    {name:'DIMMER', kind:'num'}, {name:'RED',   kind:'num'}, {name:'GREEN', kind:'num'},
-    {name:'BLUE',   kind:'num'}, {name:'WHITE', kind:'num'},
-    {name:'STROBE', kind:'num'}, {name:'MODE',  kind:'select', opts:[[0,'Manual'],[51,'Auto 1'],[101,'Auto 2'],[151,'Auto 3']]},
-    {name:'SPEED',  kind:'num'},
-  ],
-};
-
-function _lightsChDefs(fix) {
-  const profile = _lightsProfiles[(fix.id||'').toLowerCase()] || _lightsProfiles[fix.id];
-  if (profile && profile.length) {
-    return profile.map(ch => ({
-      name: ch.name||'CH',
-      kind: (ch.presets && ch.presets.length) ? 'select' : 'num',
-      opts: (ch.presets||[]).map(p => [p.val, p.label]),
-    }));
-  }
-  const id = (fix.id||'').toLowerCase();
-  if (id.includes('pinspot')||id.includes('spot')) return _LIGHTS_DMX_DEFS.pinspot;
-  if (id.includes('wash')||id.includes('bar'))     return _LIGHTS_DMX_DEFS.wash;
-  return Array.from({length: fix.channels||1}, (_,i) => ({name:`CH${i+1}`, kind:'num'}));
-}
+// ── POLE NODES / DMX LOOKS (Lights tab) ──────────────────────────────────────
+let _lightsNodes  = [];
+let _fixtureTypes = {};
+let _dmxLookVals  = {};
 
 async function loadPoleNodesForLights() {
-  try { _lightsNodes    = await fetch('/api/admin/pole_nodes').then(r=>r.json()); } catch(e) { _lightsNodes = []; }
-  try { _lightsProfiles = await fetch('/api/admin/fixture_profiles').then(r=>r.json()); } catch(e) { _lightsProfiles = {}; }
+  try { _lightsNodes  = await fetch('/api/admin/pole_nodes').then(r=>r.json()); } catch(e) { _lightsNodes = []; }
+  try { _fixtureTypes = await fetch('/api/admin/fixture_types').then(r=>r.json()); } catch(e) { _fixtureTypes = {}; }
   renderLightsNodes();
+  renderDmxLookTypesel();
 }
 
 function renderLightsNodes() {
@@ -2241,88 +2437,218 @@ function renderLightsNodes() {
     c.innerHTML = '<div style="padding:14px 16px;color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;letter-spacing:2px;text-align:center">NO POLE NODES CONFIGURED</div>';
     return;
   }
-  c.innerHTML = _lightsNodes.map((node, ni) => {
-    const fixHtml = (node.fixtures||[]).map(fix => {
-      const defs = _lightsChDefs(fix);
-      const inputs = defs.map((def, ci) => {
-        if (def.kind === 'select') {
-          const opts = def.opts.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
-          return `<div style="flex:1;min-width:88px">
-            <div style="font-size:8px;letter-spacing:1px;color:var(--text-dim);margin-bottom:2px">${def.name}</div>
-            <select class="ltest-ch" style="width:100%;font-size:10px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px">${opts}</select>
-          </div>`;
-        }
-        return `<div style="flex:1;min-width:72px">
-          <div style="font-size:8px;letter-spacing:1px;color:var(--text-dim);margin-bottom:2px">${def.name}</div>
-          <input type="number" value="0" min="0" max="255" class="ltest-ch" style="width:100%;font-size:10px;font-family:'Share Tech Mono',monospace;padding:4px 5px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:4px">
-        </div>`;
-      }).join('');
-      return `<div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px" data-ltest-fix="${fix.id}">
-        <div style="font-size:10px;letter-spacing:1px;font-weight:700;color:var(--text);margin-bottom:6px">${fix.name||fix.id}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">${inputs}</div>
-      </div>`;
-    }).join('');
+  c.innerHTML = _lightsNodes.map(node => `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)" data-ltest-node="${node.id}">
+      <div style="font-size:11px;font-family:'Share Tech Mono',monospace;font-weight:700;color:var(--amber);letter-spacing:2px;min-width:64px">${escHtml(node.name||node.id)}</div>
+      <select class="ltest-wled-preset" style="flex:1;font-size:10px;font-family:'Share Tech Mono',monospace;padding:4px 5px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:4px">
+        <option value="">— loading… —</option>
+      </select>
+      <button onclick="refreshLtestPresets(this,'${node.id}')" title="Reload presets" style="font-size:11px;padding:4px 7px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;line-height:1">↺</button>
+      <button onclick="fireWledPreset(this,'${node.id}','${node.ip||''}')" style="font-size:10px;padding:5px 10px;border-radius:4px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer;white-space:nowrap">▶ FIRE</button>
+    </div>`).join('');
+  _lightsNodes.forEach(node => {
+    if (!node.ip) return;
+    const row = c.querySelector(`[data-ltest-node="${node.id}"]`);
+    if (row) refreshLtestPresets(row.querySelector('button[title="Reload presets"]'), node.id);
+  });
+}
 
-    return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px" data-ltest-node="${node.id}">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-        <div style="font-size:12px;font-family:'Share Tech Mono',monospace;font-weight:700;color:var(--amber);letter-spacing:2px;flex:1">${node.name||node.id}</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:9px;letter-spacing:1px;color:var(--text-dim)">WLED PRESET</span>
-          <input type="number" class="ltest-wled-preset" placeholder="—" min="1" max="250" style="width:56px;font-size:11px;font-family:'Share Tech Mono',monospace;padding:4px 5px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:4px;text-align:center">
-          <button onclick="fireWledPreset(this,'${node.id}','${node.ip||''}')" style="font-size:10px;padding:5px 10px;border-radius:4px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">▶ FIRE</button>
-        </div>
+// ── DMX LOOK EDITOR ───────────────────────────────────────────────────────────
+function renderDmxLookTypesel() {
+  const sel   = document.getElementById('dlk-type-sel');
+  const empty = document.getElementById('dlk-empty');
+  if (!sel) return;
+  const keys = Object.keys(_fixtureTypes);
+  if (!keys.length) {
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— select type —</option>' +
+    keys.map(t => `<option value="${escHtml(t)}"${t===prev?' selected':''}>${escHtml(t)}</option>`).join('');
+  if (prev && _fixtureTypes[prev]) renderDmxLookEditor();
+}
+
+function renderDmxLookEditor() {
+  const typeName = document.getElementById('dlk-type-sel').value;
+  const editor   = document.getElementById('dlk-editor');
+  if (!typeName || !_fixtureTypes[typeName]) { editor.style.display = 'none'; return; }
+  editor.style.display = 'block';
+  const chDefs = _fixtureTypes[typeName].ch_defs || [];
+  if (!_dmxLookVals[typeName]) _dmxLookVals[typeName] = chDefs.map(() => 0);
+  const vals = _dmxLookVals[typeName];
+  document.getElementById('dlk-channels').innerHTML = chDefs.map((ch, ci) => {
+    const v = vals[ci] ?? 0;
+    const presetBtns = (ch.presets || []).map(p =>
+      `<button onclick="setDmxLookCh(${ci},${p.val})" style="font-size:8px;padding:2px 7px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;letter-spacing:0">${escHtml(p.label)}</button>`
+    ).join('');
+    return `<div style="margin-bottom:10px" data-dlk-ch="${ci}">
+      <div style="font-size:9px;letter-spacing:1px;color:var(--text-dim);margin-bottom:4px;font-family:'Share Tech Mono',monospace">${escHtml(ch.name||`CH${ci+1}`)}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="range" min="0" max="255" value="${v}" class="dlk-slider"
+          oninput="syncDmxLookCh(this,${ci})" style="flex:1;accent-color:var(--amber)">
+        <input type="number" min="0" max="255" value="${v}" class="dlk-num"
+          oninput="syncDmxLookChNum(this,${ci})" style="width:52px;font-size:11px;font-family:'Share Tech Mono',monospace;padding:3px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:4px">
       </div>
-      ${fixHtml}
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button onclick="fireLtestDmx(this,'${node.id}')" style="flex:1;font-size:11px;padding:8px;border-radius:4px;border:1px solid var(--green,#4CAF50);background:transparent;color:var(--green,#4CAF50);font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">⚡ FIRE DMX</button>
-        <button onclick="clearLtestDmx(this,'${node.id}')" style="flex:0 0 auto;font-size:11px;padding:8px 14px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">✕ ALL OFF</button>
-      </div>
+      ${presetBtns ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px">${presetBtns}</div>` : ''}
     </div>`;
   }).join('');
+  renderDmxLookSaved(typeName);
+}
+
+function renderDmxLookSaved(typeName) {
+  const div   = document.getElementById('dlk-saved');
+  if (!div) return;
+  const looks = _fixtureTypes[typeName]?.looks || [];
+  if (!looks.length) {
+    div.innerHTML = '<div style="color:var(--text-dim);font-size:10px;font-family:\'Share Tech Mono\',monospace;letter-spacing:2px">NO LOOKS SAVED YET</div>';
+    return;
+  }
+  div.innerHTML = `<div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin-bottom:6px;font-family:'Share Tech Mono',monospace">SAVED LOOKS</div>` +
+    looks.map((lk, li) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="font-size:11px;font-family:'Share Tech Mono',monospace;flex:1;letter-spacing:1px">${escHtml(lk.name)}</span>
+        <button onclick="loadDmxLook(${escHtml(JSON.stringify(typeName))},${li})" class="games-btn" style="font-size:9px;padding:2px 8px">↓ LOAD</button>
+        <button onclick="deleteDmxLook(${escHtml(JSON.stringify(typeName))},${li})" class="games-btn danger" style="font-size:9px;padding:2px 8px">✕</button>
+      </div>`).join('');
+}
+
+function syncDmxLookCh(slider, ci) {
+  slider.closest('[data-dlk-ch]').querySelector('.dlk-num').value = slider.value;
+  _storeDmxLookVal(ci, parseInt(slider.value));
+}
+
+function syncDmxLookChNum(input, ci) {
+  const v = Math.min(255, Math.max(0, parseInt(input.value) || 0));
+  input.closest('[data-dlk-ch]').querySelector('.dlk-slider').value = v;
+  _storeDmxLookVal(ci, v);
+}
+
+function setDmxLookCh(ci, val) {
+  const row = document.querySelector(`[data-dlk-ch="${ci}"]`);
+  if (!row) return;
+  row.querySelector('.dlk-slider').value = val;
+  row.querySelector('.dlk-num').value    = val;
+  _storeDmxLookVal(ci, val);
+}
+
+function _storeDmxLookVal(ci, val) {
+  const typeName = document.getElementById('dlk-type-sel').value;
+  if (!typeName) return;
+  if (!_dmxLookVals[typeName]) _dmxLookVals[typeName] = [];
+  _dmxLookVals[typeName][ci] = val;
+}
+
+function loadDmxLook(typeName, li) {
+  const look = _fixtureTypes[typeName]?.looks?.[li];
+  if (!look) return;
+  _dmxLookVals[typeName] = [...look.channels];
+  document.getElementById('dlk-type-sel').value = typeName;
+  renderDmxLookEditor();
+  uiToast(`Loaded "${look.name}"`);
+}
+
+async function deleteDmxLook(typeName, li) {
+  const look = _fixtureTypes[typeName]?.looks?.[li];
+  if (!look || !confirm(`Delete look "${look.name}"?`)) return;
+  _fixtureTypes[typeName].looks.splice(li, 1);
+  await _saveFixtureTypesQuiet();
+  renderDmxLookSaved(typeName);
+  uiToast('Look deleted');
+}
+
+async function saveDmxLook() {
+  const typeName = document.getElementById('dlk-type-sel').value;
+  if (!typeName) { uiToast('Select a fixture type first'); return; }
+  const name = prompt('Look name (e.g. "Red Hot", "Warm White"):');
+  if (!name || !name.trim()) return;
+  const chDefs = _fixtureTypes[typeName]?.ch_defs || [];
+  const vals   = _dmxLookVals[typeName] || chDefs.map(() => 0);
+  if (!_fixtureTypes[typeName].looks) _fixtureTypes[typeName].looks = [];
+  _fixtureTypes[typeName].looks.push({
+    id:       name.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,''),
+    name:     name.trim(),
+    channels: [...vals],
+  });
+  await _saveFixtureTypesQuiet();
+  renderDmxLookSaved(typeName);
+  uiToast(`Saved "${name.trim()}"`);
+}
+
+async function testDmxLook() {
+  const typeName = document.getElementById('dlk-type-sel').value;
+  if (!typeName) return;
+  const chDefs = _fixtureTypes[typeName]?.ch_defs || [];
+  const vals   = _dmxLookVals[typeName] || chDefs.map(() => 0);
+  let fired = 0;
+  for (const node of _lightsNodes) {
+    if (!node.fixtures || !node.ip) continue;
+    const fixtures = {};
+    for (const fix of node.fixtures) {
+      if ((fix.type || '') === typeName) fixtures[fix.id] = vals;
+    }
+    if (!Object.keys(fixtures).length) continue;
+    try {
+      await fetch('/api/admin/pole_dmx_test', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({node_id: node.id, fixtures})
+      });
+      fired++;
+    } catch(e) {}
+  }
+  uiToast(fired ? `⚡ Fired to ${fired} node${fired>1?'s':''}` : 'No nodes match this fixture type');
+}
+
+async function _saveFixtureTypesQuiet() {
+  try {
+    const r = await fetch('/api/admin/fixture_types', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(_fixtureTypes)
+    });
+    return (await r.json()).ok;
+  } catch(e) { uiToast('Save failed'); return false; }
+}
+
+async function refreshLtestPresets(btn, nodeId) {
+  if (!nodeId) return;
+  const card = btn.closest('[data-ltest-node]');
+  const sel  = card.querySelector('.ltest-wled-preset');
+  const prev = sel.value;
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    const data = await fetch(`/api/admin/wled_presets/${nodeId}`).then(r => r.json());
+    sel.innerHTML = '<option value="">— select preset —</option>';
+    let count = 0;
+    Object.entries(data).sort(([a],[b]) => +a - +b).forEach(([id, p]) => {
+      if (id === '0' || !p || !p.n) return;
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = `${p.n}`;
+      sel.appendChild(opt);
+      count++;
+    });
+    if (prev) sel.value = prev;
+    if (!count) sel.innerHTML = '<option value="">— no presets saved —</option>';
+  } catch(e) {
+    sel.innerHTML = '<option value="">— unreachable —</option>';
+  }
+  btn.textContent = '↺'; btn.disabled = false;
 }
 
 async function fireWledPreset(btn, nodeId, nodeIp) {
   const card   = btn.closest('[data-ltest-node]');
   const preset = parseInt(card.querySelector('.ltest-wled-preset').value);
-  if (!nodeIp || isNaN(preset) || preset < 1) { uiToast('Enter a preset number first'); return; }
+  if (isNaN(preset) || preset < 1) { uiToast('Select a preset first'); return; }
   try {
-    const r = await fetch(`http://${nodeIp}/json`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ps: preset})});
-    uiToast(r.ok ? `▶ Preset ${preset} fired` : 'Error');
-  } catch(e) { uiToast('Node unreachable'); }
+    const r = await fetch(`/api/lights/node/${encodeURIComponent(nodeId)}/fire_preset`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({preset})
+    });
+    uiToast((await r.json()).ok ? `▶ Preset ${preset} fired` : 'Error');
+  } catch(e) { uiToast('Error'); }
 }
 
-async function fireLtestDmx(btn, nodeId) {
-  const card    = btn.closest('[data-ltest-node]');
-  const fixtures = {};
-  card.querySelectorAll('[data-ltest-fix]').forEach(div => {
-    fixtures[div.dataset.ltestFix] = [...div.querySelectorAll('.ltest-ch')]
-      .map(i => Math.min(255, Math.max(0, parseInt(i.value)||0)));
-  });
-  try {
-    const r = await fetch('/api/admin/pole_dmx_test', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({node_id: nodeId, fixtures})
-    });
-    const d = await r.json();
-    uiToast(d.ok ? '⚡ DMX fired' : (d.error||'Error'));
-  } catch(e) { uiToast('Server unreachable'); }
-}
-
-async function clearLtestDmx(btn, nodeId) {
-  const card    = btn.closest('[data-ltest-node]');
-  card.querySelectorAll('.ltest-ch').forEach(i => { i.value = 0; });
-  const fixtures = {};
-  card.querySelectorAll('[data-ltest-fix]').forEach(div => {
-    fixtures[div.dataset.ltestFix] = [...div.querySelectorAll('.ltest-ch')].map(()=>0);
-  });
-  try {
-    await fetch('/api/admin/pole_dmx_test', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({node_id: nodeId, fixtures})
-    });
-    uiToast('All off');
-  } catch(e) { uiToast('Server unreachable'); }
-}
 
 function uiToast(msg) {
   let el = document.getElementById('ui-toast');
@@ -2347,10 +2673,12 @@ Promise.all([
 
 // ── WEBSOCKET SYNC ─────────────────────────────────────────────────────────
 // Keeps the UI in sync when Stream Deck (or anything else) calls the API remotely.
+let _wsBackoff = 1000;
 function initWebSocket() {
   const ws = new WebSocket('ws://' + location.host + '/ws');
 
   ws.onopen = function() {
+    _wsBackoff = 1000; // reset on successful connect
     fetch('/api/state').then(r => r.json()).then(s => {
       if (s.playlist) updatePlaylistStatus(s.playlist);
       if (s.scene) {
@@ -2408,12 +2736,9 @@ function initWebSocket() {
         if (data.seconds_remaining !== undefined) timerSecs = data.seconds_remaining;
         if (data.duration !== undefined) timerDuration = data.duration;
         if (timerRunning && !wasRunning) {
-          clearInterval(timerInterval);
-          timerInterval = setInterval(timerTick, 1000);
           document.getElementById('timerStartBtn').textContent = '⏸ PAUSE';
           document.getElementById('timerStartBtn').classList.add('running');
         } else if (!timerRunning && wasRunning) {
-          clearInterval(timerInterval);
           document.getElementById('timerStartBtn').textContent = '▶ START';
           document.getElementById('timerStartBtn').classList.remove('running');
         }
@@ -2449,10 +2774,9 @@ function initWebSocket() {
           else if (!cdRunning && wasRunning) { clearInterval(cdInterval); cdBtn.textContent='▶ START'; cdBtn.classList.remove('running'); }
         }
         if (data.expired) { const d=document.getElementById('cdDisplay'); if(d) d.style.color='var(--red)'; }
-        // mirror countdown in left timer pane
-        if (data.seconds_remaining !== undefined) {
+        // Mirror countdown in left timer pane only when skit timer is idle
+        if (data.seconds_remaining !== undefined && !timerRunning) {
           timerSecs = data.seconds_remaining;
-          timerRunning = !!data.running;
           renderTimer();
         }
         if (cdRunning && !wasRunning) {
@@ -2718,7 +3042,8 @@ function initWebSocket() {
   };
 
   ws.onclose = function() {
-    setTimeout(initWebSocket, 3000);  // auto-reconnect
+    setTimeout(initWebSocket, _wsBackoff);
+    _wsBackoff = Math.min(_wsBackoff * 2, 30000); // cap at 30 s
   };
   ws.onerror = function() { ws.close(); };
 }
@@ -3215,12 +3540,14 @@ function wifiLoadSaved() {
       el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:14px;text-align:center;letter-spacing:2px">NO SAVED NETWORKS</div>';
       return;
     }
-    el.innerHTML = d.saved.map(n =>
-      `<div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">
+    el.innerHTML = d.saved.map(n => {
+      const _sn = JSON.stringify(n.ssid).replace(/"/g, '&quot;');
+      const _cn = JSON.stringify(n.name).replace(/"/g, '&quot;');
+      return `<div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" onclick="wifiConnectSaved(${_cn},${_sn})">
         <span style="flex:1;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text)">${n.ssid}</span>
-        <button onclick="wifiForget(${JSON.stringify(n.name)})" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text-dim)">FORGET</button>
-      </div>`
-    ).join('');
+        <button onclick="event.stopPropagation();wifiForget(${_cn})" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text-dim)">FORGET</button>
+      </div>`;
+    }).join('');
   });
 }
 
@@ -3239,8 +3566,9 @@ function wifiScan() {
       const bars   = n.signal > 75 ? '▂▄▆█' : n.signal > 50 ? '▂▄▆_' : n.signal > 25 ? '▂▄__' : '▂___';
       const lock   = (n.security && n.security !== '--') ? '🔒' : '🔓';
       const border = n.connected ? 'border-left:3px solid var(--amber);' : '';
+      const _ss = JSON.stringify(n.ssid).replace(/"/g, '&quot;');
       return `<div style="${border}display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);gap:10px;cursor:pointer"
-                   onclick="wifiModalOpen(${JSON.stringify(n.ssid)},${JSON.stringify(n.security !== '--')})">
+                   onclick="wifiModalOpen(${_ss},${n.security !== '--'})">
         <span style="font-size:16px">${lock}</span>
         <span style="flex:1;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text)">${n.ssid}</span>
         <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim)">${bars}</span>
@@ -3282,6 +3610,17 @@ function wifiDoConnect() {
       msg.style.color = '#e74c3c';
     }
   }).catch(()=>{ msg.textContent = 'REQUEST FAILED'; msg.style.color = '#e74c3c'; });
+}
+
+function wifiConnectSaved(connName, ssid) {
+  showAlert('CONNECTING TO ' + ssid + '...', 3000);
+  fetch('/api/wifi/connect', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ssid, conn_name: connName})
+  }).then(r=>r.json()).then(d=>{
+    if (d.ok) { showAlert('CONNECTED TO ' + ssid, 2000); wifiLoadStatus(); }
+    else showAlert('CONNECT FAILED: ' + (d.error || ''), 3000);
+  }).catch(()=>showAlert('CONNECT FAILED', 2000));
 }
 
 function wifiForget(name) {

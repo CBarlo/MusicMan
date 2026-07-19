@@ -333,6 +333,30 @@ const wuName       = document.getElementById('wu-name');
 const wuNamebar    = document.getElementById('wu-namebar');
 const wuFrameHold  = document.getElementById('wu-frame-hold');
 
+// ── Show Flow video preloader ──────────────────────────────────────────────
+// Keeps a hidden <video> per URL so files are in OS page cache before walkup fires.
+const _preloadPool = {};
+function preloadAssets(urls) {
+  // Start loading any new URLs
+  (urls || []).forEach(url => {
+    if (_preloadPool[url]) return;
+    const v = document.createElement('video');
+    v.muted = true; v.preload = 'auto';
+    v.src = url; v.load();
+    _preloadPool[url] = v;
+  });
+  // Release URLs no longer in the list
+  const keep = new Set(urls || []);
+  Object.keys(_preloadPool).forEach(url => {
+    if (!keep.has(url)) {
+      _preloadPool[url].src = '';
+      delete _preloadPool[url];
+    }
+  });
+}
+fetch('/api/preload_assets').then(r => r.json()).then(d => preloadAssets(d.urls)).catch(() => {});
+// ──────────────────────────────────────────────────────────────────────────
+
 function _resetTitleVideo() {
   const v = document.getElementById('title-video');
   v.oncanplay = null; v.pause(); v.src = ''; v.style.opacity = '0';
@@ -418,8 +442,9 @@ function showTitleVideo(data) {
   titleVideo.loop    = loopVideo;
   titleVideo.onended = holdFrame ? () => { titleVideo.pause(); } : null;
   titleVideo.style.opacity = '0';
+  const videoUrlBusted = videoUrl + '?t=' + Date.now();
   if (titleVideo.src !== location.origin + videoUrl) {
-    titleVideo.src = videoUrl;
+    titleVideo.src = videoUrlBusted;
     titleVideo.load();
   }
   titleVideo.oncanplay = () => {
@@ -451,7 +476,7 @@ function showWalkup(data) {
   const logoFile  = data.logo            || '';
   const logoUrl  = data.logo_url  || '';
   const id       = data.id        || '';
-  const itemType = data.type === 'role' ? 'roles' : 'circles';
+  const itemType = data.type === 'role' ? 'roles' : data.type === 'game_entry' ? 'game_entries' : 'circles';
 
   // Background wash
   wuBg.style.background = `radial-gradient(ellipse at 50% 30%, ${hexOpacity(color, 0.18)} 0%, #050505 70%)`;
@@ -497,7 +522,7 @@ function showWalkup(data) {
       wuFrameHold.getContext('2d').drawImage(wuVideo, 0, 0, wuFrameHold.width, wuFrameHold.height);
       wuFrameHold.style.display = 'block';
     }
-    const animUrl = `/assets/${itemType}/${id}/${animFile}`;
+    const animUrl = `/assets/${itemType}/${id}/${animFile}?t=${Date.now()}`;
     wuVideo.loop = true;
     wuVideo.onerror   = () => { wuFrameHold.style.display = 'none'; wuVideo.style.display = 'none'; _showLogo(); };
     wuVideo.oncanplay = () => {
@@ -511,7 +536,7 @@ function showWalkup(data) {
   }
 
   if (introFile) {
-    const introUrl = `/assets/${itemType}/${id}/${introFile}`;
+    const introUrl = `/assets/${itemType}/${id}/${introFile}?t=${Date.now()}`;
     wuVideo.loop    = false;
     wuVideo.onerror = () => { wuVideo.style.display = 'none'; _startMainAnim(); };
     wuVideo.oncanplay = () => {
@@ -792,6 +817,7 @@ function connectWS() {
   const ws = new WebSocket('ws://' + location.host + '/ws');
 
   ws.onopen = () => {
+    ws.send(JSON.stringify({event: 'page_ready', url: '/display'}));
     if (_wsFirstConnect) {
       // First connect: load standby config (handles Chromium beating musicman to start)
       _wsFirstConnect = false;
@@ -827,7 +853,8 @@ function connectWS() {
       const msg  = JSON.parse(evt.data);
       const data = msg.data || {};
 
-      if      (msg.event === 'display_walkup')    { hideChronoOverlay(); hideViz(); showWalkup(data); }
+      if      (msg.event === 'preload_assets')    { preloadAssets(data.urls); }
+      else if (msg.event === 'display_walkup')    { hideChronoOverlay(); hideViz(); showWalkup(data); }
       else if (msg.event === 'display_step')      { hideChronoOverlay(); hideViz(); showStep(data); }
       else if (msg.event === 'display_animation') { hideChronoOverlay(); hideViz(); showTitleVideo(data); }
       else if (msg.event === 'display_clear')     { hideChronoOverlay(); hideViz(); blackout(); }
@@ -1365,7 +1392,7 @@ function _crowdReceive(data) {
 const _climaxVideo = document.getElementById('climax-fullscreen-video');
 
 function _overlayPlay(data) {
-  const src = data.src ? '/assets/display/' + data.src : '';
+  const src = data.src ? '/assets/display/' + data.src + '?t=' + Date.now() : '';
   if (!src) { _overlayHide(); return; }
   if (data.fullscreen) {
     _overlayHide();         // kill any looping text overlay immediately

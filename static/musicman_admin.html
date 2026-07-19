@@ -204,6 +204,24 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
 .scene-card-name { font-size:13px; font-weight:800; letter-spacing:1px; }
 .scene-card-desc { font-size:10px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
+/* DMX SCENE BOARD */
+.dmx-fixture-card { border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:10px; background:var(--bg3); }
+.dmx-fixture-hdr  { display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+.dmx-fixture-name { font-size:12px; font-family:'Share Tech Mono',monospace; font-weight:700; letter-spacing:1px; color:var(--amber); }
+.dmx-look-btn     { font-size:10px; font-family:'Share Tech Mono',monospace; letter-spacing:1px; padding:3px 9px; border-radius:4px; border:1px solid var(--amber-dim); background:var(--amber-faint); color:var(--amber); cursor:pointer; white-space:nowrap; }
+.dmx-look-btn:hover { background:var(--amber-dim); }
+.dmx-unaffected-label { display:flex; align-items:center; gap:4px; font-size:10px; font-family:'Share Tech Mono',monospace; letter-spacing:1px; color:var(--text-dim); cursor:pointer; margin-left:auto; }
+.dmx-board        { display:flex; gap:6px; align-items:flex-end; flex-wrap:wrap; }
+.dmx-ch-col       { display:flex; flex-direction:column; align-items:center; gap:3px; min-width:44px; flex:0 0 44px; }
+.dmx-ch-col.wide  { min-width:110px; flex:1 1 110px; }
+.dmx-ch-lbl       { font-size:8px; color:var(--text-dim); letter-spacing:0.5px; text-transform:uppercase; font-family:'Share Tech Mono',monospace; white-space:nowrap; }
+.dmx-ch-bar-wrap  { width:100%; height:52px; background:rgba(255,255,255,0.05); border-radius:4px; position:relative; overflow:hidden; cursor:ns-resize; border:1px solid rgba(255,255,255,0.06); }
+.dmx-ch-bar-fill  { position:absolute; bottom:0; left:0; right:0; border-radius:3px; transition:height 0.1s; opacity:0.85; }
+.dmx-ch-num       { width:100%; font-size:10px; font-family:'Share Tech Mono',monospace; padding:2px 3px; text-align:center; background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:3px; }
+.dmx-ch-num:focus { border-color:var(--amber-dim); outline:none; }
+.dmx-ch-select    { width:100%; font-size:10px; font-family:'Share Tech Mono',monospace; padding:4px 5px; background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:4px; }
+.dmx-ch-select:focus { border-color:var(--amber-dim); outline:none; }
+
 /* ZONE ROWS */
 .zone-row { display:grid; grid-template-columns:1fr 90px 60px 60px 28px; gap:6px; align-items:center; background:var(--bg3); border:1px solid var(--border); border-radius:6px; padding:7px 10px; margin-bottom:6px; }
 .zone-row input, .zone-row select { background:var(--bg2); border:1px solid var(--border2); color:var(--text); padding:4px 7px; border-radius:4px; font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:600; width:100%; }
@@ -288,13 +306,12 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="sidebar-section">SHOW</div>
     <div class="nav-item" data-tab="showflow" onclick="switchTab('showflow')">▶ Show Flow</div>
     <div class="nav-item" data-tab="macros" onclick="switchTab('macros')">⚡ Macros</div>
-    <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig()">🎮 Games</div>
+    <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadGameEntries();loadTimerConfig()">🎮 Games</div>
     <div class="nav-item" data-tab="slides" onclick="switchTab('slides')">📋 Slides</div>
     <div class="nav-item" data-tab="scenes" onclick="switchTab('scenes')">✦ Lighting Scenes</div>
     <div class="nav-divider"></div>
     <div class="sidebar-section">SETTINGS</div>
     <div class="nav-item" data-tab="lighting" onclick="switchTab('lighting')">✦ Lighting</div>
-    <div class="nav-item" data-tab="timer" onclick="switchTab('timer')">⏱ Timer</div>
     <div class="nav-item" data-tab="system" onclick="switchTab('system')">⚙ System</div>
   </div>
 
@@ -458,7 +475,6 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   <div style="font-size:10px;color:var(--muted);margin-top:3px">Fires when music ends</div>
                 </div>
               </div>
-
               <div class="btn-row">
                 <button class="btn btn-primary" onclick="saveCircle()">✓ SAVE CIRCLE</button>
               </div>
@@ -628,7 +644,6 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   <div style="font-size:10px;color:var(--muted);margin-top:3px">Fires when music ends</div>
                 </div>
               </div>
-
               <div class="btn-row">
                 <button class="btn btn-primary" onclick="saveRole()">✓ SAVE ROLE</button>
               </div>
@@ -787,11 +802,6 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             </div>
           </div>
 
-          <div class="card-title" style="margin-bottom:8px">LIGHTS THAT REACT TO MUSIC</div>
-          <p style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">Selected lights pulse with the music. Others hold their current scene.</p>
-          <div id="viz-light-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px">
-            <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">NO NODES CONFIGURED</span>
-          </div>
         </div>
 
         <!-- ── CROWD SETTINGS ── -->
@@ -996,6 +1006,74 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             </div>
           </div>
         </div>
+
+        <!-- Level effect mode -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;margin-bottom:8px">LEVEL EFFECT</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">
+              <input type="radio" name="crowd-climb-mode" id="crowd-mode-bri" value="0"
+                     onchange="document.getElementById('crowd-strip-len-row').style.display='none'"
+                     style="accent-color:var(--amber)"> BRIGHTNESS
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">
+              <input type="radio" name="crowd-climb-mode" id="crowd-mode-climb" value="1"
+                     onchange="document.getElementById('crowd-strip-len-row').style.display='flex'"
+                     style="accent-color:var(--amber)"> ▲ VU METER
+            </label>
+          </div>
+          <div id="crowd-strip-len-row" style="display:none;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <label style="font-size:10px;letter-spacing:1px;white-space:nowrap">LEDs PER STRIP</label>
+            <input type="number" id="crowd-strip-len" value="60" min="1" max="600"
+                   style="width:72px;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">
+            <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px">LEDs</span>
+            <label style="font-size:10px;letter-spacing:1px;white-space:nowrap;margin-left:8px">STRIPS</label>
+            <input type="number" id="crowd-num-strips" value="1" min="1" max="20"
+                   style="width:52px;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">
+          </div>
+        </div>
+
+        <!-- Climax DMX -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;margin-bottom:4px">⚡ CLIMAX DMX</div>
+          <p style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px">
+            Pole nodes to fire at full brightness on ⚡ CLIMAX, then black out.
+          </p>
+          <div id="crowd-climax-dmx-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+            <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">LOADING…</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+            <label style="font-size:10px;letter-spacing:1px;white-space:nowrap">BLACKOUT AFTER</label>
+            <input type="number" id="crowd-climax-duration" value="2500" min="500" max="10000" step="250"
+                   style="width:72px;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">
+            <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px">ms</span>
+          </div>
+
+          <!-- Climax scene -->
+          <div style="margin-bottom:10px">
+            <div style="font-size:10px;letter-spacing:2px;font-weight:700;margin-bottom:4px">⚡ CLIMAX SCENE</div>
+            <p style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">
+              Lighting scene to fire at climax — replaces raw DMX above if set.
+            </p>
+            <select id="crowd-climax-scene"
+                    style="width:100%;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px">
+              <option value="">— none (raw max DMX) —</option>
+            </select>
+          </div>
+
+          <!-- Revert scene -->
+          <div>
+            <div style="font-size:10px;letter-spacing:2px;font-weight:700;margin-bottom:4px">↩ REVERT SCENE</div>
+            <p style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">
+              Scene to restore after climax ends — replaces blackout if set.
+            </p>
+            <select id="crowd-revert-scene"
+                    style="width:100%;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px">
+              <option value="">— none (blackout) —</option>
+            </select>
+          </div>
+        </div>
+
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-primary btn-sm" onclick="crowdLightSave()">✓ SAVE</button>
           <span id="crowd-light-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ SAVED</span>
@@ -1395,6 +1473,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   </optgroup>
                   <optgroup label="GAMES">
                     <option value="shell_game">⛺ Shell Game</option>
+                    <option value="walkup_game_entry">🎲 Game Entry Walk-Up</option>
                   </optgroup>
                   <optgroup label="FLOW">
                     <option value="wait">⏳ Wait (seconds)</option>
@@ -1460,131 +1539,6 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
 
           <button id="sf-confirm-btn" class="btn-primary" style="width:100%;margin-bottom:8px" onclick="confirmAddStep()">ADD TO SHOW</button>
           <button id="sf-cancel-edit-btn" class="btn btn-secondary" style="width:100%;display:none" onclick="sfCancelEdit()">CANCEL</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══════════════ TIMER ══════════════ -->
-    <div class="tab-panel" id="tab-timer">
-      <div class="page-header">
-        <h2>TIMER</h2>
-        <p>SKIT TIMER SETTINGS — DURATION, WARNINGS, AND EXPIRY ACTIONS</p>
-      </div>
-      <div style="max-width:560px">
-        <div class="editor-panel">
-          <div class="editor-label">DURATION</div>
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-            <input id="t-duration" type="number" class="text-input" style="width:100px" min="10" max="600" placeholder="180" oninput="updateDurationFmt(); updatePresetPreview()">
-            <span style="font-size:12px;color:var(--text-dim);letter-spacing:1px">SECONDS</span>
-            <span id="t-duration-fmt" style="font-size:12px;color:var(--amber);letter-spacing:1px;font-family:'Share Tech Mono',monospace"></span>
-          </div>
-
-          <div class="section-divider"></div>
-          <div class="editor-label">▶ START</div>
-          <div style="margin-bottom:10px">
-            <label class="field-label">SOUND</label>
-            <select id="t-start-sound" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px"></select>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-            <div>
-              <label class="field-label">START (SEC)</label>
-              <input id="t-start-start" type="number" class="text-input" style="width:100%" min="0" value="0" placeholder="0">
-            </div>
-            <div>
-              <label class="field-label">DURATION (SEC)</label>
-              <input id="t-start-duration" type="number" class="text-input" style="width:100%" min="0" value="0" placeholder="0=full">
-            </div>
-            <div>
-              <label class="field-label">FADE OUT (SEC)</label>
-              <input id="t-start-fade" type="number" class="text-input" style="width:100%" min="0" value="3" placeholder="3">
-            </div>
-          </div>
-          <div style="margin-bottom:16px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;user-select:none">
-              <input id="t-start-loop" type="checkbox" checked>
-              LOOP — uncheck to play once (good for bells, stingers, or songs that should run through and stop)
-            </label>
-          </div>
-
-          <div class="section-divider"></div>
-          <div class="editor-label">🖥 DISPLAY</div>
-          <div style="margin-bottom:10px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;user-select:none">
-              <input id="t-show-on-screen" type="checkbox">
-              SHOW ON SCREEN — show countdown timer on projector while running
-            </label>
-          </div>
-          <div style="margin-bottom:16px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;user-select:none">
-              <input id="t-show-end-anim" type="checkbox" checked>
-              END ANIM — show end display animation on screen when time expires
-            </label>
-          </div>
-
-          <div class="section-divider"></div>
-          <div class="editor-label">⚠ WARNING</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-            <div>
-              <label class="field-label">TRIGGER AT</label>
-              <div style="display:flex;align-items:center;gap:8px">
-                <input id="t-warning-at" type="number" class="text-input" style="width:80px" min="5" max="120" placeholder="15">
-                <span style="font-size:11px;color:var(--text-dim)">sec remaining</span>
-              </div>
-            </div>
-            <div>
-              <label class="field-label">SOUND</label>
-              <select id="t-warning-sound" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px"></select>
-            </div>
-            <div>
-              <label class="field-label">LIGHTING SCENE</label>
-              <select id="t-warning-scene" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">
-                <option value="">(none)</option>
-              </select>
-            </div>
-            <div>
-              <label class="field-label">DISPLAY (image or video)</label>
-              <select id="t-warning-display" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">
-                <option value="">(none)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="section-divider"></div>
-          <div class="editor-label">🚨 EXPIRY</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-            <div>
-              <label class="field-label">SOUND</label>
-              <select id="t-end-sound" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px"></select>
-            </div>
-            <div>
-              <label class="field-label">LIGHTING SCENE</label>
-              <select id="t-end-scene" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">
-                <option value="">(none)</option>
-              </select>
-            </div>
-            <div>
-              <label class="field-label">DISPLAY (image or video)</label>
-              <select id="t-end-display" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">
-                <option value="">(none)</option>
-              </select>
-            </div>
-          </div>
-
-          <button class="btn btn-primary" onclick="saveTimerConfig()">SAVE TIMER SETTINGS</button>
-        </div>
-      </div>
-
-      <!-- Timer Presets -->
-      <div style="max-width:560px;margin-top:24px">
-        <div class="editor-panel">
-          <div class="editor-label">📋 TIMER PRESETS</div>
-          <p style="font-size:12px;color:var(--text-dim);margin:0 0 8px">Name and save the current timer settings as a preset. The duration and sounds come from the fields above — set them first, then save here.</p>
-          <div id="t-preset-preview" style="font-size:12px;font-family:'Share Tech Mono',monospace;color:var(--amber);letter-spacing:1px;margin-bottom:10px;padding:6px 10px;background:var(--bg2);border-radius:4px;border:1px solid var(--border2)">Will save: —</div>
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
-            <input id="t-preset-name" type="text" class="text-input" placeholder="Preset name (e.g. 2 Minute Timer)" style="flex:1">
-            <button class="btn btn-primary" onclick="saveTimerPreset()" style="white-space:nowrap">SAVE AS PRESET</button>
-          </div>
-          <div id="timer-presets-list"><span style="color:var(--text-dim);font-size:12px">No presets saved yet.</span></div>
         </div>
       </div>
     </div>
@@ -1739,7 +1693,280 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SAVED VARIATIONS YET</div>
           </div>
         </div>
+      <!-- GAME ENTRIES -->
+      <div style="margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div>
+            <h3 style="margin:0;font-size:15px;letter-spacing:2px">GAME ENTRIES</h3>
+            <p style="margin:4px 0 0;font-size:11px;color:var(--text-dim);letter-spacing:1px">WALK-UP MUSIC AND VIDEO FOR INDIVIDUAL CONTESTANTS</p>
+          </div>
+          <button class="btn btn-primary" onclick="addGameEntry()">+ ADD ENTRY</button>
+        </div>
+        <div class="split">
+          <div>
+            <div class="roles-grid" id="ge-grid"></div>
+          </div>
+          <div>
+            <div id="ge-editor-placeholder" class="editor-placeholder">
+              ← Select an entry to edit
+            </div>
+            <div id="ge-editor" style="display:none">
+              <div class="editor-panel">
+                <div class="editor-title">
+                  <span id="ge-editor-title">ENTRY</span>
+                </div>
+
+                <div style="display:grid;grid-template-columns:64px 1fr;gap:10px">
+                  <div>
+                    <label>EMOJI</label>
+                    <input type="text" id="ge-emoji" placeholder="🎲" maxlength="4" style="font-size:22px;text-align:center;padding:6px 4px">
+                  </div>
+                  <div>
+                    <label>ENTRY NAME</label>
+                    <input type="text" id="ge-name" placeholder="e.g. Chubby Bunny">
+                  </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <div class="card-title">WALK-UP ASSETS</div>
+                <div class="asset-slots">
+                  <div style="grid-column:1/-1">
+                    <div class="asset-slot" id="geslot-walkup_music" onclick="document.getElementById('gefile-walkup_music').click()" style="position:relative">
+                      <div class="slot-status" id="gestatus-walkup_music"></div>
+                      <input type="file" id="gefile-walkup_music" accept="audio/*" onchange="uploadGameEntryAsset('walkup_music', this.files[0])">
+                      <button onclick="event.stopPropagation();openUsbPicker('audio','game_entry','walkup_music')" style="position:absolute;bottom:5px;right:5px;padding:2px 6px;font-size:9px;font-weight:700;letter-spacing:1px;border-radius:4px;border:1px solid var(--border2);background:var(--bg2);color:var(--text-dim);cursor:pointer;font-family:'Barlow Condensed',sans-serif">USB</button>
+                      <div class="asset-slot-icon">🎵</div>
+                      <div class="asset-slot-label">WALK-UP MUSIC</div>
+                      <div class="asset-slot-file empty" id="gefile-label-walkup_music">No file</div>
+                      <button id="ge-music-play-btn" style="display:none;margin-top:4px;background:var(--green-dim);border:1px solid var(--green);color:var(--green);border-radius:4px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif" onclick="event.stopPropagation();previewGameEntryMusic()">▶ PREVIEW</button>
+                      <div id="ge-music-prog-wrap" style="display:none;margin-top:5px;width:80%;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden"><div id="ge-music-prog-fill" style="height:100%;width:0%;background:var(--green);border-radius:2px"></div></div>
+                    </div>
+                    <button type="button" onclick="openLibraryPicker('game_entry','walkup_music','music')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
+                    <button type="button" id="ge-music-clear-btn" onclick="clearGameEntryAsset('walkup_music')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR</button>
+                  </div>
+                </div>
+                <div style="margin-top:8px">
+                  <div class="asset-slot asset-slot-wide" id="geslot-animation_intro" onclick="document.getElementById('gefile-animation_intro').click()">
+                    <input type="file" id="gefile-animation_intro" accept="video/*" onchange="uploadGameEntryAsset('animation_intro', this.files[0])">
+                    <button onclick="event.stopPropagation();openUsbPicker('video','game_entry','animation_intro')" style="margin-top:6px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:1px;border-radius:5px;border:1px solid var(--border2);background:var(--bg2);color:var(--text-dim);cursor:pointer;font-family:'Barlow Condensed',sans-serif;align-self:flex-start">💾 USB</button>
+                    <div class="slot-status-inline" id="gestatus-animation_intro"></div>
+                    <div class="asset-slot-icon">🎬</div>
+                    <div style="flex:1">
+                      <div class="asset-slot-label">INTRO CLIP <span style="font-size:10px;font-weight:400;color:var(--text-dim);letter-spacing:0">plays once</span></div>
+                      <div class="asset-slot-file empty" id="gefile-label-animation_intro">No file</div>
+                    </div>
+                    <button id="ge-anim-intro-play-btn" style="display:none;background:var(--blue-dim,#1a2a3a);border:1px solid var(--blue,#4488cc);color:var(--blue,#4488cc);border-radius:4px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;flex-shrink:0" onclick="event.stopPropagation();previewGeIntroAnimation()">▶ PREVIEW</button>
+                  </div>
+                  <button type="button" id="ge-anim-intro-clear-btn" onclick="clearGameEntryAsset('animation_intro')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR INTRO</button>
+                  <video id="ge-anim-intro-video" style="display:none;width:100%;margin-top:6px;border-radius:6px;background:#000;max-height:200px;object-fit:contain" controls></video>
+                </div>
+                <div style="margin-top:8px">
+                  <div class="asset-slot asset-slot-wide" id="geslot-animation" onclick="document.getElementById('gefile-animation').click()">
+                    <input type="file" id="gefile-animation" accept="video/*" onchange="uploadGameEntryAsset('animation', this.files[0])">
+                    <button onclick="event.stopPropagation();openUsbPicker('video','game_entry','animation')" style="margin-top:6px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:1px;border-radius:5px;border:1px solid var(--border2);background:var(--bg2);color:var(--text-dim);cursor:pointer;font-family:'Barlow Condensed',sans-serif;align-self:flex-start">💾 USB</button>
+                    <div class="slot-status-inline" id="gestatus-animation"></div>
+                    <div class="asset-slot-icon">🔁</div>
+                    <div style="flex:1">
+                      <div class="asset-slot-label">LOOP CLIP <span style="font-size:10px;font-weight:400;color:var(--text-dim);letter-spacing:0">loops after intro, or holds display if empty</span></div>
+                      <div class="asset-slot-file empty" id="gefile-label-animation">No file</div>
+                    </div>
+                    <button id="ge-anim-play-btn" style="display:none;background:var(--blue-dim,#1a2a3a);border:1px solid var(--blue,#4488cc);color:var(--blue,#4488cc);border-radius:4px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;flex-shrink:0" onclick="event.stopPropagation();previewGeAnimation()">▶ PREVIEW</button>
+                  </div>
+                  <button type="button" id="ge-anim-clear-btn" onclick="clearGameEntryAsset('animation')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR LOOP</button>
+                  <video id="ge-anim-video" style="display:none;width:100%;margin-top:6px;border-radius:6px;background:#000;max-height:200px;object-fit:contain" controls></video>
+                </div>
+                <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                  <input type="checkbox" id="ge-hide-name" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+                  <label for="ge-hide-name" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">HIDE NAME WHEN ANIMATION PLAYS</label>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <div class="card-title">WALK-UP TIMING</div>
+                <div class="form-row-3">
+                  <div>
+                    <label>START (SEC)</label>
+                    <input type="number" id="ge-start" min="0" value="0">
+                  </div>
+                  <div>
+                    <label>DURATION (SEC)</label>
+                    <input type="number" id="ge-duration" min="5" value="30">
+                  </div>
+                  <div>
+                    <label>FADE (SEC)</label>
+                    <input type="number" id="ge-fade" min="1" value="3">
+                  </div>
+                </div>
+                <div style="margin-top:8px">
+                  <label>MUSIC VOLUME TRIM</label>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <input type="range" id="ge-vol-trim" min="0" max="150" value="100" oninput="document.getElementById('ge-vol-trim-val').textContent=this.value+'%'" style="flex:1">
+                    <span id="ge-vol-trim-val" style="font-size:12px;font-weight:700;color:var(--text);min-width:36px;text-align:right">100%</span>
+                  </div>
+                </div>
+
+                <div class="section-divider"></div>
+                <div class="card-title">WALK-UP LIGHTING</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <div>
+                    <label>WALK-UP SCENE</label>
+                    <select id="ge-walkup-scene" style="width:100%">
+                      <option value="">— none —</option>
+                    </select>
+                    <div style="font-size:10px;color:var(--muted);margin-top:3px">Fires when they step up</div>
+                  </div>
+                  <div>
+                    <label>AFTER-FADE SCENE</label>
+                    <select id="ge-stage-scene" style="width:100%">
+                      <option value="">— Campfire (default) —</option>
+                    </select>
+                    <div style="font-size:10px;color:var(--muted);margin-top:3px">Fires when music ends</div>
+                  </div>
+                </div>
+                <div class="btn-row" style="gap:8px">
+                  <button class="btn btn-primary" onclick="saveGameEntry()">✓ SAVE ENTRY</button>
+                  <button class="btn" id="ge-delete-btn" onclick="deleteGameEntry()" style="border-color:var(--rust,#c0392b);color:var(--rust,#c0392b);background:var(--rust-dim,#2d0a0a)">✕ DELETE</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+      <div class="page-header" style="margin-top:32px">
+        <h2>TIMER</h2>
+        <p>SKIT TIMER SETTINGS — DURATION, WARNINGS, AND EXPIRY ACTIONS</p>
+      </div>
+      <div style="max-width:560px">
+        <div class="editor-panel">
+          <div class="editor-label">DURATION</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <input id="t-duration" type="number" class="text-input" style="width:100px" min="10" max="600" placeholder="180" oninput="updateDurationFmt(); updatePresetPreview()">
+            <span style="font-size:12px;color:var(--text-dim);letter-spacing:1px">SECONDS</span>
+            <span id="t-duration-fmt" style="font-size:12px;color:var(--amber);letter-spacing:1px;font-family:'Share Tech Mono',monospace"></span>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="editor-label">▶ START</div>
+          <div style="margin-bottom:10px">
+            <label class="field-label">SOUND</label>
+            <select id="t-start-sound" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px"></select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label class="field-label">START (SEC)</label>
+              <input id="t-start-start" type="number" class="text-input" style="width:100%" min="0" value="0" placeholder="0">
+            </div>
+            <div>
+              <label class="field-label">DURATION (SEC)</label>
+              <input id="t-start-duration" type="number" class="text-input" style="width:100%" min="0" value="0" placeholder="0=full">
+            </div>
+            <div>
+              <label class="field-label">FADE OUT (SEC)</label>
+              <input id="t-start-fade" type="number" class="text-input" style="width:100%" min="0" value="3" placeholder="3">
+            </div>
+          </div>
+          <div style="margin-bottom:16px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;user-select:none">
+              <input id="t-start-loop" type="checkbox" checked>
+              LOOP — uncheck to play once (good for bells, stingers, or songs that should run through and stop)
+            </label>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="editor-label">🖥 DISPLAY</div>
+          <div style="margin-bottom:10px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;user-select:none">
+              <input id="t-show-on-screen" type="checkbox">
+              SHOW ON SCREEN — show countdown timer on projector while running
+            </label>
+          </div>
+          <div style="margin-bottom:16px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;user-select:none">
+              <input id="t-show-end-anim" type="checkbox" checked>
+              END ANIM — show end display animation on screen when time expires
+            </label>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="editor-label">⚠ WARNING</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+            <div>
+              <label class="field-label">TRIGGER AT</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input id="t-warning-at" type="number" class="text-input" style="width:80px" min="5" max="120" placeholder="15">
+                <span style="font-size:11px;color:var(--text-dim)">sec remaining</span>
+              </div>
+            </div>
+            <div>
+              <label class="field-label">SOUND</label>
+              <select id="t-warning-sound" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px"></select>
+            </div>
+            <div>
+              <label class="field-label">LIGHTING SCENE</label>
+              <select id="t-warning-scene" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">
+                <option value="">(none)</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">DISPLAY (image or video)</label>
+              <select id="t-warning-display" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">
+                <option value="">(none)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="editor-label">🚨 EXPIRY</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+            <div>
+              <label class="field-label">SOUND</label>
+              <select id="t-end-sound" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px"></select>
+            </div>
+            <div>
+              <label class="field-label">LIGHTING SCENE</label>
+              <select id="t-end-scene" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">
+                <option value="">(none)</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">DISPLAY (image or video)</label>
+              <select id="t-end-display" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">
+                <option value="">(none)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- LED Strip Countdown -->
+          <div style="margin-top:16px;padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:5px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <input id="t-countdown-leds" type="checkbox" onchange="toggleCountdownLedPicker()">
+              <label for="t-countdown-leds" class="field-label" style="margin:0;cursor:pointer">LED STRIP COUNTDOWN</label>
+            </div>
+            <div id="t-countdown-led-picker" style="display:none">
+              <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;letter-spacing:1px">DEVICES (blank = all)</div>
+              <div id="t-countdown-led-device-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveTimerConfig()">SAVE TIMER SETTINGS</button>
+        </div>
+      </div>
+
+      <!-- Timer Presets -->
+      <div style="max-width:560px;margin-top:24px">
+        <div class="editor-panel">
+          <div class="editor-label">📋 TIMER PRESETS</div>
+          <p style="font-size:12px;color:var(--text-dim);margin:0 0 8px">Name and save the current timer settings as a preset. The duration and sounds come from the fields above — set them first, then save here.</p>
+          <div id="t-preset-preview" style="font-size:12px;font-family:'Share Tech Mono',monospace;color:var(--amber);letter-spacing:1px;margin-bottom:10px;padding:6px 10px;background:var(--bg2);border-radius:4px;border:1px solid var(--border2)">Will save: —</div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+            <input id="t-preset-name" type="text" class="text-input" placeholder="Preset name (e.g. 2 Minute Timer)" style="flex:1">
+            <button class="btn btn-primary" onclick="saveTimerPreset()" style="white-space:nowrap">SAVE AS PRESET</button>
+          </div>
+          <div id="timer-presets-list"><span style="color:var(--text-dim);font-size:12px">No presets saved yet.</span></div>
+        </div>
+      </div>
+    </div>
     </div>
 
     <!-- ══════════════ SYSTEM ══════════════ -->
@@ -1865,7 +2092,6 @@ function switchTab(name) {
   if (name === 'lighting')      { loadPoleNodes(); }
   if (name === 'scenes')        { loadPoleNodes(); renderSceneGrid && renderSceneGrid(); }
   if (name === 'showflow')        loadShowFlow();
-  if (name === 'timer')           loadTimerConfig();
   if (name === 'display-content') loadDisplayFiles();
   if (name === 'slides')        { admRenderFields(); loadSavedSlides(); }
 }
@@ -1947,7 +2173,6 @@ function populateCircleEditor(id) {
   document.getElementById('c-hide-name').checked = wu.hide_name || false;
   document.getElementById('c-walkup-scene').value = wu.walkup_scene || '';
   document.getElementById('c-stage-scene').value  = wu.stage_scene  || '';
-
   const assets = c.assets || {};
   setSlotFile('c', 'logo',             assets.logo_lib ? '📚 ' + assets.logo_lib : assets.logo);
   setSlotFile('c', 'walkup_music',     assets.walkup_music_lib ? '📚 ' + assets.walkup_music_lib : assets.walkup_music);
@@ -2399,7 +2624,6 @@ function populateRoleEditor(id) {
   document.getElementById('r-hide-name').checked = wu.hide_name || false;
   document.getElementById('r-walkup-scene').value = wu.walkup_scene || '';
   document.getElementById('r-stage-scene').value  = wu.stage_scene  || '';
-
   const assets = r.assets || {};
   setSlotFile('r', 'logo',             assets.logo_lib ? '📚 ' + assets.logo_lib : assets.logo);
   setSlotFile('r', 'walkup_music',     assets.walkup_music_lib ? '📚 ' + assets.walkup_music_lib : assets.walkup_music);
@@ -2500,6 +2724,249 @@ function onRColor2Hex(val) {
     updateSwatchSel('r-swatches2', val);
   }
 }
+
+// ── GAME ENTRIES ───────────────────────────────────────────────────────────
+let gameEntries = [];
+let selectedGameEntryId = null;
+
+function addGameEntry() {
+  const newEntry = {
+    id: 'game_entry_' + Date.now(),
+    name: 'New Entry',
+    assets: {},
+    walkup: { start_time: 0, duration: 30, fade_duration: 3 }
+  };
+  gameEntries.push(newEntry);
+  selectedGameEntryId = newEntry.id;
+  renderGameEntriesGrid();
+  populateGameEntryEditor(newEntry.id);
+  setTimeout(() => {
+    const f = document.getElementById('ge-name');
+    if (f) { f.focus(); f.select(); }
+  }, 50);
+}
+
+async function loadGameEntries() {
+  try {
+    const res = await fetch('/api/game-entries');
+    gameEntries = await res.json();
+    renderGameEntriesGrid();
+    if (selectedGameEntryId) populateGameEntryEditor(selectedGameEntryId);
+  } catch(e) {
+    toast('Could not load game entries', 'err');
+  }
+}
+
+function renderGameEntriesGrid() {
+  const grid = document.getElementById('ge-grid');
+  if (!gameEntries.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;padding:16px 0">NO ENTRIES YET — CLICK + ADD ENTRY</div>';
+    return;
+  }
+  grid.innerHTML = gameEntries.map(e => {
+    const assets   = e.assets || {};
+    const hasMusic = !!(assets.walkup_music || assets.walkup_music_lib);
+    const hasAnim  = !!(assets.animation || assets.animation_intro);
+    const sel      = e.id === selectedGameEntryId ? ' selected' : '';
+    return `<div class="circle-card${sel}" onclick="selectGameEntry('${e.id}')">
+      <div class="circle-card-header">
+        <div class="circle-dot" style="background:#5A4FCF;color:#fff">${e.emoji || '🎲'}</div>
+        <div class="circle-card-name">${escHtml(e.name)}</div>
+      </div>
+      <div class="readiness">
+        <span class="rdot ${hasMusic?'ok':'missing'}" title="Music"></span>
+        <span class="rdot ${hasAnim?'ok':'missing'}" title="Animation"></span>
+        <span class="rdot-label">${hasMusic?'READY':'SETUP'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectGameEntry(id) {
+  selectedGameEntryId = id;
+  renderGameEntriesGrid();
+  populateGameEntryEditor(id);
+}
+
+function populateGameEntryEditor(id) {
+  const e = gameEntries.find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('ge-editor-placeholder').style.display = 'none';
+  document.getElementById('ge-editor').style.display = 'block';
+  document.getElementById('ge-editor-title').textContent = (e.name || 'ENTRY').toUpperCase();
+  document.getElementById('ge-emoji').value = e.emoji || '';
+  document.getElementById('ge-name').value = e.name || '';
+  const wu = e.walkup || {};
+  document.getElementById('ge-start').value    = wu.start_time    ?? 0;
+  document.getElementById('ge-duration').value = wu.duration      ?? 30;
+  document.getElementById('ge-fade').value     = wu.fade_duration ?? 3;
+  const vt = wu.volume_trim ?? 100;
+  document.getElementById('ge-vol-trim').value = vt;
+  document.getElementById('ge-vol-trim-val').textContent = vt + '%';
+  document.getElementById('ge-hide-name').checked = wu.hide_name || false;
+  document.getElementById('ge-walkup-scene').value = wu.walkup_scene || '';
+  document.getElementById('ge-stage-scene').value  = wu.stage_scene  || '';
+  const assets = e.assets || {};
+  setSlotFile('ge', 'walkup_music',    assets.walkup_music_lib ? '📚 ' + assets.walkup_music_lib : assets.walkup_music);
+  setSlotFile('ge', 'animation_intro', assets.animation_intro);
+  setSlotFile('ge', 'animation',       assets.animation);
+  refreshGameEntryPreviews(id, assets);
+}
+
+function refreshGameEntryPreviews(entryId, assets) {
+  const playBtn = document.getElementById('ge-music-play-btn');
+  const clearBtn = document.getElementById('ge-music-clear-btn');
+  stopGePreview();
+  playBtn.style.display  = (assets.walkup_music || assets.walkup_music_lib) ? 'block' : 'none';
+  clearBtn.style.display = (assets.walkup_music || assets.walkup_music_lib) ? 'block' : 'none';
+  const introPlayBtn  = document.getElementById('ge-anim-intro-play-btn');
+  const introClearBtn = document.getElementById('ge-anim-intro-clear-btn');
+  const introVid      = document.getElementById('ge-anim-intro-video');
+  introPlayBtn.style.display  = assets.animation_intro ? 'inline-block' : 'none';
+  introClearBtn.style.display = assets.animation_intro ? 'block' : 'none';
+  introVid.style.display = 'none'; introVid.src = '';
+  const animPlayBtn  = document.getElementById('ge-anim-play-btn');
+  const animClearBtn = document.getElementById('ge-anim-clear-btn');
+  const animVid      = document.getElementById('ge-anim-video');
+  animPlayBtn.style.display  = assets.animation ? 'inline-block' : 'none';
+  animClearBtn.style.display = assets.animation ? 'block' : 'none';
+  animVid.style.display = 'none'; animVid.src = '';
+}
+
+function stopGePreview() {
+  if (document.getElementById('preview-player').dataset.previewId?.startsWith('ge:')) {
+    _stopAllTimedPreview();
+    _setMusicBtnPlay('ge');
+    _clearMusicProgress('ge');
+  }
+}
+
+function previewGameEntryMusic() {
+  const e = gameEntries.find(x => x.id === selectedGameEntryId);
+  if (!e) return;
+  const player = document.getElementById('preview-player');
+  if (player.dataset.previewId?.startsWith('ge:') && !player.paused) {
+    _stopAllTimedPreview(); _setMusicBtnPlay('ge'); _clearMusicProgress('ge'); return;
+  }
+  const wu = e.walkup || {};
+  const assets = e.assets || {};
+  const src = assets.walkup_music_lib
+    ? `/assets/music/${encodeURIComponent(assets.walkup_music_lib)}`
+    : `/assets/game_entries/${selectedGameEntryId}/walkup.mp3`;
+  _startTimedPreview(src, wu.start_time ?? 0, wu.duration ?? 30, wu.fade_duration ?? 3, 'ge', wu.volume_trim ?? 100);
+}
+
+function previewGeIntroAnimation() {
+  const e = gameEntries.find(x => x.id === selectedGameEntryId);
+  if (!e || !e.assets?.animation_intro) return;
+  const vid = document.getElementById('ge-anim-intro-video');
+  if (vid.style.display === 'block') { vid.pause(); vid.style.display = 'none'; vid.src = ''; return; }
+  vid.src = `/assets/game_entries/${selectedGameEntryId}/${e.assets.animation_intro}?t=${Date.now()}`;
+  vid.style.display = 'block'; vid.load(); vid.play().catch(()=>{});
+}
+
+function previewGeAnimation() {
+  const e = gameEntries.find(x => x.id === selectedGameEntryId);
+  if (!e || !e.assets?.animation) return;
+  const vid = document.getElementById('ge-anim-video');
+  if (vid.style.display === 'block') { vid.pause(); vid.style.display = 'none'; vid.src = ''; return; }
+  vid.src = `/assets/game_entries/${selectedGameEntryId}/${e.assets.animation}?t=${Date.now()}`;
+  vid.style.display = 'block'; vid.load(); vid.play().catch(()=>{});
+}
+
+async function uploadGameEntryAsset(assetType, file) {
+  if (!file || !selectedGameEntryId) return;
+  setSlotUploading('ge', assetType, true);
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type', 'game_entry');
+  fd.append('id',   selectedGameEntryId);
+  fd.append('asset', assetType);
+  try {
+    const res  = await fetch('/api/admin/upload', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.ok) {
+      const fname = getUploadedFilename(data, file.name);
+      const e = gameEntries.find(x => x.id === selectedGameEntryId);
+      if (e) { if (!e.assets) e.assets = {}; e.assets[assetType] = fname; }
+      setSlotFile('ge', assetType, fname);
+      renderGameEntriesGrid();
+      if (e) refreshGameEntryPreviews(selectedGameEntryId, e.assets);
+      toast('Uploaded: ' + fname, 'ok');
+    } else {
+      toast(data.error || 'Upload failed', 'err');
+    }
+  } catch(e) {
+    toast('Upload failed', 'err');
+  }
+  setSlotUploading('ge', assetType, false);
+  document.getElementById('gefile-' + assetType).value = '';
+}
+
+async function clearGameEntryAsset(assetType) {
+  if (!selectedGameEntryId) return;
+  try {
+    await fetch('/api/admin/asset/clear', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'game_entry', id:selectedGameEntryId, asset:assetType })
+    });
+    const e = gameEntries.find(x => x.id === selectedGameEntryId);
+    if (e && e.assets) { delete e.assets[assetType]; delete e.assets[assetType + '_lib']; }
+    setSlotFile('ge', assetType, '');
+    if (e) refreshGameEntryPreviews(selectedGameEntryId, e.assets || {});
+    renderGameEntriesGrid();
+    toast('Cleared', 'ok');
+  } catch(err) { toast('Clear failed', 'err'); }
+}
+
+async function saveGameEntry() {
+  if (!selectedGameEntryId) return;
+  setSaveStatus('SAVING…');
+  const data = {
+    id:   selectedGameEntryId,
+    name:  document.getElementById('ge-name').value.trim(),
+    emoji: document.getElementById('ge-emoji').value.trim() || null,
+    walkup: {
+      start_time:    parseFloat(document.getElementById('ge-start').value)    || 0,
+      duration:      parseFloat(document.getElementById('ge-duration').value) || 30,
+      fade_duration: parseFloat(document.getElementById('ge-fade').value)     || 3,
+      volume_trim:   parseInt(document.getElementById('ge-vol-trim').value)   || 100,
+      hide_name:     document.getElementById('ge-hide-name').checked,
+      walkup_scene:  document.getElementById('ge-walkup-scene').value || null,
+      stage_scene:   document.getElementById('ge-stage-scene').value  || null,
+    }
+  };
+  try {
+    const res    = await fetch('/api/admin/game-entry', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+    const result = await res.json();
+    if (result.ok) {
+      toast('Entry saved', 'ok');
+      setSaveStatus('SAVED');
+      await loadGameEntries();
+    } else {
+      toast('Save failed', 'err');
+      setSaveStatus('ERROR');
+    }
+  } catch(e) {
+    toast('Save failed', 'err');
+    setSaveStatus('ERROR');
+  }
+}
+
+async function deleteGameEntry() {
+  if (!selectedGameEntryId) return;
+  const e = gameEntries.find(x => x.id === selectedGameEntryId);
+  if (!confirm(`Delete "${e?.name || 'this entry'}"?`)) return;
+  try {
+    await fetch('/api/admin/game-entry/' + selectedGameEntryId, { method:'DELETE' });
+    toast('Entry deleted', 'ok');
+    selectedGameEntryId = null;
+    document.getElementById('ge-editor').style.display = 'none';
+    document.getElementById('ge-editor-placeholder').style.display = '';
+    await loadGameEntries();
+  } catch(err) { toast('Delete failed', 'err'); }
+}
+
 
 // ── SOUNDS ─────────────────────────────────────────────────────────────────
 let currentPreviewItem = null;
@@ -3107,7 +3574,7 @@ const SCENE_DEFAULTS = [
 
 // ── Populate walkup lighting scene dropdowns ─────────────────────────────────
 function populateSceneSelects() {
-  const ids = ['c-walkup-scene','c-stage-scene','r-walkup-scene','r-stage-scene'];
+  const ids = ['c-walkup-scene','c-stage-scene','r-walkup-scene','r-stage-scene','ge-walkup-scene','ge-stage-scene'];
   ids.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
@@ -3156,7 +3623,7 @@ function selectScene(id) {
   populateSceneEditor(id);
 }
 
-function populateSceneEditor(id) {
+async function populateSceneEditor(id) {
   const s = scenes.find(x => x.id === id);
   if (!s) return;
   document.getElementById('scene-editor-placeholder').style.display = 'none';
@@ -3189,6 +3656,7 @@ function populateSceneEditor(id) {
   }
   renderZones(s.zones || {});
   renderPoles(s.poles || {});
+  if (!_poleNodes.length) await loadPoleNodes();
   renderSceneDmx(s.dmx || null);
   renderSceneDmxAnimation(s.dmx_animation || null);
 }
@@ -3219,7 +3687,7 @@ async function pollWledPresets(btn) {
   const orig = btn.textContent;
   btn.textContent = '⟳'; btn.disabled = true;
   try {
-    const r = await fetch(`http://${node.ip}/presets.json`);
+    const r = await fetch(`/api/admin/wled_presets/${encodeURIComponent(node.id)}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     const sel = document.getElementById('sc-wled-preset-sel');
@@ -3249,7 +3717,8 @@ async function pollWledPresets(btn) {
 
 function testScene() {
   if (!selectedSceneId) return;
-  fetch(`/api/lights/scene?name=${encodeURIComponent(selectedSceneId)}`)
+  fetch('/api/lights/scene', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name: selectedSceneId})})
     .then(r => r.json())
     .then(d => toast(d.ok ? `▶ ${selectedSceneId.toUpperCase()}` : 'Error firing scene', d.ok ? 'ok' : 'err'))
     .catch(() => toast('Could not reach server', 'err'));
@@ -3453,7 +3922,7 @@ function populateMacroEditor(id) {
 
 const STEP_LABELS = {
   scene:'🎬 Scene', sfx:'🔊 SFX', music:'🎵 Music', play_playlist:'💿 USB Playlist',
-  walkup_circle:'⬡ Circle Walk-Up', walkup_role:'★ Role Walk-Up',
+  walkup_circle:'⬡ Circle Walk-Up', walkup_role:'★ Role Walk-Up', walkup_game_entry:'🎲 Game Entry Walk-Up',
   audio_stop:'⏹ Stop', audio_fade:'↘ Fade Out',
   timer_start:'⏱ Start Timer', timer_reset:'↺ Reset Timer', setup_skit_timer:'⚙ Load Timer Preset', wait:'⏳ Wait',
   display_image:'🖼 Show Image', display_anim:'🎬 Show Video',
@@ -3520,6 +3989,10 @@ function stepParamHtml(step) {
   if (a === 'walkup_role') {
     const opts = roles.map(r => `<option value="${escHtml(r.id)}" ${step.role_id===r.id?'selected':''}>${escHtml(r.name)}</option>`).join('');
     return `<select class="step-param">${opts || '<option value="">— no roles —</option>'}</select>`;
+  }
+  if (a === 'walkup_game_entry') {
+    const opts = gameEntries.map(e => `<option value="${escHtml(e.id)}" ${step.game_entry_id===e.id?'selected':''}>${escHtml((e.emoji||'🎲')+' '+e.name)}</option>`).join('');
+    return `<select class="step-param">${opts || '<option value="">— no game entries —</option>'}</select>`;
   }
   if (a === 'audio_fade') return `<input class="step-param" type="number" placeholder="seconds" value="${step.duration||3}" min="1" step="0.5" style="width:100px"> <span style="font-size:11px;color:var(--text-dim)">sec</span>`;
   if (a === 'wait')       return `<input class="step-param" type="number" placeholder="seconds" value="${step.seconds||1}" min="0.5" step="0.5" style="width:100px"> <span style="font-size:11px;color:var(--text-dim)">sec</span>`;
@@ -3655,8 +4128,9 @@ function collectStepValue(row, action) {
   if (action === 'scene')          return { scene:     val };
   if (action === 'sfx')            return { name:      val };
   if (action === 'music')          return { file: val, loop: !!(row.querySelector('.step-loop')?.checked) };
-  if (action === 'walkup_circle')  return { circle_id: val };
-  if (action === 'walkup_role')    return { role_id:   val };
+  if (action === 'walkup_circle')      return { circle_id:     val };
+  if (action === 'walkup_role')        return { role_id:       val };
+  if (action === 'walkup_game_entry')  return { game_entry_id: val };
   if (action === 'audio_fade')     return { duration:  parseFloat(val)||3 };
   if (action === 'wait')           return { seconds:   parseFloat(val)||1 };
   if (action === 'display_image') {
@@ -3839,8 +4313,9 @@ function addMacroStep() {
   if (type === 'scene')         step.scene     = '';
   else if (type === 'sfx')      step.name      = sfxList.length ? sfxList[0].replace(/\.[^.]+$/,'') : '';
   else if (type === 'music')    step.file      = musicList.length ? musicList[0] : '';
-  else if (type === 'walkup_circle') step.circle_id = circles.length ? circles[0].id : '';
-  else if (type === 'walkup_role')   step.role_id   = roles.length   ? roles[0].id   : '';
+  else if (type === 'walkup_circle')     step.circle_id     = circles.length     ? circles[0].id     : '';
+  else if (type === 'walkup_role')       step.role_id       = roles.length       ? roles[0].id       : '';
+  else if (type === 'walkup_game_entry') step.game_entry_id = gameEntries.length ? gameEntries[0].id : '';
   else if (type === 'audio_fade')    step.duration  = 3;
   else if (type === 'wait')          step.seconds   = 1;
   else if (type === 'display_image') { step.file = displayImageList[0] || ''; step.duration = 3; }
@@ -3978,6 +4453,7 @@ async function openUsbPicker(accept, entityType, assetType) {
   _usbPickerCtx    = { type: entityType, asset: assetType };
   if (entityType === 'circle') _usbPickerCtx.id = selectedCircleId;
   else if (entityType === 'role') _usbPickerCtx.id = selectedRoleId;
+  else if (entityType === 'game_entry') _usbPickerCtx.id = selectedGameEntryId;
   else if (entityType === 'macro') _usbPickerCtx.id = document.getElementById('mc-id')?.value.trim();
 
   const modal = document.getElementById('usb-picker-modal');
@@ -4051,8 +4527,8 @@ async function usbPickerSelect(visibleIdx) {
   const f = shown[visibleIdx];
   if (!f || !_usbPickerCtx) return;
   const ctx = _usbPickerCtx;
-  if (!ctx.id && (ctx.type === 'circle' || ctx.type === 'role' || ctx.type === 'macro')) {
-    toast('No ' + ctx.type + ' selected — open one first', 'err'); return;
+  if (!ctx.id && (ctx.type === 'circle' || ctx.type === 'role' || ctx.type === 'game_entry' || ctx.type === 'macro')) {
+    toast('No ' + ctx.type.replace('_',' ') + ' selected — open one first', 'err'); return;
   }
   closeUsbPicker();
   toast('Copying from USB…', 'info');
@@ -4077,6 +4553,12 @@ async function usbPickerSelect(visibleIdx) {
       setSlotFile('r', ctx.asset, d.filename);
       renderRoleGrid();
       if (ro) refreshRolePreviews(ctx.id, ro.assets);
+    } else if (ctx.type === 'game_entry') {
+      const ge = gameEntries.find(x => x.id === ctx.id);
+      if (ge) { if (!ge.assets) ge.assets = {}; ge.assets[ctx.asset] = d.filename; }
+      setSlotFile('ge', ctx.asset, d.filename);
+      renderGameEntriesGrid();
+      if (ge) refreshGameEntryPreviews(ctx.id, ge.assets);
     } else if (ctx.type === 'macro') {
       const prev = document.getElementById('mc-display-image-preview');
       const stat = document.getElementById('mc-display-image-status');
@@ -4624,6 +5106,14 @@ async function loadTimerConfig() {
   if (t.warning_display) document.getElementById('t-warning-display').value = t.warning_display;
   if (t.end_display)     document.getElementById('t-end-display').value     = t.end_display;
 
+  // Countdown LED fields
+  const cdlEl = document.getElementById('t-countdown-leds');
+  if (cdlEl) {
+    cdlEl.checked = !!t.countdown_leds;
+    toggleCountdownLedPicker();
+    _renderCountdownLedPicker(t.countdown_led_devices || []);
+  }
+
   try { timerPresets = await fetch('/api/admin/timer/presets').then(r => r.json()); } catch(e) {}
   renderTimerPresets();
   updatePresetPreview();
@@ -4633,6 +5123,34 @@ function updateDurationFmt() {
   const v = parseInt(document.getElementById('t-duration').value) || 0;
   const m = Math.floor(v / 60), s = v % 60;
   document.getElementById('t-duration-fmt').textContent = m + ':' + String(s).padStart(2, '0');
+}
+
+function toggleCountdownLedPicker() {
+  const on = document.getElementById('t-countdown-leds').checked;
+  document.getElementById('t-countdown-led-picker').style.display = on ? 'block' : 'none';
+}
+
+function _renderCountdownLedPicker(selectedIds) {
+  const container = document.getElementById('t-countdown-led-device-list');
+  if (!container) return;
+  if (!_wledDevices.length) {
+    container.innerHTML = '<span style="font-size:11px;color:var(--text-dim)">No WLED devices configured</span>';
+    return;
+  }
+  container.innerHTML = _wledDevices.map(d => {
+    const checked = !selectedIds.length || selectedIds.includes(d.id) ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer">
+      <input type="checkbox" class="cdl-device" value="${escHtml(d.id)}" ${checked}> ${escHtml(d.name || d.id)}
+    </label>`;
+  }).join('');
+}
+
+function _getCountdownLedFields() {
+  const enabled = document.getElementById('t-countdown-leds')?.checked || false;
+  const boxes = [...document.querySelectorAll('.cdl-device:checked')].map(b => b.value);
+  // Empty array means "all devices" — only store specific IDs if not all checked
+  const allChecked = boxes.length === _wledDevices.length;
+  return { countdown_leds: enabled, countdown_led_devices: allChecked ? [] : boxes };
 }
 
 function updatePresetPreview() {
@@ -4662,6 +5180,7 @@ async function saveTimerConfig() {
     end_sound:        document.getElementById('t-end-sound').value,
     end_scene:        document.getElementById('t-end-scene').value,
     end_display:      document.getElementById('t-end-display').value,
+    ..._getCountdownLedFields(),
   };
   try {
     const r = await fetch('/api/admin/timer', {
@@ -4697,6 +5216,7 @@ async function saveTimerPreset() {
         end_sound:            document.getElementById('t-end-sound').value,
         end_scene:            document.getElementById('t-end-scene').value,
         end_display:          document.getElementById('t-end-display').value,
+        ..._getCountdownLedFields(),
       })
     });
     const d = await r.json();
@@ -4732,6 +5252,13 @@ async function loadPresetForEdit(name) {
   if (p.warning_scene) document.getElementById('t-warning-scene').value = p.warning_scene;
   if (p.end_sound)     document.getElementById('t-end-sound').value     = p.end_sound;
   if (p.end_scene)     document.getElementById('t-end-scene').value     = p.end_scene;
+  // Countdown LED fields
+  const cdlEl = document.getElementById('t-countdown-leds');
+  if (cdlEl) {
+    cdlEl.checked = !!p.countdown_leds;
+    toggleCountdownLedPicker();
+    _renderCountdownLedPicker(p.countdown_led_devices || []);
+  }
   // Pre-fill name so SAVE AS PRESET overwrites this preset
   document.getElementById('t-preset-name').value = name;
   updatePresetPreview();
@@ -5054,19 +5581,29 @@ function renderWledNodeConfig() {
     return;
   }
   c.innerHTML = _wledDevices.map((dev, i) => `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px" data-wled-idx="${i}">
-      <input type="text" value="${escHtml(dev.id||'')}" class="wn-id" placeholder="ID (no spaces)" style="font-size:10px;font-family:'Share Tech Mono',monospace;padding:4px 6px" title="Used in scene zones">
-      <input type="text" value="${escHtml(dev.name||'')}" class="wn-name" placeholder="Name" style="font-size:10px;padding:4px 6px">
-      <input type="text" value="${escHtml(dev.ip||'')}" class="wn-ip" placeholder="IP address" style="font-size:10px;font-family:'Share Tech Mono',monospace;padding:4px 6px">
-      <button onclick="removeWledNode(${i})" class="btn btn-danger btn-sm" style="font-size:9px;padding:2px 8px">✕</button>
-    </div>`).join('') +
-    `<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;font-size:9px;letter-spacing:1px;color:var(--text-dim);padding:0 1px;margin-bottom:4px">
-      <span>ID</span><span>NAME</span><span>IP ADDRESS</span><span></span>
-    </div>`;
+    <div style="margin-bottom:8px;border:1px solid var(--border);border-radius:4px;padding:6px 8px" data-wled-idx="${i}">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;align-items:center;margin-bottom:5px">
+        <input type="text" value="${escHtml(dev.id||'')}" class="wn-id" placeholder="ID (no spaces)" style="font-size:10px;font-family:'Share Tech Mono',monospace;padding:4px 6px" title="Used in scene zones">
+        <input type="text" value="${escHtml(dev.name||'')}" class="wn-name" placeholder="Name" style="font-size:10px;padding:4px 6px">
+        <input type="text" value="${escHtml(dev.ip||'')}" class="wn-ip" placeholder="IP address" style="font-size:10px;font-family:'Share Tech Mono',monospace;padding:4px 6px">
+        <button onclick="removeWledNode(${i})" class="btn btn-danger btn-sm" style="font-size:9px;padding:2px 8px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center">
+        <div style="display:flex;gap:4px;align-items:center">
+          <input type="number" value="${dev.total_leds||''}" class="wn-total-leds" placeholder="Total LEDs" min="1" style="font-size:10px;font-family:'Share Tech Mono',monospace;padding:4px 6px;width:100%" title="Auto-filled by Sync">
+          <button onclick="syncWledLeds(${i})" class="btn btn-sm" style="font-size:9px;padding:2px 8px;white-space:nowrap" title="Pull LED count from WLED">SYNC</button>
+        </div>
+        <input type="number" value="${dev.strips_per_pole||1}" class="wn-strips" placeholder="Strips/pole" min="1" style="font-size:10px;font-family:'Share Tech Mono',monospace;padding:4px 6px">
+        <span style="font-size:9px;color:var(--text-dim);letter-spacing:1px">${dev.total_leds && dev.strips_per_pole ? Math.floor(dev.total_leds/dev.strips_per_pole)+' LED/strip' : ''}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;font-size:9px;letter-spacing:1px;color:var(--text-dim);padding:2px 1px 0">
+        <span>TOTAL LEDS</span><span>STRIPS / POLE</span><span></span>
+      </div>
+    </div>`).join('');
 }
 
 function addWledNode() {
-  _wledDevices.push({ id: `wled${_wledDevices.length + 1}`, name: '', ip: '' });
+  _wledDevices.push({ id: `wled${_wledDevices.length + 1}`, name: '', ip: '', total_leds: '', strips_per_pole: 1 });
   renderWledNodeConfig();
 }
 
@@ -5079,10 +5616,27 @@ function removeWledNode(i) {
 function _collectWledNodes() {
   const rows = document.querySelectorAll('#wled-nodes-container [data-wled-idx]');
   _wledDevices = [...rows].map(row => ({
-    id:   row.querySelector('.wn-id').value.trim(),
-    name: row.querySelector('.wn-name').value.trim(),
-    ip:   row.querySelector('.wn-ip').value.trim(),
+    id:             row.querySelector('.wn-id').value.trim(),
+    name:           row.querySelector('.wn-name').value.trim(),
+    ip:             row.querySelector('.wn-ip').value.trim(),
+    total_leds:     parseInt(row.querySelector('.wn-total-leds').value) || null,
+    strips_per_pole: parseInt(row.querySelector('.wn-strips').value) || 1,
   })).filter(d => d.id || d.ip);
+}
+
+async function syncWledLeds(i) {
+  _collectWledNodes();
+  const dev = _wledDevices[i];
+  if (!dev || !dev.id) { toast('Save the device ID first', 'err'); return; }
+  try {
+    const r = await fetch(`/api/admin/wled_devices/${encodeURIComponent(dev.id)}/sync_leds`);
+    const d = await r.json();
+    if (d.ok) {
+      _wledDevices[i].total_leds = d.total_leds;
+      renderWledNodeConfig();
+      toast(`Synced: ${d.total_leds} LEDs`, 'ok');
+    } else { toast('Sync failed: ' + (d.error || ''), 'err'); }
+  } catch(e) { toast('Sync failed', 'err'); }
 }
 
 async function saveWledNodes() {
@@ -5177,8 +5731,8 @@ function renderDmxLookSaved(typeName) {
     looks.map((lk, li) => `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
         <span style="font-size:11px;font-family:'Share Tech Mono',monospace;flex:1;letter-spacing:1px">${escHtml(lk.name)}</span>
-        <button onclick="loadDmxLook(${JSON.stringify(typeName)},${li})" class="btn btn-secondary btn-sm" style="font-size:9px;padding:2px 8px">↓ LOAD</button>
-        <button onclick="deleteDmxLook(${JSON.stringify(typeName)},${li})" class="btn btn-danger btn-sm" style="font-size:9px;padding:2px 8px">✕</button>
+        <button onclick="loadDmxLook(${escHtml(JSON.stringify(typeName))},${li})" class="btn btn-secondary btn-sm" style="font-size:9px;padding:2px 8px">↓ LOAD</button>
+        <button onclick="deleteDmxLook(${escHtml(JSON.stringify(typeName))},${li})" class="btn btn-danger btn-sm" style="font-size:9px;padding:2px 8px">✕</button>
       </div>`).join('');
 }
 
@@ -5622,8 +6176,17 @@ function _buildFrameEditorHtml(frameData) {
         const chVals = vals
           ? [...vals, ...Array(Math.max(0, chDefs.length - vals.length)).fill(0)]
           : chDefs.map(() => 0);
-        return `<div style="margin-bottom:5px" data-aframe-node="${escHtml(node.id)}" data-aframe-fix="${escHtml(fix.id)}">
-          <div style="font-size:9px;letter-spacing:1px;color:var(--text-dim);margin-bottom:3px">${escHtml(fix.name||fix.id)}</div>
+        const looks     = _fixtureTypes[fix.type]?.looks || [];
+        const lookSel   = looks.length ? `<select class="aframe-look-sel" onchange="applyLookToFrame(this)"
+            style="font-size:9px;font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:3px">
+            <option value="">look…</option>
+            ${looks.map((lk,li)=>`<option value="${li}">${escHtml(lk.name)}</option>`).join('')}
+          </select>` : '';
+        return `<div style="margin-bottom:5px" data-aframe-node="${escHtml(node.id)}" data-aframe-fix="${escHtml(fix.id)}" data-aframe-fix-type="${escHtml(fix.type||'')}">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <div style="font-size:9px;letter-spacing:1px;color:var(--text-dim)">${escHtml(fix.name||fix.id)}</div>
+            ${lookSel}
+          </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:4px">
             ${chDefs.map((def, ci) => {
               const v = chVals[ci] !== undefined ? chVals[ci] : 0;
@@ -5717,6 +6280,47 @@ function collectSceneDmxAnimation() {
 }
 
 // ── SCENE DMX ───────────────────────────────────────────────────────────────
+function dmxChColor(name) {
+  const n = (name || '').toLowerCase();
+  if (n === 'r' || n === 'red')   return '#CC4444';
+  if (n === 'g' || n === 'green') return '#3CB96A';
+  if (n === 'b' || n === 'blue')  return '#4A8FCC';
+  if (n === 'w' || n.includes('white') || n.includes('warm') || n.includes('cold')) return '#C8BEA0';
+  if (n.includes('dim') || n.includes('master') || n.includes('bright') || n.includes('intens')) return '#F5A623';
+  if (n.includes('strobe') || n.includes('shutter')) return '#E8D44A';
+  if (n.includes('fx') || n.includes('effect') || n.includes('mode')) return '#8B44CC';
+  if (n.includes('speed') || n.includes('spd')) return '#A060CC';
+  if (n.includes('pan')) return '#5A9FBB';
+  if (n.includes('tilt')) return '#5ABBA0';
+  return '#F5A623';
+}
+
+function dmxBarSync(input) {
+  const wrap = input.previousElementSibling;
+  if (!wrap) return;
+  const fill = wrap.querySelector('.dmx-ch-bar-fill');
+  if (!fill) return;
+  const v = Math.max(0, Math.min(255, parseInt(input.value) || 0));
+  fill.style.height = Math.round(v / 255 * 100) + '%';
+}
+
+function dmxBarDrag(e, wrap) {
+  function setValue(ev) {
+    const rect = wrap.getBoundingClientRect();
+    const frac = 1 - (ev.clientY - rect.top) / rect.height;
+    const v    = Math.max(0, Math.min(255, Math.round(frac * 255)));
+    const fill = wrap.querySelector('.dmx-ch-bar-fill');
+    if (fill) fill.style.height = Math.round(v / 255 * 100) + '%';
+    const input = wrap.nextElementSibling;
+    if (input && input.tagName === 'INPUT') input.value = v;
+  }
+  setValue(e);
+  function onMove(ev) { ev.preventDefault(); setValue(ev); }
+  function onUp()  { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
 function renderSceneDmx(dmxData) {
   const c = document.getElementById('sc-dmx-container');
   if (!c) return;
@@ -5734,44 +6338,56 @@ function renderSceneDmx(dmxData) {
         ${node.ip ? `<a href="http://${escHtml(node.ip)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:9px;font-weight:400;text-decoration:none;margin-left:8px">↗ WLED UI</a>` : ''}
       </div>
       ${node.fixtures.map(fix => {
-        const vals      = nodeVals[fix.id] || null;
+        const vals       = nodeVals[fix.id] || null;
         const unaffected = !vals;
-        const chDefs    = getDmxChannelDefs(fix);
-        const chVals    = vals
+        const chDefs     = getDmxChannelDefs(fix);
+        const chVals     = vals
           ? [...vals, ...Array(Math.max(0, chDefs.length - vals.length)).fill(0)]
           : chDefs.map((d, i) => (fix.id.includes('pinspot') && i === 0) ? 255 : 0);
-        const looks     = _fixtureTypes[fix.type]?.looks || [];
-        const lookSel   = looks.length ? `
-          <select class="dmx-look-sel" onchange="applyLookToScene(this)" style="font-size:10px;font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;max-width:140px">
-            <option value="">load look…</option>
+        const looks  = _fixtureTypes[fix.type]?.looks || [];
+        const lookSel = looks.length ? `
+          <select class="dmx-look-btn dmx-look-sel" onchange="applyLookToScene(this)">
+            <option value="">▾ LOOK</option>
             ${looks.map((lk,li)=>`<option value="${li}">${escHtml(lk.name)}</option>`).join('')}
           </select>` : '';
-        return `<div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px"
+
+        const selCols = chDefs.map((def, ci) => {
+          if (def.kind !== 'select') return null;
+          const v = chVals[ci] !== undefined ? chVals[ci] : 0;
+          const hasMatch = def.opts.some(([oval]) => oval === v);
+          const customOpt = hasMatch ? '' : `<option value="${v}" selected>Custom (${v})</option>`;
+          const opts = def.opts.map(([oval, olbl]) => `<option value="${oval}"${oval===v?' selected':''}>${olbl}</option>`).join('');
+          return `<div class="dmx-ch-col wide">
+            <div class="dmx-ch-lbl">${escHtml(def.name)}${def.hint?` <span style="opacity:.5">(${def.hint})</span>`:''}</div>
+            <select class="dmx-ch dmx-ch-select">${customOpt}${opts}</select>
+          </div>`;
+        }).filter(Boolean);
+
+        const numCols = chDefs.map((def, ci) => {
+          if (def.kind === 'select') return null;
+          const v   = chVals[ci] !== undefined ? chVals[ci] : 0;
+          const col = dmxChColor(def.name);
+          const pct = Math.round(v / 255 * 100);
+          return `<div class="dmx-ch-col">
+            <div class="dmx-ch-lbl">${escHtml(def.name)}</div>
+            <div class="dmx-ch-bar-wrap" onmousedown="dmxBarDrag(event,this)">
+              <div class="dmx-ch-bar-fill" style="height:${pct}%;background:${col}"></div>
+            </div>
+            <input type="number" value="${v}" min="0" max="255" class="dmx-ch dmx-ch-num" oninput="dmxBarSync(this)">
+          </div>`;
+        }).filter(Boolean);
+
+        return `<div class="dmx-fixture-card"
                      data-dmx-node="${escHtml(node.id)}" data-dmx-fix="${escHtml(fix.id)}" data-dmx-fix-type="${escHtml(fix.type||'')}" data-dmx-channels="${fix.channels}">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
-            <span style="font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;font-weight:700">${escHtml(fix.name||fix.id)}</span>
+          <div class="dmx-fixture-hdr">
+            <span class="dmx-fixture-name">${escHtml(fix.name||fix.id)}</span>
             ${lookSel}
-            <label style="display:flex;align-items:center;gap:4px;font-size:10px;letter-spacing:1px;cursor:pointer;margin-left:auto">
+            <label class="dmx-unaffected-label">
               <input type="checkbox" class="dmx-unaffected" ${unaffected?'checked':''} onchange="toggleDmxRow(this)"> UNAFFECTED
             </label>
           </div>
-          <div class="dmx-channels" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;${unaffected?'opacity:.3;pointer-events:none':''}">
-            ${chDefs.map((def, ci) => {
-              const v = chVals[ci] !== undefined ? chVals[ci] : 0;
-              if (def.kind === 'select') {
-                const hasMatch = def.opts.some(([oval]) => oval === v);
-                const customOpt = hasMatch ? '' : `<option value="${v}" selected>Custom (${v})</option>`;
-                const opts = def.opts.map(([oval, olbl]) => `<option value="${oval}"${oval===v?' selected':''}>${olbl}</option>`).join('');
-                return `<div>
-                  <div style="font-size:9px;letter-spacing:1px;color:var(--text-dim);margin-bottom:3px">${escHtml(def.name)}</div>
-                  <select class="dmx-ch" style="width:100%;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">${customOpt}${opts}</select>
-                </div>`;
-              }
-              return `<div>
-                <div style="font-size:9px;letter-spacing:1px;color:var(--text-dim);margin-bottom:3px">${escHtml(def.name)}${def.hint ? ` <span style="font-weight:400;opacity:.6">(${def.hint})</span>` : ''}</div>
-                <input type="number" value="${v}" min="0" max="255" class="dmx-ch" style="width:100%;font-size:11px;font-family:'Share Tech Mono',monospace;padding:4px 6px">
-              </div>`;
-            }).join('')}
+          <div class="dmx-board" style="${unaffected?'opacity:.35;pointer-events:none':''}">
+            ${selCols.join('')}${numCols.join('')}
           </div>
         </div>`;
       }).join('')}
@@ -5780,10 +6396,12 @@ function renderSceneDmx(dmxData) {
 }
 
 function toggleDmxRow(cb) {
-  const row = cb.closest('[data-dmx-node]');
-  const chDiv = row.querySelector('.dmx-channels');
-  chDiv.style.opacity = cb.checked ? '.3' : '1';
-  chDiv.style.pointerEvents = cb.checked ? 'none' : '';
+  const row   = cb.closest('[data-dmx-node]');
+  const board = row.querySelector('.dmx-board');
+  if (board) {
+    board.style.opacity       = cb.checked ? '.35' : '1';
+    board.style.pointerEvents = cb.checked ? 'none' : '';
+  }
 }
 
 function applyLookToScene(sel) {
@@ -5794,11 +6412,49 @@ function applyLookToScene(sel) {
   const look     = _fixtureTypes[typeName]?.looks?.[li];
   if (!look) return;
   const inputs = [...row.querySelectorAll('.dmx-ch')];
-  look.channels.forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
-  // Uncheck "unaffected" so the values get saved
+  look.channels.forEach((v, i) => {
+    if (!inputs[i]) return;
+    const el = inputs[i];
+    if (el.tagName === 'SELECT') {
+      if (![...el.options].some(o => parseInt(o.value) === v)) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = `Custom (${v})`;
+        el.insertBefore(opt, el.firstChild);
+      }
+      el.value = v;
+    } else {
+      el.value = v;
+      dmxBarSync(el);
+    }
+  });
   const ua = row.querySelector('.dmx-unaffected');
   if (ua?.checked) { ua.checked = false; toggleDmxRow(ua); }
-  sel.value = '';  // reset dropdown so it reads as "load look…" again
+  sel.value = '';
+  toast(`Applied "${look.name}"`, 'ok');
+}
+
+function applyLookToFrame(sel) {
+  const li = parseInt(sel.value);
+  if (isNaN(li)) return;
+  const row      = sel.closest('[data-aframe-node]');
+  const typeName = row.dataset.aframeFixType;
+  const look     = _fixtureTypes[typeName]?.looks?.[li];
+  if (!look) return;
+  const inputs = [...row.querySelectorAll('.aframe-ch')];
+  look.channels.forEach((v, i) => {
+    if (!inputs[i]) return;
+    const el = inputs[i];
+    if (el.tagName === 'SELECT') {
+      if (![...el.options].some(o => parseInt(o.value) === v)) {
+        const opt = document.createElement('option');
+        opt.value = v; opt.textContent = `Custom (${v})`;
+        el.insertBefore(opt, el.firstChild);
+      }
+    }
+    el.value = v;
+  });
+  sel.value = '';
   toast(`Applied "${look.name}"`, 'ok');
 }
 
@@ -5973,8 +6629,8 @@ function setSaveStatus(text) {
 let _libPickerDest = null;
 
 function openLibraryPicker(destType, asset, srcType) {
-  const destId = destType === 'circle' ? selectedCircleId : selectedRoleId;
-  if (!destId) { toast('Select a ' + destType + ' first', 'err'); return; }
+  const destId = destType === 'circle' ? selectedCircleId : destType === 'game_entry' ? selectedGameEntryId : selectedRoleId;
+  if (!destId) { toast('Select a ' + destType.replace('_',' ') + ' first', 'err'); return; }
   _libPickerDest = { destType, destId, asset, srcType };
 
   const overlay = document.getElementById('lib-picker-overlay');
@@ -6024,9 +6680,9 @@ async function pickLibraryItem(filename) {
     const data = await res.json();
     if (!data.ok) { toast(data.error || 'Link failed', 'err'); return; }
     // Update local state
-    const items  = destType === 'circle' ? circles : roles;
+    const items  = destType === 'circle' ? circles : destType === 'game_entry' ? gameEntries : roles;
     const item   = items.find(x => x.id === destId);
-    const prefix = destType === 'circle' ? 'c' : 'r';
+    const prefix = destType === 'circle' ? 'c' : destType === 'game_entry' ? 'ge' : 'r';
     if (item) {
       if (!item.assets) item.assets = {};
       if (srcType === 'music')   item.assets.walkup_music_lib = filename;
@@ -6042,6 +6698,10 @@ async function pickLibraryItem(filename) {
     if (srcType === 'music') {
       const btn = document.getElementById(prefix + '-music-play-btn');
       if (btn) btn.style.display = 'block';
+    }
+    if (destType === 'game_entry' && item) {
+      renderGameEntriesGrid();
+      refreshGameEntryPreviews(destId, item.assets || {});
     }
     toast('Linked: ' + filename, 'ok');
     closeLibraryPicker();
@@ -6511,11 +7171,6 @@ function vizApplyPresetToForm(p) {
   setC('viz-crowd-low','viz-crowd-low-hex', s.crowd_color_low  || '#3cb96a');
   setC('viz-crowd-mid','viz-crowd-mid-hex', s.crowd_color_mid  || '#f5a623');
   setC('viz-crowd-high','viz-crowd-high-hex',s.crowd_color_high || '#e74c3c');
-  // lights checkboxes
-  const lights = s.music_lights || [];
-  document.querySelectorAll('#viz-light-list input[type=checkbox]').forEach(cb => {
-    cb.checked = lights.includes(cb.value);
-  });
   document.getElementById('viz-delete-btn').style.display = '';
   // switch to music tab by default
   vizSwitchTab(p.settings?.scene || 'music');
@@ -6538,7 +7193,6 @@ function vizRevertPreset() {
 async function vizSavePreset() {
   const name = document.getElementById('viz-preset-name').value.trim();
   if (!name) { toast('ENTER A PRESET NAME', 'err'); return; }
-  const lights = [...document.querySelectorAll('#viz-light-list input[type=checkbox]:checked')].map(cb => cb.value);
   const scene  = document.getElementById('viz-preset-scene').value || 'music';
   const payload = {
     name,
@@ -6553,7 +7207,6 @@ async function vizSavePreset() {
       crowd_color_low:   document.getElementById('viz-crowd-low').value,
       crowd_color_mid:   document.getElementById('viz-crowd-mid').value,
       crowd_color_high:  document.getElementById('viz-crowd-high').value,
-      music_lights:      lights,
       scene,
     },
   };
@@ -6598,45 +7251,9 @@ async function vizFetchPresets() {
   } catch(e) {}
 }
 
-async function vizBuildLightList() {
-  try {
-    const [cfg, nodes] = await Promise.all([
-      fetch('/api/config').then(r => r.json()),
-      fetch('/api/admin/pole_nodes').then(r => r.json()),
-    ]);
-    const wled  = (cfg.wled_devices || []);
-    const items = [
-      ...nodes.map(n => ({ id: n.id, label: n.name || n.id, group: 'POLE' })),
-      ...wled.map(d  => ({ id: d.id, label: d.name || d.id, group: 'WLED' })),
-    ];
-    const el = document.getElementById('viz-light-list');
-    if (!items.length) {
-      el.innerHTML = '<span style="font-size:11px;color:var(--text-dim);font-family:\'Share Tech Mono\',monospace">NO NODES CONFIGURED — ADD IN SYSTEM TAB</span>';
-      return;
-    }
-    el.innerHTML = items.map(it => `
-      <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;
-                    background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:12px;font-weight:700;letter-spacing:1px">
-        <input type="checkbox" value="${it.id}" onchange="vizMarkDirty()"
-               style="width:14px;height:14px;accent-color:var(--amber)">
-        <span style="font-size:9px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">${it.group}</span>
-        ${escHtml(it.label)}
-      </label>`).join('');
-    // re-apply current preset light selection
-    if (_vizCurrentId) {
-      const p = _vizPresets.find(x => x.id === _vizCurrentId);
-      const lights = p?.settings?.music_lights || [];
-      document.querySelectorAll('#viz-light-list input[type=checkbox]').forEach(cb => {
-        cb.checked = lights.includes(cb.value);
-      });
-    }
-  } catch(e) {}
-}
-
 // Call when Display tab is opened
 document.querySelector('[data-tab="display-content"]').addEventListener('click', async () => {
   await vizFetchPresets();
-  await vizBuildLightList();
   await overlayInit();
   await climaxFxInit();
   await crowdLightInit();
@@ -6715,7 +7332,10 @@ async function crowdLightInit() {
       ...nodes.map(n => ({ id: n.id, label: n.name || n.id, group: 'POLE' })),
       ...wled.map(d  => ({ id: d.id, label: d.name || d.id, group: 'WLED' })),
     ];
-    const selected = cfg.crowd_lights || [];
+    const selected        = cfg.crowd_lights      || [];
+    const selectedClimax  = cfg.crowd_climax_dmx  || [];
+
+    // WLED crowd lights checkboxes
     const el = document.getElementById('crowd-light-list');
     if (!items.length) {
       el.innerHTML = '<span style="font-size:11px;color:var(--text-dim);font-family:\'Share Tech Mono\',monospace">NO NODES CONFIGURED — ADD IN SYSTEM TAB</span>';
@@ -6730,10 +7350,25 @@ async function crowdLightInit() {
           ${escHtml(it.label)}
         </label>`).join('');
     }
+
+    // Climax DMX checkboxes (pole nodes only)
+    const dmxEl = document.getElementById('crowd-climax-dmx-list');
+    if (!nodes.length) {
+      dmxEl.innerHTML = '<span style="font-size:11px;color:var(--text-dim);font-family:\'Share Tech Mono\',monospace">NO POLE NODES CONFIGURED</span>';
+    } else {
+      dmxEl.innerHTML = nodes.map(n => `
+        <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;
+                      background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:12px;font-weight:700;letter-spacing:1px">
+          <input type="checkbox" value="${escHtml(n.id)}" class="crowd-climax-dmx-cb"
+                 ${selectedClimax.includes(n.id) ? 'checked' : ''}
+                 style="width:14px;height:14px;accent-color:var(--amber)">
+          ${escHtml(n.name || n.id)}
+        </label>`).join('');
+    }
+
     // Restore colors
     for (const zone of ['low', 'mid', 'high']) {
-      const key = `crowd_color_${zone}`;
-      const val = cfg[key];
+      const val = cfg[`crowd_color_${zone}`];
       if (val) {
         document.getElementById(`crowd-color-${zone}`).value = val;
         document.getElementById(`crowd-color-${zone}-hex`).value = val;
@@ -6745,16 +7380,41 @@ async function crowdLightInit() {
         document.getElementById(`crowd-color-${zone}-hex`).value = this.value;
       });
     }
+
+    // Restore effect mode
+    const climbMode = cfg.crowd_climb_mode || false;
+    document.getElementById(climbMode ? 'crowd-mode-climb' : 'crowd-mode-bri').checked = true;
+    document.getElementById('crowd-strip-len-row').style.display = climbMode ? 'flex' : 'none';
+    if (cfg.crowd_strip_len)  document.getElementById('crowd-strip-len').value  = cfg.crowd_strip_len;
+    if (cfg.crowd_num_strips) document.getElementById('crowd-num-strips').value = cfg.crowd_num_strips;
+    if (cfg.crowd_climax_duration_ms) document.getElementById('crowd-climax-duration').value = cfg.crowd_climax_duration_ms;
+
+    // Scene selectors
+    const scList = cfg.scenes || [];
+    const scOpts = scList.map(s => `<option value="${escHtml(s.id)}">${escHtml(s.name || s.id)}</option>`).join('');
+    const climaxSel = document.getElementById('crowd-climax-scene');
+    const revertSel = document.getElementById('crowd-revert-scene');
+    climaxSel.innerHTML = '<option value="">— none (raw max DMX) —</option>' + scOpts;
+    revertSel.innerHTML = '<option value="">— none (blackout) —</option>'   + scOpts;
+    climaxSel.value = cfg.crowd_climax_scene_id || '';
+    revertSel.value = cfg.crowd_revert_scene_id || '';
   } catch(e) { console.error('crowdLightInit', e); }
 }
 
 async function crowdLightSave() {
   try {
     const cfg = await fetch('/api/config').then(r => r.json());
-    cfg.crowd_lights = [...document.querySelectorAll('.crowd-light-cb:checked')].map(cb => cb.value);
-    cfg.crowd_color_low  = document.getElementById('crowd-color-low').value;
-    cfg.crowd_color_mid  = document.getElementById('crowd-color-mid').value;
-    cfg.crowd_color_high = document.getElementById('crowd-color-high').value;
+    cfg.crowd_lights           = [...document.querySelectorAll('.crowd-light-cb:checked')].map(cb => cb.value);
+    cfg.crowd_color_low        = document.getElementById('crowd-color-low').value;
+    cfg.crowd_color_mid        = document.getElementById('crowd-color-mid').value;
+    cfg.crowd_color_high       = document.getElementById('crowd-color-high').value;
+    cfg.crowd_climb_mode       = document.getElementById('crowd-mode-climb').checked;
+    cfg.crowd_strip_len        = parseInt(document.getElementById('crowd-strip-len').value) || 60;
+    cfg.crowd_num_strips       = parseInt(document.getElementById('crowd-num-strips').value) || 1;
+    cfg.crowd_climax_dmx         = [...document.querySelectorAll('.crowd-climax-dmx-cb:checked')].map(cb => cb.value);
+    cfg.crowd_climax_duration_ms = parseInt(document.getElementById('crowd-climax-duration').value) || 2500;
+    cfg.crowd_climax_scene_id    = document.getElementById('crowd-climax-scene').value;
+    cfg.crowd_revert_scene_id    = document.getElementById('crowd-revert-scene').value;
     await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(cfg)});
     const s = document.getElementById('crowd-light-status');

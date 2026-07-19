@@ -318,14 +318,17 @@ document.addEventListener('click',   tryStart);
 // WebSocket trigger from Stream Deck / console button
 function connectWS() {
   const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => ws.send(JSON.stringify({event: 'page_ready', url: location.pathname + location.search}));
   ws.onmessage = e => {
     try {
       const d = JSON.parse(e.data);
       if (d.event==='shell_game_start')   tryStart();
       if (d.event==='shell_game_reset')   showLobby();
       if (d.event==='shell_game_reload' && !gameRunning) location.reload();
-      if (d.event==='display_navigate')   location.href = (d.data||{}).url || '/display';
-      if (d.event==='display_reload')     location.href = '/display?v=' + Date.now();
+      if (d.event==='display_navigate')   { location.href = (d.data||{}).url || '/display'; return; }
+      if (d.event==='display_reload')     { location.href = '/display?v=' + Date.now(); return; }
+      // Any other display-destined event means something else should be on screen — go home
+      if (d.event && d.event.startsWith('display_')) location.href = '/display';
     } catch {}
   };
   ws.onclose = () => setTimeout(connectWS, 3000);

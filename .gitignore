@@ -1,17 +1,40 @@
-__pycache__/
-*.pyc
-venv/
-logs/
-*.bak
-*.corrupt
-*.zip
-# exclude loose media at root, but keep everything inside assets/
+# ── Expedition data (personal, never commit) ──
+config.yaml
+config.bak
+install.yaml
+
+# ── Media assets (personal + copyright; live on the device, not in the repo) ──
+assets/
+
+# ── Loose media files (anywhere in the tree) ──
 *.mov
 *.mp4
 *.mp3
 *.wav
+*.webm
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+
+# ── Runtime files ──
+logs/
+games.json
+*.tmp
+*.corrupt
+*.zip
+backups/
 good vibes only*/
-!assets/**
+
+# ── Python ──
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# ── macOS ──
 .DS_Store
 .claude/
-backups/

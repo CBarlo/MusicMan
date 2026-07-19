@@ -180,6 +180,7 @@ iPad (Console / Admin)
 - Show Flow: ordered list of show steps
 - Timer presets: named skit timer configurations
 - Games: countdown, stopwatch, leaderboard
+- Game Entries: named walk-up entries with emoji, music, video, and lighting
 - Crowd Noise settings: gauge display mode, color mapping (low/mid/high), crowd lights assignment
 - Climax FX: explosion video + SFX configuration
 - Display logo: default logo image for standby
@@ -191,7 +192,7 @@ iPad (Console / Admin)
 - Show Flow navigation (advance / jump to step)
 - Transport: Stop, Pause, Fade & End, Track ±, BAE Logo, Clear Display, Kill All
 - Volume sliders: music + SFX
-- Walk-up triggers: circles and roles
+- Walk-up triggers: circles, roles, and game entries
 - Macro triggers (manual)
 - SFX grid
 - Music library browser
@@ -218,6 +219,38 @@ iPad (Console / Admin)
 
 ---
 
+## Phase 7 — Lighting Productization & Show Reliability
+
+### Fixture Type Library
+The lighting system grew from raw channel numbers to a named fixture type library. Each fixture type (e.g., "Pin Spot 6ch", "Stage Wash 8ch") stores:
+- **Channel definitions (`ch_defs`)** — a name and optional preset values per channel
+- **Presets** — named quick-pick values shown as buttons in the scene editor (e.g., MODE: Manual, Strobe, Sound Active)
+- **`looks`** — saved full-channel snapshots for common looks (e.g., "White Fast Strobe", "Orange", "Off")
+
+Fixture types are configured once in Admin → Lighting and shared across all pole nodes. The scene editor renders SELECT dropdowns for preset channels and number inputs for intensity channels, automatically.
+
+### DMX Looks
+Within each fixture type, operators save named "looks" — a snapshot of all channel values at once. These appear as a dropdown in both:
+- The **Admin scene editor** — apply a look directly to a fixture row when building a scene
+- The **Console Lights tab** — a full look editor with sliders, preset buttons, SAVE, LOAD, DELETE, and TEST (fires to all matching pole nodes live)
+
+The look editor in the console uses the same fixture type config as admin, so looks saved in either place appear in both.
+
+### Master Dim Fix
+The master DIM slider in the console now correctly protects control channels. Channels with named presets (MODE, EFFECT, STROBE RATE, PROGRAM) are excluded from dimming — only intensity channels (RED, GREEN, BLUE, WHITE, DIMMER) scale. This prevents the fixture from entering strobe mode or wrong operating modes when the slider is moved. A `dim_mask` is computed from the fixture type `ch_defs` at scene-fire time and stored alongside the unscaled channel values so re-apply on slider change is always correct.
+
+### Climax Enhancements
+The crowd noise Climax now:
+- **Stops all audio** immediately — music, SFX, and the playlist advance thread all halt
+- **Fires a configurable Climax Scene** (optional) — a full lighting scene replaces the raw 255 DMX blast, giving precise fixture control at the peak moment
+- **Fires a configurable Revert Scene** (optional) after the climax duration — instead of blacking out, the system can snap to a specific post-climax state
+
+### Scene Editor Reliability
+- Fixed a race condition where opening the scene editor quickly after tab-switch showed "NO POLE NODES CONFIGURED" — the editor now waits for node data before rendering DMX fixture rows
+- Fixed look recall for SELECT-type channels — when a look's saved value doesn't match a named preset exactly, a "Custom (v)" option is injected so the value is preserved rather than silently dropped
+
+---
+
 ## What Started as an iPhone
 
 It was a Dad's iPhone with some walkup music on it.
@@ -230,4 +263,35 @@ Henry and Nolan have been part of building it. That matters more than the featur
 
 ---
 
-*Last updated: July 2026*
+---
+
+## Phase 8 — Game Entries
+
+**Game Entries** added as a first-class walk-up type alongside Circles and Roles — purpose-built for named game moments like Chubby Bunny, where a specific participant or moment needs its own music, video, lighting scene, and display treatment.
+
+### What a Game Entry is
+Each entry has a name, an optional emoji (shown as the button icon), walk-up music, an optional intro clip, a loop animation, a walkup lighting scene, and an after-fade scene. It fires the exact same walk-up pipeline as a circle or role: music starts, the display shows the name with the video playing, lighting fires, and the system auto-fades on schedule.
+
+### Admin setup (Admin → 🎮 Games → GAME ENTRIES)
+- **+ ADD ENTRY** creates a new blank entry
+- **Emoji** — a single emoji icon for the console button (defaults to 🎲)
+- **Name** — displayed on the HDMI walk-up overlay
+- **Walk-Up Music** — upload, pick from music library, or import from USB
+- **Intro Clip** — optional video that plays once before the loop animation
+- **Loop Animation** — video that plays and loops during the walk-up
+- **Timing** — start offset, duration, fade-out
+- **Walk-Up Scene / After-Fade Scene** — lighting scenes, same as circle/role walk-ups
+- **SAVE / DELETE** buttons
+
+### Console firing (Console → Games tab)
+A **GAME ENTRIES** section appears at the top of the Games tab when at least one entry is configured. Each entry is a button labeled with its emoji and name. Tapping it fires the full walk-up sequence.
+
+### Macro integration
+Game Entry Walk-Up is a macro step type, grouped under **GAMES** in the step type dropdown. Select an entry, add the step, and the walk-up fires as part of any macro sequence.
+
+### Asset storage
+Assets are stored at `assets/game_entries/{id}/` on the Pi — the existing asset upload/USB-import/library-link pipeline handles them automatically.
+
+---
+
+*Last updated: July 2026 — Phase 8*
