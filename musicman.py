@@ -33,7 +33,7 @@ import pygame
 from pathlib import Path
 from mutagen.mp3  import MP3  as MutagenMP3
 from mutagen.wave import WAVE as MutagenWAV
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
 from flask_sock import Sock
 
 # numpy for offline FFT audio analysis
@@ -141,6 +141,65 @@ log.info(f"Music Man Console starting — {config['expedition']['name']}")
 # ── FLASK APP ──
 app = Flask(__name__, static_folder=str(STATIC_DIR))
 sock = Sock(app)
+
+# ── ADMIN AUTH ──
+_admin_password = config.get('system', {}).get('admin_password', 'BrokenArrow')
+app.secret_key  = _admin_password  # signs session cookies
+
+_ADMIN_LOGIN_HTML = '''<!doctype html><html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MusicMan Admin</title>
+<style>
+  *{box-sizing:border-box}
+  body{background:#111;color:#eee;font-family:system-ui,sans-serif;display:flex;
+       align-items:center;justify-content:center;height:100vh;margin:0}
+  .card{background:#1e1e1e;border-radius:14px;padding:2.5rem 2rem;width:300px;text-align:center}
+  h2{color:#f0a500;margin:0 0 1.5rem;font-size:1.3rem;letter-spacing:.05em}
+  input{width:100%;padding:.75rem 1rem;border-radius:8px;border:1px solid #333;
+        background:#111;color:#eee;font-size:1rem;margin-bottom:1rem}
+  button{width:100%;background:#f0a500;color:#111;border:none;border-radius:8px;
+         padding:.75rem;font-size:1rem;font-weight:700;cursor:pointer}
+  .err{color:#e74c3c;font-size:.85rem;margin-bottom:.8rem}
+</style></head><body>
+<div class="card">
+  <h2>MUSICMAN ADMIN</h2>
+  {error}
+  <form method="post">
+    <input type="password" name="password" placeholder="Password" autofocus autocomplete="current-password">
+    <button type="submit">ENTER</button>
+  </form>
+</div>
+</body></html>'''
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        pw = request.form.get('password', '')
+        if pw == _admin_password:
+            session['admin_ok'] = True
+            return redirect(request.args.get('next') or '/admin')
+        error_html = '<div class="err">Wrong password</div>'
+        return _ADMIN_LOGIN_HTML.replace('{error}', error_html), 401
+    return _ADMIN_LOGIN_HTML.replace('{error}', '')
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_ok', None)
+    return redirect('/admin/login')
+
+@app.before_request
+def _check_admin_auth():
+    path = request.path
+    protected = (
+        (path == '/admin' or path.startswith('/admin/')) and path not in ('/admin/login', '/admin/logout')
+    ) or path.startswith('/api/admin/') or path.startswith('/api/system/')
+    if not protected:
+        return
+    if session.get('admin_ok'):
+        return
+    if path.startswith('/api/'):
+        return jsonify({'ok': False, 'error': 'Unauthorized'}), 401
+    return redirect(url_for('admin_login', next=path))
 
 # ── WEBSOCKET CLIENTS ──
 ws_clients = set()

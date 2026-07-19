@@ -289,6 +289,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <span class="header-badge" id="save-status">READY</span>
     <a href="/" class="nav-link">OPERATOR</a>
     <a href="/update" class="nav-link">UPDATER</a>
+    <a href="/admin/logout" class="nav-link">LOGOUT</a>
   </div>
 </div>
 
@@ -2045,6 +2046,17 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
 <div class="toast" id="toast"></div>
 
 <script>
+// ── AUTH: redirect to login on any 401 ──────────────────────────────────────
+(function() {
+  const _origFetch = window.fetch;
+  window.fetch = function(...args) {
+    return _origFetch(...args).then(r => {
+      if (r.status === 401) { window.location = '/admin/login?next=' + encodeURIComponent(window.location.pathname); }
+      return r;
+    });
+  };
+})();
+
 // ── STATE ──────────────────────────────────────────────────────────────────
 let circles = [];
 let roles   = [];
