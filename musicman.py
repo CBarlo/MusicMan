@@ -131,6 +131,7 @@ def save_config(cfg):
     config = cfg  # keep in-memory copy fresh so hot paths avoid disk reads
     try:
         broadcast('preload_assets', {'urls': _collect_show_flow_assets(cfg)})
+        broadcast('config_changed', {})
     except Exception:
         pass
 
@@ -178,14 +179,17 @@ def broadcast(event, data):
     """Push state update to all connected WebSocket clients."""
     msg = json.dumps({'event': event, 'data': data})
     with ws_lock:
-        dead = set()
-        for client in ws_clients:
-            try:
-                client.send(msg)
-            except Exception as e:
-                log.debug(f"WebSocket send failed ({event}): {e}")
-                dead.add(client)
-        ws_clients.difference_update(dead)
+        clients = list(ws_clients)
+    dead = set()
+    for client in clients:
+        try:
+            client.send(msg)
+        except Exception as e:
+            log.debug(f"WebSocket send failed ({event}): {e}")
+            dead.add(client)
+    if dead:
+        with ws_lock:
+            ws_clients.difference_update(dead)
 
 @sock.route('/ws')
 def websocket(ws):
@@ -589,6 +593,7 @@ def _send_crowd_lights(level, climax):
 # ── SOUND LEVEL POLLING ───────────────────────────────────────────────────────
 _sound_levels    = {}    # node_id → {'level': 0-100, 'name': str, 'ip': str}
 _sound_poll_on   = False
+_crowd_anim_running = False  # separate flag so crowd LED anim can be stopped independently
 _sound_ema       = {}    # node_id → smoothed float (0-100); EMA across poll cycles
 _SOUND_EMA_ALPHA = 0.15  # ~13 s time constant at 2 s poll interval
 
@@ -955,7 +960,7 @@ def timer_worker():
         timer_state['seconds_remaining'] -= 1
         broadcast('timer_state', timer_state)
         # Warning
-        tcfg = load_config().get('timer', {})
+        tcfg = config.get('timer', {})
         # LED strip countdown fill — runs every tick inside the warning window
         if (tcfg.get('countdown_leds')
                 and 0 < timer_state['seconds_remaining'] <= tcfg.get('warning_at', 15)):
@@ -985,7 +990,7 @@ def timer_worker():
             timer_state['seconds_remaining'] = 0
             timer_state['running'] = False
             timer_state['expired'] = True
-            tcfg = load_config().get('timer', {})
+            tcfg = config.get('timer', {})
             # If start sound is still playing, fade it out before the end sound
             if _timer_sound_looping:
                 _timer_sound_stop.set()
@@ -1313,10 +1318,43 @@ def wled_set_color(device_id, color, brightness=75, seg_id=0):
     except Exception as e:
         log.warning(f"WLED {device_id} unreachable: {e}")
 
+# ── KILL LIGHTS ──
+def kill_lights():
+    """Send brightness 0 to every WLED device and all-zeros DMX to every pole node."""
+    cfg = config
+    off_payload = json.dumps({'bri': 0, 'on': False})
+    headers = {'Content-Type': 'application/json'}
+    def _wled_off(ip):
+        try:
+            requests.post(f'http://{ip}/json/state', data=off_payload,
+                          headers=headers, timeout=0.8)
+        except Exception as e:
+            log.warning(f"WLED {ip} kill unreachable: {e}")
+    def _dmx_off(ip):
+        fixtures = [
+            {'start': 1,  'channels': [0] * 6},
+            {'start': 7,  'channels': [0] * 8},
+        ]
+        try:
+            requests.post(f'http://{ip}/dmx', json={'fixtures': fixtures}, timeout=0.8)
+        except Exception as e:
+            log.warning(f"Pole node {ip} kill unreachable: {e}")
+    threads = []
+    for d in cfg.get('wled_devices', []):
+        if d.get('ip'):
+            threads.append(threading.Thread(target=_wled_off, args=(d['ip'],), daemon=True))
+    for n in cfg.get('pole_nodes', []):
+        if n.get('ip'):
+            threads.append(threading.Thread(target=_wled_off, args=(n['ip'],), daemon=True))
+            threads.append(threading.Thread(target=_dmx_off, args=(n['ip'],), daemon=True))
+    for t in threads:
+        t.start()
+    log.info(f"kill_lights: blanked {len(cfg.get('wled_devices',[]))} WLED + {len(cfg.get('pole_nodes',[]))} nodes")
+
 # ── KILL EVERYTHING ──
 def kill_everything():
     """
-    Emergency stop. Stops all audio, resets lights to campfire warm.
+    Emergency stop. Stops all audio, turns off all lights.
     Does NOT lose program position or reset timer to zero.
     """
     global _walkup_fade_cancel
@@ -1325,7 +1363,7 @@ def kill_everything():
     _walkup_fade_cancel = threading.Event()
     stop_audio()
     timer_state['running'] = False
-    wled_set_scene('campfire')
+    kill_lights()
     broadcast('kill_all', {})
 
 # ── WALKUP MACRO ──
@@ -2327,7 +2365,7 @@ def api_sfx_play():
 # ── TIMER ──
 @app.route('/api/timer/start')
 def api_timer_start():
-    global _timer_sound_looping
+    global _timer_sound_looping, _timer_sound_stop
     if not timer_state['running']:
         if timer_state['expired']:
             timer_state['seconds_remaining'] = config['timer']['duration']
@@ -2364,7 +2402,7 @@ def api_timer_start():
                         pygame.mixer.music.set_volume(1.0)
                     threading.Thread(target=_timer_fade_in, daemon=True).start()
                 else:
-                    _timer_sound_stop.clear()
+                    _timer_sound_stop = threading.Event()  # new event per start; old thread keeps ref to old (set) event
                     _timer_sound_looping = True
                     def _timer_sound(sp=start_pos, fade=fade_sec, snd_dur=sound_dur,
                                      ap=str(audio_path), ev=_timer_sound_stop,
@@ -3955,13 +3993,17 @@ def api_health():
 @app.route('/api/system/restart', methods=['POST'])
 def api_system_restart():
     log.info("Service restart requested via API")
-    os.system('echo BrokenArrow | sudo -S systemctl restart musicman.service')
+    subprocess.run(['/usr/bin/sudo', '/usr/bin/systemctl', 'restart', 'musicman.service'],
+                   capture_output=True)
     return jsonify({'ok': True})
 
 @app.route('/api/system/shutdown', methods=['POST'])
 def api_system_shutdown():
     log.info("Shutdown requested via API")
-    threading.Thread(target=lambda: (time.sleep(1), os.system('echo BrokenArrow | sudo -S shutdown -h now')), daemon=True).start()
+    def _do_shutdown():
+        time.sleep(1)
+        subprocess.run(['/usr/bin/sudo', '/sbin/shutdown', '-h', 'now'], capture_output=True)
+    threading.Thread(target=_do_shutdown, daemon=True).start()
     return jsonify({'ok': True})
 
 @app.route('/api/usb/list')
@@ -4038,13 +4080,12 @@ def api_usb_import():
     data = request.json or {}
     src_str  = data.get('src', '')
     dest_key = data.get('dest', '')
-    BASE = Path('/home/pi/musicman/assets')
     DEST_MAP = {
-        'music':   BASE / 'music',
-        'sfx':     BASE / 'sfx',
-        'circles': BASE / 'circles',
-        'roles':   BASE / 'roles',
-        'display': BASE / 'display',
+        'music':   ASSETS_DIR / 'music',
+        'sfx':     ASSETS_DIR / 'sfx',
+        'circles': ASSETS_DIR / 'circles',
+        'roles':   ASSETS_DIR / 'roles',
+        'display': ASSETS_DIR / 'display',
     }
     if dest_key not in DEST_MAP:
         return jsonify({'ok': False, 'error': 'invalid destination'}), 400
@@ -4727,7 +4768,7 @@ def api_ap_status():
     r = subprocess.run(['systemctl', 'is-active', 'hostapd'], capture_output=True, text=True)
     online = r.stdout.strip() == 'active'
     clients = len(_ap_associated_macs())
-    return jsonify({'online': online, 'ssid': _AP_SSID, 'password': _AP_PASSWORD,
+    return jsonify({'online': online, 'ssid': _AP_SSID,
                     'ip': _AP_IP, 'clients': clients})
 
 @app.route('/api/ap/clients')
@@ -4985,21 +5026,27 @@ def _start_battery_monitor():
 
     def _run():
         global _battery_loop, _batt_scan_sem
-        loop = _asyncio.new_event_loop()
-        _asyncio.set_event_loop(loop)
-        _battery_loop = loop
-
-        async def _main():
-            global _batt_scan_sem
-            _batt_scan_sem = _asyncio.Semaphore(1)
-            await _asyncio.gather(*[
-                _monitor_unit(u['address'], u['label']) for u in units
-            ])
-
-        try:
-            loop.run_until_complete(_main())
-        except Exception as e:
-            log.error(f'Battery monitor crashed: {e}')
+        while True:
+            loop = _asyncio.new_event_loop()
+            _asyncio.set_event_loop(loop)
+            _battery_loop = loop
+            try:
+                async def _main():
+                    global _batt_scan_sem
+                    _batt_scan_sem = _asyncio.Semaphore(1)
+                    await _asyncio.gather(*[
+                        _monitor_unit(u['address'], u['label']) for u in units
+                    ])
+                loop.run_until_complete(_main())
+            except Exception as e:
+                log.error(f'Battery monitor crashed: {e}')
+            finally:
+                try:
+                    loop.close()
+                except Exception:
+                    pass
+            log.info('Battery monitor restarting in 30s')
+            time.sleep(30)
 
     threading.Thread(target=_run, daemon=True, name='battery-monitor').start()
 
@@ -5058,17 +5105,18 @@ def api_battery_light(addr, mode):
 # When _crowd_mode == 'auto', the average drives _crowd_state and viz_crowd.
 
 def _start_sound_poll():
-    global _sound_poll_on
+    global _sound_poll_on, _crowd_anim_running
     if _sound_poll_on:
         return
     _sound_poll_on = True
+    _crowd_anim_running = True
 
     # 8Hz crowd LED animation thread — only fires when crowd meter is explicitly enabled
     def _crowd_led_anim():
         global _crowd_led_display
         ATTACK = 0.30   # fast rise
         DECAY  = 0.06   # slow fall
-        while _sound_poll_on:
+        while _crowd_anim_running:
             if _walkup_led_active:
                 # Circle colour animation owns the strips — stand aside
                 time.sleep(1 / 8)
@@ -5130,6 +5178,10 @@ def _start_sound_poll():
 def _stop_sound_poll():
     global _sound_poll_on
     _sound_poll_on = False
+
+def _stop_crowd_anim():
+    global _crowd_anim_running
+    _crowd_anim_running = False
 
 
 # ── VIZ: AUDIO ANALYZER (offline pre-analysis via ffmpeg + numpy FFT) ─────────

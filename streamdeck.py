@@ -577,9 +577,7 @@ def _handle_show(key):
     flow = pi['show_flow']
     if key < 12:
         if key < len(flow):
-            macro_id = flow[key].get('macro_id', '')
-            if macro_id:
-                api_get(f'/api/macro/run?name={macro_id}')
+            api_get(f'/api/show/fire?index={key}')
     elif key == 12:
         running = state['timer_running']
         api_get('/api/timer/' + ('pause' if running else 'start'))
@@ -595,9 +593,7 @@ def _handle_show2(key):
     if key < 12:
         idx = key + OFFSET
         if idx < len(flow):
-            macro_id = flow[idx].get('macro_id', '')
-            if macro_id:
-                api_get(f'/api/macro/run?name={macro_id}')
+            api_get(f'/api/show/fire?index={idx}')
     elif key == 12:
         running = state['timer_running']
         api_get('/api/timer/' + ('pause' if running else 'start'))
@@ -640,7 +636,7 @@ def _handle_macros(key):
 
 def _handle_display(key):
     if   key == 0:
-        api_get('/api/display/logo')
+        api_get('/api/display/standby')
     elif key == 1:
         api_get('/api/display/clear')
     elif key == 2:
