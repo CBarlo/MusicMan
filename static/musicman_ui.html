@@ -2955,6 +2955,12 @@ function initWebSocket() {
         }
       }
 
+      else if (event === 'launch_game') {
+        const ctrlUrl = data.controller_url || '';
+        showAlert('🎮 ' + (data.name || 'GAME'), 6000);
+        if (ctrlUrl) window.open(ctrlUrl, '_blank');
+      }
+
       else if (event === 'timer_preset_loaded') {
         const m = Math.floor(data.duration/60), s = data.duration%60;
         showAlert('⚙ TIMER: ' + data.name + '  (' + m + ':' + String(s).padStart(2,'0') + ')', 3500);

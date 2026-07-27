@@ -307,7 +307,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="sidebar-section">SHOW</div>
     <div class="nav-item" data-tab="showflow" onclick="switchTab('showflow')">▶ Show Flow</div>
     <div class="nav-item" data-tab="macros" onclick="switchTab('macros')">⚡ Macros</div>
-    <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadGameEntries();loadTimerConfig()">🎮 Games</div>
+    <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadGameEntries();loadTimerConfig();loadGamesLibrary()">🎮 Games</div>
     <div class="nav-item" data-tab="slides" onclick="switchTab('slides')">📋 Slides</div>
     <div class="nav-item" data-tab="scenes" onclick="switchTab('scenes')">✦ Lighting Scenes</div>
     <div class="nav-divider"></div>
@@ -1519,11 +1519,35 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         <!-- Right: add/edit step picker -->
         <div class="editor-panel" id="showflow-picker">
           <div id="sf-picker-label" class="editor-label">ADD A STEP</div>
-          <div id="sf-picker-hint" style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Pick a macro to add to the show flow, then give it a display name and color for the Stream Deck.</div>
-          <label class="field-label">MACRO</label>
-          <select id="sf-macro-select" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;margin-bottom:10px">
-            <option value="">— select a macro —</option>
-          </select>
+
+          <label class="field-label">STEP TYPE</label>
+          <div style="display:flex;gap:6px;margin-bottom:12px">
+            <button id="sf-type-macro-btn" class="btn btn-primary btn-sm" style="flex:1" onclick="sfSetType('macro')">MACRO</button>
+            <button id="sf-type-game-btn"  class="btn btn-secondary btn-sm" style="flex:1" onclick="sfSetType('game')">🎮 GAME</button>
+          </div>
+
+          <!-- MACRO fields -->
+          <div id="sf-macro-fields">
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Pick a macro to add to the show flow, then give it a display name and color for the Stream Deck.</div>
+            <label class="field-label">MACRO</label>
+            <select id="sf-macro-select" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;margin-bottom:10px">
+              <option value="">— select a macro —</option>
+            </select>
+          </div>
+
+          <!-- GAME fields -->
+          <div id="sf-game-fields" style="display:none">
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Pick a game type and optional saved config. The operator console will show a direct link to its controls.</div>
+            <label class="field-label">GAME TYPE</label>
+            <select id="sf-game-type" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;margin-bottom:10px" onchange="sfGameTypeChanged()">
+              <option value="">— select a game —</option>
+            </select>
+            <label class="field-label">SAVED CONFIG <span style="font-weight:400;color:var(--text-dim)">(optional — pick at showtime if blank)</span></label>
+            <select id="sf-game-config" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;margin-bottom:10px">
+              <option value="">— open picker on console —</option>
+            </select>
+          </div>
+
           <label class="field-label">DISPLAY NAME</label>
           <input id="sf-step-name" type="text" class="text-input" placeholder="e.g. Opening Ceremony" style="margin-bottom:10px">
           <label class="field-label">NOTES <span style="font-weight:400;color:var(--text-dim)">(shown on console)</span></label>
@@ -1533,7 +1557,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             <input id="sf-step-color" type="color" value="#F5A623" style="width:44px;height:32px;border:none;background:none;cursor:pointer;padding:0">
             <div id="sf-swatches" style="display:flex;gap:5px;flex-wrap:wrap"></div>
           </div>
-          <div class="sd-preview-wrap" style="margin-bottom:10px">
+          <div id="sf-sd-preview-wrap" class="sd-preview-wrap" style="margin-bottom:10px">
             <label class="field-label">DECK PREVIEW</label>
             <div class="sd-preview-set" id="sf-sd-preview"></div>
           </div>
@@ -1551,7 +1575,32 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         <p>AUDIENCE INTERACTION — RUN FROM THE CONSOLE, SHOWN ON THE PROJECTOR</p>
       </div>
 
-      <div style="max-width:640px">
+      <div style="max-width:720px">
+
+        <!-- ── GAMES LIBRARY ── -->
+        <div class="editor-panel" style="margin-bottom:16px">
+          <div class="editor-title">🎮 GAMES LIBRARY</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:14px;letter-spacing:0.5px">SAVE NAMED CONFIGS FOR EACH GAME — RECALL FAST ON SHOW NIGHT</div>
+
+          <!-- Game type tabs -->
+          <div id="gl-type-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+          <!-- Saved configs for selected type -->
+          <div id="gl-config-list" style="margin-bottom:14px;min-height:32px"></div>
+
+          <!-- Quick Create accordion -->
+          <div style="border-top:1px solid var(--border);padding-top:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--text-dim)">QUICK CREATE</div>
+              <button class="btn btn-primary btn-sm" onclick="glSaveConfig()">SAVE CONFIG</button>
+            </div>
+            <label class="field-label">NAME</label>
+            <input id="gl-config-name" type="text" class="text-input" placeholder="e.g. Circle Draw — Family Night" style="margin-bottom:10px">
+            <div id="gl-schema-fields" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+
+        <!-- ── SHELL GAME (existing) ── -->
         <div class="editor-panel">
           <div class="editor-title">⛺ SHELL GAME</div>
 
@@ -2089,6 +2138,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await loadScenes();
   await loadMacros();
   await loadStepLists();
+  await loadGamesLibrary();
   await loadShowFlow();
   await loadPoleNodes();
 });
@@ -4910,6 +4960,209 @@ async function admDeleteSavedSlide(id) {
   } catch(e) { showToast('DELETE FAILED', 'err'); }
 }
 
+// ── GAMES LIBRARY ──────────────────────────────────────────────────────────
+let glGameTypes    = [];
+let glConfigs      = {};   // { game_type_id: [...configs] }
+let glSelectedType = '';
+
+async function loadGamesLibrary() {
+  try { glGameTypes = await fetch('/api/game_types').then(r => r.json()); } catch(e) { glGameTypes = []; }
+  renderGlTypeTabs();
+  if (glGameTypes.length) await glSelectType(glGameTypes[0].id);
+}
+
+function renderGlTypeTabs() {
+  const el = document.getElementById('gl-type-tabs');
+  if (!el) return;
+  el.innerHTML = glGameTypes.map(g => `
+    <button id="gl-tab-${g.id}"
+            onclick="glSelectType('${escHtml(g.id)}')"
+            class="btn btn-sm"
+            style="padding:5px 10px;font-size:11px;letter-spacing:1px">${escHtml(g.icon||'')} ${escHtml(g.label.toUpperCase())}</button>`
+  ).join('');
+}
+
+async function glSelectType(typeId) {
+  glSelectedType = typeId;
+  // Highlight selected tab
+  glGameTypes.forEach(g => {
+    const btn = document.getElementById(`gl-tab-${g.id}`);
+    if (btn) btn.className = g.id === typeId ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    if (btn) btn.style.cssText = 'padding:5px 10px;font-size:11px;letter-spacing:1px';
+  });
+  // Load configs for this type
+  try {
+    glConfigs[typeId] = await fetch(`/api/game_configs?game_type_id=${typeId}`).then(r => r.json());
+  } catch(e) { glConfigs[typeId] = []; }
+  renderGlConfigList();
+  renderGlSchemaFields();
+  // Clear quick-create form
+  document.getElementById('gl-config-name').value = '';
+}
+
+function renderGlConfigList() {
+  const el = document.getElementById('gl-config-list');
+  if (!el) return;
+  const configs = glConfigs[glSelectedType] || [];
+  if (!configs.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:1.5px;padding:8px 0">NO SAVED CONFIGS — CREATE ONE BELOW</div>';
+    return;
+  }
+  const rowStyle = 'display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:6px 10px;margin-bottom:6px';
+  el.innerHTML = configs.map(c => `
+    <div style="${rowStyle}">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.name)}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="glGoLive('${escHtml(c.id)}')">GO LIVE</button>
+      <button class="btn btn-secondary btn-sm" onclick="glLoadConfig('${escHtml(c.id)}')">LOAD</button>
+      <button class="btn btn-secondary btn-sm" onclick="glDupeConfig('${escHtml(c.id)}')">DUPE</button>
+      <button class="btn btn-danger btn-sm" onclick="glDeleteConfig('${escHtml(c.id)}')">✕</button>
+    </div>`).join('');
+}
+
+function renderGlSchemaFields() {
+  const el = document.getElementById('gl-schema-fields');
+  if (!el) return;
+  const gt = glGameTypes.find(g => g.id === glSelectedType);
+  if (!gt) { el.innerHTML = ''; return; }
+  el.innerHTML = (gt.schema || []).map(field => {
+    if (field.type === 'list') {
+      return `<div>
+        <label class="field-label">${escHtml(field.label)}</label>
+        <textarea id="glf-${escHtml(field.key)}" class="text-input" rows="4"
+          placeholder="One entry per line" style="resize:vertical;font-size:12px"></textarea>
+      </div>`;
+    } else if (field.type === 'bool') {
+      return `<div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="glf-${escHtml(field.key)}" ${field.default ? 'checked' : ''} style="width:16px;height:16px">
+        <label for="glf-${escHtml(field.key)}" style="font-size:12px;cursor:pointer">${escHtml(field.label)}</label>
+      </div>`;
+    } else if (field.type === 'number') {
+      return `<div>
+        <label class="field-label">${escHtml(field.label)}</label>
+        <input type="number" id="glf-${escHtml(field.key)}" class="text-input"
+          value="${field.default ?? ''}" style="width:100px">
+      </div>`;
+    } else if (field.type === 'select') {
+      const opts = (field.options || []).map(o =>
+        `<option value="${escHtml(o.value)}" ${o.value === field.default ? 'selected' : ''}>${escHtml(o.label)}</option>`
+      ).join('');
+      return `<div>
+        <label class="field-label">${escHtml(field.label)}</label>
+        <select id="glf-${escHtml(field.key)}" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${opts}</select>
+      </div>`;
+    } else {
+      return `<div>
+        <label class="field-label">${escHtml(field.label)}</label>
+        <input type="text" id="glf-${escHtml(field.key)}" class="text-input"
+          placeholder="${escHtml(field.placeholder || '')}">
+      </div>`;
+    }
+  }).join('');
+}
+
+function glReadSchemaData() {
+  const gt = glGameTypes.find(g => g.id === glSelectedType);
+  if (!gt) return {};
+  const data = {};
+  (gt.schema || []).forEach(field => {
+    const el = document.getElementById(`glf-${field.key}`);
+    if (!el) return;
+    if (field.type === 'list') {
+      data[field.key] = el.value.split('\n').map(s => s.trim()).filter(Boolean);
+    } else if (field.type === 'bool') {
+      data[field.key] = el.checked;
+    } else if (field.type === 'number') {
+      data[field.key] = parseFloat(el.value) || (field.default ?? 0);
+    } else {
+      data[field.key] = el.value.trim();
+    }
+  });
+  return data;
+}
+
+function glPopulateSchemaFields(dataObj) {
+  const gt = glGameTypes.find(g => g.id === glSelectedType);
+  if (!gt) return;
+  (gt.schema || []).forEach(field => {
+    const el = document.getElementById(`glf-${field.key}`);
+    if (!el || dataObj[field.key] === undefined) return;
+    if (field.type === 'list') {
+      el.value = Array.isArray(dataObj[field.key]) ? dataObj[field.key].join('\n') : dataObj[field.key];
+    } else if (field.type === 'bool') {
+      el.checked = !!dataObj[field.key];
+    } else {
+      el.value = dataObj[field.key] ?? '';
+    }
+  });
+}
+
+async function glSaveConfig() {
+  if (!glSelectedType) { toast('Select a game type first', 'err'); return; }
+  const name = document.getElementById('gl-config-name').value.trim();
+  if (!name) { toast('Enter a config name', 'err'); return; }
+  const data = glReadSchemaData();
+  try {
+    const r = await fetch('/api/game_configs', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ game_type_id: glSelectedType, name, data }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('Config saved: ' + name, 'ok');
+      document.getElementById('gl-config-name').value = '';
+      await glSelectType(glSelectedType);
+    } else { toast(d.error || 'Save failed', 'err'); }
+  } catch(e) { toast('Save failed', 'err'); }
+}
+
+async function glLoadConfig(configId) {
+  try {
+    const c = await fetch(`/api/game_configs/${configId}`).then(r => r.json());
+    document.getElementById('gl-config-name').value = c.name + ' (copy)';
+    glPopulateSchemaFields(c.data || {});
+    toast('Loaded: ' + c.name, 'ok');
+  } catch(e) { toast('Load failed', 'err'); }
+}
+
+async function glDupeConfig(configId) {
+  try {
+    const c = await fetch(`/api/game_configs/${configId}`).then(r => r.json());
+    const r = await fetch('/api/game_configs', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ game_type_id: c.game_type_id, name: c.name + ' (copy)', data: c.data }),
+    });
+    const d = await r.json();
+    if (d.ok) { toast('Duplicated', 'ok'); await glSelectType(glSelectedType); }
+    else { toast(d.error || 'Failed', 'err'); }
+  } catch(e) { toast('Failed', 'err'); }
+}
+
+async function glDeleteConfig(configId) {
+  const configs = glConfigs[glSelectedType] || [];
+  const c = configs.find(x => x.id === configId);
+  if (!confirm(`Delete config "${c?.name || configId}"?`)) return;
+  try {
+    const r = await fetch(`/api/game_configs/${configId}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.ok) { toast('Deleted', 'ok'); await glSelectType(glSelectedType); }
+    else { toast(d.error || 'Failed', 'err'); }
+  } catch(e) { toast('Failed', 'err'); }
+}
+
+function glGoLive(configId) {
+  const configs = glConfigs[glSelectedType] || [];
+  const c = configs.find(x => x.id === configId);
+  const gt = glGameTypes.find(g => g.id === glSelectedType);
+  if (!gt) return;
+  const url = gt.controller_route + (configId ? `?config=${configId}` : '');
+  window.open(url, '_blank');
+  toast('Opening controls: ' + (c?.name || glSelectedType), 'ok');
+}
+
 // ── SHOW FLOW ──────────────────────────────────────────────────────────────
 let showFlow = [];   // [{id, name, color, macro_id}, …]
 
@@ -4926,6 +5179,12 @@ async function loadShowFlow() {
   if (sel) {
     sel.innerHTML = '<option value="">— select a macro —</option>' +
       macros.map(m => `<option value="${escHtml(m.id)}">${escHtml(m.name)}</option>`).join('');
+  }
+  // Populate game type picker (uses already-loaded glGameTypes)
+  const gtSel = document.getElementById('sf-game-type');
+  if (gtSel && glGameTypes.length) {
+    gtSel.innerHTML = '<option value="">— select a game —</option>' +
+      glGameTypes.map(g => `<option value="${escHtml(g.id)}">${escHtml(g.icon||'')} ${escHtml(g.label)}</option>`).join('');
   }
   // Color swatches
   const sw = document.getElementById('sf-swatches');
@@ -4946,21 +5205,32 @@ function renderShowFlow() {
     return;
   }
   const btnBase = 'background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:3px 7px;font-size:11px;flex-shrink:0';
-  list.innerHTML = showFlow.map((step, i) => `
+  list.innerHTML = showFlow.map((step, i) => {
+    const isGame   = step.type === 'game';
+    const subLabel = isGame
+      ? (step.game_type_id ? ('🎮 ' + (glGameTypes.find(g => g.id === step.game_type_id)?.label || step.game_type_id)) : '🎮 GAME')
+      : (step.desc || step.macro_id || '—');
+    const ctrlUrl  = isGame ? (glGameTypes.find(g => g.id === step.game_type_id)?.controller_route || '') : '';
+    const ctrlLink = isGame && ctrlUrl
+      ? `<a href="${ctrlUrl}" target="_blank" style="${btnBase};text-decoration:none;color:var(--amber);border-color:var(--amber)">🎮</a>`
+      : '';
+    return `
     <div draggable="true"
          ondragstart="sfDragStart(event,${i})" ondragover="sfDragOver(event,${i})" ondrop="sfDrop(event,${i})"
          style="display:flex;flex-direction:row;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 10px">
-      <div style="width:24px;height:24px;border-radius:5px;background:${step.color}22;border:2px solid ${step.color};display:flex;align-items:center;justify-content:center;font-weight:800;color:${step.color};font-size:12px;flex-shrink:0">${i+1}</div>
+      <div style="width:24px;height:24px;border-radius:5px;background:${step.color||'#8B44CC'}22;border:2px solid ${step.color||'#8B44CC'};display:flex;align-items:center;justify-content:center;font-weight:800;color:${step.color||'#8B44CC'};font-size:12px;flex-shrink:0">${i+1}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:12px;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(step.name)}</div>
-        <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${step.desc ? escHtml(step.desc) : (step.macro_id||'—')}</div>
+        <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(subLabel)}</div>
       </div>
+      ${ctrlLink}
       <button onclick="sfFire(${i})"    style="${btnBase};border-color:var(--green-dim,#225522);color:var(--green,#44CC44)">▶</button>
       <button onclick="sfEditStep(${i})" style="${btnBase};color:var(--amber)">✎</button>
       <button onclick="sfMoveUp(${i})"   style="${btnBase};color:var(--text-dim)" ${i===0?'disabled':''}>▲</button>
       <button onclick="sfMoveDown(${i})" style="${btnBase};color:var(--text-dim)" ${i===showFlow.length-1?'disabled':''}>▼</button>
       <button onclick="sfRemove(${i})"   style="${btnBase};border-color:var(--red-dim,#552222);color:var(--red,#CC4444)">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 let sfDragging = null;
@@ -4988,6 +5258,33 @@ async function sfFire(i) {
 function sfSetColor(i, color) { showFlow[i].color = color; renderShowFlow(); }
 
 let _sfEditingIndex = -1; // -1 = add mode, >=0 = edit mode
+let _sfCurrentType  = 'macro'; // 'macro' | 'game'
+
+function sfSetType(type) {
+  _sfCurrentType = type;
+  document.getElementById('sf-macro-fields').style.display = type === 'macro' ? '' : 'none';
+  document.getElementById('sf-game-fields').style.display  = type === 'game'  ? '' : 'none';
+  document.getElementById('sf-sd-preview-wrap').style.display = type === 'macro' ? '' : 'none';
+  document.getElementById('sf-type-macro-btn').className = type === 'macro' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  document.getElementById('sf-type-game-btn').className  = type === 'game'  ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+}
+
+async function sfGameTypeChanged() {
+  const gtId = document.getElementById('sf-game-type').value;
+  const sel  = document.getElementById('sf-game-config');
+  sel.innerHTML = '<option value="">— open picker on console —</option>';
+  if (!gtId) return;
+  // Auto-fill name from game type label if name is blank
+  const gt = glGameTypes.find(g => g.id === gtId);
+  const nameEl = document.getElementById('sf-step-name');
+  if (gt && !nameEl.value.trim()) nameEl.value = gt.label;
+  // Load saved configs for this type
+  try {
+    const configs = await fetch(`/api/game_configs?game_type_id=${gtId}`).then(r => r.json());
+    sel.innerHTML = '<option value="">— open picker on console —</option>' +
+      configs.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`).join('');
+  } catch(e) {}
+}
 
 function addShowStep() {
   sfCancelEdit();
@@ -4999,69 +5296,86 @@ function sfEditStep(i) {
   if (!step) return;
   _sfEditingIndex = i;
 
-  // Populate picker fields
-  document.getElementById('sf-macro-select').value = step.macro_id || '';
-  document.getElementById('sf-step-name').value    = step.name    || '';
-  document.getElementById('sf-step-desc').value    = step.desc    || '';
-  document.getElementById('sf-step-color').value   = step.color   || '#F5A623';
+  const isGame = step.type === 'game';
+  sfSetType(isGame ? 'game' : 'macro');
 
-  // Switch picker to edit mode
-  document.getElementById('sf-picker-label').textContent   = 'EDIT STEP ' + (i + 1);
-  document.getElementById('sf-picker-hint').textContent    = 'Update the macro, display name, or color for this step.';
-  document.getElementById('sf-confirm-btn').textContent    = 'SAVE CHANGES';
+  document.getElementById('sf-step-name').value  = step.name  || '';
+  document.getElementById('sf-step-desc').value  = step.desc  || '';
+  document.getElementById('sf-step-color').value = step.color || '#F5A623';
+
+  if (isGame) {
+    document.getElementById('sf-game-type').value   = step.game_type_id   || '';
+    sfGameTypeChanged().then(() => {
+      document.getElementById('sf-game-config').value = step.game_config_id || '';
+    });
+  } else {
+    document.getElementById('sf-macro-select').value = step.macro_id || '';
+  }
+
+  document.getElementById('sf-picker-label').textContent      = 'EDIT STEP ' + (i + 1);
+  document.getElementById('sf-confirm-btn').textContent       = 'SAVE CHANGES';
   document.getElementById('sf-cancel-edit-btn').style.display = '';
-  document.getElementById('showflow-picker').style.display = '';
+  document.getElementById('showflow-picker').style.display    = '';
 
   updateSfPreview();
-  // Scroll picker into view
   document.getElementById('showflow-picker').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 function sfCancelEdit() {
   _sfEditingIndex = -1;
+  sfSetType('macro');
   document.getElementById('sf-picker-label').textContent      = 'ADD A STEP';
-  document.getElementById('sf-picker-hint').textContent       = 'Pick a macro to add to the show flow, then give it a display name and color for the Stream Deck.';
   document.getElementById('sf-confirm-btn').textContent       = 'ADD TO SHOW';
   document.getElementById('sf-cancel-edit-btn').style.display = 'none';
-  document.getElementById('sf-macro-select').value = '';
-  document.getElementById('sf-step-name').value    = '';
-  document.getElementById('sf-step-desc').value    = '';
-  document.getElementById('sf-step-color').value   = '#F5A623';
+  document.getElementById('sf-macro-select').value  = '';
+  document.getElementById('sf-game-type').value     = '';
+  document.getElementById('sf-game-config').innerHTML = '<option value="">— open picker on console —</option>';
+  document.getElementById('sf-step-name').value     = '';
+  document.getElementById('sf-step-desc').value     = '';
+  document.getElementById('sf-step-color').value    = '#F5A623';
 }
 
 function confirmAddStep() {
-  const macroId = document.getElementById('sf-macro-select').value;
-  const name    = document.getElementById('sf-step-name').value.trim();
-  const color   = document.getElementById('sf-step-color').value;
-  if (!macroId) { toast('Select a macro first', 'err'); return; }
-  const macro = macros.find(m => m.id === macroId);
+  const name  = document.getElementById('sf-step-name').value.trim();
+  const color = document.getElementById('sf-step-color').value;
+  const desc  = document.getElementById('sf-step-desc').value.trim();
 
-  const desc = document.getElementById('sf-step-desc').value.trim();
-  if (_sfEditingIndex >= 0) {
-    // Edit existing step — preserve id, update everything else
-    const existing = showFlow[_sfEditingIndex];
-    showFlow[_sfEditingIndex] = {
-      id:       existing.id,
+  let stepObj;
+  if (_sfCurrentType === 'game') {
+    const gtId   = document.getElementById('sf-game-type').value;
+    const gcId   = document.getElementById('sf-game-config').value;
+    if (!gtId) { toast('Select a game type first', 'err'); return; }
+    const gt = glGameTypes.find(g => g.id === gtId);
+    stepObj = {
+      type:           'game',
+      game_type_id:   gtId,
+      game_config_id: gcId,
+      name:           name || (gt ? gt.label : gtId),
+      desc,
+      color: color || '#8B44CC',
+    };
+  } else {
+    const macroId = document.getElementById('sf-macro-select').value;
+    if (!macroId) { toast('Select a macro first', 'err'); return; }
+    const macro = macros.find(m => m.id === macroId);
+    stepObj = {
       name:     name || (macro ? macro.name : macroId),
-      desc:     desc,
+      desc,
       color:    color || '#F5A623',
       macro_id: macroId,
     };
-    sfCancelEdit();
-    renderShowFlow();
-    saveShowFlow();
-  } else {
-    showFlow.push({
-      id:       'sf_' + Date.now(),
-      name:     name || (macro ? macro.name : macroId),
-      desc:     desc,
-      color:    color || '#F5A623',
-      macro_id: macroId,
-    });
-    document.getElementById('sf-step-name').value = '';
-    renderShowFlow();
-    saveShowFlow();
   }
+
+  if (_sfEditingIndex >= 0) {
+    const existing = showFlow[_sfEditingIndex];
+    showFlow[_sfEditingIndex] = { id: existing.id, ...stepObj };
+    sfCancelEdit();
+  } else {
+    showFlow.push({ id: 'sf_' + Date.now(), ...stepObj });
+    document.getElementById('sf-step-name').value = '';
+  }
+  renderShowFlow();
+  saveShowFlow();
 }
 
 async function saveShowFlow() {

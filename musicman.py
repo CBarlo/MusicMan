@@ -51,7 +51,8 @@ INSTALL_PATH = BASE_DIR / 'install.yaml'
 STATIC_DIR   = BASE_DIR / 'static'
 ASSETS_DIR   = BASE_DIR / 'assets'
 NORM_STAMP  = BASE_DIR / 'logs' / 'normalize_last_run'
-GAMES_FILE  = BASE_DIR / 'games.json'
+GAMES_FILE        = BASE_DIR / 'games.json'
+GAME_CONFIGS_FILE = BASE_DIR / 'game_configs.json'
 
 # ── LOGGING ──
 _log_file = BASE_DIR / 'logs' / 'musicman.log'
@@ -1209,6 +1210,91 @@ def save_games(data: dict):
             json.dump(data, f, indent=2)
     except Exception as e:
         log.error(f"save_games: {e}")
+
+# ── GAME CONFIG REGISTRY ──
+GAME_TYPES = {
+    'wheel': {
+        'label': 'Prize Wheel',
+        'icon': '🎡',
+        'controller_route': '/games/wheel',
+        'display_route': '/games/wheel/display',
+        'schema': [
+            {'key': 'entries',     'type': 'list',   'label': 'Entries (one per line)'},
+            {'key': 'auto_remove', 'type': 'bool',   'label': 'Remove winner from wheel', 'default': True},
+        ],
+    },
+    'feud': {
+        'label': 'Family Feud',
+        'icon': '📋',
+        'controller_route': '/games/feud',
+        'display_route': '/games/feud/display',
+        'schema': [
+            {'key': 'question_set',  'type': 'text',   'label': 'Question Set Name', 'placeholder': 'e.g. AG Survey 2025'},
+            {'key': 'team_a',        'type': 'text',   'label': 'Team A Name', 'placeholder': 'e.g. Broken Arrow'},
+            {'key': 'team_b',        'type': 'text',   'label': 'Team B Name', 'placeholder': 'e.g. Wahoka'},
+            {'key': 'target_score',  'type': 'number', 'label': 'Target Score', 'default': 200},
+        ],
+    },
+    'vs_card': {
+        'label': 'VS Card',
+        'icon': '⚔️',
+        'controller_route': '/games/vs_card',
+        'display_route': '/games/vs_card/display',
+        'schema': [
+            {'key': 'side_a', 'type': 'text',   'label': 'Side A Name', 'placeholder': 'e.g. Henry'},
+            {'key': 'side_b', 'type': 'text',   'label': 'Side B Name', 'placeholder': 'e.g. Nolan'},
+            {'key': 'skin',   'type': 'select', 'label': 'Skin', 'default': 'arcade',
+             'options': [{'value': 'arcade', 'label': 'Arcade / Pixel'},
+                         {'value': 'oldwest', 'label': 'Old West'},
+                         {'value': 'scifi',   'label': 'Sci-Fi'}]},
+        ],
+    },
+    'musical_chairs': {
+        'label': 'Musical Chairs',
+        'icon': '🪑',
+        'controller_route': '/games/chairs',
+        'display_route': '/games/chairs/display',
+        'schema': [
+            {'key': 'min_interval', 'type': 'number', 'label': 'Min Stop Delay (sec)', 'default': 15},
+            {'key': 'max_interval', 'type': 'number', 'label': 'Max Stop Delay (sec)', 'default': 45},
+        ],
+    },
+    'trivia': {
+        'label': 'AG Trivia',
+        'icon': '❓',
+        'controller_route': '/games/trivia',
+        'display_route': '/games/trivia/display',
+        'schema': [
+            {'key': 'question_bank', 'type': 'text',   'label': 'Question Bank File', 'placeholder': 'e.g. ag_2025.json'},
+            {'key': 'timer_secs',    'type': 'number', 'label': 'Time per Question (sec)', 'default': 20},
+        ],
+    },
+    'baby_photo': {
+        'label': 'Baby Photo',
+        'icon': '👶',
+        'controller_route': '/games/baby_photo',
+        'display_route': '/games/baby_photo/display',
+        'schema': [
+            {'key': 'auto_advance',    'type': 'bool',   'label': 'Auto-advance photos', 'default': True},
+            {'key': 'display_secs',    'type': 'number', 'label': 'Seconds per photo', 'default': 8},
+            {'key': 'multiple_choice', 'type': 'bool',   'label': 'Multiple-choice mode', 'default': False},
+        ],
+    },
+}
+
+def load_game_configs() -> list:
+    try:
+        with open(GAME_CONFIGS_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_game_configs(data: list):
+    try:
+        with open(GAME_CONFIGS_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        log.error(f"save_game_configs: {e}")
 
 # ── WLED HTTP API ──
 def wled_set_scene(scene_id):
@@ -2986,6 +3072,69 @@ def api_games_display():
     _ensure_display_for('display_leaderboard', {'game': game, 'times': times, 'score_mode': is_score})
     return jsonify({'ok': True})
 
+# ── GAME CONFIG API ──
+@app.route('/api/game_types')
+def api_get_game_types():
+    return jsonify([{'id': k, **{kk: vv for kk, vv in v.items() if kk != 'schema'}, 'schema': v.get('schema', [])}
+                    for k, v in GAME_TYPES.items()])
+
+@app.route('/api/game_configs', methods=['GET'])
+def api_get_game_configs():
+    gt = request.args.get('game_type_id', '')
+    configs = load_game_configs()
+    if gt:
+        configs = [c for c in configs if c.get('game_type_id') == gt]
+    return jsonify(configs)
+
+@app.route('/api/game_configs', methods=['POST'])
+def api_create_game_config():
+    data = request.json or {}
+    if not data.get('game_type_id') or data['game_type_id'] not in GAME_TYPES:
+        return jsonify({'ok': False, 'error': 'invalid game_type_id'}), 400
+    now = int(time.time())
+    cfg_entry = {
+        'id':           str(uuid.uuid4()),
+        'game_type_id': data['game_type_id'],
+        'name':         (data.get('name') or GAME_TYPES[data['game_type_id']]['label']).strip(),
+        'data':         data.get('data', {}),
+        'created_at':   now,
+        'updated_at':   now,
+    }
+    configs = load_game_configs()
+    configs.append(cfg_entry)
+    save_game_configs(configs)
+    return jsonify({'ok': True, 'config': cfg_entry})
+
+@app.route('/api/game_configs/<config_id>', methods=['GET'])
+def api_get_game_config(config_id):
+    configs = load_game_configs()
+    match = next((c for c in configs if c['id'] == config_id), None)
+    if not match:
+        return jsonify({'ok': False, 'error': 'not found'}), 404
+    return jsonify(match)
+
+@app.route('/api/game_configs/<config_id>', methods=['PUT'])
+def api_update_game_config(config_id):
+    data    = request.json or {}
+    configs = load_game_configs()
+    for c in configs:
+        if c['id'] == config_id:
+            if 'name' in data: c['name'] = data['name'].strip()
+            if 'data' in data: c['data'] = data['data']
+            c['updated_at'] = int(time.time())
+            save_game_configs(configs)
+            return jsonify({'ok': True, 'config': c})
+    return jsonify({'ok': False, 'error': 'not found'}), 404
+
+@app.route('/api/game_configs/<config_id>', methods=['DELETE'])
+def api_delete_game_config(config_id):
+    configs = load_game_configs()
+    new = [c for c in configs if c['id'] != config_id]
+    if len(new) == len(configs):
+        return jsonify({'ok': False, 'error': 'not found'}), 404
+    save_game_configs(new)
+    return jsonify({'ok': True})
+
 # ── LIGHTING ──
 @app.route('/api/lights/scene', methods=['GET', 'POST'])
 def api_lights_scene():
@@ -3416,6 +3565,22 @@ def api_show_fire():
         broadcast('show_step', {'index': idx, 'name': entry.get('name', target_id), 'desc': step_desc})
         _navigate_home_if_needed()
         threading.Thread(target=fire_walkup, kwargs={'role_id': target_id}, daemon=True).start()
+    elif step_type == 'game':
+        game_type_id   = entry.get('game_type_id', '')
+        game_config_id = entry.get('game_config_id', '')
+        gt             = GAME_TYPES.get(game_type_id, {})
+        step_name      = entry.get('name') or gt.get('label', 'Game')
+        ctrl_url       = gt.get('controller_route', f'/games/{game_type_id}')
+        disp_url       = gt.get('display_route',    f'/games/{game_type_id}/display')
+        broadcast('show_step', {'index': idx, 'name': step_name, 'desc': step_desc, 'type': 'game'})
+        broadcast('launch_game', {
+            'game_type_id':   game_type_id,
+            'game_config_id': game_config_id,
+            'controller_url': ctrl_url,
+            'display_url':    disp_url,
+            'name':           step_name,
+        })
+        _ensure_display_for('display_navigate', {'url': disp_url})
     else:
         macro_id  = entry.get('macro_id', '')
         macros    = {m['id']: m for m in cfg.get('macros', [])}
