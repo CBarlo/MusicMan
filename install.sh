@@ -205,6 +205,8 @@ pi ALL=(ALL) NOPASSWD: /sbin/shutdown
 pi ALL=(ALL) NOPASSWD: /usr/sbin/shutdown
 pi ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/dnsmasq.d/musicman-nodes.conf
 pi ALL=(ALL) NOPASSWD: /bin/systemctl reload dnsmasq
+pi ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart bluetooth
+pi ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart bluetooth.service
 SUDOERS
 chmod 440 /etc/sudoers.d/musicman-system
 success "Sudoers configured"

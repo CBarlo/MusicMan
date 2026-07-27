@@ -23,6 +23,7 @@ import yaml
 import json
 import time
 import shutil
+import datetime
 import subprocess
 import threading
 import logging
@@ -118,6 +119,44 @@ def _collect_show_flow_assets(cfg):
     return urls
 
 
+BACKUP_DIR = BASE_DIR / 'backups'
+_BACKUP_KEEP = 20
+
+
+def _write_config_backups(src_path):
+    """Write a timestamped snapshot to backups/ and mirror to USB if mounted."""
+    try:
+        BACKUP_DIR.mkdir(exist_ok=True)
+        stamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        dest = BACKUP_DIR / f'config_{stamp}.yaml'
+        shutil.copy2(src_path, dest)
+        # Prune oldest snapshots beyond _BACKUP_KEEP
+        snaps = sorted(BACKUP_DIR.glob('config_*.yaml'))
+        for old in snaps[:-_BACKUP_KEEP]:
+            try:
+                old.unlink()
+            except Exception:
+                pass
+    except Exception as e:
+        log.warning(f'Config backup (local) failed: {e}')
+    # Mirror to USB if one is mounted
+    try:
+        usb = _find_usb_mount()
+        if usb:
+            usb_bak = Path(usb) / 'musicman_config_backup'
+            usb_bak.mkdir(exist_ok=True)
+            stamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            shutil.copy2(src_path, usb_bak / f'config_{stamp}.yaml')
+            usb_snaps = sorted(usb_bak.glob('config_*.yaml'))
+            for old in usb_snaps[:-_BACKUP_KEEP]:
+                try:
+                    old.unlink()
+                except Exception:
+                    pass
+    except Exception as e:
+        log.debug(f'Config backup (USB) skipped: {e}')
+
+
 def save_config(cfg):
     global config
     with _config_lock:
@@ -129,6 +168,8 @@ def save_config(cfg):
             yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
         os.replace(tmp, CONFIG_PATH)  # atomic rename — safe on power loss
     config = cfg  # keep in-memory copy fresh so hot paths avoid disk reads
+    threading.Thread(target=_write_config_backups, args=(CONFIG_PATH,),
+                     daemon=True, name='config-backup').start()
     try:
         broadcast('preload_assets', {'urls': _collect_show_flow_assets(cfg)})
         broadcast('config_changed', {})
