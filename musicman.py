@@ -1928,6 +1928,11 @@ def admin():
 def manual():
     return send_from_directory(STATIC_DIR, 'MusicMan_Manual.html')
 
+@app.route('/games/wheel')
+@app.route('/games/wheel/display')
+def games_wheel():
+    return send_from_directory(STATIC_DIR, 'games_wheel.html')
+
 @app.route('/shell-game')
 def shell_game():
     resp = send_from_directory(STATIC_DIR, 'shell_game.html')

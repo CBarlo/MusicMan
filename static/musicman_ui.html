@@ -549,6 +549,13 @@
     <!-- ── GAMES TAB ── -->
     <div class="page" id="page-games">
 
+      <!-- GAME LIBRARY RECALL -->
+      <div class="games-section" id="gl-ui-section">
+        <div class="section-label">🎮 GAME LIBRARY</div>
+        <div id="gl-ui-type-tabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px"></div>
+        <div id="gl-ui-config-list" style="min-height:28px"></div>
+      </div>
+
       <!-- GAME ENTRIES -->
       <div class="games-section" id="ge-section" style="display:none">
         <div class="section-label">GAME ENTRIES</div>
@@ -1567,6 +1574,64 @@ function fireGameEntry(e) {
 
 // ── GAMES TAB ─────────────────────────────────────────────────────────────────
 
+// ─ Game Library recall picker ─
+let _glUiGameTypes = [];
+let _glUiConfigs   = {};
+let _glUiSelType   = '';
+
+async function loadGlUi() {
+  try { _glUiGameTypes = await fetch('/api/game_types').then(r => r.json()); } catch(e) { _glUiGameTypes = []; }
+  _renderGlUiTabs();
+  if (_glUiGameTypes.length) await _glUiSelectType(_glUiGameTypes[0].id);
+}
+
+function _renderGlUiTabs() {
+  const el = document.getElementById('gl-ui-type-tabs');
+  if (!el) return;
+  el.innerHTML = _glUiGameTypes.map(g =>
+    `<button id="glui-tab-${g.id}" onclick="_glUiSelectType('${g.id}')"
+      class="games-btn" style="font-size:11px;padding:5px 10px"
+    >${g.icon||''} ${g.label.toUpperCase()}</button>`
+  ).join('');
+}
+
+async function _glUiSelectType(typeId) {
+  _glUiSelType = typeId;
+  _glUiGameTypes.forEach(g => {
+    const b = document.getElementById(`glui-tab-${g.id}`);
+    if (!b) return;
+    b.style.borderColor = g.id === typeId ? 'var(--amber)' : '';
+    b.style.color       = g.id === typeId ? 'var(--amber)' : '';
+  });
+  try {
+    _glUiConfigs[typeId] = await fetch(`/api/game_configs?game_type_id=${typeId}`).then(r => r.json());
+  } catch(e) { _glUiConfigs[typeId] = []; }
+  _renderGlUiConfigs();
+}
+
+function _renderGlUiConfigs() {
+  const el = document.getElementById('gl-ui-config-list');
+  if (!el) return;
+  const configs = _glUiConfigs[_glUiSelType] || [];
+  const gt = _glUiGameTypes.find(g => g.id === _glUiSelType);
+  if (!configs.length) {
+    el.innerHTML = `<div style="color:var(--text-dim);font-size:11px;letter-spacing:1.5px">NO SAVED CONFIGS — CREATE IN ADMIN › GAMES</div>`;
+    return;
+  }
+  el.innerHTML = configs.map(c => `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+      <span style="flex:1;font-size:12px;font-weight:700;letter-spacing:0.5px;color:var(--text)">${c.name}</span>
+      <button class="games-btn primary" onclick="glUiGoLive('${c.id}')" style="font-size:11px;padding:4px 10px">GO LIVE</button>
+    </div>`).join('');
+}
+
+function glUiGoLive(configId) {
+  const gt = _glUiGameTypes.find(g => g.id === _glUiSelType);
+  if (!gt) return;
+  const url = gt.controller_route + '?config=' + configId;
+  window.open(url, '_blank');
+}
+
 // ─ Countdown (cd*) ─
 let cdRunning=false, cdSecs=180, cdTotal=180, cdInterval=null, cdDirty=false;
 
@@ -1632,6 +1697,7 @@ function sfInlineAction(type) {
 }
 
 async function loadGamesTab() {
+  loadGlUi();
   await buildGameEntriesGrid();
   await loadCdAudioOptions();
   await loadCdDisplayOptions();

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MM — Prize Wheel</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+  :root {
+    --navy-deep: #0b1a3d;
+    --navy-mid:  #16296b;
+    --canvas:    #d9c9a3;
+    --gold:      #f0b429;
+    --gold-hi:   #ffe08a;
+    --ember:     #c23b22;
+    --pine:      #2f5d4c;
+    --cream:     #f4ecd8;
+    --ink:       #1a1408;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body {
+    min-height:100%;
+    background:var(--navy-deep);
+    font-family:'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
+    color:var(--cream);
+  }
+
+  /* ── WHEEL STAGE ── */
+  .stage {
+    position:relative;
+    display:flex; flex-direction:column; align-items:center;
+    padding:28px 24px 18px;
+    background:
+      radial-gradient(ellipse at 50% -10%, #24408f 0%, transparent 55%),
+      linear-gradient(180deg, var(--navy-mid) 0%, var(--navy-deep) 70%);
+  }
+  .brand-row {
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%; max-width:900px; margin-bottom:10px;
+  }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand-badge {
+    width:40px; height:40px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 55%, #b8860b 100%);
+    display:flex; align-items:center; justify-content:center; font-size:18px;
+    box-shadow:0 0 0 3px var(--navy-deep), 0 0 0 4px var(--gold);
+  }
+  .brand-name {
+    font-size:22px; font-weight:800; color:var(--gold-hi); letter-spacing:1px; line-height:1;
+  }
+  .brand-sub {
+    font-size:11px; letter-spacing:3px; color:var(--canvas); font-weight:500; text-transform:uppercase;
+  }
+  .wheel-title {
+    font-size:13px; letter-spacing:3px; text-transform:uppercase;
+    color:var(--canvas); border:1px solid rgba(217,201,163,0.35);
+    padding:6px 14px; border-radius:999px;
+  }
+
+  .wheel-area {
+    position:relative;
+    width:min(72vw, 520px);
+    aspect-ratio:1/1;
+    margin:18px 0 10px;
+  }
+  .pointer {
+    position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+    width:0; height:0; z-index:5;
+    border-left:16px solid transparent;
+    border-right:16px solid transparent;
+    border-top:30px solid var(--gold-hi);
+    filter:drop-shadow(0 3px 4px rgba(0,0,0,0.5));
+  }
+  .hub-glow {
+    position:absolute; inset:-14px; border-radius:50%;
+    background:radial-gradient(circle, rgba(240,180,41,0.18), transparent 70%);
+    pointer-events:none;
+  }
+  #wheelCanvas {
+    width:100%; height:100%; display:block; border-radius:50%;
+    box-shadow:0 0 0 8px var(--navy-deep), 0 0 0 11px var(--gold), 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .hub {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:58px; height:58px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 55%, #b8860b 100%);
+    border:3px solid var(--navy-deep);
+    box-shadow:0 3px 8px rgba(0,0,0,0.5);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:16px; color:var(--ink); letter-spacing:1px;
+  }
+
+  .result-banner {
+    margin-top:10px; min-height:64px;
+    display:flex; align-items:center; justify-content:center;
+    width:100%; max-width:620px;
+  }
+  .result-card {
+    background:linear-gradient(180deg, var(--pine), #1e4335);
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:10px; padding:12px 32px; text-align:center;
+    font-size:28px; font-weight:800; letter-spacing:1px;
+    color:var(--gold-hi);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.2), 0 6px 18px rgba(0,0,0,0.35);
+    opacity:0; transform:translateY(8px) scale(0.96);
+    transition:all 0.4s cubic-bezier(.2,.9,.25,1);
+  }
+  .result-card.show { opacity:1; transform:none; }
+  .result-sub {
+    display:block; font-size:11px; letter-spacing:3px;
+    color:var(--canvas); font-weight:600; text-transform:uppercase; margin-bottom:4px;
+  }
+  .footer-hint {
+    margin-top:8px; font-size:11px; letter-spacing:2px; text-transform:uppercase;
+    color:rgba(217,201,163,0.5);
+  }
+
+  /* ── OPERATOR PANEL ── */
+  .admin {
+    background:#0e1730;
+    border-top:3px solid var(--gold);
+    padding:20px 24px 44px;
+  }
+  .admin-inner { max-width:900px; margin:0 auto; }
+  .admin-title {
+    font-size:15px; font-weight:700; letter-spacing:2px; color:var(--gold-hi);
+    text-transform:uppercase; margin-bottom:14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .dot { width:8px; height:8px; border-radius:50%; background:#3ecf6a; box-shadow:0 0 8px #3ecf6a; }
+
+  .config-bar {
+    display:flex; align-items:center; gap:10px; margin-bottom:16px;
+    padding:10px 14px; background:rgba(240,180,41,0.06);
+    border:1px solid rgba(240,180,41,0.2); border-radius:8px;
+    font-size:13px; color:var(--canvas);
+  }
+  .config-bar strong { color:var(--gold-hi); }
+  .config-bar .save-btn {
+    margin-left:auto; font-size:12px; font-weight:700; letter-spacing:1px;
+    background:rgba(240,180,41,0.15); color:var(--gold-hi);
+    border:1px solid rgba(240,180,41,0.4); border-radius:6px;
+    padding:6px 14px; cursor:pointer;
+  }
+  .config-bar .save-btn:hover { background:rgba(240,180,41,0.3); }
+  .config-bar .save-ok { color:#3ecf6a; font-size:12px; margin-left:4px; opacity:0; transition:opacity 0.3s; }
+  .config-bar .save-ok.show { opacity:1; }
+
+  .entry-form {
+    display:flex; gap:10px; margin-bottom:14px;
+  }
+  .entry-form input[type=text] {
+    flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(240,180,41,0.3);
+    border-radius:8px; padding:10px 14px; color:var(--cream);
+    font-family:'Barlow Condensed', Arial, sans-serif; font-size:14px; font-weight:500;
+  }
+  .entry-form input[type=text]:focus { outline:none; border-color:var(--gold); }
+  .entry-form button {
+    font-family:'Barlow Condensed', Arial, sans-serif; font-weight:700; font-size:13px;
+    text-transform:uppercase; letter-spacing:1px;
+    background:var(--pine); color:var(--cream); border:none; border-radius:8px;
+    padding:10px 18px; cursor:pointer;
+  }
+  .entry-form button:hover { filter:brightness(1.15); }
+
+  .entry-list { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; min-height:34px; }
+  .entry-chip {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(240,180,41,0.25);
+    border-radius:999px; padding:6px 8px 6px 14px;
+    font-size:13px; font-weight:600;
+  }
+  .entry-chip .swatch { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+  .entry-chip button {
+    background:rgba(220,38,38,0.15); border:1px solid rgba(220,38,38,0.4);
+    color:var(--ember); width:20px; height:20px; border-radius:50%;
+    cursor:pointer; font-size:12px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .entry-chip button:hover { background:rgba(220,38,38,0.3); }
+
+  .bulk-area {
+    margin-bottom:14px;
+  }
+  .bulk-toggle {
+    font-size:12px; letter-spacing:1px; color:var(--canvas); cursor:pointer;
+    background:none; border:none; padding:0; margin-bottom:6px; display:block;
+  }
+  .bulk-toggle:hover { color:var(--gold-hi); }
+  #bulkTextarea {
+    width:100%; display:none; background:rgba(255,255,255,0.04);
+    border:1px solid rgba(240,180,41,0.25); border-radius:8px;
+    padding:10px 14px; color:var(--cream);
+    font-family:'Barlow Condensed', Arial, sans-serif; font-size:13px;
+    resize:vertical; min-height:80px;
+  }
+  #bulkTextarea:focus { outline:none; border-color:var(--gold); }
+
+  .preset-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+  .preset-btn {
+    font-family:'Barlow Condensed', Arial, sans-serif; font-size:12px; letter-spacing:0.5px;
+    font-weight:600; background:rgba(255,255,255,0.03); color:var(--canvas);
+    border:1px solid rgba(217,201,163,0.25); border-radius:999px;
+    padding:7px 14px; cursor:pointer;
+  }
+  .preset-btn:hover { border-color:var(--gold); color:var(--gold-hi); }
+
+  .admin-actions { display:flex; flex-wrap:wrap; gap:10px; }
+  .op-action {
+    font-family:'Barlow Condensed', Arial, sans-serif; font-weight:700;
+    font-size:13px; letter-spacing:1px; text-transform:uppercase;
+    padding:12px 22px; border-radius:8px; cursor:pointer; border:none;
+  }
+  .op-action.spin {
+    background:var(--gold); color:var(--ink); font-size:16px; padding:14px 34px;
+  }
+  .op-action.spin:disabled { opacity:0.4; cursor:not-allowed; }
+  .op-action.remove-w {
+    background:rgba(255,255,255,0.08); color:var(--cream);
+    border:1px solid rgba(255,255,255,0.2);
+  }
+  .op-action.clear {
+    background:rgba(220,38,38,0.15); color:var(--ember);
+    border:1px solid rgba(220,38,38,0.4);
+  }
+  .op-action:active { transform:translateY(1px); }
+
+  .toggle-row {
+    display:flex; align-items:center; gap:8px; margin-top:16px;
+    font-size:13px; color:var(--canvas);
+  }
+  .toggle-row input { accent-color:var(--gold); width:16px; height:16px; }
+</style>
+</head>
+<body>
+
+<!-- ── WHEEL DISPLAY ── -->
+<div class="stage">
+  <div class="brand-row">
+    <div class="brand">
+      <div class="brand-badge">🎡</div>
+      <div>
+        <div class="brand-name">MM Wheel</div>
+        <div class="brand-sub">Pick a Winner</div>
+      </div>
+    </div>
+    <div class="wheel-title" id="entryCountTag">Loading…</div>
+  </div>
+
+  <div class="wheel-area">
+    <div class="hub-glow"></div>
+    <div class="pointer"></div>
+    <canvas id="wheelCanvas" width="600" height="600"></canvas>
+    <div class="hub">GO</div>
+  </div>
+
+  <div class="result-banner">
+    <div class="result-card" id="resultCard">
+      <small class="result-sub">Winner</small>
+      <span id="resultText">—</span>
+    </div>
+  </div>
+
+  <div class="footer-hint" id="footerHint">Prize Wheel — operator controls below</div>
+</div>
+
+<!-- ── OPERATOR PANEL ── -->
+<div class="admin">
+  <div class="admin-inner">
+    <div class="admin-title"><span class="dot"></span> MM Wheel — Operator Panel</div>
+
+    <!-- Config bar (shown when a config is loaded) -->
+    <div class="config-bar" id="configBar" style="display:none">
+      Config: <strong id="configName">—</strong>
+      <button class="save-btn" onclick="saveConfigBack()">💾 SAVE ENTRIES</button>
+      <span class="save-ok" id="saveOk">Saved ✓</span>
+    </div>
+
+    <!-- Entry input -->
+    <div class="entry-form">
+      <input type="text" id="entryInput" placeholder="Add a name — Circle, kid, dad, anything…"
+             onkeydown="if(event.key==='Enter') addEntry()">
+      <button onclick="addEntry()">Add</button>
+    </div>
+
+    <div class="entry-list" id="entryList"></div>
+
+    <!-- Bulk paste -->
+    <div class="bulk-area">
+      <button class="bulk-toggle" onclick="toggleBulk()">▸ BULK PASTE (one per line)</button>
+      <textarea id="bulkTextarea" placeholder="Paste names here, one per line…" rows="4"></textarea>
+      <div style="display:none;margin-top:6px" id="bulkActions">
+        <button onclick="applyBulk()" style="background:var(--pine);color:var(--cream);border:none;border-radius:6px;padding:7px 16px;cursor:pointer;font-family:'Barlow Condensed',Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:1px">APPLY</button>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="preset-row">
+      <button class="preset-btn" onclick="loadPreset('circles')">Load: Circles</button>
+      <button class="preset-btn" onclick="loadPreset('dads')">Load: Dads</button>
+      <button class="preset-btn" onclick="loadPreset('kids')">Load: Kids</button>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="admin-actions">
+      <button class="op-action spin" id="spinBtn" onclick="spinWheel()">🎡 Spin the Wheel</button>
+      <button class="op-action remove-w" id="removeWinnerBtn" onclick="removeLastWinner()" disabled>Remove Last Winner</button>
+      <button class="op-action clear" onclick="clearEntries()">Clear All</button>
+    </div>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="noRepeat" checked>
+      <label for="noRepeat">Auto-remove winner after each spin</label>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS = ['#f0b429','#2f5d4c','#c23b22','#16296b','#b8860b','#1e4335','#8a2d1c','#0b1a3d'];
+const PRESETS = {
+  circles: ['Mighty Creek','Buccaneers','Blue Hawks','Rough Riders','Outlaws','Vikings','Circle 7','Circle 8','Circle 9'],
+  dads: ['Chris','Dave','Mark','Josh','Jeff','Scott','Nate'],
+  kids: ['Henry','Nolan','Owen','Liam','Mia','Cole','Ava'],
+};
+
+let entries = [];
+let currentRotation = 0;
+let spinning = false;
+let lastWinner = null;
+let _configId = null;
+let _configName = null;
+
+const canvas = document.getElementById('wheelCanvas');
+const ctx    = canvas.getContext('2d');
+
+// ── INIT ──
+(async function init() {
+  const params   = new URLSearchParams(location.search);
+  const configId = params.get('config');
+  if (configId) {
+    try {
+      const cfg = await fetch(`/api/game_configs/${configId}`).then(r => r.json());
+      if (cfg && cfg.id) {
+        _configId   = cfg.id;
+        _configName = cfg.name;
+        entries     = Array.isArray(cfg.data?.entries) ? [...cfg.data.entries] : [];
+        const autoRemove = cfg.data?.auto_remove;
+        if (autoRemove === false) document.getElementById('noRepeat').checked = false;
+        document.getElementById('configBar').style.display = '';
+        document.getElementById('configName').textContent  = cfg.name;
+        document.getElementById('footerHint').textContent  = cfg.name + ' — operator controls below';
+        document.title = 'MM Wheel — ' + cfg.name;
+      }
+    } catch(e) { console.error('Failed to load config', e); }
+  }
+  if (!entries.length) {
+    entries = [...PRESETS.circles];
+  }
+  renderEntryList();
+})();
+
+// ── SAVE BACK TO CONFIG ──
+async function saveConfigBack() {
+  if (!_configId) return;
+  const data = {
+    entries:     entries.slice(),
+    auto_remove: document.getElementById('noRepeat').checked,
+  };
+  try {
+    const r = await fetch(`/api/game_configs/${_configId}`, {
+      method:  'PUT',
+      headers: {'Content-Type':'application/json'},
+      body:    JSON.stringify({ data }),
+    });
+    const d = await r.json();
+    const ok = document.getElementById('saveOk');
+    ok.classList.toggle('show', !!d.ok);
+    if (d.ok) setTimeout(() => ok.classList.remove('show'), 2000);
+  } catch(e) { console.error(e); }
+}
+
+// ── WHEEL DRAW ──
+function drawWheel(rotation = 0) {
+  const size = canvas.width;
+  const cx = size/2, cy = size/2, r = size/2 - 6;
+  const n = entries.length;
+  ctx.clearRect(0,0,size,size);
+  if (n === 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+    return;
+  }
+  const slice = (Math.PI*2)/n;
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.rotate(rotation);
+  for (let i = 0; i < n; i++) {
+    const start = i*slice, end = start+slice;
+    ctx.beginPath(); ctx.moveTo(0,0);
+    ctx.arc(0,0,r,start,end); ctx.closePath();
+    ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill();
+    ctx.strokeStyle = 'rgba(11,26,61,0.6)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.save();
+    ctx.rotate(start + slice/2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#f4ecd8';
+    const fs = n > 12 ? 14 : n > 8 ? 17 : 20;
+    ctx.font = `700 ${fs}px 'Barlow Condensed', Arial, sans-serif`;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 3;
+    const label = entries[i].length > 16 ? entries[i].slice(0,15)+'…' : entries[i];
+    ctx.fillText(label, r - 18, fs/3);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+// ── ENTRY MANAGEMENT ──
+function renderEntryList() {
+  const list = document.getElementById('entryList');
+  list.innerHTML = entries.map((name, i) => `
+    <div class="entry-chip">
+      <span class="swatch" style="background:${COLORS[i % COLORS.length]}"></span>
+      ${escHtml(name)}
+      <button onclick="removeEntry(${i})">✕</button>
+    </div>`).join('');
+  document.getElementById('entryCountTag').textContent = entries.length + ' entries';
+  document.getElementById('spinBtn').disabled = entries.length < 2;
+  drawWheel(currentRotation);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addEntry() {
+  const input = document.getElementById('entryInput');
+  const val = input.value.trim();
+  if (!val) return;
+  entries.push(val);
+  input.value = '';
+  renderEntryList();
+}
+
+function removeEntry(i) {
+  entries.splice(i,1);
+  renderEntryList();
+}
+
+function clearEntries() {
+  entries = []; lastWinner = null;
+  document.getElementById('removeWinnerBtn').disabled = true;
+  hideResult();
+  renderEntryList();
+}
+
+function loadPreset(key) {
+  entries = [...(PRESETS[key] || [])];
+  renderEntryList();
+}
+
+function toggleBulk() {
+  const ta = document.getElementById('bulkTextarea');
+  const acts = document.getElementById('bulkActions');
+  const open = ta.style.display !== 'none';
+  ta.style.display = open ? 'none' : 'block';
+  acts.style.display = open ? 'none' : 'block';
+}
+
+function applyBulk() {
+  const lines = document.getElementById('bulkTextarea').value
+    .split('\n').map(s => s.trim()).filter(Boolean);
+  if (lines.length) { entries = lines; renderEntryList(); }
+  toggleBulk();
+  document.getElementById('bulkTextarea').value = '';
+}
+
+// ── SPIN PHYSICS (identical to mockup) ──
+function hideResult() {
+  document.getElementById('resultCard').classList.remove('show');
+}
+
+function spinWheel() {
+  if (spinning || entries.length < 2) return;
+  spinning = true;
+  hideResult();
+  document.getElementById('spinBtn').disabled = true;
+
+  const n = entries.length;
+  const slice = (Math.PI*2)/n;
+  const winnerIndex = Math.floor(Math.random()*n);
+  const targetSliceCenter = winnerIndex*slice + slice/2;
+  const extraSpins = 6 + Math.random()*3;
+  const finalRotation = currentRotation
+    + (extraSpins * Math.PI*2)
+    + ((Math.PI*1.5) - targetSliceCenter - (currentRotation % (Math.PI*2)));
+
+  const duration  = 4200;
+  const start     = performance.now();
+  const startRot  = currentRotation;
+  const delta     = finalRotation - startRot;
+
+  function easeOutCubicBounce(t) {
+    if (t < 0.92) {
+      const p = t/0.92;
+      return 1 - Math.pow(1-p, 3);
+    }
+    const p = (t-0.92)/0.08;
+    return 1 + Math.sin(p*Math.PI)*0.01*(1-p);
+  }
+
+  function frame(now) {
+    const t = Math.min((now - start)/duration, 1);
+    currentRotation = startRot + delta * easeOutCubicBounce(t);
+    drawWheel(currentRotation);
+    if (t < 1) { requestAnimationFrame(frame); }
+    else        { currentRotation = finalRotation; finishSpin(winnerIndex); }
+  }
+  requestAnimationFrame(frame);
+}
+
+function finishSpin(index) {
+  spinning     = false;
+  lastWinner   = entries[index];
+  document.getElementById('resultText').textContent = lastWinner;
+  document.getElementById('resultCard').classList.add('show');
+  document.getElementById('spinBtn').disabled = entries.length < 2;
+  document.getElementById('removeWinnerBtn').disabled = false;
+
+  if (document.getElementById('noRepeat').checked) {
+    entries.splice(index, 1);
+    renderEntryList();
+  }
+}
+
+function removeLastWinner() {
+  if (!lastWinner) return;
+  const idx = entries.indexOf(lastWinner);
+  if (idx > -1) { entries.splice(idx,1); renderEntryList(); }
+  document.getElementById('removeWinnerBtn').disabled = true;
+}
+</script>
+</body>
+</html>
