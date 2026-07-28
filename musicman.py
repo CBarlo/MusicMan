@@ -34,7 +34,7 @@ import pygame
 from pathlib import Path
 from mutagen.mp3  import MP3  as MutagenMP3
 from mutagen.wave import WAVE as MutagenWAV
-from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
+from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for, Response
 from flask_sock import Sock
 
 # numpy for offline FFT audio analysis
@@ -6106,6 +6106,99 @@ def api_crowd_mode_get():
 @app.route('/api/sound/levels')
 def api_sound_levels():
     return jsonify(_sound_levels)
+
+
+# ════════════════════════════════════════════
+# WLED REVERSE PROXY
+# Forwards /wled/<node_id>/... to the WLED device's HTTP API.
+# Lets browsers on a different WLAN reach WLED nodes via the Pi.
+# ════════════════════════════════════════════
+_WLED_HOP_HEADERS = frozenset({
+    'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+    'te', 'trailers', 'transfer-encoding', 'upgrade',
+    'content-encoding', 'content-length',
+})
+
+@app.route('/wled/<node_id>/', defaults={'path': ''})
+@app.route('/wled/<node_id>/<path:path>')
+def wled_proxy(node_id, path):
+    cfg = config
+    ip_map = {
+        **{d['id']: d.get('ip') for d in cfg.get('wled_devices', []) if d.get('ip')},
+        **{n['id']: n.get('ip') for n in cfg.get('pole_nodes',   []) if n.get('ip')},
+    }
+    ip = ip_map.get(node_id)
+    if not ip:
+        return Response(f'WLED node "{node_id}" not found', status=404,
+                        content_type='text/plain; charset=utf-8')
+
+    target = f'http://{ip}/{path}'
+    if request.query_string:
+        target += '?' + request.query_string.decode(errors='replace')
+
+    fwd_headers = {
+        k: v for k, v in request.headers
+        if k.lower() not in _WLED_HOP_HEADERS and k.lower() != 'host'
+    }
+    fwd_headers['Host'] = ip
+
+    try:
+        up = requests.request(
+            method=request.method,
+            url=target,
+            headers=fwd_headers,
+            data=request.get_data(),
+            timeout=8,
+            allow_redirects=False,
+        )
+    except requests.exceptions.RequestException as exc:
+        return Response(f'Proxy error: {exc}', status=502,
+                        content_type='text/plain; charset=utf-8')
+
+    # requests auto-decompresses gzip; body is plain bytes
+    body = up.content
+
+    # Inject JS shim into HTML so WLED's absolute-path API calls (/json/state,
+    # /win, etc.) get rewritten through the proxy instead of hitting the raw IP.
+    content_type = up.headers.get('Content-Type', '')
+    if 'text/html' in content_type and body:
+        proxy_base = f'/wled/{node_id}'
+        shim = (
+            '<script>'
+            '(function(){'
+            'var b="%s";'
+            'var _f=window.fetch;'
+            'window.fetch=function(u,o){'
+            'if(typeof u==="string"&&u.charAt(0)==="/"&&!u.startsWith(b))u=b+u;'
+            'return _f.call(this,u,o);};'
+            'var _X=window.XMLHttpRequest;'
+            'window.XMLHttpRequest=function(){'
+            'var x=new _X(),_op=x.open.bind(x);'
+            'x.open=function(m,u){'
+            'if(typeof u==="string"&&u.charAt(0)==="/"&&!u.startsWith(b))u=b+u;'
+            'return _op.apply(x,[m,u].concat([].slice.call(arguments,2)));'
+            '};return x;};'
+            '})();'
+            '</script>'
+        ) % proxy_base
+        shim_b = shim.encode()
+        lo = body.lower()
+        ins = lo.find(b'<head>')
+        if ins != -1:
+            body = body[:ins + 6] + shim_b + body[ins + 6:]
+        else:
+            body = shim_b + body
+
+    resp_headers = {
+        k: v for k, v in up.headers.items()
+        if k.lower() not in _WLED_HOP_HEADERS
+    }
+    # Rewrite absolute redirect paths to stay inside the proxy
+    loc = resp_headers.get('Location', '')
+    if loc.startswith('/'):
+        resp_headers['Location'] = f'/wled/{node_id}' + loc
+
+    return Response(body, status=up.status_code, headers=resp_headers)
 
 
 # ════════════════════════════════════════════

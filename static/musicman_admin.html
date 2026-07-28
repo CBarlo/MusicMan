@@ -6617,7 +6617,7 @@ function renderPoleNodeConfig() {
       <div class="pn-fixtures">${fixHtml}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="btn btn-secondary btn-sm" onclick="addFixture(${ni})" style="font-size:10px">+ FIXTURE</button>
-        ${node.ip ? `<a href="http://${escHtml(node.ip)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="text-decoration:none;font-size:10px">↗ WLED UI</a>` : ''}
+        ${node.ip ? `<a href="/wled/${escHtml(node.id)}/" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="text-decoration:none;font-size:10px">↗ WLED UI</a>` : ''}
         ${(node.fixtures||[]).length ? `<button class="btn btn-secondary btn-sm" onclick="toggleTestPanel(this)" style="font-size:10px;margin-left:auto">▶ TEST</button>` : ''}
       </div>
       <div class="pn-test" style="display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:10px">
@@ -7042,7 +7042,7 @@ function renderSceneDmx(dmxData) {
     return `<div style="margin-bottom:14px">
       <div style="font-size:10px;letter-spacing:2px;color:var(--amber);font-weight:700;margin-bottom:6px">
         ${escHtml(node.name||node.id)}
-        ${node.ip ? `<a href="http://${escHtml(node.ip)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:9px;font-weight:400;text-decoration:none;margin-left:8px">↗ WLED UI</a>` : ''}
+        ${node.ip ? `<a href="/wled/${escHtml(node.id)}/" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:9px;font-weight:400;text-decoration:none;margin-left:8px">↗ WLED UI</a>` : ''}
       </div>
       ${node.fixtures.map(fix => {
         const vals       = nodeVals[fix.id] || null;
