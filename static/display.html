@@ -197,6 +197,140 @@
   .sl-qr .sl-qimg    { width:24vw; height:24vw; margin:1.2vw auto; display:block; border:1vw solid #fff; border-radius:.6vw; image-rendering:pixelated; }
   .sl-qr .sl-url     { font-size:1.7vw; font-weight:600; letter-spacing:.08em; color:rgba(255,255,255,.38); font-family:'Share Tech Mono','Courier New',monospace; margin-top:.4vw; }
 
+  /* ── VS CARD LAYER ──────────────────────────────────────────── */
+  #layer-vs {
+    position: fixed; inset: 0; z-index: 7;
+    opacity: 0; pointer-events: none;
+    transition: opacity .5s ease;
+    background: #050505;
+    display: flex; align-items: stretch;
+    overflow: hidden;
+  }
+  #layer-vs.vs-active { opacity: 1; }
+
+  .vs-half {
+    flex: 1; position: relative;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end;
+    padding-bottom: 8vh;
+    overflow: hidden;
+  }
+  .vs-half-left  { transform-origin: left center; }
+  .vs-half-right { transform-origin: right center; }
+
+  /* Colour wash behind each player */
+  .vs-half::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--vs-color, #E83A3A);
+    opacity: .13;
+    clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%);
+  }
+  .vs-half-right::before {
+    clip-path: polygon(15% 0, 100% 0, 100% 100%, 0 100%);
+  }
+
+  /* Portrait / letter avatar */
+  .vs-portrait {
+    width: 32vw; height: 42vh;
+    object-fit: cover; object-position: top center;
+    display: block;
+    filter: drop-shadow(0 0 3vw var(--vs-color, #E83A3A));
+    border-radius: 4px;
+  }
+  .vs-letter-avatar {
+    width: 32vw; height: 42vh;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28vw; font-weight: 900; line-height: 1;
+    color: var(--vs-color, #E83A3A);
+    text-shadow: 0 0 6vw var(--vs-color, #E83A3A);
+    opacity: .9;
+  }
+
+  /* Name bar */
+  .vs-namebar {
+    text-align: center; margin-top: 2vh; width: 100%;
+    padding: 0 3vw;
+  }
+  .vs-name {
+    font-size: 7.5vw; font-weight: 900; line-height: .9;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 0 4vw var(--vs-color, #E83A3A), 0 4px 0 rgba(0,0,0,.9);
+  }
+  .vs-sublabel {
+    font-size: 2vw; font-weight: 700; letter-spacing: .3em;
+    text-transform: uppercase; color: var(--vs-color, #E83A3A);
+    opacity: .9; margin-top: .4vh;
+  }
+
+  /* VS divider */
+  #vs-center {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #vs-text {
+    font-size: 14vw; font-weight: 900; line-height: .85;
+    letter-spacing: -.02em; font-style: italic;
+    color: #fff;
+    text-shadow:
+      0 0 3vw #fff,
+      0 0 8vw #F5A623,
+      0 0 18vw #F5A623,
+      0 6px 0 rgba(0,0,0,.9);
+    animation: vs-pulse 1.6s ease-in-out infinite;
+  }
+  #vs-divider-line {
+    width: 2px; height: 100vh;
+    background: linear-gradient(to bottom,
+      transparent 0%,
+      rgba(245,166,35,.6) 30%,
+      rgba(245,166,35,.8) 50%,
+      rgba(245,166,35,.6) 70%,
+      transparent 100%);
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  @keyframes vs-pulse {
+    0%,100% { text-shadow: 0 0 3vw #fff, 0 0 8vw #F5A623, 0 0 18vw #F5A623, 0 6px 0 rgba(0,0,0,.9); }
+    50%      { text-shadow: 0 0 5vw #fff, 0 0 14vw #F5A623, 0 0 30vw #F5A623, 0 0 50vw rgba(245,166,35,.3), 0 6px 0 rgba(0,0,0,.9); }
+  }
+
+  /* Entry animations */
+  @keyframes vs-enter-left {
+    from { transform: translateX(-8vw) scale(.96); opacity:0; }
+    to   { transform: translateX(0)    scale(1);   opacity:1; }
+  }
+  @keyframes vs-enter-right {
+    from { transform: translateX(8vw) scale(.96); opacity:0; }
+    to   { transform: translateX(0)   scale(1);   opacity:1; }
+  }
+  #layer-vs.vs-active .vs-half-left  { animation: vs-enter-left  .45s cubic-bezier(.2,0,.4,1) forwards; }
+  #layer-vs.vs-active .vs-half-right { animation: vs-enter-right .45s cubic-bezier(.2,0,.4,1) forwards; }
+
+  /* Scanline overlay for arcade theme */
+  #layer-vs.theme-arcade::after {
+    content: '';
+    position: absolute; inset: 0; z-index: 10; pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px, transparent 3px,
+      rgba(0,0,0,.18) 3px, rgba(0,0,0,.18) 4px
+    );
+  }
+  /* Neon theme */
+  #layer-vs.theme-neon .vs-name { font-family:'Barlow Condensed',sans-serif; }
+  #layer-vs.theme-neon #vs-text {
+    color: #00ff88;
+    text-shadow: 0 0 3vw #00ff88, 0 0 10vw #00ff88, 0 0 24vw #00ff88, 0 6px 0 rgba(0,0,0,.9);
+    animation: none;
+  }
+
   /* ── VIZ LAYERS ─────────────────────────────────────────────── */
   #layer-viz-music, #layer-viz-crowd {
     position: fixed;
@@ -254,6 +388,28 @@
 
 <!-- SLIDE LAYER -->
 <div id="layer-slide"></div>
+
+<!-- VS CARD LAYER -->
+<div id="layer-vs">
+  <div id="vs-divider-line"></div>
+  <div class="vs-half vs-half-left" id="vs-left">
+    <div id="vs-left-media"></div>
+    <div class="vs-namebar">
+      <div class="vs-name" id="vs-left-name"></div>
+      <div class="vs-sublabel" id="vs-left-sub"></div>
+    </div>
+  </div>
+  <div id="vs-center">
+    <div id="vs-text">VS</div>
+  </div>
+  <div class="vs-half vs-half-right" id="vs-right">
+    <div id="vs-right-media"></div>
+    <div class="vs-namebar">
+      <div class="vs-name" id="vs-right-name"></div>
+      <div class="vs-sublabel" id="vs-right-sub"></div>
+    </div>
+  </div>
+</div>
 
 <!-- MUSIC REACTIVE VIZ LAYER -->
 <div id="layer-viz-music">
@@ -830,6 +986,76 @@ function blackout() {
   }, 1200);
 }
 
+// ── VS CARD ───────────────────────────────────────────────────────────────────
+const layerVs = document.getElementById('layer-vs');
+
+function hideVsCard() {
+  layerVs.classList.remove('vs-active');
+  layerVs.style.opacity      = '0';
+  layerVs.style.pointerEvents = 'none';
+}
+
+function showVsCard(data) {
+  hideSlide();
+  hideLeaderboard();
+
+  const theme   = data.theme  || 'fire_ice';
+  const leftCfg = data.left   || {};
+  const rightCfg= data.right  || {};
+
+  // Theme class
+  layerVs.className = 'theme-' + theme;
+
+  function _applyHalf(halfEl, mediaEl, nameEl, subEl, cfg, side) {
+    halfEl.style.setProperty('--vs-color', cfg.color || (side === 'left' ? '#E83A3A' : '#4A9FD4'));
+    nameEl.textContent = (cfg.label || '').toUpperCase();
+    subEl.textContent  = cfg.sublabel || '';
+    subEl.style.display = cfg.sublabel ? '' : 'none';
+
+    mediaEl.innerHTML = '';
+    if (cfg.image_url) {
+      const img = document.createElement('img');
+      img.className = 'vs-portrait';
+      img.src = cfg.image_url + '?t=' + Date.now();
+      img.onerror = () => { _fallbackAvatar(mediaEl, cfg, side); };
+      mediaEl.appendChild(img);
+    } else {
+      _fallbackAvatar(mediaEl, cfg, side);
+    }
+  }
+
+  function _fallbackAvatar(mediaEl, cfg, side) {
+    mediaEl.innerHTML = '';
+    const av = document.createElement('div');
+    av.className = 'vs-letter-avatar';
+    av.style.setProperty('--vs-color', cfg.color || (side === 'left' ? '#E83A3A' : '#4A9FD4'));
+    av.textContent = (cfg.label || (side === 'left' ? 'L' : 'R')).charAt(0).toUpperCase();
+    mediaEl.appendChild(av);
+  }
+
+  _applyHalf(
+    document.getElementById('vs-left'),
+    document.getElementById('vs-left-media'),
+    document.getElementById('vs-left-name'),
+    document.getElementById('vs-left-sub'),
+    leftCfg, 'left'
+  );
+  _applyHalf(
+    document.getElementById('vs-right'),
+    document.getElementById('vs-right-media'),
+    document.getElementById('vs-right-name'),
+    document.getElementById('vs-right-sub'),
+    rightCfg, 'right'
+  );
+
+  // Flash in
+  layerVs.style.opacity       = '0';
+  layerVs.style.pointerEvents = 'auto';
+  requestAnimationFrame(() => {
+    layerVs.classList.add('vs-active');
+  });
+}
+
 // ── COLOR HELPER ──────────────────────────────────────────────────────────────
 function hexOpacity(hex, alpha) {
   const r = parseInt(hex.slice(1,3),16);
@@ -1012,14 +1238,15 @@ function connectWS() {
 
       if      (msg.event === 'preload_assets')    { preloadAssets(data.urls); }
       else if (msg.event === 'walkup_preload')    { preloadWalkupVideo(data); }
-      else if (msg.event === 'display_walkup')    { hideGameFrame(); hideChronoOverlay(); hideViz(); showWalkup(data); }
-      else if (msg.event === 'display_step')      { hideGameFrame(); hideChronoOverlay(); hideViz(); showStep(data); }
-      else if (msg.event === 'display_animation') { hideGameFrame(); hideChronoOverlay(); hideViz(); showTitleVideo(data); }
-      else if (msg.event === 'display_clear')     { hideGameFrame(); hideChronoOverlay(); hideViz(); blackout(); }
-      else if (msg.event === 'display_standby')   { hideGameFrame(); hideChronoOverlay(); hideViz(); showStandby(); }
-      else if (msg.event === 'display_slide')     { hideGameFrame(); hideChronoOverlay(); showSlide(data); }
+      else if (msg.event === 'display_walkup')    { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showWalkup(data); }
+      else if (msg.event === 'display_step')      { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showStep(data); }
+      else if (msg.event === 'display_animation') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showTitleVideo(data); }
+      else if (msg.event === 'display_clear')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); blackout(); }
+      else if (msg.event === 'display_standby')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showStandby(); }
+      else if (msg.event === 'display_slide')     { hideGameFrame(); hideChronoOverlay(); hideVsCard(); showSlide(data); }
       else if (msg.event === 'display_slide_clear') { hideSlide(); }
-      else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); showLeaderboard(data); }
+      else if (msg.event === 'display_vs_card')   { hideGameFrame(); hideChronoOverlay(); showVsCard(data); }
+      else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showLeaderboard(data); }
       else if (msg.event === 'timer_hide')        { hideChronoOverlay(); }
       else if (msg.event === 'display_reload')    { location.href = '/display?v=' + Date.now(); }
       else if (msg.event === 'display_navigate')  {

@@ -309,7 +309,7 @@
       <div class="page-tab" onclick="showPage('macros',this)">MACROS</div>
       <div class="page-tab" onclick="showPage('sfx',this);buildSfxGrid()">SFX</div>
       <div class="page-tab" onclick="showPage('music',this);loadMusicTracks()">MUSIC</div>
-      <div class="page-tab" onclick="showPage('display',this);loadSavedSlidesConsole();setTimeout(updateConsPreview,100);vizConsoleLoadPresets()">DISPLAY</div>
+      <div class="page-tab" onclick="showPage('display',this);loadSavedSlidesConsole();loadVsCardsConsole();setTimeout(updateConsPreview,100);vizConsoleLoadPresets()">DISPLAY</div>
       <div class="page-tab" onclick="showPage('games',this);loadGamesTab()">GAMES/TIMERS</div>
       <div class="page-tab" onclick="showPage('lights',this);loadLightsTab()">LIGHTS</div>
       <div class="page-tab" onclick="showPage('wifi',this);loadWifi()">WIFI</div>
@@ -393,6 +393,17 @@
             <button onclick="loadSavedSlidesConsole()" style="font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">↺</button>
           </div>
           <div id="saved-slides-console" style="display:flex;flex-direction:column;gap:6px">
+            <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px">LOADING…</div>
+          </div>
+        </div>
+
+        <!-- VS CARDS -->
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">⚔ VS CARDS</div>
+            <button onclick="loadVsCardsConsole()" style="font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">↺</button>
+          </div>
+          <div id="vs-cards-console" style="display:flex;flex-direction:column;gap:6px">
             <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px">LOADING…</div>
           </div>
         </div>
@@ -1363,6 +1374,38 @@ function pushSavedSlide(id) {
   fetch(`/api/slides/${id}/push`)
     .then(r => r.json())
     .then(d => { if (d.ok) showAlert('Slide sent', 1500); else showAlert('Failed', 1500); })
+    .catch(() => showAlert('Failed', 1500));
+}
+
+// ── VS CARDS CONSOLE ──────────────────────────────────────────────────────────
+
+async function loadVsCardsConsole() {
+  const el = document.getElementById('vs-cards-console');
+  if (!el) return;
+  let cards = [];
+  try { cards = await fetch('/api/vs_cards').then(r => r.json()); } catch(e) {}
+  if (!cards.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px">NO VS CARDS — CREATE THEM IN ADMIN</div>';
+    return;
+  }
+  el.innerHTML = cards.map(c => `
+    <div style="display:flex;gap:6px;align-items:center">
+      <button onclick="fireVsCardConsole('${c.id}')"
+        style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;text-align:left;font-family:'Barlow Condensed',sans-serif">
+        <span style="font-size:14px;font-weight:700;letter-spacing:.5px">⚔ ${escHtml(c.name)}</span>
+        <span style="font-size:10px;letter-spacing:1px;color:var(--text-dim)">${escHtml((c.left&&c.left.name)||'?')} vs ${escHtml((c.right&&c.right.name)||'?')}</span>
+      </button>
+    </div>`).join('');
+}
+
+function fireVsCardConsole(id) {
+  fetch('/api/display/vs_card', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ id }),
+  })
+    .then(r => r.json())
+    .then(d => { if (d.ok) showAlert('VS card fired!', 1500); else showAlert('Failed', 1500); })
     .catch(() => showAlert('Failed', 1500));
 }
 

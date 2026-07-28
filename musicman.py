@@ -53,6 +53,7 @@ ASSETS_DIR   = BASE_DIR / 'assets'
 NORM_STAMP  = BASE_DIR / 'logs' / 'normalize_last_run'
 GAMES_FILE        = BASE_DIR / 'games.json'
 GAME_CONFIGS_FILE = BASE_DIR / 'game_configs.json'
+VS_CARDS_FILE     = BASE_DIR / 'vs_cards.json'
 
 # ── LOGGING ──
 _log_file = BASE_DIR / 'logs' / 'musicman.log'
@@ -1277,6 +1278,38 @@ def load_game_configs() -> list:
     except Exception:
         return []
 
+def _vs_card_resolve_images(card: dict, card_id: str) -> dict:
+    """Inject image_url for any side where a photo file actually exists on disk."""
+    vs_dir = ASSETS_DIR / 'vs_cards' / card_id
+    for side in ('left', 'right'):
+        for ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+            if (vs_dir / (side + ext)).exists():
+                card = dict(card)
+                card[side] = dict(card.get(side) or {})
+                card[side]['image_url'] = f'/api/vs_cards/{card_id}/asset/{side}'
+                card[side]['image'] = True
+                break
+    return card
+
+def load_vs_cards() -> list:
+    try:
+        with open(VS_CARDS_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_vs_cards(data: list):
+    tmp = VS_CARDS_FILE.with_suffix('.tmp')
+    try:
+        with _config_lock:
+            with open(tmp, 'w') as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp, VS_CARDS_FILE)
+    except Exception as e:
+        log.error(f"save_vs_cards: {e}")
+        try: tmp.unlink()
+        except OSError: pass
+
 def save_game_configs(data: list):
     tmp = GAME_CONFIGS_FILE.with_suffix('.tmp')
     try:
@@ -2446,6 +2479,87 @@ def api_display_slide_clear():
     global current_slide
     current_slide = {}
     _ensure_display_for('display_slide_clear', {})
+    return jsonify({'ok': True})
+
+# ── VS CARDS ──
+@app.route('/api/vs_cards')
+def api_vs_cards_list():
+    return jsonify(load_vs_cards())
+
+@app.route('/api/vs_cards', methods=['POST'])
+def api_vs_cards_save():
+    card = request.get_json() or {}
+    if not card.get('name', '').strip():
+        return jsonify({'ok': False, 'error': 'name required'}), 400
+    cards = load_vs_cards()
+    cid = card.get('id') or f'vs_{int(time.time()*1000)}'
+    card['id'] = cid
+    idx = next((i for i, c in enumerate(cards) if c['id'] == cid), None)
+    if idx is not None:
+        existing = cards[idx]
+        for side in ('left', 'right'):
+            if existing.get(side, {}).get('image') and not card.get(side, {}).get('image'):
+                card.setdefault(side, {})['image'] = True
+        cards[idx] = card
+    else:
+        cards.append(card)
+    save_vs_cards(cards)
+    return jsonify({'ok': True, 'id': cid})
+
+@app.route('/api/vs_cards/<card_id>', methods=['DELETE'])
+def api_vs_cards_delete(card_id):
+    import shutil
+    cards = [c for c in load_vs_cards() if c['id'] != card_id]
+    save_vs_cards(cards)
+    card_dir = ASSETS_DIR / 'vs_cards' / card_id
+    if card_dir.exists():
+        shutil.rmtree(str(card_dir))
+    return jsonify({'ok': True})
+
+@app.route('/api/vs_cards/<card_id>/asset/<side>')
+def api_vs_card_asset(card_id, side):
+    if side not in ('left', 'right') or '..' in card_id:
+        return '', 400
+    vs_dir = ASSETS_DIR / 'vs_cards' / card_id
+    for ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        f = vs_dir / (side + ext)
+        if f.exists():
+            return send_from_directory(str(vs_dir), f.name)
+    return '', 404
+
+@app.route('/api/vs_cards/<card_id>/asset/<side>', methods=['DELETE'])
+def api_vs_card_asset_delete(card_id, side):
+    if side not in ('left', 'right') or '..' in card_id:
+        return jsonify({'ok': False}), 400
+    vs_dir = ASSETS_DIR / 'vs_cards' / card_id
+    for ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        f = vs_dir / (side + ext)
+        if f.exists():
+            f.unlink()
+    cards = load_vs_cards()
+    for c in cards:
+        if c['id'] == card_id:
+            if side in c and isinstance(c[side], dict):
+                c[side].pop('image', None)
+            break
+    save_vs_cards(cards)
+    return jsonify({'ok': True})
+
+@app.route('/api/display/vs_card', methods=['POST'])
+def api_display_vs_card():
+    data = request.get_json() or {}
+    card_id = data.get('id', '')
+    if card_id:
+        cards = {c['id']: c for c in load_vs_cards()}
+        card  = dict(cards.get(card_id, {}))
+        if not card:
+            return jsonify({'ok': False, 'error': 'VS card not found'}), 404
+        card.update({k: v for k, v in data.items() if k != 'id' and v})
+    else:
+        card = data
+    cid = card.get('id', card_id)
+    card = _vs_card_resolve_images(card, cid)
+    _ensure_display_for('display_vs_card', card)
     return jsonify({'ok': True})
 
 @app.route('/api/slides')
@@ -3819,8 +3933,8 @@ def _get_next_walkup_preload(cfg, idx):
                     return _walkup_preload_payload_for_item('circle', step.get('circle_id', ''), cfg)
                 elif step.get('action') == 'walkup_role':
                     return _walkup_preload_payload_for_item('role', step.get('role_id', ''), cfg)
-    elif nxt_type == 'game':
-        # Skip the game step and preload for whatever follows it
+    elif nxt_type in ('game', 'vs_card'):
+        # Skip non-walkup steps and preload for whatever follows
         return _get_next_walkup_preload(cfg, idx + 1)
     return None
 
@@ -3866,6 +3980,17 @@ def api_show_fire():
             'name':           step_name,
         })
         _ensure_display_for('display_navigate', {'url': disp_url})
+    elif step_type == 'vs_card':
+        card_id   = entry.get('vs_card_id', '')
+        cards     = {c['id']: c for c in load_vs_cards()}
+        card      = dict(cards.get(card_id, {}))
+        step_name = entry.get('name') or card.get('name', 'VS')
+        broadcast('show_step', {'index': idx, 'name': step_name, 'desc': step_desc, 'type': 'vs_card'})
+        if card:
+            card = _vs_card_resolve_images(card, card_id)
+            _ensure_display_for('display_vs_card', card)
+        else:
+            log.warning(f'show/fire: vs_card not found: {card_id!r}')
     else:
         macro_id  = entry.get('macro_id', '')
         macros    = {m['id']: m for m in cfg.get('macros', [])}
@@ -4121,6 +4246,15 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                 _viz_scene = None
                 _stop_audio_analyzer()
                 broadcast('viz_hide', {})
+            elif action == 'vs_card':
+                card_id = step.get('vs_card_id', '')
+                cards   = {c['id']: c for c in load_vs_cards()}
+                card    = dict(cards.get(card_id, {}))
+                if card:
+                    card = _vs_card_resolve_images(card, card_id)
+                    _ensure_display_for('display_vs_card', card)
+                else:
+                    log.warning(f"vs_card macro action: card not found: {card_id!r}")
             log.info(f"Macro step done: {action}")
         except Exception as e:
             log.error(f"Macro step error ({action}): {e}")
@@ -4305,6 +4439,17 @@ def api_upload():
             if old.exists():
                 old.unlink()
         dest = wheel_dir / (slot + ext)
+    elif target_type == 'vs_card' and target_id:
+        if asset_type not in ('left', 'right'):
+            return jsonify({'ok': False, 'error': 'asset must be left or right'}), 400
+        ext  = Path(f.filename).suffix.lower() or '.jpg'
+        vs_dir = ASSETS_DIR / 'vs_cards' / target_id
+        vs_dir.mkdir(parents=True, exist_ok=True)
+        for old_ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+            old = vs_dir / (asset_type + old_ext)
+            if old.exists():
+                old.unlink()
+        dest = vs_dir / (asset_type + ext)
     else:
         return jsonify({'ok': False, 'error': 'Unknown target type'}), 400
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -4378,6 +4523,14 @@ def api_upload():
             macro['display_image'] = stored_name
             save_config(cfg)
             log.info(f"Config updated: macro {target_id}.display_image = {stored_name}")
+    elif target_type == 'vs_card' and target_id:
+        vsc_cards = load_vs_cards()
+        for c in vsc_cards:
+            if c['id'] == target_id:
+                c.setdefault(asset_type, {})['image'] = True
+                break
+        save_vs_cards(vsc_cards)
+        log.info(f"VS card {target_id} {asset_type}.image = True")
     return jsonify({'ok': True, 'path': str(dest), 'filename': stored_name})
 
 # ── ADMIN — CLEAR ASSET ──

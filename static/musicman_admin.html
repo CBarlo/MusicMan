@@ -309,6 +309,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="nav-item" data-tab="macros" onclick="switchTab('macros')">⚡ Macros</div>
     <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadGameEntries();loadTimerConfig();loadGamesLibrary()">🎮 Games</div>
     <div class="nav-item" data-tab="slides" onclick="switchTab('slides')">📋 Slides</div>
+    <div class="nav-item" data-tab="vs-cards" onclick="switchTab('vs-cards');loadVsCards()">⚔ VS Cards</div>
     <div class="nav-item" data-tab="scenes" onclick="switchTab('scenes')">✦ Lighting Scenes</div>
     <div class="nav-divider"></div>
     <div class="sidebar-section">SETTINGS</div>
@@ -1389,6 +1390,120 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
       </div>
     </div>
 
+    <!-- ══════════════ VS CARDS ══════════════ -->
+    <div class="tab-panel" id="tab-vs-cards">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2>VS CARDS</h2>
+          <p>STREET FIGHTER-STYLE HEAD-TO-HEAD MATCHUP CARDS FOR THE PROJECTOR</p>
+        </div>
+        <button class="btn btn-primary" onclick="vsCardNew()">+ NEW CARD</button>
+      </div>
+      <div class="split">
+        <!-- Left: grid -->
+        <div>
+          <div class="roles-grid" id="vsc-grid"></div>
+        </div>
+        <!-- Right: editor -->
+        <div>
+          <div id="vsc-editor-placeholder" class="editor-placeholder">← Select a card or + NEW CARD</div>
+          <div id="vsc-editor" style="display:none">
+            <div class="editor-panel">
+              <div class="editor-title">
+                <span style="font-size:20px">⚔</span>
+                <span id="vsc-editor-title">VS CARD</span>
+              </div>
+
+              <label>CARD NAME</label>
+              <input type="text" id="vsc-name" placeholder="e.g. Henry vs Nolan">
+
+              <label>VS TEXT <span style="font-weight:400;color:var(--text-dim)">(center badge)</span></label>
+              <input type="text" id="vsc-vs-text" placeholder="VS" maxlength="10" style="width:100px">
+
+              <div class="section-divider"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+                <!-- LEFT -->
+                <div>
+                  <div style="font-size:9px;font-weight:800;letter-spacing:3px;color:var(--blue);font-family:'Share Tech Mono',monospace;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">◀ LEFT SIDE</div>
+                  <label>NAME</label>
+                  <input type="text" id="vsc-left-name" placeholder="Challenger name">
+                  <label>SUBLABEL</label>
+                  <input type="text" id="vsc-left-sub" placeholder="e.g. TEAM BLUE">
+                  <label>COLOR</label>
+                  <div class="color-row">
+                    <input type="color" id="vsc-left-color" value="#2B5FA6" oninput="onVscColor('left',this.value)">
+                    <input type="text" id="vsc-left-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="onVscColorHex('left',this.value)" style="flex:1">
+                  </div>
+                  <div class="swatch-row" id="vsc-left-swatches">
+                    <button class="swatch selected" data-color="#2B5FA6" style="background:#2B5FA6" onclick="onVscColorSwatch('left','#2B5FA6')"></button>
+                    <button class="swatch" data-color="#CC2222" style="background:#CC2222" onclick="onVscColorSwatch('left','#CC2222')"></button>
+                    <button class="swatch" data-color="#3CB96A" style="background:#3CB96A" onclick="onVscColorSwatch('left','#3CB96A')"></button>
+                    <button class="swatch" data-color="#8B44CC" style="background:#8B44CC" onclick="onVscColorSwatch('left','#8B44CC')"></button>
+                    <button class="swatch" data-color="#C4610A" style="background:#C4610A" onclick="onVscColorSwatch('left','#C4610A')"></button>
+                  </div>
+                  <label>PHOTO</label>
+                  <div class="asset-slot" id="vsc-left-slot" onclick="document.getElementById('vsc-left-file').click()">
+                    <div class="slot-status" id="vsc-left-status"></div>
+                    <input type="file" id="vsc-left-file" accept="image/*" onchange="uploadVscImage('left',this.files[0])">
+                    <div class="asset-slot-icon" id="vsc-left-icon">📷</div>
+                    <div class="asset-slot-label">LEFT PHOTO</div>
+                    <div class="asset-slot-file empty" id="vsc-left-file-label">No photo — letter avatar used</div>
+                  </div>
+                  <button id="vsc-left-clear" onclick="clearVscImage('left')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
+                </div>
+
+                <!-- RIGHT -->
+                <div>
+                  <div style="font-size:9px;font-weight:800;letter-spacing:3px;color:var(--rust);font-family:'Share Tech Mono',monospace;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">RIGHT SIDE ▶</div>
+                  <label>NAME</label>
+                  <input type="text" id="vsc-right-name" placeholder="Challenger name">
+                  <label>SUBLABEL</label>
+                  <input type="text" id="vsc-right-sub" placeholder="e.g. TEAM RED">
+                  <label>COLOR</label>
+                  <div class="color-row">
+                    <input type="color" id="vsc-right-color" value="#C4610A" oninput="onVscColor('right',this.value)">
+                    <input type="text" id="vsc-right-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="onVscColorHex('right',this.value)" style="flex:1">
+                  </div>
+                  <div class="swatch-row" id="vsc-right-swatches">
+                    <button class="swatch" data-color="#2B5FA6" style="background:#2B5FA6" onclick="onVscColorSwatch('right','#2B5FA6')"></button>
+                    <button class="swatch selected" data-color="#CC2222" style="background:#CC2222" onclick="onVscColorSwatch('right','#CC2222')"></button>
+                    <button class="swatch" data-color="#3CB96A" style="background:#3CB96A" onclick="onVscColorSwatch('right','#3CB96A')"></button>
+                    <button class="swatch" data-color="#8B44CC" style="background:#8B44CC" onclick="onVscColorSwatch('right','#8B44CC')"></button>
+                    <button class="swatch" data-color="#C4610A" style="background:#C4610A" onclick="onVscColorSwatch('right','#C4610A')"></button>
+                  </div>
+                  <label>PHOTO</label>
+                  <div class="asset-slot" id="vsc-right-slot" onclick="document.getElementById('vsc-right-file').click()">
+                    <div class="slot-status" id="vsc-right-status"></div>
+                    <input type="file" id="vsc-right-file" accept="image/*" onchange="uploadVscImage('right',this.files[0])">
+                    <div class="asset-slot-icon" id="vsc-right-icon">📷</div>
+                    <div class="asset-slot-label">RIGHT PHOTO</div>
+                    <div class="asset-slot-file empty" id="vsc-right-file-label">No photo — letter avatar used</div>
+                  </div>
+                  <button id="vsc-right-clear" onclick="clearVscImage('right')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+              <label>THEME</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px" id="vsc-theme-btns">
+                <button class="slide-tpl-btn active" data-theme="arcade" onclick="vsSelectTheme('arcade',this)">ARCADE</button>
+                <button class="slide-tpl-btn" data-theme="fire_ice" onclick="vsSelectTheme('fire_ice',this)">FIRE VS ICE</button>
+                <button class="slide-tpl-btn" data-theme="neon" onclick="vsSelectTheme('neon',this)">NEON</button>
+                <button class="slide-tpl-btn" data-theme="gold_purple" onclick="vsSelectTheme('gold_purple',this)">GOLD / PURPLE</button>
+              </div>
+
+              <div class="btn-row" style="margin-top:18px">
+                <button class="btn btn-primary" onclick="saveVsCard()">✓ SAVE</button>
+                <button class="btn btn-secondary" onclick="fireVsCard()">▶ FIRE</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteVsCard()">🗑 DELETE</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══════════════ MACROS ══════════════ -->
     <div class="tab-panel" id="tab-macros">
       <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
@@ -1467,6 +1582,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                     <option value="saved_slide">📋 Saved Slide</option>
                     <option value="slide">📋 Custom Slide (inline)</option>
                     <option value="slide_clear">✕ Clear Slide</option>
+                    <option value="vs_card">⚔ VS Card</option>
                   </optgroup>
                   <optgroup label="VISUALIZATION">
                     <option value="viz">🎛 Start Visualization</option>
@@ -1523,8 +1639,18 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
 
           <label class="field-label">STEP TYPE</label>
           <div style="display:flex;gap:6px;margin-bottom:12px">
-            <button id="sf-type-macro-btn" class="btn btn-primary btn-sm" style="flex:1" onclick="sfSetType('macro')">MACRO</button>
-            <button id="sf-type-game-btn"  class="btn btn-secondary btn-sm" style="flex:1" onclick="sfSetType('game')">🎮 GAME</button>
+            <button id="sf-type-macro-btn"  class="btn btn-primary btn-sm"   style="flex:1" onclick="sfSetType('macro')">MACRO</button>
+            <button id="sf-type-game-btn"   class="btn btn-secondary btn-sm" style="flex:1" onclick="sfSetType('game')">🎮 GAME</button>
+            <button id="sf-type-vs-btn"     class="btn btn-secondary btn-sm" style="flex:1" onclick="sfSetType('vs_card')">⚔ VS</button>
+          </div>
+
+          <!-- VS CARD fields -->
+          <div id="sf-vs-fields" style="display:none">
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Pick a saved VS card to fire on the projector.</div>
+            <label class="field-label">VS CARD</label>
+            <select id="sf-vs-select" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;margin-bottom:10px">
+              <option value="">— select a VS card —</option>
+            </select>
           </div>
 
           <!-- MACRO fields -->
@@ -2026,6 +2152,7 @@ function switchTab(name) {
   if (name === 'showflow')        loadShowFlow();
   if (name === 'display-content') loadDisplayFiles();
   if (name === 'slides')        { admRenderFields(); loadSavedSlides(); }
+  if (name === 'vs-cards')     loadVsCards();
 }
 
 // ── CIRCLES ────────────────────────────────────────────────────────────────
@@ -3868,7 +3995,8 @@ const STEP_LABELS = {
   display_image:'🖼 Show Image', display_anim:'🎬 Show Video',
   display_circle:'⬡ Circle Display', display_role:'★ Role Display',
   saved_slide:'📋 Saved Slide', slide:'📋 Custom Slide', slide_clear:'✕ Clear Slide',
-  game:'🎮 Launch Game', shell_game:'⛺ Shell Game'
+  game:'🎮 Launch Game', shell_game:'⛺ Shell Game',
+  vs_card:'⚔ VS Card', viz:'🎛 Visualization', viz_hide:'✕ Stop Viz'
 };
 
 // Cached lists for dropdowns — populated at init
@@ -3893,7 +4021,8 @@ async function loadStepLists() {
   } catch(e) {}
   try { const d = await fetch('/api/usb/list').then(r => r.json()); usbItems = d.items || []; } catch(e) {}
   try { slideImages  = await fetch('/api/display/images').then(r => r.json()); } catch(e) {}
-  try { savedSlides = await fetch('/api/slides').then(r => r.json()); } catch(e) {}
+  try { savedSlides   = await fetch('/api/slides').then(r => r.json()); } catch(e) {}
+  try { savedVsCards  = await fetch('/api/vs_cards').then(r => r.json()); } catch(e) {}
 }
 
 async function refreshUsbMacro(btn) {
@@ -4079,6 +4208,12 @@ function stepParamHtml(step) {
   if (a === 'viz_hide') {
     return `<span style="flex:1;color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">hides visualization overlay</span>`;
   }
+  if (a === 'vs_card') {
+    const opts = savedVsCards.length
+      ? savedVsCards.map(c => `<option value="${escHtml(c.id)}" ${step.vs_card_id===c.id?'selected':''}>${escHtml(c.name)}</option>`).join('')
+      : '<option value="">— no VS cards saved yet —</option>';
+    return `<select class="step-param">${opts}</select>`;
+  }
   // no-param actions
   return `<span style="flex:1;color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">—</span>`;
 }
@@ -4119,6 +4254,7 @@ function collectStepValue(row, action) {
     return { game_type_id: typeEl?.value || '', game_config_id: cfgEl?.value || '' };
   }
   if (action === 'shell_game')       return { hold: parseFloat(val) || 5 };
+  if (action === 'vs_card')          return { vs_card_id: val };
   if (action === 'viz')              return { preset_id: val };
   if (action === 'viz_hide')         return {};
   if (action === 'slide') {
@@ -4293,6 +4429,7 @@ function addMacroStep() {
   else if (type === 'slide')         { step.template = 'big_title'; step.theme = 'amber'; step.headline = ''; step.subtitle = ''; }
   else if (type === 'game')          { step.game_type_id = glGameTypes.length ? glGameTypes[0].id : ''; step.game_config_id = ''; }
   else if (type === 'shell_game')    step.hold = 5;
+  else if (type === 'vs_card')       step.vs_card_id = savedVsCards.length ? savedVsCards[0].id : '';
   m.steps = collectSteps();
   m.steps.push(step);
   renderSteps(m.steps);
@@ -4763,7 +4900,248 @@ async function admClearSlide() {
   } catch(e) {}
 }
 
-let savedSlides = [];
+let savedSlides  = [];
+let savedVsCards = [];
+
+// ── VS CARDS ──────────────────────────────────────────────────────────────────
+
+let _selectedVscId  = null;
+let _vscTheme       = 'arcade';
+
+async function loadVsCards() {
+  try { savedVsCards = await fetch('/api/vs_cards').then(r => r.json()); } catch(e) { savedVsCards = []; }
+  const grid = document.getElementById('vsc-grid');
+  if (!grid) return;
+  if (!savedVsCards.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace;padding:12px 0">NO VS CARDS YET — CLICK + NEW CARD</div>';
+    return;
+  }
+  grid.innerHTML = savedVsCards.map(c => `
+    <div class="circle-card${_selectedVscId===c.id?' selected':''}" onclick="selectVsCard('${escHtml(c.id)}')">
+      <div class="circle-card-header" style="gap:6px">
+        <span style="font-size:18px">⚔</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.name||'Untitled')}</div>
+          <div style="font-size:9px;color:var(--text-dim);letter-spacing:2px;font-family:'Share Tech Mono',monospace;margin-top:2px">${escHtml((c.left&&c.left.name)||'?')} vs ${escHtml((c.right&&c.right.name)||'?')}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function selectVsCard(id) {
+  _selectedVscId = id;
+  const card = savedVsCards.find(c => c.id === id);
+  if (!card) return;
+  document.getElementById('vsc-editor-placeholder').style.display = 'none';
+  document.getElementById('vsc-editor').style.display = '';
+  document.getElementById('vsc-editor-title').textContent = card.name || 'VS CARD';
+  document.getElementById('vsc-name').value    = card.name    || '';
+  document.getElementById('vsc-vs-text').value = card.vs_text || 'VS';
+  const L = card.left  || {};
+  const R = card.right || {};
+  document.getElementById('vsc-left-name').value  = L.name  || '';
+  document.getElementById('vsc-left-sub').value   = L.sub   || '';
+  document.getElementById('vsc-right-name').value = R.name  || '';
+  document.getElementById('vsc-right-sub').value  = R.sub   || '';
+  const lc = L.color || '#2B5FA6';
+  const rc = R.color || '#C4610A';
+  document.getElementById('vsc-left-color').value      = lc;
+  document.getElementById('vsc-left-color-hex').value  = lc;
+  document.getElementById('vsc-right-color').value     = rc;
+  document.getElementById('vsc-right-color-hex').value = rc;
+  _vscUpdateSwatch('left',  lc);
+  _vscUpdateSwatch('right', rc);
+  _vscSetImage('left',  id, L.image);
+  _vscSetImage('right', id, R.image);
+  _vscTheme = card.theme || 'arcade';
+  document.querySelectorAll('#vsc-theme-btns .slide-tpl-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.theme === _vscTheme);
+  });
+  loadVsCards();
+}
+
+function vsCardNew() {
+  _selectedVscId = null;
+  _vscTheme = 'arcade';
+  document.getElementById('vsc-editor-placeholder').style.display = 'none';
+  document.getElementById('vsc-editor').style.display = '';
+  document.getElementById('vsc-editor-title').textContent = 'NEW VS CARD';
+  document.getElementById('vsc-name').value    = '';
+  document.getElementById('vsc-vs-text').value = 'VS';
+  document.getElementById('vsc-left-name').value  = '';
+  document.getElementById('vsc-left-sub').value   = '';
+  document.getElementById('vsc-right-name').value = '';
+  document.getElementById('vsc-right-sub').value  = '';
+  const lc = '#2B5FA6', rc = '#C4610A';
+  document.getElementById('vsc-left-color').value      = lc;
+  document.getElementById('vsc-left-color-hex').value  = lc;
+  document.getElementById('vsc-right-color').value     = rc;
+  document.getElementById('vsc-right-color-hex').value = rc;
+  _vscUpdateSwatch('left', lc);
+  _vscUpdateSwatch('right', rc);
+  _vscSetImage('left',  null, null);
+  _vscSetImage('right', null, null);
+  document.querySelectorAll('#vsc-theme-btns .slide-tpl-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.theme === 'arcade');
+  });
+}
+
+function vsSelectTheme(theme, btn) {
+  _vscTheme = theme;
+  document.querySelectorAll('#vsc-theme-btns .slide-tpl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function onVscColor(side, val) {
+  document.getElementById(`vsc-${side}-color-hex`).value = val;
+  _vscUpdateSwatch(side, val);
+}
+function onVscColorHex(side, val) {
+  if (/^#[0-9a-f]{6}$/i.test(val)) {
+    document.getElementById(`vsc-${side}-color`).value = val;
+    _vscUpdateSwatch(side, val);
+  }
+}
+function onVscColorSwatch(side, val) {
+  document.getElementById(`vsc-${side}-color`).value     = val;
+  document.getElementById(`vsc-${side}-color-hex`).value = val;
+  _vscUpdateSwatch(side, val);
+}
+function _vscUpdateSwatch(side, val) {
+  document.querySelectorAll(`#vsc-${side}-swatches .swatch`).forEach(b => {
+    b.classList.toggle('selected', b.dataset.color?.toLowerCase() === val?.toLowerCase());
+  });
+}
+
+function _vscSetImage(side, cardId, hasImage) {
+  const slot  = document.getElementById(`vsc-${side}-slot`);
+  const icon  = document.getElementById(`vsc-${side}-icon`);
+  const label = document.getElementById(`vsc-${side}-file-label`);
+  const clrBtn= document.getElementById(`vsc-${side}-clear`);
+  const status= document.getElementById(`vsc-${side}-status`);
+  if (hasImage && cardId) {
+    slot.classList.add('has-file');
+    icon.textContent  = '🖼';
+    label.textContent = 'Photo uploaded';
+    label.className   = 'asset-slot-file';
+    status.className  = 'slot-status ok';
+    if (clrBtn) clrBtn.style.display = '';
+  } else {
+    slot.classList.remove('has-file');
+    icon.textContent  = '📷';
+    label.textContent = 'No photo — letter avatar used';
+    label.className   = 'asset-slot-file empty';
+    status.className  = 'slot-status';
+    if (clrBtn) clrBtn.style.display = 'none';
+  }
+}
+
+async function uploadVscImage(side, file) {
+  if (!file) return;
+  if (!_selectedVscId) {
+    toast('Save the card first, then upload a photo', 'err');
+    return;
+  }
+  const slot   = document.getElementById(`vsc-${side}-slot`);
+  const status = document.getElementById(`vsc-${side}-status`);
+  slot.classList.add('uploading');
+  status.className = 'slot-status spinning';
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type', 'vs_card');
+  fd.append('id', _selectedVscId);
+  fd.append('asset', side);
+  try {
+    const r = await fetch('/api/upload', { method:'POST', body: fd });
+    const d = await r.json();
+    slot.classList.remove('uploading');
+    if (d.ok) {
+      toast(`${side.toUpperCase()} photo uploaded`, 'ok');
+      const card = savedVsCards.find(c => c.id === _selectedVscId);
+      if (card) { card[side] = card[side] || {}; card[side].image = true; }
+      _vscSetImage(side, _selectedVscId, true);
+    } else {
+      toast(d.error || 'Upload failed', 'err');
+      status.className = 'slot-status';
+    }
+  } catch(e) {
+    slot.classList.remove('uploading');
+    status.className = 'slot-status';
+    toast('Upload failed', 'err');
+  }
+}
+
+async function clearVscImage(side) {
+  if (!_selectedVscId) return;
+  try {
+    const r = await fetch(`/api/vs_cards/${_selectedVscId}/asset/${side}`, { method: 'DELETE' });
+    if ((await r.json()).ok) {
+      const card = savedVsCards.find(c => c.id === _selectedVscId);
+      if (card && card[side]) card[side].image = false;
+      _vscSetImage(side, _selectedVscId, false);
+      toast(`${side.toUpperCase()} photo removed`, 'ok');
+    }
+  } catch(e) { toast('Remove failed', 'err'); }
+}
+
+async function saveVsCard() {
+  const name = document.getElementById('vsc-name').value.trim();
+  if (!name) { toast('Enter a card name first', 'err'); return; }
+  const existing = savedVsCards.find(c => c.id === _selectedVscId) || {};
+  const data = {
+    id:      _selectedVscId || undefined,
+    name,
+    vs_text: document.getElementById('vsc-vs-text').value.trim() || 'VS',
+    theme:   _vscTheme,
+    left:  { name: document.getElementById('vsc-left-name').value.trim(),  sub: document.getElementById('vsc-left-sub').value.trim(),  color: document.getElementById('vsc-left-color').value,  image: !!((existing.left||{}).image)  },
+    right: { name: document.getElementById('vsc-right-name').value.trim(), sub: document.getElementById('vsc-right-sub').value.trim(), color: document.getElementById('vsc-right-color').value, image: !!((existing.right||{}).image) },
+  };
+  try {
+    const r = await fetch('/api/vs_cards', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+    const d = await r.json();
+    if (d.ok) {
+      if (!_selectedVscId) _selectedVscId = d.id;
+      toast('VS card saved', 'ok');
+      await loadVsCards();
+      selectVsCard(_selectedVscId);
+    } else { toast(d.error || 'Save failed', 'err'); }
+  } catch(e) { toast('Save failed', 'err'); }
+}
+
+async function deleteVsCard() {
+  if (!_selectedVscId) return;
+  if (!confirm('Delete this VS card?')) return;
+  try {
+    const r = await fetch(`/api/vs_cards/${_selectedVscId}`, { method:'DELETE' });
+    if ((await r.json()).ok) {
+      _selectedVscId = null;
+      document.getElementById('vsc-editor').style.display = 'none';
+      document.getElementById('vsc-editor-placeholder').style.display = '';
+      toast('VS card deleted', 'ok');
+      await loadVsCards();
+    } else { toast('Delete failed', 'err'); }
+  } catch(e) { toast('Delete failed', 'err'); }
+}
+
+async function fireVsCard() {
+  if (!_selectedVscId) { toast('Select a card first', 'err'); return; }
+  try {
+    const r = await fetch('/api/display/vs_card', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id: _selectedVscId }),
+    });
+    if ((await r.json()).ok) toast('VS card sent to display', 'ok');
+    else toast('Fire failed', 'err');
+  } catch(e) { toast('Fire failed', 'err'); }
+}
+
+function _sfPopulateVsSelect() {
+  const sel = document.getElementById('sf-vs-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— select a VS card —</option>' +
+    savedVsCards.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`).join('');
+}
 
 async function loadSavedSlides() {
   try { savedSlides = await fetch('/api/slides').then(r => r.json()); } catch(e) { savedSlides = []; }
@@ -5554,9 +5932,12 @@ function renderShowFlow() {
   const btnBase = 'background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:3px 7px;font-size:11px;flex-shrink:0';
   list.innerHTML = showFlow.map((step, i) => {
     const isGame   = step.type === 'game';
+    const isVsCard = step.type === 'vs_card';
     const subLabel = isGame
       ? (step.game_type_id ? ('🎮 ' + (glGameTypes.find(g => g.id === step.game_type_id)?.label || step.game_type_id)) : '🎮 GAME')
-      : (step.desc || step.macro_id || '—');
+      : isVsCard
+        ? ('⚔ ' + ((savedVsCards.find(c => c.id === step.vs_card_id)?.name) || step.vs_card_id || 'VS CARD'))
+        : (step.desc || step.macro_id || '—');
     const ctrlUrl  = isGame ? (glGameTypes.find(g => g.id === step.game_type_id)?.controller_route || '') : '';
     const ctrlLink = isGame && ctrlUrl
       ? `<a href="${ctrlUrl}" target="_blank" style="${btnBase};text-decoration:none;color:var(--amber);border-color:var(--amber)">🎮</a>`
@@ -5605,15 +5986,18 @@ async function sfFire(i) {
 function sfSetColor(i, color) { showFlow[i].color = color; renderShowFlow(); }
 
 let _sfEditingIndex = -1; // -1 = add mode, >=0 = edit mode
-let _sfCurrentType  = 'macro'; // 'macro' | 'game'
+let _sfCurrentType  = 'macro'; // 'macro' | 'game' | 'vs_card'
 
 function sfSetType(type) {
   _sfCurrentType = type;
-  document.getElementById('sf-macro-fields').style.display = type === 'macro' ? '' : 'none';
-  document.getElementById('sf-game-fields').style.display  = type === 'game'  ? '' : 'none';
+  document.getElementById('sf-macro-fields').style.display = type === 'macro'   ? '' : 'none';
+  document.getElementById('sf-game-fields').style.display  = type === 'game'    ? '' : 'none';
+  document.getElementById('sf-vs-fields').style.display    = type === 'vs_card' ? '' : 'none';
   document.getElementById('sf-sd-preview-wrap').style.display = type === 'macro' ? '' : 'none';
-  document.getElementById('sf-type-macro-btn').className = type === 'macro' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
-  document.getElementById('sf-type-game-btn').className  = type === 'game'  ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  document.getElementById('sf-type-macro-btn').className = type === 'macro'   ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  document.getElementById('sf-type-game-btn').className  = type === 'game'    ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  document.getElementById('sf-type-vs-btn').className    = type === 'vs_card' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  if (type === 'vs_card') _sfPopulateVsSelect();
 }
 
 async function sfGameTypeChanged() {
@@ -5644,7 +6028,8 @@ function sfEditStep(i) {
   _sfEditingIndex = i;
 
   const isGame = step.type === 'game';
-  sfSetType(isGame ? 'game' : 'macro');
+  const isVs   = step.type === 'vs_card';
+  sfSetType(isGame ? 'game' : isVs ? 'vs_card' : 'macro');
 
   document.getElementById('sf-step-name').value  = step.name  || '';
   document.getElementById('sf-step-desc').value  = step.desc  || '';
@@ -5655,6 +6040,9 @@ function sfEditStep(i) {
     sfGameTypeChanged().then(() => {
       document.getElementById('sf-game-config').value = step.game_config_id || '';
     });
+  } else if (isVs) {
+    _sfPopulateVsSelect();
+    document.getElementById('sf-vs-select').value = step.vs_card_id || '';
   } else {
     document.getElementById('sf-macro-select').value = step.macro_id || '';
   }
@@ -5677,6 +6065,7 @@ function sfCancelEdit() {
   document.getElementById('sf-macro-select').value  = '';
   document.getElementById('sf-game-type').value     = '';
   document.getElementById('sf-game-config').innerHTML = '<option value="">— open picker on console —</option>';
+  document.getElementById('sf-vs-select').value     = '';
   document.getElementById('sf-step-name').value     = '';
   document.getElementById('sf-step-desc').value     = '';
   document.getElementById('sf-step-color').value    = '#F5A623';
@@ -5700,6 +6089,17 @@ function confirmAddStep() {
       name:           name || (gt ? gt.label : gtId),
       desc,
       color: color || '#8B44CC',
+    };
+  } else if (_sfCurrentType === 'vs_card') {
+    const cardId = document.getElementById('sf-vs-select').value;
+    if (!cardId) { toast('Select a VS card first', 'err'); return; }
+    const card = savedVsCards.find(c => c.id === cardId);
+    stepObj = {
+      type:        'vs_card',
+      vs_card_id:  cardId,
+      name:        name || (card ? card.name : 'VS'),
+      desc,
+      color:       color || '#CC2222',
     };
   } else {
     const macroId = document.getElementById('sf-macro-select').value;
