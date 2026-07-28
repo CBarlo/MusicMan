@@ -295,6 +295,7 @@
       <li><a href="#slides-admin">Live Slides (admin builder)</a></li>
       <li><a href="#shell-game-admin">Shell Game configuration</a></li>
       <li><a href="#game-entries-admin">Game Entries configuration</a></li>
+      <li><a href="#interactive-games-admin">Interactive Games Library (Prize Wheel)</a></li>
       <li><a href="#crowd-admin">Crowd Noise — gauge &amp; lighting setup</a></li>
       <li><a href="#climax-admin">Climax FX configuration</a></li>
       <li><a href="#lighting-settings">Lighting settings (Pole Nodes, Fixture Profiles)</a></li>
@@ -319,6 +320,7 @@
       <li><a href="#slides-run">Live Slide Builder (console)</a></li>
       <li><a href="#crowd-run">Crowd Noise — live operation</a></li>
       <li><a href="#shell-game-run">Shell Game — live operation</a></li>
+      <li><a href="#prize-wheel-run">Prize Wheel — live operation</a></li>
       <li><a href="#usb-run">USB Playlist tab</a></li>
       <li><a href="#kill-all">Emergency stop (Kill All)</a></li>
     </ul>
@@ -767,7 +769,15 @@
   <ol class="steps">
     <li>In Admin, click <strong>▶ Show Flow</strong>.</li>
     <li>Click <kbd>+ ADD STEP</kbd>.</li>
-    <li>In the picker panel, fill in: Macro (which macro to fire), Display Name (label on the console button), Notes (operator reminder — not shown to audience), and Color (button color for scanning quickly).</li>
+    <li>Choose a <strong>Step Type</strong>:
+      <ul>
+        <li><strong>Macro</strong> — fires any macro you've built (most flexible)</li>
+        <li><strong>Circle Walk-Up</strong> — fires a specific circle's walk-up directly, no macro needed</li>
+        <li><strong>Role Walk-Up</strong> — same for a role</li>
+        <li><strong>Game</strong> — opens and launches an Interactive Game config from the Games Library</li>
+      </ul>
+    </li>
+    <li>Fill in Display Name (label on the console button), Notes (operator reminder), and Color.</li>
     <li>Click <kbd>ADD TO SHOW</kbd>. Repeat for each show segment.</li>
     <li>Drag items in the left list to reorder. Click <kbd>SAVE SHOW FLOW</kbd> when done.</li>
   </ol>
@@ -905,6 +915,56 @@
     <tr><td>After-Fade Scene</td><td>Lighting scene that fires once the music fades out</td></tr>
   </table>
 
+  <h2 id="interactive-games-admin">Interactive Games Library</h2>
+  <p>
+    The <strong>Games Library</strong> lets you build named configurations for interactive audience
+    games — currently Prize Wheel and Shell Game. Each configuration stores all the game's
+    settings (segments, sounds, images) under a name, so you can have multiple themed versions
+    ready to go (e.g., "Week 1 Prizes," "Finale Round").
+  </p>
+  <p>Configure in Admin → <strong>🎮 Games</strong> → <strong>LIBRARY</strong> tab.</p>
+
+  <h3>Game Types</h3>
+  <table>
+    <tr><th>Game Type</th><th>What it does</th></tr>
+    <tr><td><strong>Prize Wheel</strong></td><td>A randomized spin wheel shown fullscreen on HDMI. Segments show names or prizes; the wheel spins and lands on a random winner.</td></tr>
+    <tr><td><strong>Shell Game</strong></td><td>Three shuffling tents hiding a hidden item — same game as configured in the Shell Game section, but saved as a named Library config.</td></tr>
+  </table>
+
+  <h3>Creating a game configuration</h3>
+  <ol class="steps">
+    <li>In the Library tab, choose a Game Type from the dropdown and click <kbd>+ NEW CONFIG</kbd>.</li>
+    <li>Give it a name (e.g., "Relay Race Prizes").</li>
+    <li>Fill in the game's settings — for Prize Wheel: add segment names and colors; for Shell Game: set timing and audio.</li>
+    <li>Click <kbd>SAVE</kbd>. The config appears in the Library list.</li>
+  </ol>
+
+  <h3>Prize Wheel settings</h3>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Segments</td><td>Each segment is a name + color. Add as many as you need. They're distributed evenly around the wheel.</td></tr>
+    <tr><td>Spin Sound</td><td>Audio that plays during the spin</td></tr>
+    <tr><td>Result Sound</td><td>Audio that plays when the wheel lands</td></tr>
+    <tr><td>Background Image</td><td>Optional image shown behind the wheel on the HDMI display</td></tr>
+  </table>
+
+  <h3>Launching from Show Flow</h3>
+  <p>
+    The cleanest way to run a Library game is as a <strong>Game step</strong> in the Show Flow.
+    When you tap that step on the console, the HDMI display navigates to the game automatically
+    and launches it — no separate "Open on Display" tap needed.
+  </p>
+  <p>
+    To add a game step: in Show Flow builder, click <kbd>+ ADD STEP</kbd>, choose step type
+    <strong>Game</strong>, then select the game config from the dropdown. Set a display name and color.
+  </p>
+
+  <div class="callout callout-tip">
+    <div class="callout-title">Testing before the show</div>
+    Use the <kbd>↗ GO LIVE</kbd> button inside the Library editor to send the game to the HDMI
+    display and test it without having to add it to the Show Flow first.
+  </div>
+
   <h2 id="crowd-admin">Crowd Noise — Gauge &amp; Lighting Setup</h2>
   <p>
     The Crowd Noise system puts a large animated gauge on the HDMI that the operator
@@ -1039,7 +1099,7 @@
     protected — the slider can never accidentally push a fixture into strobe mode or an unexpected operating state.
   </div>
 
-  <h3>DMX Looks</h3>
+  <h3 id="dmx-looks">DMX Looks</h3>
   <p>
     Within each Fixture Type you can save named <strong>looks</strong> — a complete snapshot of
     all channel values for a common state (e.g., "White Fast Strobe", "Orange Wash", "Off").
@@ -1047,7 +1107,7 @@
   <ul>
     <li>In <strong>Admin → Lighting</strong>: use the DMX LOOKS section. Select a fixture type, set channel values with sliders/buttons, then click <kbd>💾 SAVE LOOK</kbd>.</li>
     <li>In the <strong>Console → LIGHTS tab</strong>: the same look editor is available. Use it to build and test looks live against real fixtures, then save for later use in scenes.</li>
-    <li>In the <strong>Scene editor</strong>: every fixture row has a <strong>load look…</strong> dropdown. Selecting a look fills all channel values instantly.</li>
+    <li>In the <strong>Scene editor</strong>: every fixture row has a <strong>load look…</strong> dropdown. Selecting a look fills all channel values instantly. When you re-open a saved scene, the dropdown auto-detects and highlights the look that matches the stored values — so you always know which look a scene is using.</li>
   </ul>
 
   <h3>WLED LED Segments</h3>
@@ -1124,6 +1184,20 @@
     Pulling power while the Pi is running can corrupt the memory card. Click <kbd>🔌 SHUTDOWN PI</kbd>
     and wait ~10 seconds for the green activity light to go dark before removing power.
   </div>
+
+  <h3>Config Backups</h3>
+  <p>
+    Every time you save the config (in any Admin tab), MusicMan automatically creates a
+    timestamped backup of <span class="mono">config.yaml</span>. Backups are stored on the Pi at
+    <span class="mono">/home/pi/musicman/config_backups/</span> and named by date and time
+    (e.g., <span class="mono">config_20260728_143022.yaml</span>). Up to 20 backups are kept;
+    the oldest is deleted automatically when the limit is reached.
+  </p>
+  <p>
+    If a USB drive is plugged in at save time, a copy is also written to the drive — giving
+    you an off-Pi backup automatically. Copy the file back to the Pi via SFTP and rename it
+    <span class="mono">config.yaml</span> to restore from any backup.
+  </p>
 </div>
 
 <!-- ══════════════════ PART 4 ══════════════════ -->
@@ -1174,6 +1248,13 @@
   <div class="callout callout-tip">
     <div class="callout-title">Tip — macros run instantly</div>
     There's no confirmation prompt. Tapping a show flow item fires the macro right away. Tap deliberately.
+  </div>
+
+  <div class="callout callout-info">
+    <div class="callout-title">Game steps are self-contained</div>
+    If a show flow step is a <strong>Game</strong> step (Prize Wheel, Shell Game), tapping it
+    automatically navigates the HDMI display to that game and launches it. No separate
+    "Open on Display" tap is needed — the whole sequence is one button press.
   </div>
 
   <h2 id="transport">Transport Controls</h2>
@@ -1405,6 +1486,29 @@
   </table>
   <p>When done, the HDMI returns to the normal display page automatically.</p>
 
+  <h2 id="prize-wheel-run">Prize Wheel — Live Operation</h2>
+  <p>
+    The Prize Wheel shows a fullscreen spin wheel on the HDMI display. The wheel spins and
+    lands on a randomly selected segment. Launch it from the Show Flow (Game step) or from
+    <span class="tab">GAMES/TIMERS</span> → Games Library.
+  </p>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td><kbd>SPIN</kbd></td><td>Spins the wheel — plays spin sound, lands on a random segment, plays result sound</td></tr>
+    <tr><td><kbd>RESET</kbd></td><td>Resets the wheel to its starting position for another spin</td></tr>
+  </table>
+  <p>
+    The result is displayed prominently on screen when the wheel stops. To run the game again,
+    tap <kbd>RESET</kbd> then <kbd>SPIN</kbd>. When done, the HDMI returns to the normal display
+    page automatically (or tap <kbd>CLEAR DISPLAY</kbd> on the transport bar).
+  </p>
+
+  <div class="callout callout-tip">
+    <div class="callout-title">Multiple rounds</div>
+    If you want to spin multiple times in a row, just tap <kbd>RESET</kbd> after each result
+    and spin again — no need to re-launch the game.
+  </div>
+
   <h2 id="usb-run">USB Playlist Tab</h2>
   <p>
     Play music folders directly from a USB drive — no configuration needed.
@@ -1494,6 +1598,19 @@
     <span class="flow-box">RECORD TIMES</span>
     <span class="flow-arrow">→</span>
     <span class="flow-box">SHOW SCORES</span>
+  </div>
+
+  <h3>Running a Prize Wheel from Show Flow</h3>
+  <div class="flow">
+    <span class="flow-box">SHOW TAB</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">TAP GAME STEP</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">WHEEL OPENS ON HDMI</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">TAP SPIN</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">RESET / SPIN AGAIN</span>
   </div>
 
   <h3>Smooth Track Ending</h3>
