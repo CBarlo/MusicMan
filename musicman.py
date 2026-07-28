@@ -3797,7 +3797,7 @@ def _walkup_preload_payload_for_item(item_type, target_id, cfg):
     }
 
 def _get_next_walkup_preload(cfg, idx):
-    """Return walkup_preload payload for the first walkup in show_flow[idx+1], or None."""
+    """Return walkup_preload payload for the first walkup after show_flow[idx], skipping game steps."""
     if idx is None:
         return None
     flow = cfg.get('show_flow', [])
@@ -3819,6 +3819,9 @@ def _get_next_walkup_preload(cfg, idx):
                     return _walkup_preload_payload_for_item('circle', step.get('circle_id', ''), cfg)
                 elif step.get('action') == 'walkup_role':
                     return _walkup_preload_payload_for_item('role', step.get('role_id', ''), cfg)
+    elif nxt_type == 'game':
+        # Skip the game step and preload for whatever follows it
+        return _get_next_walkup_preload(cfg, idx + 1)
     return None
 
 

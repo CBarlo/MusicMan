@@ -483,37 +483,49 @@ function showTitleVideo(data) {
 // Pre-warm the next walkup video in a fresh <video> element so the hardware decoder
 // pipeline initialises in the background. Using fresh elements (never reusing one with a
 // different src) avoids the Pi 4B synchronous GC freeze that occurs on src replacement.
-function preloadWalkupVideo(data) {
-  if (!data) return;
-  const itemType  = data.type === 'role' ? 'roles' : data.type === 'game_entry' ? 'game_entries' : 'circles';
-  const id        = data.id || '';
-  const videoFile = data.animation_intro || data.animation || '';
-  if (!id || !videoFile) return;
-  const url = `/assets/${itemType}/${id}/${videoFile}`;
-  if (_wuWarm[url]) return;  // already warming this URL
-
-  // Drop any stale warm elements (no src='' — just remove DOM node, let GC run naturally)
-  Object.keys(_wuWarm).forEach(oldUrl => {
-    const old = _wuWarm[oldUrl];
-    delete _wuWarm[oldUrl];
-    old.pause();
-    setTimeout(() => { if (old.parentNode) old.parentNode.removeChild(old); }, 500);
-  });
-
+function _makeWarmElement(url) {
   const v = document.createElement('video');
-  v.muted       = true;
-  v.preload     = 'auto';
-  v.loop        = true;
+  v.muted   = true;
+  v.preload = 'auto';
+  v.loop    = true;
   v.setAttribute('playsinline', '');
-  // z-index:1 matches #wu-video; inserted before wu-frame-hold so logo/namebar remain on top
   v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;pointer-events:none;z-index:1;';
   wuFrameHold.parentNode.insertBefore(v, wuFrameHold);
   v.src = url;
   v.load();
-  // Pause as soon as first frame is decoded — decoder stays initialized, GPU freed from looping
   v.oncanplay = () => { v.oncanplay = null; v.pause(); };
   v.play().catch(() => {});
-  _wuWarm[url] = v;
+  return v;
+}
+
+function preloadWalkupVideo(data) {
+  if (!data) return;
+  const itemType  = data.type === 'role' ? 'roles' : data.type === 'game_entry' ? 'game_entries' : 'circles';
+  const id        = data.id || '';
+  const introFile = data.animation_intro || '';
+  const animFile  = data.animation       || '';
+  const primaryFile = introFile || animFile;
+  if (!id || !primaryFile) return;
+  const primaryUrl = `/assets/${itemType}/${id}/${primaryFile}`;
+
+  // Drop stale warm elements from the previous circle
+  if (!_wuWarm[primaryUrl]) {
+    Object.keys(_wuWarm).forEach(oldUrl => {
+      const old = _wuWarm[oldUrl];
+      delete _wuWarm[oldUrl];
+      old.pause();
+      setTimeout(() => { if (old.parentNode) old.parentNode.removeChild(old); }, 500);
+    });
+  }
+
+  // Warm the primary file (intro or animation-only)
+  if (!_wuWarm[primaryUrl]) _wuWarm[primaryUrl] = _makeWarmElement(primaryUrl);
+
+  // When both intro and loop exist, also warm the loop so _startMainAnim can swap it in instantly
+  if (introFile && animFile) {
+    const animUrl = `/assets/${itemType}/${id}/${animFile}`;
+    if (!_wuWarm[animUrl]) _wuWarm[animUrl] = _makeWarmElement(animUrl);
+  }
 }
 
 function showWalkup(data) {
@@ -590,7 +602,7 @@ function showWalkup(data) {
       if (!introFile) _showLogo();
       return;
     }
-    // Snapshot last intro frame to canvas so there's no black flash during src swap
+    // Snapshot last intro frame to canvas so there's no black flash during transition
     if (introFile && vid.videoWidth) {
       wuFrameHold.width  = vid.offsetWidth  || window.innerWidth;
       wuFrameHold.height = vid.offsetHeight || window.innerHeight;
@@ -598,6 +610,26 @@ function showWalkup(data) {
       wuFrameHold.style.display = 'block';
     }
     const animBase = `/assets/${itemType}/${id}/${animFile}`;
+
+    // If a warm element for the loop animation is ready, swap it in — no cold src change on Pi.
+    const warmAnim = _wuWarm[animBase];
+    if (warmAnim && warmAnim.readyState >= 2) {
+      delete _wuWarm[animBase];
+      warmAnim.loop  = true;
+      warmAnim.muted = false;
+      warmAnim.style.display = 'block';
+      const oldEl = _wuCurrentEl;
+      _wuCurrentEl = warmAnim;
+      oldEl.pause();
+      oldEl.style.display = 'none';
+      if (oldEl !== wuVideo) setTimeout(() => { if (oldEl.parentNode) oldEl.parentNode.removeChild(oldEl); }, 5000);
+      warmAnim.play().then(() => {
+        wuFrameHold.style.display = 'none';
+      }).catch(() => { wuFrameHold.style.display = 'none'; warmAnim.style.display = 'none'; _showLogo(); });
+      return;
+    }
+
+    // Cold path — warm element wasn't ready in time; fall back to src swap on current element
     const animUrl  = _preloadPool[animBase] ? animBase : animBase + '?t=' + Date.now();
     vid.loop = true;
     vid.onerror   = () => { wuFrameHold.style.display = 'none'; vid.style.display = 'none'; _showLogo(); };
