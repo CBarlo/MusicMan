@@ -497,7 +497,7 @@ function preloadWalkupVideo(data) {
     const old = _wuWarm[oldUrl];
     delete _wuWarm[oldUrl];
     old.pause();
-    setTimeout(() => { if (old.parentNode) old.parentNode.removeChild(old); }, 8000);
+    setTimeout(() => { if (old.parentNode) old.parentNode.removeChild(old); }, 500);
   });
 
   const v = document.createElement('video');

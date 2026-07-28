@@ -680,6 +680,8 @@ def _send_crowd_lights(level, climax):
                                      for f in node.get('fixtures', [])]
                     if fixtures_zero:
                         threading.Thread(target=_dmx_post, args=(node['ip'], fixtures_zero), daemon=True).start()
+            _crowd_state['climax'] = False
+            broadcast('viz_crowd', _crowd_state)
 
         threading.Thread(target=_after_climax, daemon=True).start()
 
@@ -1276,11 +1278,16 @@ def load_game_configs() -> list:
         return []
 
 def save_game_configs(data: list):
+    tmp = GAME_CONFIGS_FILE.with_suffix('.tmp')
     try:
-        with open(GAME_CONFIGS_FILE, 'w') as f:
-            json.dump(data, f, indent=2)
+        with _config_lock:
+            with open(tmp, 'w') as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp, GAME_CONFIGS_FILE)
     except Exception as e:
         log.error(f"save_game_configs: {e}")
+        try: tmp.unlink()
+        except OSError: pass
 
 # ── WLED HTTP API ──
 def wled_set_scene(scene_id):
@@ -1427,13 +1434,14 @@ def wled_set_scene(scene_id):
         transition_s = (dmx_anim.get('interval_ms') or 400) / 1000.0
         frames       = dmx_anim['frames']
         nodes_map    = {n['id']: n for n in config.get('pole_nodes', [])}
+        fixture_types_snap = {ft['id']: ft for ft in config.get('fixture_types', [])}
         stop_ev      = _dmx_anim_stop
-        def _run_dmx_anim(_frames=frames, _nodes=nodes_map, _stop=stop_ev, _tv=transition_s):
+        def _run_dmx_anim(_frames=frames, _nodes=nodes_map, _stop=stop_ev, _tv=transition_s,
+                          _fixture_types=fixture_types_snap):
             global _dmx_anim_active
             _dmx_anim_active = True
             STEP_S  = 0.04  # 40 ms per step (~25 Hz)
             n_steps = max(1, round(_tv / STEP_S))
-            _fixture_types = config.get('fixture_types', {})
 
             def _send(frame):
                 for node_id, fix_vals in frame.items():
@@ -3813,35 +3821,6 @@ def _get_next_walkup_preload(cfg, idx):
                     return _walkup_preload_payload_for_item('role', step.get('role_id', ''), cfg)
     return None
 
-def _broadcast_walkup_preload_for(flow, cfg, idx):
-    """Broadcast walkup_preload for the next circle/role step so display can pre-warm its media pipeline."""
-    if idx + 1 >= len(flow):
-        return
-    nxt      = flow[idx + 1]
-    nxt_type = nxt.get('type', 'macro')
-    if nxt_type not in ('circle', 'role'):
-        return
-    target_id = nxt.get('target_id', '')
-    if not target_id:
-        return
-    payload = _walkup_preload_payload_for_item(nxt_type, target_id, cfg)
-    if payload:
-        broadcast('walkup_preload', payload)
-
-def _broadcast_walkup_preload_in_macro(macro_obj, cfg):
-    """Broadcast walkup_preload for the first walkup action found inside a macro."""
-    for step in macro_obj.get('steps', []):
-        action = step.get('action', '')
-        if action == 'walkup_circle':
-            payload = _walkup_preload_payload_for_item('circle', step.get('circle_id', ''), cfg)
-            if payload:
-                broadcast('walkup_preload', payload)
-            return
-        elif action == 'walkup_role':
-            payload = _walkup_preload_payload_for_item('role', step.get('role_id', ''), cfg)
-            if payload:
-                broadcast('walkup_preload', payload)
-            return
 
 @app.route('/api/show/fire')
 def api_show_fire():
@@ -3981,7 +3960,7 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                 broadcast('timer_state', timer_state)
             elif action == 'setup_skit_timer':
                 preset_name = step.get('preset', '')
-                _cfg = load_config()
+                _cfg = dict(config)
                 presets = _cfg.get('skit_timer_presets', {})
                 preset = presets.get(preset_name)
                 if preset:
