@@ -83,40 +83,25 @@ def load_config():
     return cfg
 
 def _collect_show_flow_assets(cfg):
-    """Return list of walkup video URLs referenced by the active Show Flow."""
-    macros_by_id  = {m['id']: m for m in cfg.get('macros',  [])}
-    circles_by_id = {c['id']: c for c in cfg.get('circles', [])}
-    roles_by_id   = {r['id']: r for r in cfg.get('roles',   [])}
+    """Return all walkup video URLs — every circle, role, and game entry with a video asset.
+    Preloads the full set so any walkup trigger (show flow, macro button, console) plays instantly."""
     urls = []
     seen = set()
     def _add(url):
         if url and url not in seen:
             seen.add(url); urls.append(url)
-    for step in cfg.get('show_flow', []):
-        macro = macros_by_id.get(step.get('macro_id'))
-        if not macro:
-            continue
-        for mstep in macro.get('steps', []):
-            action = mstep.get('type') or mstep.get('action', '')
-            if action == 'walkup_circle':
-                c = circles_by_id.get(mstep.get('circle_id'))
-                if c:
-                    a = c.get('assets', {}); cid = c['id']
-                    if a.get('animation_intro'): _add(f"/assets/circles/{cid}/{a['animation_intro']}")
-                    if a.get('animation'):       _add(f"/assets/circles/{cid}/{a['animation']}")
-            elif action == 'walkup_role':
-                r = roles_by_id.get(mstep.get('role_id'))
-                if r:
-                    a = r.get('assets', {}); rid = r['id']
-                    if a.get('animation_intro'): _add(f"/assets/roles/{rid}/{a['animation_intro']}")
-                    if a.get('animation'):       _add(f"/assets/roles/{rid}/{a['animation']}")
-            elif action == 'walkup_game_entry':
-                entries_by_id = {e['id']: e for e in cfg.get('game_entries', [])}
-                ge = entries_by_id.get(mstep.get('game_entry_id'))
-                if ge:
-                    a = ge.get('assets', {}); geid = ge['id']
-                    if a.get('animation_intro'): _add(f"/assets/game_entries/{geid}/{a['animation_intro']}")
-                    if a.get('animation'):       _add(f"/assets/game_entries/{geid}/{a['animation']}")
+    for c in cfg.get('circles', []):
+        a = c.get('assets', {}); cid = c['id']
+        if a.get('animation_intro'): _add(f"/assets/circles/{cid}/{a['animation_intro']}")
+        if a.get('animation'):       _add(f"/assets/circles/{cid}/{a['animation']}")
+    for r in cfg.get('roles', []):
+        a = r.get('assets', {}); rid = r['id']
+        if a.get('animation_intro'): _add(f"/assets/roles/{rid}/{a['animation_intro']}")
+        if a.get('animation'):       _add(f"/assets/roles/{rid}/{a['animation']}")
+    for ge in cfg.get('game_entries', []):
+        a = ge.get('assets', {}); geid = ge['id']
+        if a.get('animation_intro'): _add(f"/assets/game_entries/{geid}/{a['animation_intro']}")
+        if a.get('animation'):       _add(f"/assets/game_entries/{geid}/{a['animation']}")
     return urls
 
 
@@ -1217,10 +1202,11 @@ GAME_TYPES = {
         'label': 'Prize Wheel',
         'icon': '🎡',
         'controller_route': '/games/wheel',
-        'display_route': '/games/wheel/display',
+        'display_route': '/games/wheel',
         'schema': [
-            {'key': 'entries',     'type': 'list',   'label': 'Entries (one per line)'},
-            {'key': 'auto_remove', 'type': 'bool',   'label': 'Remove winner from wheel', 'default': True},
+            {'key': 'entries',       'type': 'list',   'label': 'Entries (one per line)', 'placeholder': 'One name per line'},
+            {'key': 'spin_duration', 'type': 'number', 'label': 'Spin Time (sec)',         'default': 6},
+            {'key': 'auto_remove',   'type': 'bool',   'label': 'Remove winner at next spin', 'default': True},
         ],
     },
     'feud': {
@@ -1574,7 +1560,7 @@ def kill_everything():
     broadcast('kill_all', {})
 
 # ── WALKUP MACRO ──
-def fire_walkup(circle_id=None, role_id=None):
+def fire_walkup(circle_id=None, role_id=None, show_flow_idx=None):
     """Fire a complete walk-up sequence for a circle or role."""
     cfg = config  # use in-memory copy — eliminates SD card read on every walkup
     if circle_id:
@@ -1637,6 +1623,9 @@ def fire_walkup(circle_id=None, role_id=None):
         'animation_intro': item.get('assets', {}).get('animation_intro', ''),
         'hide_name':       walkup_cfg.get('hide_name', False),
     }
+    next_preload = _get_next_walkup_preload(cfg, show_flow_idx)
+    if next_preload:
+        display_payload['next_preload'] = next_preload
 
     def play_music():
         if music_file.exists() and music_file.is_file():
@@ -2008,6 +1997,18 @@ _SG_IMG_EXTS  = ('png', 'jpg', 'jpeg', 'gif', 'webp')
 _SG_AUD_EXTS  = ('mp3', 'ogg', 'wav', 'flac', 'm4a')
 _ALL_SG_SLOTS = _SG_IMAGE_SLOTS | _SG_AUDIO_SLOTS
 
+# ── Wheel game assets ─────────────────────────────────────────────────────────
+_WHEEL_SLOTS    = {'spin_sfx', 'spin_music'}
+_WHEEL_AUD_EXTS = ('mp3', 'ogg', 'wav', 'flac', 'm4a')
+
+def _wheel_find_file(wheel_dir, slot):
+    """Return filename (e.g. 'spin_sfx.mp3') if it exists, else None."""
+    for ext in _WHEEL_AUD_EXTS:
+        f = wheel_dir / f'{slot}.{ext}'
+        if f.exists():
+            return f'{slot}.{ext}'
+    return None
+
 def _sg_find_file(sg_dir, slot):
     """Return (filename, ext) if file exists for slot, else (None, None)."""
     exts = _SG_IMG_EXTS if slot in _SG_IMAGE_SLOTS else _SG_AUD_EXTS
@@ -2118,6 +2119,96 @@ def shell_game_asset_from_library():
     save_config(cfg)
     broadcast('shell_game_reload', {})
     return jsonify({'ok': True, 'filename': dest.name, 'display_name': src.name})
+
+@app.route('/api/games/wheel/asset/<slot>', methods=['GET'])
+def api_wheel_asset_get(slot):
+    if slot not in _WHEEL_SLOTS:
+        return '', 404
+    wheel_dir = ASSETS_DIR / 'games' / 'wheel'
+    fname = _wheel_find_file(wheel_dir, slot)
+    if fname:
+        return send_from_directory(str(wheel_dir), fname)
+    return '', 404
+
+@app.route('/api/games/wheel/asset/<slot>', methods=['DELETE'])
+def api_wheel_asset_delete(slot):
+    if slot not in _WHEEL_SLOTS:
+        return '', 404
+    wheel_dir = ASSETS_DIR / 'games' / 'wheel'
+    for ext in _WHEEL_AUD_EXTS:
+        f = wheel_dir / f'{slot}.{ext}'
+        if f.exists():
+            f.unlink()
+    cfg = load_config()
+    cfg.setdefault('wheel', {}).pop(f'{slot}_name', None)
+    save_config(cfg)
+    return jsonify({'ok': True})
+
+@app.route('/api/games/wheel/asset/from-library', methods=['POST'])
+def api_wheel_asset_from_library():
+    import shutil
+    data  = request.get_json(silent=True) or {}
+    slot  = data.get('slot', '')
+    stype = data.get('src_type', '')
+    sfile = data.get('src_file', '')
+    if slot not in _WHEEL_SLOTS or not sfile:
+        return jsonify({'ok': False, 'error': 'Invalid slot or file'}), 400
+    src_roots = {
+        'music': ASSETS_DIR / 'music',
+        'sfx':   ASSETS_DIR / 'sfx',
+    }
+    if stype in src_roots:
+        src = (src_roots[stype] / sfile).resolve()
+        if not str(src).startswith(str(src_roots[stype].resolve())):
+            return jsonify({'ok': False, 'error': 'Invalid path'}), 400
+    elif stype == 'usb':
+        mount = _find_usb_mount()
+        if not mount:
+            return jsonify({'ok': False, 'error': 'No USB drive found'}), 404
+        src = (Path(mount) / sfile).resolve()
+        if not str(src).startswith(str(Path(mount).resolve())):
+            return jsonify({'ok': False, 'error': 'Invalid path'}), 400
+    else:
+        return jsonify({'ok': False, 'error': 'Unknown source type'}), 400
+    if not src.exists() or not src.is_file():
+        return jsonify({'ok': False, 'error': 'File not found'}), 404
+    wheel_dir = ASSETS_DIR / 'games' / 'wheel'
+    wheel_dir.mkdir(parents=True, exist_ok=True)
+    for ext in _WHEEL_AUD_EXTS:
+        old = wheel_dir / f'{slot}.{ext}'
+        if old.exists():
+            old.unlink()
+    dest = wheel_dir / (slot + src.suffix.lower())
+    shutil.copy2(src, dest)
+    cfg = load_config()
+    cfg.setdefault('wheel', {})[f'{slot}_name'] = src.name
+    save_config(cfg)
+    return jsonify({'ok': True, 'filename': dest.name, 'display_name': src.name})
+
+@app.route('/api/admin/wheel', methods=['GET'])
+def api_admin_wheel_get():
+    cfg = load_config()
+    w = cfg.get('wheel', {})
+    wheel_dir = ASSETS_DIR / 'games' / 'wheel'
+    return jsonify({
+        'spin_scene':       w.get('spin_scene', ''),
+        'winner_scene':     w.get('winner_scene', ''),
+        'spin_sfx_name':    w.get('spin_sfx_name'),
+        'spin_music_name':  w.get('spin_music_name'),
+        'has_spin_sfx':     _wheel_find_file(wheel_dir, 'spin_sfx') is not None,
+        'has_spin_music':   _wheel_find_file(wheel_dir, 'spin_music') is not None,
+    })
+
+@app.route('/api/admin/wheel', methods=['POST'])
+def api_admin_wheel_post():
+    data = request.get_json(silent=True) or {}
+    cfg = load_config()
+    w = cfg.setdefault('wheel', {})
+    for key in ('spin_scene', 'winner_scene'):
+        if key in data:
+            w[key] = data[key]
+    save_config(cfg)
+    return jsonify({'ok': True})
 
 @app.route('/api/shell-game/themes', methods=['GET'])
 def shell_game_themes_list():
@@ -2471,7 +2562,10 @@ def static_files(filename):
 
 @app.route('/assets/<path:filename>')
 def asset_files(filename):
-    return send_from_directory(ASSETS_DIR, filename)
+    resp = send_from_directory(ASSETS_DIR, filename)
+    resp.cache_control.public = True
+    resp.cache_control.max_age = 3600
+    return resp
 
 # ── STATE ──
 @app.route('/api/state')
@@ -3140,6 +3234,140 @@ def api_delete_game_config(config_id):
     save_game_configs(new)
     return jsonify({'ok': True})
 
+@app.route('/api/games/launch', methods=['POST'])
+def api_games_launch():
+    data         = request.json or {}
+    game_type_id = data.get('game_type_id', '')
+    config_id    = data.get('config_id', '')
+    gt           = GAME_TYPES.get(game_type_id)
+    if not gt:
+        return jsonify({'ok': False, 'error': 'unknown game_type_id'}), 400
+    disp_base = gt.get('display_route', f'/games/{game_type_id}')
+    ctrl_base = gt.get('controller_route', f'/games/{game_type_id}')
+    disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
+    ctrl_url  = ctrl_base + (f'?config={config_id}' if config_id else '')
+    # display.html shows games in an iframe — kiosk stays on /display, _display_url unchanged
+    broadcast('display_navigate', {'url': disp_url})
+    return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': disp_url})
+
+_wheel_fade_token = 0
+
+@app.route('/api/games/wheel/audio/start', methods=['POST'])
+def api_games_wheel_audio_start():
+    wheel_dir = ASSETS_DIR / 'games' / 'wheel'
+    fname = _wheel_find_file(wheel_dir, 'spin_music')
+    if not fname:
+        return jsonify({'ok': False, 'error': 'no spin music configured'})
+    fpath = wheel_dir / fname
+    threading.Thread(target=play_audio, args=(str(fpath),),
+                     kwargs={'loops': -1, 'crossfade_ms': 0}, daemon=True).start()
+    return jsonify({'ok': True})
+
+@app.route('/api/games/wheel/audio/stop', methods=['POST'])
+def api_games_wheel_audio_stop():
+    global _wheel_fade_token, _sfx_channel
+    _wheel_fade_token += 1
+    my_token = _wheel_fade_token
+    if _sfx_channel and _sfx_channel.get_busy():
+        _sfx_channel.fadeout(1000)
+    def _fade():
+        if not pygame.mixer.music.get_busy():
+            return
+        orig  = pygame.mixer.music.get_volume()
+        steps = 20
+        for i in range(steps - 1, -1, -1):
+            if _wheel_fade_token != my_token:
+                return
+            if not pygame.mixer.music.get_busy():
+                break
+            pygame.mixer.music.set_volume(orig * i / steps)
+            time.sleep(1.0 / steps)
+        if _wheel_fade_token == my_token:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.set_volume(orig)
+    threading.Thread(target=_fade, daemon=True).start()
+    return jsonify({'ok': True})
+
+def _schedule_wheel_ticks(n, spin_ms):
+    """Play tick SFX server-side timed to match the wheel's easeOutQuartic physics."""
+    if n < 2:
+        return
+    wheel_dir = ASSETS_DIR / 'games' / 'wheel'
+    fname = _wheel_find_file(wheel_dir, 'spin_sfx')
+    if not fname:
+        return
+    fpath = str(wheel_dir / fname)
+    try:
+        if fpath not in _sfx_cache:
+            _sfx_cache[fpath] = pygame.mixer.Sound(fpath)
+        sound = _sfx_cache[fpath]
+        sound.set_volume(sfx_state['volume'] / 100)
+    except Exception as e:
+        log.error(f'wheel tick SFX load error: {e}')
+        return
+
+    # Approximate total delta: 5.5 full rotations (5 minimum + ~half rotation average)
+    total_rotations = 5.5
+    total_ticks = int(total_rotations * n)
+    spin_dur_s = spin_ms / 1000.0
+
+    def _run():
+        start = time.time()
+        for i in range(1, total_ticks + 1):
+            pos = i / (total_rotations * n)
+            if pos >= 1.0:
+                break
+            # Inverse of easeOutQuartic: t = 1 - (1-pos)^0.25
+            t = 1.0 - (1.0 - pos) ** 0.25
+            tick_time = t * spin_dur_s
+            sleep_until = start + tick_time
+            now = time.time()
+            if sleep_until > now:
+                time.sleep(sleep_until - now)
+            try:
+                sound.play()
+            except Exception:
+                pass
+
+    threading.Thread(target=_run, daemon=True).start()
+
+@app.route('/api/games/wheel/spin', methods=['POST'])
+def api_games_wheel_spin():
+    data = request.get_json(silent=True) or {}
+    spin_ms = int(data.get('spin_duration', 6000))
+    entries = data.get('entries', [])
+    w = load_config().get('wheel', {})
+    # Per-config scenes take priority over global wheel config
+    spin_scene   = data.get('spin_scene')   or w.get('spin_scene',   '')
+    winner_scene = data.get('winner_scene') or w.get('winner_scene', '')
+    # Spin scene lighting
+    if spin_scene:
+        threading.Thread(target=wled_set_scene, args=(spin_scene,), daemon=True).start()
+    # Start spin music
+    wheel_dir = ASSETS_DIR / 'games' / 'wheel'
+    fname = _wheel_find_file(wheel_dir, 'spin_music')
+    if fname:
+        fpath = wheel_dir / fname
+        threading.Thread(target=play_audio, args=(str(fpath),),
+                         kwargs={'loops': -1, 'crossfade_ms': 0}, daemon=True).start()
+    # Tick SFX timed to wheel physics
+    _schedule_wheel_ticks(len(entries), spin_ms)
+    # After spin: stop music + winner lighting
+    def _after_spin():
+        time.sleep((spin_ms + 800) / 1000.0)
+        requests.post('http://127.0.0.1/api/games/wheel/audio/stop')
+        if winner_scene:
+            wled_set_scene(winner_scene)
+    threading.Thread(target=_after_spin, daemon=True).start()
+    # Broadcast spin to display
+    broadcast('wheel_spin', {
+        'winner_index':  data.get('winner_index', 0),
+        'entries':       data.get('entries', []),
+        'entry_colors':  data.get('entry_colors', {}),
+        'spin_duration': spin_ms,
+    })
+    return jsonify({'ok': True})
+
 # ── LIGHTING ──
 @app.route('/api/lights/scene', methods=['GET', 'POST'])
 def api_lights_scene():
@@ -3545,6 +3773,76 @@ def api_macro_run():
     threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel), daemon=True).start()
     return jsonify({'ok': True})
 
+def _walkup_preload_payload_for_item(item_type, target_id, cfg):
+    """Return a walkup_preload payload dict for a circle or role, or None if not found."""
+    item_key = 'circles' if item_type == 'circle' else 'roles'
+    items    = {i['id']: i for i in cfg.get(item_key, [])}
+    item     = items.get(target_id)
+    if not item:
+        return None
+    assets = item.get('assets', {})
+    return {
+        'type':            item_type,
+        'id':              target_id,
+        'animation_intro': assets.get('animation_intro', ''),
+        'animation':       assets.get('animation', ''),
+    }
+
+def _get_next_walkup_preload(cfg, idx):
+    """Return walkup_preload payload for the first walkup in show_flow[idx+1], or None."""
+    if idx is None:
+        return None
+    flow = cfg.get('show_flow', [])
+    if idx + 1 >= len(flow):
+        return None
+    nxt      = flow[idx + 1]
+    nxt_type = nxt.get('type', 'macro')
+    if nxt_type == 'circle':
+        return _walkup_preload_payload_for_item('circle', nxt.get('target_id', ''), cfg)
+    elif nxt_type == 'role':
+        return _walkup_preload_payload_for_item('role', nxt.get('target_id', ''), cfg)
+    elif nxt_type == 'macro':
+        macro_id  = nxt.get('macro_id', '')
+        macros    = {m['id']: m for m in cfg.get('macros', [])}
+        macro_obj = macros.get(macro_id)
+        if macro_obj:
+            for step in macro_obj.get('steps', []):
+                if step.get('action') == 'walkup_circle':
+                    return _walkup_preload_payload_for_item('circle', step.get('circle_id', ''), cfg)
+                elif step.get('action') == 'walkup_role':
+                    return _walkup_preload_payload_for_item('role', step.get('role_id', ''), cfg)
+    return None
+
+def _broadcast_walkup_preload_for(flow, cfg, idx):
+    """Broadcast walkup_preload for the next circle/role step so display can pre-warm its media pipeline."""
+    if idx + 1 >= len(flow):
+        return
+    nxt      = flow[idx + 1]
+    nxt_type = nxt.get('type', 'macro')
+    if nxt_type not in ('circle', 'role'):
+        return
+    target_id = nxt.get('target_id', '')
+    if not target_id:
+        return
+    payload = _walkup_preload_payload_for_item(nxt_type, target_id, cfg)
+    if payload:
+        broadcast('walkup_preload', payload)
+
+def _broadcast_walkup_preload_in_macro(macro_obj, cfg):
+    """Broadcast walkup_preload for the first walkup action found inside a macro."""
+    for step in macro_obj.get('steps', []):
+        action = step.get('action', '')
+        if action == 'walkup_circle':
+            payload = _walkup_preload_payload_for_item('circle', step.get('circle_id', ''), cfg)
+            if payload:
+                broadcast('walkup_preload', payload)
+            return
+        elif action == 'walkup_role':
+            payload = _walkup_preload_payload_for_item('role', step.get('role_id', ''), cfg)
+            if payload:
+                broadcast('walkup_preload', payload)
+            return
+
 @app.route('/api/show/fire')
 def api_show_fire():
     """Fire a show-flow step by index. Delegates to macro/run logic."""
@@ -3564,12 +3862,12 @@ def api_show_fire():
         target_id = entry.get('target_id', '')
         broadcast('show_step', {'index': idx, 'name': entry.get('name', target_id), 'desc': step_desc})
         _navigate_home_if_needed()
-        threading.Thread(target=fire_walkup, kwargs={'circle_id': target_id}, daemon=True).start()
+        threading.Thread(target=fire_walkup, kwargs={'circle_id': target_id, 'show_flow_idx': idx}, daemon=True).start()
     elif step_type == 'role':
         target_id = entry.get('target_id', '')
         broadcast('show_step', {'index': idx, 'name': entry.get('name', target_id), 'desc': step_desc})
         _navigate_home_if_needed()
-        threading.Thread(target=fire_walkup, kwargs={'role_id': target_id}, daemon=True).start()
+        threading.Thread(target=fire_walkup, kwargs={'role_id': target_id, 'show_flow_idx': idx}, daemon=True).start()
     elif step_type == 'game':
         game_type_id   = entry.get('game_type_id', '')
         game_config_id = entry.get('game_config_id', '')
@@ -3604,7 +3902,8 @@ def api_show_fire():
         global _macro_cancel
         _macro_cancel.set()
         _macro_cancel = threading.Event()
-        threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel), daemon=True).start()
+        threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel, idx), daemon=True).start()
+
     return jsonify({'ok': True})
 
 @app.route('/api/show/reset')
@@ -3637,7 +3936,7 @@ def _broadcast_timer_display(filename):
 
 _AUDIO_ACTIONS = {'music', 'play_playlist', 'audio_stop', 'audio_fade', 'walkup_circle', 'walkup_role', 'walkup_game_entry'}
 
-def execute_macro(macro, cancel=None):
+def execute_macro(macro, cancel=None, show_flow_idx=None):
     global config, current_slide, _viz_scene
     if cancel is None:
         cancel = threading.Event()
@@ -3730,12 +4029,12 @@ def execute_macro(macro, cancel=None):
                 circle_id = step.get('circle_id', '')
                 if circle_id:
                     _navigate_home_if_needed()  # non-blocking; fire_walkup crossfade gives display.html time to load
-                    threading.Thread(target=fire_walkup, kwargs={'circle_id': circle_id}, daemon=True).start()
+                    threading.Thread(target=fire_walkup, kwargs={'circle_id': circle_id, 'show_flow_idx': show_flow_idx}, daemon=True).start()
             elif action == 'walkup_role':
                 role_id = step.get('role_id', '')
                 if role_id:
                     _navigate_home_if_needed()
-                    threading.Thread(target=fire_walkup, kwargs={'role_id': role_id}, daemon=True).start()
+                    threading.Thread(target=fire_walkup, kwargs={'role_id': role_id, 'show_flow_idx': show_flow_idx}, daemon=True).start()
             elif action == 'walkup_game_entry':
                 entry_id = step.get('game_entry_id', '')
                 if entry_id:
@@ -3791,12 +4090,26 @@ def execute_macro(macro, cancel=None):
             elif action == 'slide_clear':
                 current_slide = {}
                 _ensure_display_for('display_slide_clear', {})
+            elif action == 'game':
+                game_type_id   = step.get('game_type_id', '')
+                game_config_id = step.get('game_config_id', '')
+                gt             = GAME_TYPES.get(game_type_id, {})
+                ctrl_url       = gt.get('controller_route', f'/games/{game_type_id}')
+                disp_url       = gt.get('display_route',    f'/games/{game_type_id}')
+                if game_config_id:
+                    ctrl_url += f'?config={game_config_id}'
+                    disp_url += ('&' if '?' in disp_url else '?') + f'config={game_config_id}'
+                broadcast('launch_game', {
+                    'game_type_id':   game_type_id,
+                    'game_config_id': game_config_id,
+                    'controller_url': ctrl_url,
+                    'display_url':    disp_url,
+                    'name':           gt.get('label', 'Game'),
+                })
+                _ensure_display_for('display_navigate', {'url': disp_url + ('&' if '?' in disp_url else '?') + 'display=1'})
             elif action == 'shell_game':
-                global _display_url
                 hold = step.get('hold', 5)
-                url = f'/shell-game?hold={hold}'  # no autostart — operator starts from Games tab
-                with _display_url_lock:
-                    _display_url = url
+                url = f'/shell-game?hold={hold}'
                 broadcast('display_navigate', {'url': url})
             elif action == 'saved_slide':
                 sid  = step.get('slide_id', '')
@@ -3998,6 +4311,18 @@ def api_upload():
             if old.exists():
                 old.unlink()
         dest = sg_dir / (slot + ext)
+    elif target_type == 'wheel_game':
+        slot = asset_type if asset_type in _WHEEL_SLOTS else None
+        if not slot:
+            return jsonify({'ok': False, 'error': 'Unknown wheel slot'}), 400
+        ext = Path(f.filename).suffix.lower() or '.mp3'
+        wheel_dir = ASSETS_DIR / 'games' / 'wheel'
+        wheel_dir.mkdir(parents=True, exist_ok=True)
+        for old_ext in _WHEEL_AUD_EXTS:
+            old = wheel_dir / f'{slot}.{old_ext}'
+            if old.exists():
+                old.unlink()
+        dest = wheel_dir / (slot + ext)
     else:
         return jsonify({'ok': False, 'error': 'Unknown target type'}), 400
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -4012,6 +4337,10 @@ def api_upload():
         sg[f'{slot}_name'] = f.filename  # original upload filename for display
         save_config(cfg)
         broadcast('shell_game_reload', {})
+    if target_type == 'wheel_game' and slot:
+        wh = cfg.setdefault('wheel', {})
+        wh[f'{slot}_name'] = f.filename
+        save_config(cfg)
     if target_type == 'circle' and target_id:
         circles = cfg.get('circles', [])
         circle = next((c for c in circles if c['id'] == target_id), None)
@@ -4320,6 +4649,12 @@ def api_system_restart():
     log.info("Service restart requested via API")
     subprocess.run(['/usr/bin/sudo', '/usr/bin/systemctl', 'restart', 'musicman.service'],
                    capture_output=True)
+    return jsonify({'ok': True})
+
+@app.route('/api/system/restart_kiosk', methods=['POST'])
+def api_system_restart_kiosk():
+    log.info("Kiosk restart requested via API")
+    subprocess.Popen(['/usr/bin/pkill', '-u', 'pi', 'cage'])
     return jsonify({'ok': True})
 
 @app.route('/api/system/shutdown', methods=['POST'])

@@ -1473,6 +1473,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                     <option value="viz_hide">✕ Stop Visualization</option>
                   </optgroup>
                   <optgroup label="GAMES">
+                    <option value="game">🎮 Launch Game</option>
                     <option value="shell_game">⛺ Shell Game</option>
                     <option value="walkup_game_entry">🎲 Game Entry Walk-Up</option>
                   </optgroup>
@@ -1575,174 +1576,42 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         <p>AUDIENCE INTERACTION — RUN FROM THE CONSOLE, SHOWN ON THE PROJECTOR</p>
       </div>
 
-      <div style="max-width:720px">
+      <div style="max-width:960px">
 
         <!-- ── GAMES LIBRARY ── -->
         <div class="editor-panel" style="margin-bottom:16px">
           <div class="editor-title">🎮 GAMES LIBRARY</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-bottom:14px;letter-spacing:0.5px">SAVE NAMED CONFIGS FOR EACH GAME — RECALL FAST ON SHOW NIGHT</div>
 
-          <!-- Game type tabs -->
-          <div id="gl-type-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
+          <div style="display:flex;gap:16px;align-items:flex-start">
 
-          <!-- Saved configs for selected type -->
-          <div id="gl-config-list" style="margin-bottom:14px;min-height:32px"></div>
-
-          <!-- Quick Create accordion -->
-          <div style="border-top:1px solid var(--border);padding-top:12px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--text-dim)">QUICK CREATE</div>
-              <button class="btn btn-primary btn-sm" onclick="glSaveConfig()">SAVE CONFIG</button>
+            <!-- Left: type tabs + card list -->
+            <div style="width:240px;flex-shrink:0">
+              <div id="gl-type-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px"></div>
+              <button class="btn btn-primary btn-sm" onclick="glNewConfig()" style="width:100%;margin-bottom:10px">+ NEW CONFIG</button>
+              <div id="gl-config-grid" style="display:flex;flex-direction:column;gap:6px"></div>
             </div>
-            <label class="field-label">NAME</label>
-            <input id="gl-config-name" type="text" class="text-input" placeholder="e.g. Circle Draw — Family Night" style="margin-bottom:10px">
-            <div id="gl-schema-fields" style="display:flex;flex-direction:column;gap:8px"></div>
+
+            <!-- Right: editor -->
+            <div style="flex:1;min-width:0;border-left:1px solid var(--border);padding-left:16px">
+              <div id="gl-editor-placeholder" class="editor-placeholder" style="margin:0">← Select a config or + NEW CONFIG</div>
+              <div id="gl-editor" style="display:none">
+                <div id="gl-name-row">
+                  <label class="field-label">NAME</label>
+                  <input id="gl-config-name" type="text" class="text-input" placeholder="e.g. Family Night Draw" style="margin-bottom:14px" oninput="_glScheduleAutoSave()">
+                </div>
+                <div id="gl-schema-fields"></div>
+                <div class="btn-row" style="margin-top:14px" id="gl-action-btns">
+                  <button class="btn btn-primary" onclick="glSaveSelectedConfig()">✓ SAVE</button>
+                  <button class="btn btn-secondary" onclick="glGoLive(glSelectedConfigId)">↗ GO LIVE</button>
+                  <button class="btn btn-secondary" onclick="glDupeSelectedConfig()">DUPE</button>
+                  <button class="btn btn-danger" onclick="glDeleteSelectedConfig()">✕ DELETE</button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <!-- ── SHELL GAME (existing) ── -->
-        <div class="editor-panel">
-          <div class="editor-title">⛺ SHELL GAME</div>
-
-          <!-- Control buttons -->
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-            <button class="btn btn-primary" onclick="sgNavigate()">↗ OPEN ON DISPLAY</button>
-            <button class="btn btn-secondary" onclick="sgStart()">▶ START GAME</button>
-            <button class="btn" onclick="sgReset()">↺ RESET TO LOBBY</button>
-          </div>
-
-          <div class="section-divider"></div>
-
-          <!-- Guess time -->
-          <div class="card-title">SETTINGS</div>
-          <label>GUESS TIME (SECONDS)</label>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input type="number" id="sg-hold" value="5" min="2" max="30" step="1" oninput="sgMarkDirty()" style="width:80px">
-            <span style="font-size:11px;color:var(--text-dim)">how long players have to pick a tent</span>
-          </div>
-
-          <div class="section-divider"></div>
-
-          <!-- Text labels -->
-          <div class="card-title">TEXT LABELS <span style="font-size:9px;font-weight:400;letter-spacing:0;color:var(--text-dim);margin-left:4px">— blank = use built-in default</span></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div><label>TITLE (LOBBY)</label><input type="text" id="sg-title" placeholder="THE SHELL GAME" oninput="sgMarkDirty()"></div>
-            <div><label>WATCH MESSAGE</label><input type="text" id="sg-watch-msg" placeholder="Watch the rock carefully..." oninput="sgMarkDirty()"></div>
-            <div><label>TRACK MESSAGE</label><input type="text" id="sg-track-msg" placeholder="Don't lose track..." oninput="sgMarkDirty()"></div>
-            <div><label>GUESS PROMPT</label><input type="text" id="sg-guess-msg" placeholder="Which tent?" oninput="sgMarkDirty()"></div>
-            <div><label>GUESS SUB-TEXT</label><input type="text" id="sg-guess-sub" placeholder="Shout it out!" oninput="sgMarkDirty()"></div>
-          </div>
-
-          <div class="section-divider"></div>
-
-          <!-- Images -->
-          <div class="card-title">CUSTOM IMAGES</div>
-          <div class="asset-slots">
-            <!-- TENT -->
-            <div>
-              <div class="asset-slot" id="sgslot-tent" onclick="document.getElementById('sgfile-tent').click()">
-                <div class="slot-status" id="sgstatus-tent"></div>
-                <input type="file" id="sgfile-tent" accept="image/*" onchange="sgUpload('tent',this.files[0])">
-                <img id="sgpreview-tent" src="" alt="" style="display:none;width:56px;height:40px;object-fit:contain;border-radius:4px;margin-bottom:2px">
-                <div class="asset-slot-icon" id="sgicon-tent">⛺</div>
-                <div class="asset-slot-label">TENT IMAGE</div>
-                <div class="asset-slot-file empty" id="sgfname-tent">Default SVG</div>
-              </div>
-              <button type="button" onclick="openSgPicker('tent','image')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
-              <button type="button" id="sgclear-tent" onclick="sgClearSlot('tent')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR</button>
-            </div>
-            <!-- ROCK -->
-            <div>
-              <div class="asset-slot" id="sgslot-rock" onclick="document.getElementById('sgfile-rock').click()">
-                <div class="slot-status" id="sgstatus-rock"></div>
-                <input type="file" id="sgfile-rock" accept="image/*" onchange="sgUpload('rock',this.files[0])">
-                <img id="sgpreview-rock" src="" alt="" style="display:none;width:56px;height:40px;object-fit:contain;border-radius:4px;margin-bottom:2px">
-                <div class="asset-slot-icon" id="sgicon-rock">🪨</div>
-                <div class="asset-slot-label">ROCK / ITEM</div>
-                <div class="asset-slot-file empty" id="sgfname-rock">Default SVG</div>
-              </div>
-              <button type="button" onclick="openSgPicker('rock','image')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
-              <button type="button" id="sgclear-rock" onclick="sgClearSlot('rock')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR</button>
-            </div>
-            <!-- BACKGROUND -->
-            <div>
-              <div class="asset-slot" id="sgslot-bg_image" onclick="document.getElementById('sgfile-bg_image').click()">
-                <div class="slot-status" id="sgstatus-bg_image"></div>
-                <input type="file" id="sgfile-bg_image" accept="image/*" onchange="sgUpload('bg_image',this.files[0])">
-                <img id="sgpreview-bg_image" src="" alt="" style="display:none;width:56px;height:40px;object-fit:cover;border-radius:4px;margin-bottom:2px">
-                <div class="asset-slot-icon" id="sgicon-bg_image">🌄</div>
-                <div class="asset-slot-label">BACKGROUND</div>
-                <div class="asset-slot-file empty" id="sgfname-bg_image">Night sky (default)</div>
-              </div>
-              <button type="button" onclick="openSgPicker('bg_image','image')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
-              <button type="button" id="sgclear-bg_image" onclick="sgClearSlot('bg_image')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR</button>
-            </div>
-          </div>
-
-          <div class="section-divider"></div>
-
-          <!-- Audio -->
-          <div class="card-title">AUDIO</div>
-          <div class="asset-slots">
-            <!-- START SFX -->
-            <div>
-              <div class="asset-slot" id="sgslot-start_sfx" onclick="document.getElementById('sgfile-start_sfx').click()">
-                <div class="slot-status" id="sgstatus-start_sfx"></div>
-                <input type="file" id="sgfile-start_sfx" accept="audio/*" onchange="sgUpload('start_sfx',this.files[0])">
-                <div class="asset-slot-icon">📯</div>
-                <div class="asset-slot-label">START HORN</div>
-                <div class="asset-slot-file empty" id="sgfname-start_sfx">No file (silent)</div>
-              </div>
-              <button type="button" onclick="openSgPicker('start_sfx','audio')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
-              <button type="button" id="sgclear-start_sfx" onclick="sgClearSlot('start_sfx')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR</button>
-            </div>
-            <!-- SHUFFLE MUSIC -->
-            <div>
-              <div class="asset-slot" id="sgslot-shuffle_music" onclick="document.getElementById('sgfile-shuffle_music').click()">
-                <div class="slot-status" id="sgstatus-shuffle_music"></div>
-                <input type="file" id="sgfile-shuffle_music" accept="audio/*" onchange="sgUpload('shuffle_music',this.files[0])">
-                <div class="asset-slot-icon">🎵</div>
-                <div class="asset-slot-label">SHUFFLE MUSIC</div>
-                <div class="asset-slot-file empty" id="sgfname-shuffle_music">No file (silent)</div>
-              </div>
-              <button type="button" onclick="openSgPicker('shuffle_music','audio')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
-              <button type="button" id="sgclear-shuffle_music" onclick="sgClearSlot('shuffle_music')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR</button>
-            </div>
-            <!-- REVEAL SFX -->
-            <div>
-              <div class="asset-slot" id="sgslot-reveal_sfx" onclick="document.getElementById('sgfile-reveal_sfx').click()">
-                <div class="slot-status" id="sgstatus-reveal_sfx"></div>
-                <input type="file" id="sgfile-reveal_sfx" accept="audio/*" onchange="sgUpload('reveal_sfx',this.files[0])">
-                <div class="asset-slot-icon">🎉</div>
-                <div class="asset-slot-label">REVEAL CHEER</div>
-                <div class="asset-slot-file empty" id="sgfname-reveal_sfx">No file (silent)</div>
-              </div>
-              <button type="button" onclick="openSgPicker('reveal_sfx','audio')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
-              <button type="button" id="sgclear-reveal_sfx" onclick="sgClearSlot('reveal_sfx')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR</button>
-            </div>
-          </div>
-
-          <div class="btn-row">
-            <button id="sg-save-btn" class="btn btn-primary" onclick="sgSaveConfig()" style="display:none">✓ SAVE CHANGES</button>
-          </div>
-        </div>
-
-        <!-- Saved variations -->
-        <div class="card" style="margin-top:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div class="card-title" style="margin-bottom:0">SAVED VARIATIONS</div>
-              <button onclick="sgLoadThemes()" class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px">↺ REFRESH</button>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input id="sg-theme-name" type="text" placeholder="Variation name…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:180px;font-family:'Barlow Condensed',sans-serif;font-weight:600">
-              <button onclick="sgSaveTheme()" class="btn btn-primary btn-sm">💾 SAVE CURRENT</button>
-            </div>
-          </div>
-          <div id="sg-themes-list">
-            <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SAVED VARIATIONS YET</div>
-          </div>
-        </div>
       <!-- GAME ENTRIES -->
       <div style="margin-top:24px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
@@ -2084,6 +1953,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         <button class="btn btn-secondary" onclick="loadSystemStatus()">↻ REFRESH</button>
         <button class="btn btn-secondary" onclick="resetMixer()">🔈 RESET AUDIO</button>
         <button class="btn btn-secondary" onclick="reloadDisplay()">⟳ RELOAD DISPLAY</button>
+        <button class="btn btn-secondary" onclick="restartKiosk()">🖥 RESTART KIOSK</button>
         <button class="btn btn-danger" onclick="restartService()">⚠ RESTART SERVICE</button>
         <button class="btn btn-danger" onclick="shutdownPi()">🔌 SHUTDOWN PI</button>
       </div>
@@ -3998,7 +3868,7 @@ const STEP_LABELS = {
   display_image:'🖼 Show Image', display_anim:'🎬 Show Video',
   display_circle:'⬡ Circle Display', display_role:'★ Role Display',
   saved_slide:'📋 Saved Slide', slide:'📋 Custom Slide', slide_clear:'✕ Clear Slide',
-  shell_game:'⛺ Shell Game'
+  game:'🎮 Launch Game', shell_game:'⛺ Shell Game'
 };
 
 // Cached lists for dropdowns — populated at init
@@ -4162,6 +4032,27 @@ function stepParamHtml(step) {
   if (a === 'slide_clear') {
     return `<span style="flex:1;color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">clears custom slide from projector</span>`;
   }
+  if (a === 'game') {
+    const typeOpts = glGameTypes.map(g =>
+      `<option value="${escHtml(g.id)}" ${step.game_type_id===g.id?'selected':''}>${escHtml((g.icon||'🎮')+' '+g.label)}</option>`
+    ).join('');
+    const cfgId = escHtml(step.game_config_id || '');
+    setTimeout(() => {
+      document.querySelectorAll('.step-param-game-type').forEach(sel => {
+        if (!sel.dataset.cfgLoaded) { sel.dataset.cfgLoaded = '1'; mcLoadGameConfigs(sel, sel.closest('div').querySelector('.step-param-game-config')); }
+      });
+    }, 0);
+    return `<div style="display:flex;flex-direction:column;gap:4px;flex:1">
+      <select class="step-param-game-type" onchange="mcLoadGameConfigs(this,this.closest('div').querySelector('.step-param-game-config'))"
+        style="background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px">
+        ${typeOpts||'<option value="">— no games —</option>'}
+      </select>
+      <select class="step-param-game-config" data-selected="${cfgId}"
+        style="background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px">
+        <option value="">— optional saved config —</option>
+      </select>
+    </div>`;
+  }
   if (a === 'shell_game') {
     const hold = step.hold ?? 5;
     return `<div style="display:flex;align-items:center;gap:8px">
@@ -4222,6 +4113,11 @@ function collectStepValue(row, action) {
   if (action === 'display_role')   return { role_id:   val };
   if (action === 'play_playlist')    return { path: val, shuffle: !!(row.querySelector('.step-shuffle')?.checked) };
   if (action === 'setup_skit_timer') return { preset: val };
+  if (action === 'game') {
+    const typeEl = row.querySelector('.step-param-game-type');
+    const cfgEl  = row.querySelector('.step-param-game-config');
+    return { game_type_id: typeEl?.value || '', game_config_id: cfgEl?.value || '' };
+  }
   if (action === 'shell_game')       return { hold: parseFloat(val) || 5 };
   if (action === 'viz')              return { preset_id: val };
   if (action === 'viz_hide')         return {};
@@ -4395,6 +4291,7 @@ function addMacroStep() {
   else if (type === 'play_playlist') { step.path = ''; step.shuffle = true; }
   else if (type === 'saved_slide')   { step.slide_id = savedSlides.length ? savedSlides[0].id : ''; }
   else if (type === 'slide')         { step.template = 'big_title'; step.theme = 'amber'; step.headline = ''; step.subtitle = ''; }
+  else if (type === 'game')          { step.game_type_id = glGameTypes.length ? glGameTypes[0].id : ''; step.game_config_id = ''; }
   else if (type === 'shell_game')    step.hold = 5;
   m.steps = collectSteps();
   m.steps.push(step);
@@ -4961,12 +4858,30 @@ async function admDeleteSavedSlide(id) {
 }
 
 // ── GAMES LIBRARY ──────────────────────────────────────────────────────────
-let glGameTypes    = [];
-let glConfigs      = {};   // { game_type_id: [...configs] }
-let glSelectedType = '';
+let glGameTypes        = [];
+let glConfigs          = {};   // { game_type_id: [...configs] }
+let glSelectedType     = '';
+let glSelectedConfigId = '';
+let _glWheelEntries    = [];   // [{name, color}] for the wheel editor
+let _glAutoSaveTimer   = null;
+
+function _glScheduleAutoSave() {
+  if (!glSelectedConfigId) return;
+  clearTimeout(_glAutoSaveTimer);
+  _glAutoSaveTimer = setTimeout(() => glSaveSelectedConfig(true), 1500);
+}
+
+function _glUpdateSaveLabel() {
+  const btn = document.querySelector('#gl-action-btns .btn-primary[onclick*="glSaveSelectedConfig"]');
+  if (btn) btn.textContent = glSelectedConfigId ? '↑ OVERWRITE' : '✓ SAVE';
+}
 
 async function loadGamesLibrary() {
   try { glGameTypes = await fetch('/api/game_types').then(r => r.json()); } catch(e) { glGameTypes = []; }
+  // Inject shell_game as a singleton type (no API-backed configs)
+  if (!glGameTypes.find(g => g.id === 'shell_game')) {
+    glGameTypes.push({ id: 'shell_game', label: 'Shell Game', icon: '⛺', schema: [] });
+  }
   renderGlTypeTabs();
   if (glGameTypes.length) await glSelectType(glGameTypes[0].id);
 }
@@ -4983,70 +4898,171 @@ function renderGlTypeTabs() {
 }
 
 async function glSelectType(typeId) {
-  glSelectedType = typeId;
-  // Highlight selected tab
+  glSelectedType     = typeId;
+  glSelectedConfigId = '';
   glGameTypes.forEach(g => {
     const btn = document.getElementById(`gl-tab-${g.id}`);
     if (btn) btn.className = g.id === typeId ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
     if (btn) btn.style.cssText = 'padding:5px 10px;font-size:11px;letter-spacing:1px';
   });
-  // Load configs for this type
+
+  if (typeId === 'shell_game') {
+    // Singleton — no config grid, open editor directly with shell game settings
+    document.getElementById('gl-config-grid').innerHTML =
+      '<div style="color:var(--text-dim);font-size:11px;letter-spacing:1px;padding:4px 0">SETTINGS ONLY</div>';
+    document.getElementById('gl-editor-placeholder').style.display = 'none';
+    document.getElementById('gl-editor').style.display = 'block';
+    document.getElementById('gl-name-row').style.display = 'none';
+    document.getElementById('gl-action-btns').innerHTML = `
+      <button class="btn btn-primary" onclick="sgNavigate()">↗ OPEN ON DISPLAY</button>
+      <button class="btn btn-secondary" onclick="sgStart()">▶ START</button>
+      <button class="btn" onclick="sgReset()">↺ RESET</button>
+      <button id="sg-save-btn" class="btn btn-primary" onclick="sgSaveConfig()" style="display:none">✓ SAVE CHANGES</button>`;
+    await _renderGlShellGameEditor(document.getElementById('gl-schema-fields'));
+    await sgLoadConfig();
+    await sgLoadThemes();
+    return;
+  }
+
+  // Non-singleton types: restore name row + standard buttons
+  document.getElementById('gl-name-row').style.display = '';
+  document.getElementById('gl-action-btns').innerHTML = `
+    <button class="btn btn-primary" onclick="glSaveSelectedConfig()">✓ SAVE</button>
+    <button class="btn btn-secondary" onclick="glGoLive(glSelectedConfigId)">↗ GO LIVE</button>
+    <button class="btn btn-secondary" onclick="glDupeSelectedConfig()">DUPE</button>
+    <button class="btn btn-danger" onclick="glDeleteSelectedConfig()">✕ DELETE</button>`;
+
   try {
     glConfigs[typeId] = await fetch(`/api/game_configs?game_type_id=${typeId}`).then(r => r.json());
   } catch(e) { glConfigs[typeId] = []; }
-  renderGlConfigList();
-  renderGlSchemaFields();
-  // Clear quick-create form
-  document.getElementById('gl-config-name').value = '';
+  renderGlConfigGrid();
+  document.getElementById('gl-editor-placeholder').style.display = '';
+  document.getElementById('gl-editor').style.display = 'none';
 }
 
-function renderGlConfigList() {
-  const el = document.getElementById('gl-config-list');
+function renderGlConfigGrid() {
+  const el = document.getElementById('gl-config-grid');
   if (!el) return;
   const configs = glConfigs[glSelectedType] || [];
   if (!configs.length) {
-    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:1.5px;padding:8px 0">NO SAVED CONFIGS — CREATE ONE BELOW</div>';
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:1.5px;padding:4px 0">NO SAVED CONFIGS</div>';
     return;
   }
-  const rowStyle = 'display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:6px 10px;margin-bottom:6px';
-  el.innerHTML = configs.map(c => `
-    <div style="${rowStyle}">
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.name)}</div>
+  el.innerHTML = configs.map(c => {
+    const sel = c.id === glSelectedConfigId;
+    const gt  = glGameTypes.find(g => g.id === c.game_type_id);
+    // Color strip for wheel configs
+    let strip = '';
+    if (c.game_type_id === 'wheel' && c.data?.entries?.length) {
+      const colors = c.data.entries.slice(0, 10).map(name => {
+        const col = c.data.entry_colors?.[name];
+        return col ? `<div style="width:14px;height:8px;border-radius:2px;flex-shrink:0;background:${escHtml(col)}"></div>` : '';
+      }).join('');
+      if (colors) strip = `<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:5px">${colors}</div>`;
+    }
+    return `<div class="circle-card${sel ? ' selected' : ''}" onclick="selectGlConfig('${escHtml(c.id)}')" style="padding:10px 12px">
+      <div class="circle-card-header" style="margin-bottom:0">
+        <div style="font-size:18px;line-height:1;flex-shrink:0">${escHtml(gt?.icon||'🎮')}</div>
+        <div style="min-width:0">
+          <div class="circle-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.name)}</div>
+          <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px">${escHtml((gt?.label||'').toUpperCase())}</div>
+        </div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="glGoLive('${escHtml(c.id)}')">GO LIVE</button>
-      <button class="btn btn-secondary btn-sm" onclick="glLoadConfig('${escHtml(c.id)}')">LOAD</button>
-      <button class="btn btn-secondary btn-sm" onclick="glDupeConfig('${escHtml(c.id)}')">DUPE</button>
-      <button class="btn btn-danger btn-sm" onclick="glDeleteConfig('${escHtml(c.id)}')">✕</button>
-    </div>`).join('');
+      ${strip}
+    </div>`;
+  }).join('');
 }
 
-function renderGlSchemaFields() {
+async function selectGlConfig(id) {
+  glSelectedConfigId = id;
+  renderGlConfigGrid();
+  const c = (glConfigs[glSelectedType] || []).find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('gl-editor-placeholder').style.display = 'none';
+  document.getElementById('gl-editor').style.display = 'block';
+  document.getElementById('gl-config-name').value = c.name;
+  await renderGlSchemaFields(c.data || {});
+  _glUpdateSaveLabel();
+}
+
+async function glNewConfig() {
+  glSelectedConfigId = '';
+  renderGlConfigGrid();
+  document.getElementById('gl-editor-placeholder').style.display = 'none';
+  document.getElementById('gl-editor').style.display = 'block';
+  document.getElementById('gl-config-name').value = '';
+  await renderGlSchemaFields({});
+  _glUpdateSaveLabel();
+}
+
+async function renderGlSchemaFields(dataObj) {
+  dataObj = dataObj || {};
   const el = document.getElementById('gl-schema-fields');
   if (!el) return;
   const gt = glGameTypes.find(g => g.id === glSelectedType);
   if (!gt) { el.innerHTML = ''; return; }
+
+  // Wheel gets a custom per-entry color editor instead of the generic list field
+  if (glSelectedType === 'wheel') {
+    _glWheelEntries = (dataObj.entries || []).map(name => ({
+      name,
+      color: dataObj.entry_colors?.[name] || _glRandomEntryColor(),
+    }));
+    await _renderGlWheelEditor(el, dataObj);
+    return;
+  }
+
+  // Generic schema fields for other game types
+  const srcCache = {};
+  for (const field of (gt.schema || [])) {
+    if (!field.source || srcCache[field.source] !== undefined) continue;
+    try {
+      if (field.source === 'scenes') {
+        const sc = await fetch('/api/scenes').then(r => r.json());
+        srcCache['scenes'] = [{value:'',label:'— none —'}, ...sc.map(s => ({value: s.id, label: s.name || s.id}))];
+      } else if (field.source === 'audio') {
+        const [sfx, music] = await Promise.all([
+          fetch('/api/sfx/list').then(r=>r.json()).catch(()=>[]),
+          fetch('/api/music/list').then(r=>r.json()).catch(()=>[]),
+        ]);
+        srcCache['audio'] = [
+          {value:'', label:'— none —'},
+          ...sfx.map(f   => ({value: f, label: '🔊 ' + f})),
+          ...music.map(f => ({value: f, label: '🎵 ' + f})),
+        ];
+      }
+    } catch(e) { srcCache[field.source] = [{value:'',label:'— load error —'}]; }
+  }
+
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+  el.style.gap = '10px';
   el.innerHTML = (gt.schema || []).map(field => {
+    const val = dataObj[field.key];
     if (field.type === 'list') {
+      const txt = Array.isArray(val) ? val.join('\n') : (val ?? '');
       return `<div>
         <label class="field-label">${escHtml(field.label)}</label>
         <textarea id="glf-${escHtml(field.key)}" class="text-input" rows="4"
-          placeholder="One entry per line" style="resize:vertical;font-size:12px"></textarea>
+          placeholder="${escHtml(field.placeholder||'One entry per line')}" style="resize:vertical;font-size:12px">${escHtml(txt)}</textarea>
       </div>`;
     } else if (field.type === 'bool') {
+      const chk = val !== undefined ? !!val : !!field.default;
       return `<div style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" id="glf-${escHtml(field.key)}" ${field.default ? 'checked' : ''} style="width:16px;height:16px">
+        <input type="checkbox" id="glf-${escHtml(field.key)}" ${chk ? 'checked' : ''} style="width:16px;height:16px">
         <label for="glf-${escHtml(field.key)}" style="font-size:12px;cursor:pointer">${escHtml(field.label)}</label>
       </div>`;
     } else if (field.type === 'number') {
+      const num = val !== undefined ? val : (field.default ?? '');
       return `<div>
         <label class="field-label">${escHtml(field.label)}</label>
-        <input type="number" id="glf-${escHtml(field.key)}" class="text-input"
-          value="${field.default ?? ''}" style="width:100px">
+        <input type="number" id="glf-${escHtml(field.key)}" class="text-input" value="${num}" style="width:100px">
       </div>`;
     } else if (field.type === 'select') {
-      const opts = (field.options || []).map(o =>
-        `<option value="${escHtml(o.value)}" ${o.value === field.default ? 'selected' : ''}>${escHtml(o.label)}</option>`
+      const cur = val !== undefined ? val : (field.default || '');
+      const allOpts = [...(field.options||[]), ...(srcCache[field.source]||[])];
+      const opts = allOpts.map(o =>
+        `<option value="${escHtml(o.value)}"${o.value === cur ? ' selected' : ''}>${escHtml(o.label)}</option>`
       ).join('');
       return `<div>
         <label class="field-label">${escHtml(field.label)}</label>
@@ -5056,111 +5072,442 @@ function renderGlSchemaFields() {
       return `<div>
         <label class="field-label">${escHtml(field.label)}</label>
         <input type="text" id="glf-${escHtml(field.key)}" class="text-input"
-          placeholder="${escHtml(field.placeholder || '')}">
+          value="${escHtml(val ?? '')}" placeholder="${escHtml(field.placeholder || '')}">
       </div>`;
     }
   }).join('');
 }
 
+// ── Wheel entry editor ──────────────────────────────────────────────────────
+
+const _GL_ENTRY_PALETTE = [
+  '#e63946','#f4a261','#e9c46a','#2a9d8f','#457b9d','#6a4c93',
+  '#f77f00','#4cc9f0','#80b918','#d62828','#023e8a','#7b2d8b',
+];
+let _glPaletteIdx = 0;
+function _glRandomEntryColor() {
+  return _GL_ENTRY_PALETTE[_glPaletteIdx++ % _GL_ENTRY_PALETTE.length];
+}
+
+function _gwAssetSlot(slot, icon, label) {
+  return `<div>
+    <div class="asset-slot" id="gwslot-${slot}" onclick="document.getElementById('gwfile-${slot}').click()">
+      <div class="slot-status" id="gwstatus-${slot}"></div>
+      <input type="file" id="gwfile-${slot}" accept="audio/*" onchange="gwUpload('${slot}',this.files[0])">
+      <div class="asset-slot-icon">${icon}</div>
+      <div class="asset-slot-label">${label}</div>
+      <div class="asset-slot-file empty" id="gwfname-${slot}">No file (silent)</div>
+    </div>
+    <button type="button" onclick="openGwPicker('${slot}','audio')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
+    <button type="button" id="gwclear-${slot}" onclick="gwClearSlot('${slot}')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR</button>
+  </div>`;
+}
+
+async function _renderGlWheelEditor(container, dataObj) {
+  const spinDur   = dataObj.spin_duration ?? 6;
+  const autoRem   = dataObj.auto_remove   !== false;
+  const spinScene  = dataObj.spin_scene   || '';
+  const winScene   = dataObj.winner_scene || '';
+
+  // Fetch scenes for the dropdowns
+  let sceneOpts = '<option value="">— none —</option>';
+  try {
+    const sc = await fetch('/api/scenes').then(r => r.json());
+    sceneOpts += sc.map(s => `<option value="${escHtml(s.id)}">${escHtml(s.name || s.id)}</option>`).join('');
+  } catch(e) {}
+
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '14px';
+  container.innerHTML = `
+    <div>
+      <label class="field-label">ENTRIES <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">(name + color)</span></label>
+      <div id="glw-entry-list" style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px"></div>
+      <button class="btn btn-secondary btn-sm" onclick="glWheelAddEntry()" style="width:100%">+ ADD ENTRY</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label class="field-label">SPIN TIME (SEC)</label>
+        <input type="number" id="glf-spin_duration" class="text-input" value="${spinDur}" min="2" max="20" style="width:80px" oninput="_glScheduleAutoSave()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding-top:18px">
+        <input type="checkbox" id="glf-auto_remove" ${autoRem ? 'checked' : ''} style="width:16px;height:16px" onchange="_glScheduleAutoSave()">
+        <label for="glf-auto_remove" style="font-size:12px;cursor:pointer">Remove winner on next spin</label>
+      </div>
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">AUDIO</div>
+    <div class="asset-slots">
+      ${_gwAssetSlot('spin_sfx',   '🎰', 'SPIN TICKER SFX')}
+      ${_gwAssetSlot('spin_music', '🎵', 'SPIN MUSIC')}
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">LIGHTING SCENES</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label class="field-label">SPIN SCENE</label>
+        <select id="glf-spin_scene" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${sceneOpts}</select>
+      </div>
+      <div>
+        <label class="field-label">WINNER SCENE</label>
+        <select id="glf-winner_scene" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${sceneOpts}</select>
+      </div>
+    </div>`;
+
+  // Set scene select values after render
+  const spinSel = document.getElementById('glf-spin_scene');
+  const winSel  = document.getElementById('glf-winner_scene');
+  if (spinSel) { spinSel.value = spinScene; spinSel.onchange = _glScheduleAutoSave; }
+  if (winSel)  { winSel.value  = winScene;  winSel.onchange  = _glScheduleAutoSave; }
+
+  _renderGlWheelEntryList();
+
+  // Populate audio slot status from server
+  try {
+    const d = await fetch('/api/admin/wheel').then(r => r.json());
+    _gwUpdateSlot('spin_sfx',   d.has_spin_sfx   ? (d.spin_sfx_name   || 'file set') : null, d.spin_sfx_name   || null);
+    _gwUpdateSlot('spin_music', d.has_spin_music  ? (d.spin_music_name || 'file set') : null, d.spin_music_name || null);
+  } catch(e) {}
+}
+
+async function _renderGlShellGameEditor(container) {
+  container.style.display = 'block';
+  container.innerHTML = `
+    <div class="card-title">SETTINGS</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <input type="number" id="sg-hold" value="5" min="2" max="30" step="1" oninput="sgMarkDirty()" style="width:80px">
+      <span style="font-size:11px;color:var(--text-dim)">seconds to pick a tent</span>
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">TEXT LABELS <span style="font-size:9px;font-weight:400;letter-spacing:0;color:var(--text-dim);margin-left:4px">— blank = default</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div><label class="field-label">TITLE (LOBBY)</label><input type="text" id="sg-title" class="text-input" placeholder="THE SHELL GAME" oninput="sgMarkDirty()"></div>
+      <div><label class="field-label">WATCH MESSAGE</label><input type="text" id="sg-watch-msg" class="text-input" placeholder="Watch the rock carefully…" oninput="sgMarkDirty()"></div>
+      <div><label class="field-label">TRACK MESSAGE</label><input type="text" id="sg-track-msg" class="text-input" placeholder="Don't lose track…" oninput="sgMarkDirty()"></div>
+      <div><label class="field-label">GUESS PROMPT</label><input type="text" id="sg-guess-msg" class="text-input" placeholder="Which tent?" oninput="sgMarkDirty()"></div>
+      <div><label class="field-label">GUESS SUB-TEXT</label><input type="text" id="sg-guess-sub" class="text-input" placeholder="Shout it out!" oninput="sgMarkDirty()"></div>
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">CUSTOM IMAGES</div>
+    <div class="asset-slots" style="margin-bottom:12px">
+      ${_sgAssetSlot('tent',     'image', '⛺', 'TENT IMAGE',  'Default SVG')}
+      ${_sgAssetSlot('rock',     'image', '🪨', 'ROCK / ITEM', 'Default SVG')}
+      ${_sgAssetSlot('bg_image', 'image', '🌄', 'BACKGROUND',  'Night sky (default)')}
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">AUDIO</div>
+    <div class="asset-slots" style="margin-bottom:12px">
+      ${_sgAssetSlot('start_sfx',     'audio', '📯', 'START HORN',    'No file (silent)')}
+      ${_sgAssetSlot('shuffle_music', 'audio', '🎵', 'SHUFFLE MUSIC', 'No file (silent)')}
+      ${_sgAssetSlot('reveal_sfx',    'audio', '🎉', 'REVEAL CHEER',  'No file (silent)')}
+    </div>
+    <div class="section-divider"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      <div class="card-title" style="margin-bottom:0">SAVED VARIATIONS</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="sg-theme-name" type="text" placeholder="Variation name…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:160px;font-family:'Barlow Condensed',sans-serif;font-weight:600">
+        <button onclick="sgSaveTheme()" class="btn btn-primary btn-sm">💾 SAVE CURRENT</button>
+        <button onclick="sgLoadThemes()" class="btn btn-secondary btn-sm">↺</button>
+      </div>
+    </div>
+    <div id="sg-themes-list">
+      <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SAVED VARIATIONS YET</div>
+    </div>`;
+}
+
+function _sgAssetSlot(slot, accept, icon, label, emptyLabel) {
+  const isImg = accept === 'image';
+  return `<div>
+    <div class="asset-slot" id="sgslot-${slot}" onclick="document.getElementById('sgfile-${slot}').click()">
+      <div class="slot-status" id="sgstatus-${slot}"></div>
+      <input type="file" id="sgfile-${slot}" accept="${accept}/*" onchange="sgUpload('${slot}',this.files[0])">
+      ${isImg ? `<img id="sgpreview-${slot}" src="" alt="" style="display:none;width:56px;height:40px;object-fit:contain;border-radius:4px;margin-bottom:2px">` : ''}
+      <div class="asset-slot-icon" id="sgicon-${slot}">${icon}</div>
+      <div class="asset-slot-label">${label}</div>
+      <div class="asset-slot-file empty" id="sgfname-${slot}">${emptyLabel}</div>
+    </div>
+    <button type="button" onclick="openSgPicker('${slot}','${accept}')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
+    <button type="button" id="sgclear-${slot}" onclick="sgClearSlot('${slot}')" style="display:none;width:100%;margin-top:3px;background:var(--rust-dim,#2d0a0a);border:1px solid var(--rust,#c0392b);color:var(--rust,#c0392b);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">✕ CLEAR</button>
+  </div>`;
+}
+
+function _renderGlWheelEntryList() {
+  const el = document.getElementById('glw-entry-list');
+  if (!el) return;
+  if (!_glWheelEntries.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:1px;padding:4px 0">NO ENTRIES — ADD ONE BELOW</div>';
+    return;
+  }
+  el.innerHTML = _glWheelEntries.map((e, i) => `
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="color" value="${escHtml(e.color)}" oninput="_glWheelEntries[${i}].color=this.value;_glScheduleAutoSave()"
+        style="width:36px;height:32px;padding:2px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:none;flex-shrink:0">
+      <input type="text" value="${escHtml(e.name)}"
+        oninput="_glWheelEntries[${i}].name=this.value;_glScheduleAutoSave()"
+        class="text-input" style="flex:1;margin:0;padding:6px 10px;font-size:13px"
+        placeholder="Entry name">
+      <button onclick="glWheelRemoveEntry(${i})"
+        style="flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:rgba(220,38,38,0.12);border:1px solid rgba(220,38,38,0.4);color:var(--red,#e63946);border-radius:5px;cursor:pointer;font-size:14px;line-height:1">✕</button>
+    </div>`).join('');
+}
+
+function glWheelAddEntry() {
+  _glWheelEntries.push({ name: '', color: _glRandomEntryColor() });
+  _renderGlWheelEntryList();
+  const inputs = document.querySelectorAll('#glw-entry-list input[type=text]');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+  _glScheduleAutoSave();
+}
+
+function glWheelRemoveEntry(i) {
+  _glWheelEntries.splice(i, 1);
+  _renderGlWheelEntryList();
+  _glScheduleAutoSave();
+}
+
 function glReadSchemaData() {
+  if (glSelectedType === 'wheel') {
+    const entries      = _glWheelEntries.map(e => e.name.trim()).filter(Boolean);
+    const entry_colors = {};
+    _glWheelEntries.forEach(e => { if (e.name.trim()) entry_colors[e.name.trim()] = e.color; });
+    const spinEl      = document.getElementById('glf-spin_duration');
+    const autoEl      = document.getElementById('glf-auto_remove');
+    const spinSceneEl = document.getElementById('glf-spin_scene');
+    const winSceneEl  = document.getElementById('glf-winner_scene');
+    return {
+      entries,
+      entry_colors,
+      spin_duration: spinEl      ? (parseFloat(spinEl.value) || 6) : 6,
+      auto_remove:   autoEl      ? autoEl.checked : true,
+      spin_scene:    spinSceneEl ? spinSceneEl.value : '',
+      winner_scene:  winSceneEl  ? winSceneEl.value  : '',
+    };
+  }
   const gt = glGameTypes.find(g => g.id === glSelectedType);
   if (!gt) return {};
   const data = {};
   (gt.schema || []).forEach(field => {
     const el = document.getElementById(`glf-${field.key}`);
     if (!el) return;
-    if (field.type === 'list') {
-      data[field.key] = el.value.split('\n').map(s => s.trim()).filter(Boolean);
-    } else if (field.type === 'bool') {
-      data[field.key] = el.checked;
-    } else if (field.type === 'number') {
-      data[field.key] = parseFloat(el.value) || (field.default ?? 0);
-    } else {
-      data[field.key] = el.value.trim();
-    }
+    if (field.type === 'list')   data[field.key] = el.value.split('\n').map(s => s.trim()).filter(Boolean);
+    else if (field.type === 'bool')   data[field.key] = el.checked;
+    else if (field.type === 'number') data[field.key] = parseFloat(el.value) || (field.default ?? 0);
+    else                              data[field.key] = el.value.trim();
   });
   return data;
 }
 
-function glPopulateSchemaFields(dataObj) {
-  const gt = glGameTypes.find(g => g.id === glSelectedType);
-  if (!gt) return;
-  (gt.schema || []).forEach(field => {
-    const el = document.getElementById(`glf-${field.key}`);
-    if (!el || dataObj[field.key] === undefined) return;
-    if (field.type === 'list') {
-      el.value = Array.isArray(dataObj[field.key]) ? dataObj[field.key].join('\n') : dataObj[field.key];
-    } else if (field.type === 'bool') {
-      el.checked = !!dataObj[field.key];
-    } else {
-      el.value = dataObj[field.key] ?? '';
-    }
-  });
-}
-
-async function glSaveConfig() {
-  if (!glSelectedType) { toast('Select a game type first', 'err'); return; }
+async function glSaveSelectedConfig(silent = false) {
+  if (!glSelectedType) { if (!silent) toast('Select a game type first', 'err'); return; }
   const name = document.getElementById('gl-config-name').value.trim();
-  if (!name) { toast('Enter a config name', 'err'); return; }
+  if (!name) { if (!silent) toast('Enter a config name', 'err'); return; }
   const data = glReadSchemaData();
   try {
-    const r = await fetch('/api/game_configs', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ game_type_id: glSelectedType, name, data }),
-    });
-    const d = await r.json();
+    let r, d;
+    if (glSelectedConfigId) {
+      r = await fetch(`/api/game_configs/${glSelectedConfigId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, data }),
+      });
+      d = await r.json();
+    } else {
+      r = await fetch('/api/game_configs', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ game_type_id: glSelectedType, name, data }),
+      });
+      d = await r.json();
+      if (d.ok && d.config) {
+        glSelectedConfigId = d.config.id;
+        _glUpdateSaveLabel();
+      }
+    }
     if (d.ok) {
-      toast('Config saved: ' + name, 'ok');
-      document.getElementById('gl-config-name').value = '';
-      await glSelectType(glSelectedType);
-    } else { toast(d.error || 'Save failed', 'err'); }
-  } catch(e) { toast('Save failed', 'err'); }
+      if (!silent) toast('Saved: ' + name, 'ok');
+      else _glFlashSaved();
+      await glSelectTypeReload();
+    } else { if (!silent) toast(d.error || 'Save failed', 'err'); }
+  } catch(e) { if (!silent) toast('Save failed', 'err'); }
 }
 
-async function glLoadConfig(configId) {
-  try {
-    const c = await fetch(`/api/game_configs/${configId}`).then(r => r.json());
-    document.getElementById('gl-config-name').value = c.name + ' (copy)';
-    glPopulateSchemaFields(c.data || {});
-    toast('Loaded: ' + c.name, 'ok');
-  } catch(e) { toast('Load failed', 'err'); }
+function _glFlashSaved() {
+  const btn = document.querySelector('#gl-action-btns .btn-primary[onclick*="glSaveSelectedConfig"]');
+  if (!btn) return;
+  const orig = btn.textContent;
+  btn.textContent = '✓ SAVED';
+  btn.style.opacity = '0.6';
+  setTimeout(() => { btn.textContent = orig; btn.style.opacity = ''; }, 1200);
 }
 
-async function glDupeConfig(configId) {
+async function glSelectTypeReload() {
+  // Reload configs list and re-render grid without clearing editor selection
   try {
-    const c = await fetch(`/api/game_configs/${configId}`).then(r => r.json());
+    glConfigs[glSelectedType] = await fetch(`/api/game_configs?game_type_id=${glSelectedType}`).then(r => r.json());
+  } catch(e) { glConfigs[glSelectedType] = []; }
+  renderGlConfigGrid();
+}
+
+async function glDupeSelectedConfig() {
+  if (!glSelectedConfigId) { toast('Select a config to duplicate', 'err'); return; }
+  const configs = glConfigs[glSelectedType] || [];
+  const c = configs.find(x => x.id === glSelectedConfigId);
+  if (!c) return;
+  try {
     const r = await fetch('/api/game_configs', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ game_type_id: c.game_type_id, name: c.name + ' (copy)', data: c.data }),
     });
     const d = await r.json();
-    if (d.ok) { toast('Duplicated', 'ok'); await glSelectType(glSelectedType); }
-    else { toast(d.error || 'Failed', 'err'); }
+    if (d.ok) {
+      toast('Duplicated', 'ok');
+      glSelectedConfigId = d.config?.id || '';
+      await glSelectTypeReload();
+      if (glSelectedConfigId) selectGlConfig(glSelectedConfigId);
+    } else { toast(d.error || 'Failed', 'err'); }
   } catch(e) { toast('Failed', 'err'); }
 }
 
-async function glDeleteConfig(configId) {
+async function glDeleteSelectedConfig() {
+  if (!glSelectedConfigId) return;
   const configs = glConfigs[glSelectedType] || [];
-  const c = configs.find(x => x.id === configId);
-  if (!confirm(`Delete config "${c?.name || configId}"?`)) return;
+  const c = configs.find(x => x.id === glSelectedConfigId);
+  if (!confirm(`Delete "${c?.name || glSelectedConfigId}"?`)) return;
   try {
-    const r = await fetch(`/api/game_configs/${configId}`, { method: 'DELETE' });
+    const r = await fetch(`/api/game_configs/${glSelectedConfigId}`, { method: 'DELETE' });
     const d = await r.json();
-    if (d.ok) { toast('Deleted', 'ok'); await glSelectType(glSelectedType); }
-    else { toast(d.error || 'Failed', 'err'); }
+    if (d.ok) {
+      toast('Deleted', 'ok');
+      glSelectedConfigId = '';
+      document.getElementById('gl-editor-placeholder').style.display = '';
+      document.getElementById('gl-editor').style.display = 'none';
+      await glSelectTypeReload();
+    } else { toast(d.error || 'Failed', 'err'); }
   } catch(e) { toast('Failed', 'err'); }
 }
 
-function glGoLive(configId) {
+// ── PRIZE WHEEL GLOBAL SETTINGS ─────────────────────────────────────────────
+
+function _gwUpdateSlot(slot, filename, displayName) {
+  const slotEl  = document.getElementById(`gwslot-${slot}`);
+  const fnEl    = document.getElementById(`gwfname-${slot}`);
+  const clearBtn= document.getElementById(`gwclear-${slot}`);
+  const statEl  = document.getElementById(`gwstatus-${slot}`);
+  const label   = displayName || filename || 'No file (silent)';
+  if (fnEl)     { fnEl.textContent = label; fnEl.classList.toggle('empty', !filename); }
+  if (slotEl)   slotEl.classList.toggle('has-file', !!filename);
+  if (statEl)   statEl.className = 'slot-status' + (filename ? ' ok' : '');
+  if (clearBtn) clearBtn.style.display = filename ? '' : 'none';
+}
+
+async function gwUpload(slot, file) {
+  if (!file) return;
+  const slotEl = document.getElementById(`gwslot-${slot}`);
+  const statEl = document.getElementById(`gwstatus-${slot}`);
+  if (slotEl) slotEl.classList.add('uploading');
+  if (statEl) statEl.className = 'slot-status spinning';
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type', 'wheel_game');
+  fd.append('asset', slot);
+  try {
+    const r = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (slotEl) slotEl.classList.remove('uploading');
+    if (d.ok) { _gwUpdateSlot(slot, file.name, file.name); toast('UPLOADED: ' + file.name, 'ok'); }
+    else       { if (statEl) statEl.className = 'slot-status'; toast('UPLOAD FAILED', 'err'); }
+  } catch {
+    if (slotEl) slotEl.classList.remove('uploading');
+    if (statEl) statEl.className = 'slot-status';
+    toast('UPLOAD ERROR', 'err');
+  }
+  const inp = document.getElementById(`gwfile-${slot}`);
+  if (inp) inp.value = '';
+}
+
+async function gwClearSlot(slot) {
+  try {
+    await fetch(`/api/games/wheel/asset/${slot}`, { method: 'DELETE' });
+    _gwUpdateSlot(slot, null);
+    toast('CLEARED', 'info');
+  } catch { toast('COULD NOT CLEAR', 'err'); }
+}
+
+function openGwPicker(slot, type) {
+  _pickerCallback = async (item) => {
+    const slotEl = document.getElementById(`gwslot-${slot}`);
+    const statEl = document.getElementById(`gwstatus-${slot}`);
+    if (slotEl) slotEl.classList.add('uploading');
+    if (statEl) statEl.className = 'slot-status spinning';
+    try {
+      const r = await fetch('/api/games/wheel/asset/from-library', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ slot, src_type: item.src_type, src_file: item.src_file }),
+      });
+      const d = await r.json();
+      if (slotEl) slotEl.classList.remove('uploading');
+      if (d.ok) { _gwUpdateSlot(slot, d.filename, d.display_name || item.name); toast('SET: ' + (d.display_name || item.name), 'ok'); }
+      else       { if (statEl) statEl.className = 'slot-status'; toast('COPY FAILED', 'err'); }
+    } catch {
+      if (slotEl) slotEl.classList.remove('uploading');
+      toast('ERROR', 'err');
+    }
+  };
+  openSgPicker(slot, type); // reuse the same picker modal
+}
+
+async function loadWheelConfig() {
+  const panel = document.getElementById('gw-panel');
+  if (!panel) return;
+  try {
+    const d = await fetch('/api/admin/wheel').then(r => r.json());
+    _gwUpdateSlot('spin_sfx',   d.has_spin_sfx   ? (d.spin_sfx_name   || 'file set') : null, d.spin_sfx_name   || null);
+    _gwUpdateSlot('spin_music', d.has_spin_music  ? (d.spin_music_name || 'file set') : null, d.spin_music_name || null);
+    const scenes = await fetch('/api/scenes').then(r => r.json()).catch(() => []);
+    const sceneOpts = '<option value="">— none —</option>' +
+      scenes.map(s => `<option value="${escHtml(s.id)}">${escHtml(s.name || s.id)}</option>`).join('');
+    const spinSel   = document.getElementById('gw-spin-scene');
+    const winnerSel = document.getElementById('gw-winner-scene');
+    if (spinSel)   { spinSel.innerHTML = sceneOpts;   spinSel.value   = d.spin_scene   || ''; }
+    if (winnerSel) { winnerSel.innerHTML = sceneOpts; winnerSel.value = d.winner_scene || ''; }
+  } catch(e) {}
+}
+
+async function saveWheelConfig() {
+  const spinScene   = document.getElementById('gw-spin-scene')?.value   || '';
+  const winnerScene = document.getElementById('gw-winner-scene')?.value || '';
+  try {
+    const r = await fetch('/api/admin/wheel', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ spin_scene: spinScene, winner_scene: winnerScene }),
+    });
+    const d = await r.json();
+    if (d.ok) toast('WHEEL SETTINGS SAVED', 'ok');
+    else      toast(d.error || 'Save failed', 'err');
+  } catch { toast('SAVE FAILED', 'err'); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function glGoLive(configId) {
+  if (!configId) { toast('Save the config first', 'err'); return; }
   const configs = glConfigs[glSelectedType] || [];
-  const c = configs.find(x => x.id === configId);
-  const gt = glGameTypes.find(g => g.id === glSelectedType);
+  const c       = configs.find(x => x.id === configId);
+  const gt      = glGameTypes.find(g => g.id === glSelectedType);
   if (!gt) return;
-  const url = gt.controller_route + (configId ? `?config=${configId}` : '');
-  window.open(url, '_blank');
-  toast('Opening controls: ' + (c?.name || glSelectedType), 'ok');
+  try {
+    const r = await fetch('/api/games/launch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ game_type_id: glSelectedType, config_id: configId }),
+    });
+    const d = await r.json();
+    if (d.ok) toast((c?.name || glSelectedType) + ' → sent to HDMI', 'ok');
+    else      toast('Launch failed: ' + (d.error || '?'), 'err');
+  } catch(e) { toast('Launch error', 'err'); }
 }
 
 // ── SHOW FLOW ──────────────────────────────────────────────────────────────
@@ -5734,6 +6081,26 @@ function startHealthAutoRefresh() {
 function stopHealthAutoRefresh() {
   clearInterval(_healthTimer);
   _healthTimer = null;
+}
+
+async function mcLoadGameConfigs(typeSelect, cfgSelect) {
+  if (!cfgSelect) return;
+  const typeId   = typeSelect.value;
+  const prevId   = cfgSelect.dataset.selected || cfgSelect.value || '';
+  cfgSelect.innerHTML = '<option value="">— loading… —</option>';
+  try {
+    const configs = await fetch(`/api/game_configs?game_type_id=${encodeURIComponent(typeId)}`).then(r => r.json());
+    cfgSelect.innerHTML = '<option value="">— optional saved config —</option>' +
+      configs.map(c => `<option value="${escHtml(c.id)}"${c.id===prevId?' selected':''}>${escHtml(c.name)}</option>`).join('');
+  } catch(e) { cfgSelect.innerHTML = '<option value="">— error —</option>'; }
+}
+
+async function restartKiosk() {
+  if (!confirm('Restart the HDMI kiosk? Display will go dark for ~15 seconds while Chromium relaunches.')) return;
+  try {
+    await fetch('/api/system/restart_kiosk', { method:'POST' });
+    toast('Kiosk restarting…', 'info');
+  } catch(e) { toast('Restart failed', 'err'); }
 }
 
 async function restartService() {
@@ -6685,10 +7052,14 @@ function renderSceneDmx(dmxData) {
           ? [...vals, ...Array(Math.max(0, chDefs.length - vals.length)).fill(0)]
           : chDefs.map((d, i) => (fix.id.includes('pinspot') && i === 0) ? 255 : 0);
         const looks  = _fixtureTypes[fix.type]?.looks || [];
+        // Detect which look matches the saved channel values so it shows pre-selected on edit.
+        const matchIdx = !looks.length || !vals ? -1 : looks.findIndex(lk =>
+          lk.channels.length >= chVals.length && chVals.every((v, i) => lk.channels[i] === v)
+        );
         const lookSel = looks.length ? `
           <select class="dmx-look-btn dmx-look-sel" onchange="applyLookToScene(this)">
-            <option value="">▾ LOOK</option>
-            ${looks.map((lk,li)=>`<option value="${li}">${escHtml(lk.name)}</option>`).join('')}
+            ${matchIdx < 0 ? '<option value="">▾ LOOK</option>' : ''}
+            ${looks.map((lk,li)=>`<option value="${li}"${li===matchIdx?' selected':''}>${escHtml(lk.name)}</option>`).join('')}
           </select>` : '';
 
         const selCols = chDefs.map((def, ci) => {
@@ -6770,7 +7141,6 @@ function applyLookToScene(sel) {
   });
   const ua = row.querySelector('.dmx-unaffected');
   if (ua?.checked) { ua.checked = false; toggleDmxRow(ua); }
-  sel.value = '';
   toast(`Applied "${look.name}"`, 'ok');
 }
 
@@ -7234,7 +7604,7 @@ async function sgStart() {
     await sgSaveConfig();
     await fetch('/api/display/navigate', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ url: `/shell-game?hold=${sgHold()}` }) });
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 3000));
     await fetch('/api/shell-game/start', { method: 'POST' });
     toast('GAME STARTED', 'ok');
   } catch { toast('COULD NOT REACH SERVER', 'err'); }
@@ -7286,6 +7656,7 @@ async function sgClearSlot(slot) {
 
 // ── Shell game asset picker ──────────────────────────────────────────────────
 let _sgPickerSlot = null, _sgPickerType = null;
+let _pickerCallback = null; // if set, sgPickerSelect calls this instead of shell-game endpoint
 
 async function openSgPicker(slot, type) {
   _sgPickerSlot = slot;
@@ -7342,6 +7713,7 @@ async function openSgPicker(slot, type) {
 function closeSgPicker() {
   const overlay = document.getElementById('sg-picker-overlay');
   if (overlay) overlay.style.display = 'none';
+  _pickerCallback = null;
 }
 
 function sgClearText(id) {
@@ -7416,7 +7788,10 @@ async function sgDeleteTheme(id) {
 
 async function sgPickerSelect(el) {
   const item = JSON.parse(el.getAttribute('data-item'));
+  // Capture callback before closeSgPicker clears it
+  const cb = _pickerCallback;
   closeSgPicker();
+  if (cb) { await cb(item); return; }
   const slot_el = document.getElementById(`sgslot-${_sgPickerSlot}`);
   const statEl  = document.getElementById(`sgstatus-${_sgPickerSlot}`);
   if (slot_el) slot_el.classList.add('uploading');

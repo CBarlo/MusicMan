@@ -18,26 +18,16 @@
     --ink:       #1a1408;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
-  html,body {
-    min-height:100%;
-    background:var(--navy-deep);
-    font-family:'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
-    color:var(--cream);
-  }
+  html,body { min-height:100%; background:var(--navy-deep); font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; color:var(--cream); }
 
-  /* ── WHEEL STAGE ── */
+  /* ── STAGE ── */
   .stage {
-    position:relative;
     display:flex; flex-direction:column; align-items:center;
     padding:28px 24px 18px;
-    background:
-      radial-gradient(ellipse at 50% -10%, #24408f 0%, transparent 55%),
-      linear-gradient(180deg, var(--navy-mid) 0%, var(--navy-deep) 70%);
+    background: radial-gradient(ellipse at 50% -10%, #24408f 0%, transparent 55%),
+                linear-gradient(180deg, var(--navy-mid) 0%, var(--navy-deep) 70%);
   }
-  .brand-row {
-    display:flex; align-items:center; justify-content:space-between;
-    width:100%; max-width:900px; margin-bottom:10px;
-  }
+  .brand-row { display:flex; align-items:center; justify-content:space-between; width:100%; max-width:900px; margin-bottom:10px; }
   .brand { display:flex; align-items:center; gap:12px; }
   .brand-badge {
     width:40px; height:40px; border-radius:50%;
@@ -45,191 +35,135 @@
     display:flex; align-items:center; justify-content:center; font-size:18px;
     box-shadow:0 0 0 3px var(--navy-deep), 0 0 0 4px var(--gold);
   }
-  .brand-name {
-    font-size:22px; font-weight:800; color:var(--gold-hi); letter-spacing:1px; line-height:1;
-  }
-  .brand-sub {
-    font-size:11px; letter-spacing:3px; color:var(--canvas); font-weight:500; text-transform:uppercase;
-  }
+  .brand-name { font-size:22px; font-weight:800; color:var(--gold-hi); letter-spacing:1px; line-height:1; }
+  .brand-sub  { font-size:11px; letter-spacing:3px; color:var(--canvas); font-weight:500; text-transform:uppercase; }
   .wheel-title {
     font-size:13px; letter-spacing:3px; text-transform:uppercase;
     color:var(--canvas); border:1px solid rgba(217,201,163,0.35);
     padding:6px 14px; border-radius:999px;
   }
+  .wheel-area { position:relative; width:min(72vw, 520px); aspect-ratio:1/1; margin:18px 0 10px; }
 
-  .wheel-area {
-    position:relative;
-    width:min(72vw, 520px);
-    aspect-ratio:1/1;
-    margin:18px 0 10px;
+  /* ── DISPLAY MODE ── */
+  .display-mode .admin        { display:none !important; }
+  .display-mode .footer-hint  { display:none; }
+  .display-mode .brand-name   { font-size:28px; }
+  .display-mode .stage        { height:100vh; padding:20px 28px; position:relative; align-items:flex-start; }
+  .display-mode .brand-row    { width:53vw; }
+  .display-mode .wheel-area   { width:min(calc(100vh - 160px), 53vw) !important; align-self:flex-start; margin:4px 0; }
+  .display-mode .winners-stage{ display:block !important; width:53vw; margin-top:10px; }
+  .display-mode .pointer      { border-left:44px solid transparent; border-right:44px solid transparent; border-top:80px solid var(--gold-hi); top:-16px; }
+  /* Winner panel: absolute, fills space from wheel edge to screen edge */
+  .display-mode .result-banner{
+    position:absolute; top:0; right:0; bottom:0; left:calc(53vw + 36px);
+    margin:0; min-height:0;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
   }
+  .display-mode .result-card  {
+    width:100%; height:100%; padding:24px;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:none; border:none; box-shadow:none;
+  }
+  .display-mode .result-sub   { display:none; }
+  .display-mode #resultText   {
+    display:block; white-space:nowrap;
+    line-height:1.05; color:var(--gold-hi);
+    text-shadow: 0 0 40px rgba(240,180,41,0.4), 0 4px 12px rgba(0,0,0,0.7);
+  }
+
+  /* ── WHEEL ELEMENTS ── */
   .pointer {
     position:absolute; top:-6px; left:50%; transform:translateX(-50%);
     width:0; height:0; z-index:5;
-    border-left:16px solid transparent;
-    border-right:16px solid transparent;
+    border-left:16px solid transparent; border-right:16px solid transparent;
     border-top:30px solid var(--gold-hi);
     filter:drop-shadow(0 3px 4px rgba(0,0,0,0.5));
   }
-  .hub-glow {
-    position:absolute; inset:-14px; border-radius:50%;
-    background:radial-gradient(circle, rgba(240,180,41,0.18), transparent 70%);
-    pointer-events:none;
-  }
-  #wheelCanvas {
-    width:100%; height:100%; display:block; border-radius:50%;
-    box-shadow:0 0 0 8px var(--navy-deep), 0 0 0 11px var(--gold), 0 20px 50px rgba(0,0,0,0.5);
-  }
+  .hub-glow { position:absolute; inset:-14px; border-radius:50%; background:radial-gradient(circle,rgba(240,180,41,0.18),transparent 70%); pointer-events:none; }
+  #wheelCanvas { width:100%; height:100%; display:block; border-radius:50%; box-shadow:0 0 0 8px var(--navy-deep),0 0 0 11px var(--gold),0 20px 50px rgba(0,0,0,0.5); }
   .hub {
     position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
     width:58px; height:58px; border-radius:50%;
     background:radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 55%, #b8860b 100%);
-    border:3px solid var(--navy-deep);
-    box-shadow:0 3px 8px rgba(0,0,0,0.5);
+    border:3px solid var(--navy-deep); box-shadow:0 3px 8px rgba(0,0,0,0.5);
     display:flex; align-items:center; justify-content:center;
     font-weight:800; font-size:16px; color:var(--ink); letter-spacing:1px;
+    cursor:pointer; user-select:none;
   }
 
-  .result-banner {
-    margin-top:10px; min-height:64px;
-    display:flex; align-items:center; justify-content:center;
-    width:100%; max-width:620px;
-  }
+  /* ── RESULT + WINNERS ── */
+  .result-banner { margin-top:10px; min-height:64px; display:flex; align-items:center; justify-content:center; width:100%; max-width:700px; }
   .result-card {
     background:linear-gradient(180deg, var(--pine), #1e4335);
-    border:1px solid rgba(255,255,255,0.15);
-    border-radius:10px; padding:12px 32px; text-align:center;
-    font-size:28px; font-weight:800; letter-spacing:1px;
-    color:var(--gold-hi);
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.2), 0 6px 18px rgba(0,0,0,0.35);
-    opacity:0; transform:translateY(8px) scale(0.96);
-    transition:all 0.4s cubic-bezier(.2,.9,.25,1);
+    border:1px solid rgba(255,255,255,0.15); border-radius:10px;
+    padding:12px 32px; text-align:center; font-size:28px; font-weight:800; letter-spacing:1px; color:var(--gold-hi);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.2),0 6px 18px rgba(0,0,0,0.35);
+    opacity:0; transform:translateY(8px) scale(0.96); transition:all 0.4s cubic-bezier(.2,.9,.25,1);
   }
   .result-card.show { opacity:1; transform:none; }
-  .result-sub {
-    display:block; font-size:11px; letter-spacing:3px;
-    color:var(--canvas); font-weight:600; text-transform:uppercase; margin-bottom:4px;
-  }
-  .footer-hint {
-    margin-top:8px; font-size:11px; letter-spacing:2px; text-transform:uppercase;
-    color:rgba(217,201,163,0.5);
-  }
+  .result-sub { display:block; font-size:11px; letter-spacing:3px; color:var(--canvas); font-weight:600; text-transform:uppercase; margin-bottom:4px; }
+  .winners-stage { display:none; margin-top:16px; width:100%; max-width:700px; }
+  .winners-stage-label { font-size:11px; letter-spacing:3px; color:rgba(217,201,163,0.5); text-transform:uppercase; margin-bottom:8px; text-align:center; }
+  .winners-stage-list { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+  .winner-pill { background:rgba(240,180,41,0.12); border:1px solid rgba(240,180,41,0.3); border-radius:999px; padding:5px 14px; font-size:14px; font-weight:700; color:var(--gold-hi); }
+  .footer-hint { margin-top:8px; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(217,201,163,0.5); }
 
   /* ── OPERATOR PANEL ── */
-  .admin {
-    background:#0e1730;
-    border-top:3px solid var(--gold);
-    padding:20px 24px 44px;
-  }
+  .admin { background:#0e1730; border-top:3px solid var(--gold); padding:20px 24px 44px; }
   .admin-inner { max-width:900px; margin:0 auto; }
-  .admin-title {
-    font-size:15px; font-weight:700; letter-spacing:2px; color:var(--gold-hi);
-    text-transform:uppercase; margin-bottom:14px;
-    display:flex; align-items:center; gap:10px;
-  }
+  .admin-title { font-size:15px; font-weight:700; letter-spacing:2px; color:var(--gold-hi); text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
   .dot { width:8px; height:8px; border-radius:50%; background:#3ecf6a; box-shadow:0 0 8px #3ecf6a; }
 
-  .config-bar {
-    display:flex; align-items:center; gap:10px; margin-bottom:16px;
-    padding:10px 14px; background:rgba(240,180,41,0.06);
-    border:1px solid rgba(240,180,41,0.2); border-radius:8px;
-    font-size:13px; color:var(--canvas);
-  }
+  .config-bar { display:flex; align-items:center; gap:10px; margin-bottom:16px; padding:10px 14px; background:rgba(240,180,41,0.06); border:1px solid rgba(240,180,41,0.2); border-radius:8px; font-size:13px; color:var(--canvas); }
   .config-bar strong { color:var(--gold-hi); }
-  .config-bar .save-btn {
-    margin-left:auto; font-size:12px; font-weight:700; letter-spacing:1px;
-    background:rgba(240,180,41,0.15); color:var(--gold-hi);
-    border:1px solid rgba(240,180,41,0.4); border-radius:6px;
-    padding:6px 14px; cursor:pointer;
-  }
+  .config-bar .save-btn { margin-left:auto; font-size:12px; font-weight:700; letter-spacing:1px; background:rgba(240,180,41,0.15); color:var(--gold-hi); border:1px solid rgba(240,180,41,0.4); border-radius:6px; padding:6px 14px; cursor:pointer; }
   .config-bar .save-btn:hover { background:rgba(240,180,41,0.3); }
   .config-bar .save-ok { color:#3ecf6a; font-size:12px; margin-left:4px; opacity:0; transition:opacity 0.3s; }
   .config-bar .save-ok.show { opacity:1; }
 
-  .entry-form {
-    display:flex; gap:10px; margin-bottom:14px;
-  }
-  .entry-form input[type=text] {
-    flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(240,180,41,0.3);
-    border-radius:8px; padding:10px 14px; color:var(--cream);
-    font-family:'Barlow Condensed', Arial, sans-serif; font-size:14px; font-weight:500;
-  }
-  .entry-form input[type=text]:focus { outline:none; border-color:var(--gold); }
-  .entry-form button {
-    font-family:'Barlow Condensed', Arial, sans-serif; font-weight:700; font-size:13px;
-    text-transform:uppercase; letter-spacing:1px;
-    background:var(--pine); color:var(--cream); border:none; border-radius:8px;
-    padding:10px 18px; cursor:pointer;
-  }
-  .entry-form button:hover { filter:brightness(1.15); }
+  .entry-form { display:flex; gap:10px; margin-bottom:14px; }
+  .entry-form input { flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(240,180,41,0.3); border-radius:8px; padding:10px 14px; color:var(--cream); font-family:'Barlow Condensed',Arial,sans-serif; font-size:14px; font-weight:500; }
+  .entry-form input:focus { outline:none; border-color:var(--gold); }
+  .entry-form button { font-family:'Barlow Condensed',Arial,sans-serif; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:1px; background:var(--pine); color:var(--cream); border:none; border-radius:8px; padding:10px 18px; cursor:pointer; }
 
   .entry-list { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; min-height:34px; }
-  .entry-chip {
-    display:flex; align-items:center; gap:8px;
-    background:rgba(255,255,255,0.04); border:1px solid rgba(240,180,41,0.25);
-    border-radius:999px; padding:6px 8px 6px 14px;
-    font-size:13px; font-weight:600;
-  }
-  .entry-chip .swatch { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
-  .entry-chip button {
-    background:rgba(220,38,38,0.15); border:1px solid rgba(220,38,38,0.4);
-    color:var(--ember); width:20px; height:20px; border-radius:50%;
-    cursor:pointer; font-size:12px; line-height:1;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .entry-chip button:hover { background:rgba(220,38,38,0.3); }
+  .entry-chip { display:flex; align-items:center; gap:7px; background:rgba(255,255,255,0.04); border:1px solid rgba(240,180,41,0.25); border-radius:999px; padding:5px 8px 5px 10px; font-size:13px; font-weight:600; }
+  .entry-chip .swatch { width:14px; height:14px; border-radius:50%; flex-shrink:0; cursor:pointer; border:2px solid rgba(255,255,255,0.2); position:relative; }
+  .entry-chip .swatch:hover { border-color:var(--gold); transform:scale(1.2); }
+  .color-inp { position:absolute; opacity:0; width:0; height:0; }
+  .entry-chip button { background:rgba(220,38,38,0.15); border:1px solid rgba(220,38,38,0.4); color:var(--ember); width:20px; height:20px; border-radius:50%; cursor:pointer; font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center; }
 
-  .bulk-area {
-    margin-bottom:14px;
-  }
-  .bulk-toggle {
-    font-size:12px; letter-spacing:1px; color:var(--canvas); cursor:pointer;
-    background:none; border:none; padding:0; margin-bottom:6px; display:block;
-  }
+  .bulk-area { margin-bottom:14px; }
+  .bulk-toggle { font-size:12px; letter-spacing:1px; color:var(--canvas); cursor:pointer; background:none; border:none; padding:0; margin-bottom:6px; display:block; }
   .bulk-toggle:hover { color:var(--gold-hi); }
-  #bulkTextarea {
-    width:100%; display:none; background:rgba(255,255,255,0.04);
-    border:1px solid rgba(240,180,41,0.25); border-radius:8px;
-    padding:10px 14px; color:var(--cream);
-    font-family:'Barlow Condensed', Arial, sans-serif; font-size:13px;
-    resize:vertical; min-height:80px;
-  }
+  #bulkTextarea { width:100%; display:none; background:rgba(255,255,255,0.04); border:1px solid rgba(240,180,41,0.25); border-radius:8px; padding:10px 14px; color:var(--cream); font-family:'Barlow Condensed',Arial,sans-serif; font-size:13px; resize:vertical; min-height:80px; }
   #bulkTextarea:focus { outline:none; border-color:var(--gold); }
 
   .preset-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
-  .preset-btn {
-    font-family:'Barlow Condensed', Arial, sans-serif; font-size:12px; letter-spacing:0.5px;
-    font-weight:600; background:rgba(255,255,255,0.03); color:var(--canvas);
-    border:1px solid rgba(217,201,163,0.25); border-radius:999px;
-    padding:7px 14px; cursor:pointer;
-  }
+  .preset-btn { font-family:'Barlow Condensed',Arial,sans-serif; font-size:12px; font-weight:600; background:rgba(255,255,255,0.03); color:var(--canvas); border:1px solid rgba(217,201,163,0.25); border-radius:999px; padding:7px 14px; cursor:pointer; letter-spacing:0.5px; }
   .preset-btn:hover { border-color:var(--gold); color:var(--gold-hi); }
 
-  .admin-actions { display:flex; flex-wrap:wrap; gap:10px; }
-  .op-action {
-    font-family:'Barlow Condensed', Arial, sans-serif; font-weight:700;
-    font-size:13px; letter-spacing:1px; text-transform:uppercase;
-    padding:12px 22px; border-radius:8px; cursor:pointer; border:none;
-  }
-  .op-action.spin {
-    background:var(--gold); color:var(--ink); font-size:16px; padding:14px 34px;
-  }
-  .op-action.spin:disabled { opacity:0.4; cursor:not-allowed; }
-  .op-action.remove-w {
-    background:rgba(255,255,255,0.08); color:var(--cream);
-    border:1px solid rgba(255,255,255,0.2);
-  }
-  .op-action.clear {
-    background:rgba(220,38,38,0.15); color:var(--ember);
-    border:1px solid rgba(220,38,38,0.4);
-  }
-  .op-action:active { transform:translateY(1px); }
+  .admin-actions { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .op-btn { font-family:'Barlow Condensed',Arial,sans-serif; font-weight:700; font-size:13px; letter-spacing:1px; text-transform:uppercase; padding:12px 22px; border-radius:8px; cursor:pointer; border:none; }
+  .op-btn.spin { background:var(--gold); color:var(--ink); font-size:16px; padding:14px 34px; }
+  .op-btn.spin:disabled { opacity:0.4; cursor:not-allowed; }
+  .op-btn.clear { background:rgba(220,38,38,0.15); color:var(--ember); border:1px solid rgba(220,38,38,0.4); }
+  .op-btn:active { transform:translateY(1px); }
 
-  .toggle-row {
-    display:flex; align-items:center; gap:8px; margin-top:16px;
-    font-size:13px; color:var(--canvas);
-  }
+  .toggle-row { display:flex; align-items:center; gap:8px; margin-bottom:18px; font-size:13px; color:var(--canvas); }
   .toggle-row input { accent-color:var(--gold); width:16px; height:16px; }
+
+  .winners-panel { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px 16px; }
+  .winners-panel-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .winners-panel-title { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:rgba(217,201,163,0.5); font-weight:600; }
+  .winners-reset-btn { font-family:'Barlow Condensed',Arial,sans-serif; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; background:rgba(220,38,38,0.12); color:var(--ember); border:1px solid rgba(220,38,38,0.3); border-radius:6px; padding:4px 12px; cursor:pointer; }
+  .winner-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:14px; }
+  .winner-row:last-child { border-bottom:none; }
+  .winner-num { font-weight:800; color:var(--gold); min-width:24px; font-size:12px; }
+  .winner-name { flex:1; font-weight:700; }
+  .winner-pending { font-size:10px; letter-spacing:1px; color:rgba(217,201,163,0.4); }
 </style>
 </head>
 <body>
@@ -239,10 +173,7 @@
   <div class="brand-row">
     <div class="brand">
       <div class="brand-badge">🎡</div>
-      <div>
-        <div class="brand-name">MM Wheel</div>
-        <div class="brand-sub">Pick a Winner</div>
-      </div>
+      <div><div class="brand-name">MM Wheel</div><div class="brand-sub">Pick a Winner</div></div>
     </div>
     <div class="wheel-title" id="entryCountTag">Loading…</div>
   </div>
@@ -251,7 +182,7 @@
     <div class="hub-glow"></div>
     <div class="pointer"></div>
     <canvas id="wheelCanvas" width="600" height="600"></canvas>
-    <div class="hub">GO</div>
+    <div class="hub" onclick="spinWheel()">GO</div>
   </div>
 
   <div class="result-banner">
@@ -261,31 +192,32 @@
     </div>
   </div>
 
+  <div class="winners-stage" id="winnersStage">
+    <div class="winners-stage-label">Previous Winners</div>
+    <div class="winners-stage-list" id="winnersStageList"></div>
+  </div>
+
   <div class="footer-hint" id="footerHint">Prize Wheel — operator controls below</div>
 </div>
 
 <!-- ── OPERATOR PANEL ── -->
 <div class="admin">
   <div class="admin-inner">
-    <div class="admin-title"><span class="dot"></span> MM Wheel — Operator Panel</div>
+    <div class="admin-title"><span class="dot"></span> MM Wheel — Operator</div>
 
-    <!-- Config bar (shown when a config is loaded) -->
     <div class="config-bar" id="configBar" style="display:none">
       Config: <strong id="configName">—</strong>
       <button class="save-btn" onclick="saveConfigBack()">💾 SAVE ENTRIES</button>
       <span class="save-ok" id="saveOk">Saved ✓</span>
     </div>
 
-    <!-- Entry input -->
     <div class="entry-form">
-      <input type="text" id="entryInput" placeholder="Add a name — Circle, kid, dad, anything…"
-             onkeydown="if(event.key==='Enter') addEntry()">
+      <input type="text" id="entryInput" placeholder="Add a name…" onkeydown="if(event.key==='Enter')addEntry()">
       <button onclick="addEntry()">Add</button>
     </div>
 
     <div class="entry-list" id="entryList"></div>
 
-    <!-- Bulk paste -->
     <div class="bulk-area">
       <button class="bulk-toggle" onclick="toggleBulk()">▸ BULK PASTE (one per line)</button>
       <textarea id="bulkTextarea" placeholder="Paste names here, one per line…" rows="4"></textarea>
@@ -294,249 +226,448 @@
       </div>
     </div>
 
-    <!-- Presets -->
-    <div class="preset-row">
-      <button class="preset-btn" onclick="loadPreset('circles')">Load: Circles</button>
-      <button class="preset-btn" onclick="loadPreset('dads')">Load: Dads</button>
-      <button class="preset-btn" onclick="loadPreset('kids')">Load: Kids</button>
+    <div class="preset-row" id="presetRow">
+      <!-- Populated from API -->
     </div>
 
-    <!-- Action buttons -->
     <div class="admin-actions">
-      <button class="op-action spin" id="spinBtn" onclick="spinWheel()">🎡 Spin the Wheel</button>
-      <button class="op-action remove-w" id="removeWinnerBtn" onclick="removeLastWinner()" disabled>Remove Last Winner</button>
-      <button class="op-action clear" onclick="clearEntries()">Clear All</button>
+      <button class="op-btn spin" id="spinBtn" onclick="spinWheel()" disabled>🎡 Spin the Wheel</button>
+      <button class="op-btn clear" onclick="clearEntries()">Clear All</button>
     </div>
 
     <div class="toggle-row">
       <input type="checkbox" id="noRepeat" checked>
-      <label for="noRepeat">Auto-remove winner after each spin</label>
+      <label for="noRepeat">Remove winner from wheel at next spin</label>
+    </div>
+
+    <div class="winners-panel">
+      <div class="winners-panel-hdr">
+        <div class="winners-panel-title">Winners This Session</div>
+        <button class="winners-reset-btn" onclick="resetWinners()">Reset</button>
+      </div>
+      <div id="winnersList">
+        <div style="color:rgba(217,201,163,0.4);font-size:12px;letter-spacing:1px;padding:4px 0">No spins yet</div>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-const COLORS = ['#f0b429','#2f5d4c','#c23b22','#16296b','#b8860b','#1e4335','#8a2d1c','#0b1a3d'];
-const PRESETS = {
-  circles: ['Mighty Creek','Buccaneers','Blue Hawks','Rough Riders','Outlaws','Vikings','Circle 7','Circle 8','Circle 9'],
-  dads: ['Chris','Dave','Mark','Josh','Jeff','Scott','Nate'],
-  kids: ['Henry','Nolan','Owen','Liam','Mia','Cole','Ava'],
-};
-
-let entries = [];
+// ── STATE ──
+const DEFAULT_COLORS = ['#f0b429','#2f5d4c','#c23b22','#16296b','#b8860b','#1e4335','#8a2d1c','#0b1a3d'];
+let entries        = [];
+let entryColors    = {};
+let winners        = [];
+let pendingRemoval = null;
 let currentRotation = 0;
-let spinning = false;
-let lastWinner = null;
-let _configId = null;
-let _configName = null;
+let spinning       = false;
+let idleRafId      = null;
+let _configId      = null;
+let _isDisplay     = false;
 
+// Per-config settings
+let _spinDuration = 6000;
+
+// Global wheel settings (from /api/admin/wheel)
+let _spinScene   = '';
+let _winnerScene = '';
+
+// WebAudio tick SFX (short click sound synced to wheel speed)
+let _audioCtx    = null;
+let _spinSfxBuf  = null;
+let _lastTickSeg = -1;
+
+// ── WEBSOCKET ──
+let _ws = null;
+function connectWS() {
+  _ws = new WebSocket('ws://' + location.host + '/ws');
+  _ws.onopen  = () => { _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); };
+  _ws.onclose = () => setTimeout(connectWS, 3000);
+  _ws.onerror = () => _ws.close();
+  _ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.event === 'wheel_spin') handleRemoteSpin(msg.data || {});
+    } catch(e) {}
+  };
+}
+connectWS();
+
+// ── CANVAS ──
 const canvas = document.getElementById('wheelCanvas');
 const ctx    = canvas.getContext('2d');
 
+function resizeCanvas() {
+  const area = canvas.parentElement;
+  const dpr  = window.devicePixelRatio || 1;
+  const sz   = Math.round(area.offsetWidth * dpr);
+  if (canvas.width !== sz) { canvas.width = sz; canvas.height = sz; drawWheel(currentRotation); }
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ── IDLE ROTATION ──
+function startIdle() {
+  if (idleRafId || spinning) return;
+  let lastTs = null;
+  function tick(ts) {
+    if (spinning) { idleRafId = null; return; }
+    if (lastTs) currentRotation += 0.12 * (ts - lastTs) / 1000;
+    drawWheel(currentRotation);
+    lastTs = ts;
+    idleRafId = requestAnimationFrame(tick);
+  }
+  idleRafId = requestAnimationFrame(tick);
+}
+function stopIdle() {
+  if (idleRafId) { cancelAnimationFrame(idleRafId); idleRafId = null; }
+}
+
 // ── INIT ──
 (async function init() {
-  const params   = new URLSearchParams(location.search);
+  const params = new URLSearchParams(location.search);
+  _isDisplay = params.get('display') === '1';
+  if (_isDisplay) document.body.classList.add('display-mode');
+
   const configId = params.get('config');
   if (configId) {
     try {
       const cfg = await fetch(`/api/game_configs/${configId}`).then(r => r.json());
       if (cfg && cfg.id) {
-        _configId   = cfg.id;
-        _configName = cfg.name;
-        entries     = Array.isArray(cfg.data?.entries) ? [...cfg.data.entries] : [];
-        const autoRemove = cfg.data?.auto_remove;
-        if (autoRemove === false) document.getElementById('noRepeat').checked = false;
+        _configId = cfg.id;
+        const d   = cfg.data || {};
+        entries     = Array.isArray(d.entries)      ? [...d.entries]      : [];
+        entryColors = typeof d.entry_colors === 'object' ? {...d.entry_colors} : {};
+        if (d.auto_remove === false) document.getElementById('noRepeat').checked = false;
+        _spinDuration = (d.spin_duration || 6) * 1000;
+        // Per-config scenes override global
+        if (d.spin_scene)   _spinScene   = d.spin_scene;
+        if (d.winner_scene) _winnerScene = d.winner_scene;
         document.getElementById('configBar').style.display = '';
         document.getElementById('configName').textContent  = cfg.name;
         document.getElementById('footerHint').textContent  = cfg.name + ' — operator controls below';
         document.title = 'MM Wheel — ' + cfg.name;
       }
-    } catch(e) { console.error('Failed to load config', e); }
+    } catch(e) { console.error('Config load failed', e); }
   }
-  if (!entries.length) {
-    entries = [...PRESETS.circles];
-  }
-  renderEntryList();
+
+  // Load global wheel settings as fallback for scenes not set in config
+  try {
+    const wCfg = await fetch('/api/admin/wheel').then(r => r.json());
+    if (!_spinScene)   _spinScene   = wCfg.spin_scene   || '';
+    if (!_winnerScene) _winnerScene = wCfg.winner_scene || '';
+  } catch(e) {}
+
+  await initWheelAudio();
+
+  if (!entries.length) entries = ['Add entries in Admin Games config'];
+
+  await loadPresets();
+  requestAnimationFrame(() => { resizeCanvas(); renderEntryList(); renderWinners(); startIdle(); });
 })();
 
-// ── SAVE BACK TO CONFIG ──
-async function saveConfigBack() {
-  if (!_configId) return;
-  const data = {
-    entries:     entries.slice(),
-    auto_remove: document.getElementById('noRepeat').checked,
-  };
+// ── PRESETS FROM API ──
+async function loadPresets() {
+  const row = document.getElementById('presetRow');
+  const presets = [];
   try {
-    const r = await fetch(`/api/game_configs/${_configId}`, {
-      method:  'PUT',
-      headers: {'Content-Type':'application/json'},
-      body:    JSON.stringify({ data }),
-    });
-    const d = await r.json();
-    const ok = document.getElementById('saveOk');
-    ok.classList.toggle('show', !!d.ok);
-    if (d.ok) setTimeout(() => ok.classList.remove('show'), 2000);
-  } catch(e) { console.error(e); }
+    const circles = await fetch('/api/circles').then(r => r.json());
+    const names   = circles.map(c => c.name).filter(Boolean);
+    if (names.length) presets.push({label: 'Load: Circles', names});
+  } catch(e) {}
+  try {
+    const roles = await fetch('/api/roles').then(r => r.json());
+    const names  = roles.map(r => r.name).filter(Boolean);
+    if (names.length) presets.push({label: 'Load: Roles', names});
+  } catch(e) {}
+  row.innerHTML = presets.map((p, i) =>
+    `<button class="preset-btn" onclick="loadPresetData(${i})">${escHtml(p.label)}</button>`
+  ).join('');
+  row._presets = presets;
 }
 
-// ── WHEEL DRAW ──
+function loadPresetData(i) {
+  const presets = document.getElementById('presetRow')._presets || [];
+  if (!presets[i]) return;
+  entries = [...presets[i].names];
+  entryColors = {};
+  pendingRemoval = null;
+  renderEntryList();
+}
+
+// ── SAVE ──
+async function saveConfigBack() {
+  if (!_configId) return;
+  try {
+    const r = await fetch(`/api/game_configs/${_configId}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ data: { entries: entries.slice(), entry_colors: {...entryColors} } }),
+    });
+    const ok = (await r.json()).ok;
+    const el = document.getElementById('saveOk');
+    el.classList.toggle('show', ok);
+    if (ok) setTimeout(() => el.classList.remove('show'), 2000);
+  } catch(e) {}
+}
+
+// ── DRAW ──
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function getColor(i, name) { return entryColors[name] || DEFAULT_COLORS[i % DEFAULT_COLORS.length]; }
+
 function drawWheel(rotation = 0) {
   const size = canvas.width;
   const cx = size/2, cy = size/2, r = size/2 - 6;
   const n = entries.length;
-  ctx.clearRect(0,0,size,size);
-  if (n === 0) {
+  ctx.clearRect(0, 0, size, size);
+  if (!n) {
     ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
     return;
   }
-  const slice = (Math.PI*2)/n;
+  const slice = (Math.PI*2) / n;
   ctx.save();
-  ctx.translate(cx,cy);
+  ctx.translate(cx, cy);
   ctx.rotate(rotation);
   for (let i = 0; i < n; i++) {
-    const start = i*slice, end = start+slice;
-    ctx.beginPath(); ctx.moveTo(0,0);
-    ctx.arc(0,0,r,start,end); ctx.closePath();
-    ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill();
-    ctx.strokeStyle = 'rgba(11,26,61,0.6)'; ctx.lineWidth = 3; ctx.stroke();
+    const start = i * slice, end = start + slice;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,r,start,end); ctx.closePath();
+    ctx.fillStyle = getColor(i, entries[i]); ctx.fill();
+    ctx.strokeStyle = 'rgba(11,26,61,0.6)'; ctx.lineWidth = Math.max(2, r * 0.004); ctx.stroke();
     ctx.save();
     ctx.rotate(start + slice/2);
     ctx.textAlign = 'right';
     ctx.fillStyle = '#f4ecd8';
-    const fs = n > 12 ? 14 : n > 8 ? 17 : 20;
+    const fs = Math.round(n > 16 ? r*0.07 : n > 12 ? r*0.09 : n > 8 ? r*0.12 : r*0.15);
     ctx.font = `700 ${fs}px 'Barlow Condensed', Arial, sans-serif`;
-    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 3;
-    const label = entries[i].length > 16 ? entries[i].slice(0,15)+'…' : entries[i];
-    ctx.fillText(label, r - 18, fs/3);
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = Math.round(r * 0.006);
+    const label = entries[i].length > 18 ? entries[i].slice(0,17)+'…' : entries[i];
+    ctx.fillText(label, r - Math.round(r * 0.04), fs / 3);
     ctx.restore();
   }
   ctx.restore();
 }
 
-// ── ENTRY MANAGEMENT ──
+// ── ENTRIES ──
 function renderEntryList() {
   const list = document.getElementById('entryList');
-  list.innerHTML = entries.map((name, i) => `
-    <div class="entry-chip">
-      <span class="swatch" style="background:${COLORS[i % COLORS.length]}"></span>
+  list.innerHTML = entries.map((name, i) => {
+    const color = getColor(i, name);
+    const pid   = 'cp_' + i;
+    return `<div class="entry-chip">
+      <span class="swatch" style="background:${color}" onclick="document.getElementById('${pid}').click()" title="Pick color">
+        <input type="color" id="${pid}" class="color-inp" value="${color}" onchange="setEntryColor(${i},this.value)">
+      </span>
       ${escHtml(name)}
       <button onclick="removeEntry(${i})">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   document.getElementById('entryCountTag').textContent = entries.length + ' entries';
   document.getElementById('spinBtn').disabled = entries.length < 2;
-  drawWheel(currentRotation);
+  if (!spinning) drawWheel(currentRotation);
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function setEntryColor(i, hex) { entryColors[entries[i]] = hex; renderEntryList(); }
 
 function addEntry() {
-  const input = document.getElementById('entryInput');
-  const val = input.value.trim();
-  if (!val) return;
-  entries.push(val);
-  input.value = '';
-  renderEntryList();
+  const inp = document.getElementById('entryInput');
+  const val = inp.value.trim(); if (!val) return;
+  entries.push(val); inp.value = ''; renderEntryList();
 }
 
 function removeEntry(i) {
-  entries.splice(i,1);
+  const name = entries[i]; entries.splice(i, 1);
+  if (pendingRemoval?.name === name) pendingRemoval = null;
   renderEntryList();
 }
 
-function clearEntries() {
-  entries = []; lastWinner = null;
-  document.getElementById('removeWinnerBtn').disabled = true;
-  hideResult();
-  renderEntryList();
-}
-
-function loadPreset(key) {
-  entries = [...(PRESETS[key] || [])];
-  renderEntryList();
-}
+function clearEntries() { entries = []; entryColors = {}; pendingRemoval = null; hideResult(); renderEntryList(); }
 
 function toggleBulk() {
-  const ta = document.getElementById('bulkTextarea');
-  const acts = document.getElementById('bulkActions');
+  const ta = document.getElementById('bulkTextarea'), ac = document.getElementById('bulkActions');
   const open = ta.style.display !== 'none';
-  ta.style.display = open ? 'none' : 'block';
-  acts.style.display = open ? 'none' : 'block';
+  ta.style.display = open ? 'none' : 'block'; ac.style.display = open ? 'none' : 'block';
 }
 
 function applyBulk() {
-  const lines = document.getElementById('bulkTextarea').value
-    .split('\n').map(s => s.trim()).filter(Boolean);
-  if (lines.length) { entries = lines; renderEntryList(); }
-  toggleBulk();
-  document.getElementById('bulkTextarea').value = '';
+  const lines = document.getElementById('bulkTextarea').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if (lines.length) { entries = lines; entryColors = {}; pendingRemoval = null; renderEntryList(); }
+  toggleBulk(); document.getElementById('bulkTextarea').value = '';
 }
 
-// ── SPIN PHYSICS (identical to mockup) ──
+// ── WINNERS ──
+function renderWinners() {
+  const el = document.getElementById('winnersList');
+  if (!winners.length) {
+    el.innerHTML = '<div style="color:rgba(217,201,163,0.4);font-size:12px;letter-spacing:1px;padding:4px 0">No spins yet</div>';
+  } else {
+    el.innerHTML = winners.map((w, i) => `
+      <div class="winner-row">
+        <span class="winner-num">#${i+1}</span>
+        <span class="winner-name">${escHtml(w.name)}</span>
+        ${pendingRemoval?.name === w.name ? '<span class="winner-pending">removing next spin</span>' : ''}
+      </div>`).join('');
+  }
+  const sl = document.getElementById('winnersStageList');
+  if (sl) {
+    const prev = winners.slice(1);
+    sl.innerHTML = prev.map(w => `<div class="winner-pill">${escHtml(w.name)}</div>`).join('');
+    document.getElementById('winnersStage').style.display = prev.length ? '' : 'none';
+  }
+}
+
+function resetWinners() { winners = []; pendingRemoval = null; renderWinners(); }
+
+// ── WHEEL AUDIO ──
+async function initWheelAudio() {
+  try {
+    const r = await fetch('/api/games/wheel/asset/spin_sfx');
+    if (!r.ok) return;
+    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    _spinSfxBuf = await _audioCtx.decodeAudioData(await r.arrayBuffer());
+  } catch(e) {}
+}
+
+function playTick() {
+  if (!_audioCtx || !_spinSfxBuf) return;
+  if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(()=>{});
+  try {
+    const src = _audioCtx.createBufferSource();
+    src.buffer = _spinSfxBuf;
+    src.connect(_audioCtx.destination);
+    src.start(0);
+  } catch(e) {}
+}
+
+// ── SPIN ──
 function hideResult() {
-  document.getElementById('resultCard').classList.remove('show');
+  const card = document.getElementById('resultCard');
+  card.classList.remove('show');
+  document.getElementById('resultText').style.fontSize = '';
 }
 
+function fitWinnerText() {
+  if (!_isDisplay) return;
+  const textEl = document.getElementById('resultText');
+  const banner = document.querySelector('.result-banner');
+  if (!textEl || !banner) return;
+  const maxW = banner.clientWidth  - 48;
+  const maxH = banner.clientHeight - 48;
+  if (maxW <= 0 || maxH <= 0) return;
+
+  // Measure in a detached element so flexbox/block layout can't lie about width
+  const cs  = getComputedStyle(textEl);
+  const tmp = document.createElement('span');
+  tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;white-space:nowrap;visibility:hidden;';
+  tmp.style.fontFamily = cs.fontFamily;
+  tmp.style.fontWeight = cs.fontWeight;
+  tmp.textContent = textEl.textContent;
+  document.body.appendChild(tmp);
+
+  let sz = 400;
+  tmp.style.fontSize = sz + 'px';
+  while (sz > 36 && tmp.getBoundingClientRect().width > maxW) {
+    sz -= 4;
+    tmp.style.fontSize = sz + 'px';
+  }
+  document.body.removeChild(tmp);
+
+  textEl.style.fontSize = sz + 'px';
+  // Height check with wrapping re-enabled
+  while (sz > 36 && textEl.getBoundingClientRect().height > maxH) {
+    sz -= 4;
+    textEl.style.fontSize = sz + 'px';
+  }
+}
+
+function easeOutQuartic(t) { return 1 - Math.pow(1 - t, 4); }
+
+// Controller: determine winner, POST to server → server starts audio, broadcasts to display
 function spinWheel() {
   if (spinning || entries.length < 2) return;
-  spinning = true;
-  hideResult();
-  document.getElementById('spinBtn').disabled = true;
-
-  const n = entries.length;
-  const slice = (Math.PI*2)/n;
-  const winnerIndex = Math.floor(Math.random()*n);
-  const targetSliceCenter = winnerIndex*slice + slice/2;
-  const extraSpins = 6 + Math.random()*3;
-  const finalRotation = currentRotation
-    + (extraSpins * Math.PI*2)
-    + ((Math.PI*1.5) - targetSliceCenter - (currentRotation % (Math.PI*2)));
-
-  const duration  = 4200;
-  const start     = performance.now();
-  const startRot  = currentRotation;
-  const delta     = finalRotation - startRot;
-
-  function easeOutCubicBounce(t) {
-    if (t < 0.92) {
-      const p = t/0.92;
-      return 1 - Math.pow(1-p, 3);
-    }
-    const p = (t-0.92)/0.08;
-    return 1 + Math.sin(p*Math.PI)*0.01*(1-p);
+  if (pendingRemoval !== null) {
+    const idx = entries.indexOf(pendingRemoval.name);
+    if (idx > -1) entries.splice(idx, 1);
+    pendingRemoval = null;
+    if (entries.length < 2) { renderEntryList(); return; }
+    renderEntryList();
   }
+  const winnerIdx = Math.floor(Math.random() * entries.length);
+  fetch('/api/games/wheel/spin', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      winner_index:  winnerIdx,
+      entries:       entries.slice(),
+      entry_colors:  Object.assign({}, entryColors),
+      spin_duration: _spinDuration,
+      spin_scene:    _spinScene,
+      winner_scene:  _winnerScene,
+    }),
+  }).catch(() => {});
+  // Also animate locally on the controller immediately
+  _runSpinAnimation(entries, winnerIdx, _spinDuration);
+}
 
-  function frame(now) {
-    const t = Math.min((now - start)/duration, 1);
-    currentRotation = startRot + delta * easeOutCubicBounce(t);
+// Display + controller: receive WS wheel_spin event and animate
+function handleRemoteSpin(data) {
+  if (_isDisplay) {
+    entries = Array.isArray(data.entries) ? data.entries.slice() : entries;
+    if (data.entry_colors && typeof data.entry_colors === 'object') entryColors = Object.assign({}, data.entry_colors);
+    if (!spinning) drawWheel(currentRotation);
+  }
+  if (spinning) return; // already spinning (e.g. controller got its own broadcast back)
+  _runSpinAnimation(entries, data.winner_index || 0, data.spin_duration || _spinDuration);
+}
+
+function _runSpinAnimation(ents, winnerIdx, dur) {
+  spinning = true; stopIdle(); hideResult();
+  const spinBtn = document.getElementById('spinBtn');
+  if (spinBtn) spinBtn.disabled = true;
+
+  const n           = ents.length;
+  const slice       = (Math.PI*2) / n;
+  const sliceCenter = winnerIdx * slice + slice / 2;
+  const target      = -Math.PI / 2 - sliceCenter;
+  const norm        = ((target % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  const curNorm     = ((currentRotation % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  const delta       = (norm - curNorm + Math.PI*2) % (Math.PI*2) + 5 * Math.PI*2;
+
+  const startRot = currentRotation;
+  const start    = performance.now();
+  _lastTickSeg   = -1;
+
+  (function frame(now) {
+    const t = Math.min((now - start) / dur, 1);
+    currentRotation = startRot + delta * easeOutQuartic(t);
     drawWheel(currentRotation);
+
+    if (_spinSfxBuf && n > 1) {
+      const TAU = Math.PI * 2;
+      const pointerRel = ((-currentRotation - Math.PI / 2) % TAU + TAU) % TAU;
+      const seg = Math.floor(pointerRel / slice) % n;
+      if (seg !== _lastTickSeg) { playTick(); _lastTickSeg = seg; }
+    }
+
     if (t < 1) { requestAnimationFrame(frame); }
-    else        { currentRotation = finalRotation; finishSpin(winnerIndex); }
-  }
-  requestAnimationFrame(frame);
+    else { currentRotation = startRot + delta; finishSpin(winnerIdx); }
+  })(performance.now());
 }
 
 function finishSpin(index) {
-  spinning     = false;
-  lastWinner   = entries[index];
-  document.getElementById('resultText').textContent = lastWinner;
-  document.getElementById('resultCard').classList.add('show');
-  document.getElementById('spinBtn').disabled = entries.length < 2;
-  document.getElementById('removeWinnerBtn').disabled = false;
-
-  if (document.getElementById('noRepeat').checked) {
-    entries.splice(index, 1);
+  spinning = false;
+  const name = entries[index];
+  if (!_isDisplay) {
+    // Controller tracks winners and pending removal
+    winners.unshift({name, ts: Date.now()});
+    const spinBtn = document.getElementById('spinBtn');
+    if (spinBtn) spinBtn.disabled = entries.length < 2;
+    if (document.getElementById('noRepeat').checked) pendingRemoval = {index, name};
     renderEntryList();
+    renderWinners();
   }
-}
-
-function removeLastWinner() {
-  if (!lastWinner) return;
-  const idx = entries.indexOf(lastWinner);
-  if (idx > -1) { entries.splice(idx,1); renderEntryList(); }
-  document.getElementById('removeWinnerBtn').disabled = true;
+  document.getElementById('resultText').textContent = name;
+  document.getElementById('resultCard').classList.add('show');
+  fitWinnerText();
 }
 </script>
 </body>

@@ -277,6 +277,11 @@
   style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;
          pointer-events:none;opacity:0;z-index:20"></video>
 
+<!-- GAME IFRAME OVERLAY — z-index 30, above climax video; kiosk never navigates away from /display -->
+<iframe id="game-frame"
+  style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:30;display:none;background:#000"
+  src="" allowfullscreen allow="autoplay"></iframe>
+
 <!-- WALKUP LAYER -->
 <div id="layer-walkup">
   <div id="wu-bg"></div>
@@ -328,6 +333,11 @@ const layerTitle   = document.getElementById('layer-title');
 const layerSlide   = document.getElementById('layer-slide');
 const wuBg         = document.getElementById('wu-bg');
 const wuVideo      = document.getElementById('wu-video');
+// _wuCurrentEl: the video element currently displayed in the walkup layer (starts as wuVideo).
+// _wuWarm: url → warm <video> element created fresh per preload (never reused with a different
+// src — avoids the Pi 4B synchronous GC freeze that occurs on video.src replacement).
+let _wuCurrentEl = wuVideo;
+const _wuWarm = {};
 const wuLogo       = document.getElementById('wu-logo');
 const wuName       = document.getElementById('wu-name');
 const wuNamebar    = document.getElementById('wu-namebar');
@@ -357,9 +367,14 @@ function preloadAssets(urls) {
 fetch('/api/preload_assets').then(r => r.json()).then(d => preloadAssets(d.urls)).catch(() => {});
 // ──────────────────────────────────────────────────────────────────────────
 
+// Same deferred-clear pattern as _gameFrame: clearing title-video.src on Pi 4B
+// triggers a synchronous GC freeze of ~7s if the element has decoded video in memory.
+let _titleVideoClearTimer = null;
 function _resetTitleVideo() {
   const v = document.getElementById('title-video');
-  v.oncanplay = null; v.pause(); v.src = ''; v.style.opacity = '0';
+  v.oncanplay = null; v.pause(); v.style.opacity = '0';
+  clearTimeout(_titleVideoClearTimer);
+  _titleVideoClearTimer = setTimeout(() => { v.src = ''; _titleVideoClearTimer = null; }, 10000);
 }
 function _resetTitleImgs() {
   document.getElementById('title-img-a').style.opacity = '0';
@@ -369,7 +384,6 @@ function _resetTitleImgs() {
 
 function showStep(data) {
   const imageUrl = data.image || '';
-  if (!imageUrl) return;
 
   hideSlide();
   hideLeaderboard();
@@ -378,6 +392,17 @@ function showStep(data) {
 
   document.getElementById('title-name').style.display = 'none';
   _resetTitleVideo();
+
+  // Fade walkup out immediately — don't wait for the image to load.
+  // Without this, hiding the game iframe (hideGameFrame) reveals the previous walkup
+  // video underneath, which stays visible until the step image finishes loading.
+  setLayerTransition(0.8);
+  layerWalkup.style.opacity       = '0';
+  layerWalkup.style.pointerEvents = 'none';
+  layerStandby.style.opacity      = '0';
+  layerTitle.style.opacity        = '1';
+
+  if (!imageUrl) return;
 
   // Load into the inactive slot, then crossfade
   const nextSlot = _titleImgSlot === 'a' ? 'b' : 'a';
@@ -391,14 +416,6 @@ function showStep(data) {
     nextImg.style.opacity = '1';
     prevImg.style.opacity = '0';
     _titleImgSlot = nextSlot;
-    const t = 'opacity 0.8s ease';
-    layerWalkup.style.transition    = t;
-    layerStandby.style.transition   = t;
-    layerTitle.style.transition     = t;
-    layerWalkup.style.opacity       = '0';
-    layerWalkup.style.pointerEvents = 'none';
-    layerStandby.style.opacity      = '0';
-    layerTitle.style.opacity        = '1';
   };
   nextImg.onerror = () => { if (_displaySeq === seq) nextImg.style.opacity = '0'; };
   nextImg.src = imageUrl + '?t=' + Date.now();
@@ -436,6 +453,7 @@ function showTitleVideo(data) {
   document.getElementById('title-name').style.display = 'none';
   _resetTitleImgs();
 
+  clearTimeout(_titleVideoClearTimer); _titleVideoClearTimer = null; // cancel deferred clear
   const titleVideo = document.getElementById('title-video');
   const holdFrame  = !!data.hold;
   const loopVideo  = data.loop !== undefined ? !!data.loop : !holdFrame;
@@ -462,6 +480,42 @@ function showTitleVideo(data) {
   };
 }
 
+// Pre-warm the next walkup video in a fresh <video> element so the hardware decoder
+// pipeline initialises in the background. Using fresh elements (never reusing one with a
+// different src) avoids the Pi 4B synchronous GC freeze that occurs on src replacement.
+function preloadWalkupVideo(data) {
+  if (!data) return;
+  const itemType  = data.type === 'role' ? 'roles' : data.type === 'game_entry' ? 'game_entries' : 'circles';
+  const id        = data.id || '';
+  const videoFile = data.animation_intro || data.animation || '';
+  if (!id || !videoFile) return;
+  const url = `/assets/${itemType}/${id}/${videoFile}`;
+  if (_wuWarm[url]) return;  // already warming this URL
+
+  // Drop any stale warm elements (no src='' — just remove DOM node, let GC run naturally)
+  Object.keys(_wuWarm).forEach(oldUrl => {
+    const old = _wuWarm[oldUrl];
+    delete _wuWarm[oldUrl];
+    old.pause();
+    setTimeout(() => { if (old.parentNode) old.parentNode.removeChild(old); }, 8000);
+  });
+
+  const v = document.createElement('video');
+  v.muted       = true;
+  v.preload     = 'auto';
+  v.loop        = true;
+  v.setAttribute('playsinline', '');
+  // z-index:1 matches #wu-video; inserted before wu-frame-hold so logo/namebar remain on top
+  v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;pointer-events:none;z-index:1;';
+  wuFrameHold.parentNode.insertBefore(v, wuFrameHold);
+  v.src = url;
+  v.load();
+  // Pause as soon as first frame is decoded — decoder stays initialized, GPU freed from looping
+  v.oncanplay = () => { v.oncanplay = null; v.pause(); };
+  v.play().catch(() => {});
+  _wuWarm[url] = v;
+}
+
 function showWalkup(data) {
   hideSlide();
   hideLeaderboard();
@@ -469,14 +523,36 @@ function showWalkup(data) {
   _displaySeq++; // cancel any pending showStep image load
   _resetTitleVideo();
 
-  const color    = data.color     || '#F5A623';
-  const name     = (data.name    || '').toUpperCase();
+  const color     = data.color     || '#F5A623';
+  const name      = (data.name    || '').toUpperCase();
   const introFile = data.animation_intro || '';
   const animFile  = data.animation       || '';
   const logoFile  = data.logo            || '';
-  const logoUrl  = data.logo_url  || '';
-  const id       = data.id        || '';
-  const itemType = data.type === 'role' ? 'roles' : data.type === 'game_entry' ? 'game_entries' : 'circles';
+  const logoUrl   = data.logo_url  || '';
+  const id        = data.id        || '';
+  const itemType  = data.type === 'role' ? 'roles' : data.type === 'game_entry' ? 'game_entries' : 'circles';
+
+  // If a warm element is ready for this URL, swap it in — instant play.
+  // readyState >= 2 (HAVE_CURRENT_DATA) = first frame decoded, hardware pipeline running.
+  const primaryFile = introFile || animFile;
+  const primaryBase = primaryFile ? `/assets/${itemType}/${id}/${primaryFile}` : '';
+  const warmEl = primaryBase ? _wuWarm[primaryBase] : null;
+  if (warmEl && warmEl.readyState >= 2) {
+    warmEl.loop  = false;
+    warmEl.muted = false;
+    warmEl.style.display = 'none';  // showWalkup will re-show it below via alreadyReady path
+    const oldEl = _wuCurrentEl;
+    _wuCurrentEl = warmEl;
+    delete _wuWarm[primaryBase];
+    // Retire old element: hide immediately (so old content vanishes), remove from DOM later.
+    // No src='' — removing the DOM reference lets GC run async without a main-thread freeze.
+    oldEl.pause();
+    oldEl.style.display = 'none';
+    if (oldEl !== wuVideo) {
+      setTimeout(() => { if (oldEl.parentNode) oldEl.parentNode.removeChild(oldEl); }, 5000);
+    }
+  }
+  const vid = _wuCurrentEl;
 
   // Background wash
   wuBg.style.background = `radial-gradient(ellipse at 50% 30%, ${hexOpacity(color, 0.18)} 0%, #050505 70%)`;
@@ -486,13 +562,12 @@ function showWalkup(data) {
   wuName.style.color = color;
   wuNamebar.style.display = (data.hide_name && (introFile || animFile)) ? 'none' : '';
 
-  // Reset media — null callbacks before clearing src to prevent stale closures firing
-  wuVideo.oncanplay = null;
-  wuVideo.onerror   = null;
-  wuVideo.onended   = null;
-  wuVideo.style.display = 'none';
-  wuVideo.pause();
-  wuVideo.src = '';
+  // Reset active element callbacks; don't clear src (Pi GC freeze — see preloadWalkupVideo comment)
+  vid.oncanplay = null;
+  vid.onerror   = null;
+  vid.onended   = null;
+  vid.style.display = 'none';
+  vid.pause();
   wuLogo.onload  = null;
   wuLogo.onerror = null;
   wuLogo.style.display = 'none';
@@ -509,48 +584,70 @@ function showWalkup(data) {
   }
 
   function _startMainAnim() {
-    wuVideo.oncanplay = null;
-    wuVideo.onerror   = null;
+    vid.oncanplay = null;
+    vid.onerror   = null;
     if (!animFile) {
       if (!introFile) _showLogo();
       return;
     }
     // Snapshot last intro frame to canvas so there's no black flash during src swap
-    if (introFile && wuVideo.videoWidth) {
-      wuFrameHold.width  = wuVideo.offsetWidth  || window.innerWidth;
-      wuFrameHold.height = wuVideo.offsetHeight || window.innerHeight;
-      wuFrameHold.getContext('2d').drawImage(wuVideo, 0, 0, wuFrameHold.width, wuFrameHold.height);
+    if (introFile && vid.videoWidth) {
+      wuFrameHold.width  = vid.offsetWidth  || window.innerWidth;
+      wuFrameHold.height = vid.offsetHeight || window.innerHeight;
+      wuFrameHold.getContext('2d').drawImage(vid, 0, 0, wuFrameHold.width, wuFrameHold.height);
       wuFrameHold.style.display = 'block';
     }
-    const animUrl = `/assets/${itemType}/${id}/${animFile}?t=${Date.now()}`;
-    wuVideo.loop = true;
-    wuVideo.onerror   = () => { wuFrameHold.style.display = 'none'; wuVideo.style.display = 'none'; _showLogo(); };
-    wuVideo.oncanplay = () => {
-      wuVideo.style.display = 'block';
-      wuVideo.play().then(() => {
+    const animBase = `/assets/${itemType}/${id}/${animFile}`;
+    const animUrl  = _preloadPool[animBase] ? animBase : animBase + '?t=' + Date.now();
+    vid.loop = true;
+    vid.onerror   = () => { wuFrameHold.style.display = 'none'; vid.style.display = 'none'; _showLogo(); };
+    vid.oncanplay = () => {
+      vid.style.display = 'block';
+      vid.play().then(() => {
         wuFrameHold.style.display = 'none';
-      }).catch(() => { wuFrameHold.style.display = 'none'; wuVideo.style.display = 'none'; _showLogo(); });
+      }).catch(() => { wuFrameHold.style.display = 'none'; vid.style.display = 'none'; _showLogo(); });
     };
-    wuVideo.src = animUrl;
-    wuVideo.load();
+    vid.src = animUrl;
+    vid.load();
   }
 
   if (introFile) {
-    const introUrl = `/assets/${itemType}/${id}/${introFile}?t=${Date.now()}`;
-    wuVideo.loop    = false;
-    wuVideo.onerror = () => { wuVideo.style.display = 'none'; _startMainAnim(); };
-    wuVideo.oncanplay = () => {
-      wuVideo.style.display = 'block';
-      wuVideo.play().catch(() => { wuVideo.style.display = 'none'; _startMainAnim(); });
-    };
-    wuVideo.onended = () => { wuVideo.onended = null; _startMainAnim(); };
-    wuVideo.src = introUrl;
-    wuVideo.load();
+    // If this was a preload-swap, vid.src already matches — check readyState to play immediately
+    const introBase = `/assets/${itemType}/${id}/${introFile}`;
+    const alreadyReady = (vid.src === location.origin + introBase || vid.src === introBase) && vid.readyState >= 2;
+    vid.loop    = false;
+    vid.onerror = () => { vid.style.display = 'none'; _startMainAnim(); };
+    vid.onended = () => { vid.onended = null; _startMainAnim(); };
+    if (alreadyReady) {
+      try { vid.currentTime = 0; } catch(e) {}
+      vid.style.display = 'block';
+      vid.play().catch(() => { vid.style.display = 'none'; _startMainAnim(); });
+    } else {
+      vid.oncanplay = () => {
+        vid.style.display = 'block';
+        vid.play().catch(() => { vid.style.display = 'none'; _startMainAnim(); });
+      };
+      const introUrl = _preloadPool[introBase] ? introBase : introBase + '?t=' + Date.now();
+      vid.src = introUrl;
+      vid.load();
+    }
   } else if (animFile) {
-    _startMainAnim();
+    const animBase = `/assets/${itemType}/${id}/${animFile}`;
+    const alreadyReady = (vid.src === location.origin + animBase || vid.src === animBase) && vid.readyState >= 3;
+    if (alreadyReady) {
+      vid.loop = true;
+      vid.style.display = 'block';
+      vid.play().catch(() => { vid.style.display = 'none'; _showLogo(); });
+    } else {
+      _startMainAnim();
+    }
   } else {
     _showLogo();
   }
+
+  // Kick off preload for the next step's walkup while this one plays.
+  // The server includes next_preload in the display_walkup payload when called from show flow.
+  if (data.next_preload) preloadWalkupVideo(data.next_preload);
 
   // Fade IN — stays until next step or explicit clear
   setLayerTransition(0.8);
@@ -587,6 +684,18 @@ function showStandby(fadeDurMs) {
   layerStandby.style.opacity = '1';
 
   setTimeout(() => {
+    // If a warm element was swapped in as active, retire it (no src='' = no GC freeze now)
+    if (_wuCurrentEl !== wuVideo) {
+      _wuCurrentEl.pause();
+      const el = _wuCurrentEl;
+      _wuCurrentEl = wuVideo;
+      setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 100);
+    }
+    // Drop any pending warm preloads
+    Object.keys(_wuWarm).forEach(url => {
+      const v = _wuWarm[url]; delete _wuWarm[url];
+      v.pause(); setTimeout(() => { if (v.parentNode) v.parentNode.removeChild(v); }, 100);
+    });
     wuVideo.pause();
     wuVideo.src = '';
     wuLogo.style.display = 'none';
@@ -646,6 +755,25 @@ function hideSlide() {
   layerSlide.style.transition   = 'opacity .7s ease';
   layerSlide.style.opacity      = '0';
   layerSlide.style.pointerEvents = 'none';
+}
+
+// ── GAME FRAME (iframe overlay — kiosk never leaves /display) ──
+// Clearing _gameFrame.src triggers a Chromium JS GC that blocks the main thread
+// for several seconds on Pi 4B — enough to delay walkup video by 7s. We defer
+// the src clear by 10s so GC happens when the browser is idle, not mid-walkup.
+const _gameFrame = document.getElementById('game-frame');
+let _gameFrameClearTimer = null;
+function showGameFrame(url) {
+  clearTimeout(_gameFrameClearTimer);
+  const sep = url.includes('?') ? '&' : '?';
+  _gameFrame.src = url + sep + '_v=' + Date.now();
+  _gameFrame.style.display = 'block';
+}
+function hideGameFrame() {
+  if (_gameFrame.style.display === 'none') return;
+  _gameFrame.style.display = 'none';
+  clearTimeout(_gameFrameClearTimer);
+  _gameFrameClearTimer = setTimeout(() => { _gameFrame.src = ''; }, 10000);
 }
 
 function blackout() {
@@ -819,6 +947,11 @@ function connectWS() {
   ws.onopen = () => {
     ws.send(JSON.stringify({event: 'page_ready', url: '/display'}));
     fetch('/api/preload_assets').then(r=>r.json()).then(d=>preloadAssets(d.urls)).catch(()=>{});
+    // Keepalive ping every 20s — must restart on every reconnect, not just first connect.
+    clearInterval(_pingTimer);
+    _pingTimer = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+    }, 20000);
     if (_wsFirstConnect) {
       // First connect: load standby config (handles Chromium beating musicman to start)
       _wsFirstConnect = false;
@@ -836,17 +969,8 @@ function connectWS() {
           location.href = '/display?v=' + Date.now();
         }
         // else: network hiccup, service still running — stay on current display
-      }).catch(()=>{
-        // Can't reach server yet; retry will happen via ws reconnect loop
-      });
-      return;
+      }).catch(()=>{});
     }
-    // Keepalive ping every 20s — prevents the server's 30s receive-timeout
-    // from dropping the connection mid-show.
-    clearInterval(_pingTimer);
-    _pingTimer = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) ws.send('ping');
-    }, 20000);
   };
 
   ws.onmessage = (evt) => {
@@ -855,17 +979,24 @@ function connectWS() {
       const data = msg.data || {};
 
       if      (msg.event === 'preload_assets')    { preloadAssets(data.urls); }
-      else if (msg.event === 'display_walkup')    { hideChronoOverlay(); hideViz(); showWalkup(data); }
-      else if (msg.event === 'display_step')      { hideChronoOverlay(); hideViz(); showStep(data); }
-      else if (msg.event === 'display_animation') { hideChronoOverlay(); hideViz(); showTitleVideo(data); }
-      else if (msg.event === 'display_clear')     { hideChronoOverlay(); hideViz(); blackout(); }
-      else if (msg.event === 'display_standby')   { hideChronoOverlay(); hideViz(); showStandby(); }
-      else if (msg.event === 'display_slide')     { hideChronoOverlay(); showSlide(data); }
+      else if (msg.event === 'walkup_preload')    { preloadWalkupVideo(data); }
+      else if (msg.event === 'display_walkup')    { hideGameFrame(); hideChronoOverlay(); hideViz(); showWalkup(data); }
+      else if (msg.event === 'display_step')      { hideGameFrame(); hideChronoOverlay(); hideViz(); showStep(data); }
+      else if (msg.event === 'display_animation') { hideGameFrame(); hideChronoOverlay(); hideViz(); showTitleVideo(data); }
+      else if (msg.event === 'display_clear')     { hideGameFrame(); hideChronoOverlay(); hideViz(); blackout(); }
+      else if (msg.event === 'display_standby')   { hideGameFrame(); hideChronoOverlay(); hideViz(); showStandby(); }
+      else if (msg.event === 'display_slide')     { hideGameFrame(); hideChronoOverlay(); showSlide(data); }
       else if (msg.event === 'display_slide_clear') { hideSlide(); }
-      else if (msg.event === 'display_leaderboard') { hideChronoOverlay(); hideViz(); showLeaderboard(data); }
+      else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); showLeaderboard(data); }
       else if (msg.event === 'timer_hide')        { hideChronoOverlay(); }
       else if (msg.event === 'display_reload')    { location.href = '/display?v=' + Date.now(); }
-      else if (msg.event === 'display_navigate')  { location.href = data.url; }
+      else if (msg.event === 'display_navigate')  {
+        if (!data.url || data.url === '/display' || data.url.startsWith('/display?')) {
+          hideGameFrame();
+        } else {
+          showGameFrame(data.url);
+        }
+      }
       else if (msg.event === 'timer_show')        { showChronoOverlay('countdown', {seconds: data.seconds || 0}, 'skit'); }
       else if (msg.event === 'timer_warning')     { showChronoOverlay('countdown', {seconds: data.seconds_remaining || 0}, 'skit'); }
       else if (msg.event === 'timer_state')       { handleTimerState(data); }

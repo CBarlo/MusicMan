@@ -1625,11 +1625,21 @@ function _renderGlUiConfigs() {
     </div>`).join('');
 }
 
-function glUiGoLive(configId) {
+async function glUiGoLive(configId) {
   const gt = _glUiGameTypes.find(g => g.id === _glUiSelType);
   if (!gt) return;
-  const url = gt.controller_route + '?config=' + configId;
-  window.open(url, '_blank');
+  try {
+    const r = await fetch('/api/games/launch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ game_type_id: _glUiSelType, config_id: configId }),
+    });
+    const d = await r.json();
+    if (d.ok) showGameOverlay(d.controller_url);
+    else showAlert('Launch failed', 2000);
+  } catch(e) {
+    showAlert('Launch error', 2000);
+  }
 }
 
 // ─ Countdown (cd*) ─
@@ -3024,7 +3034,7 @@ function initWebSocket() {
       else if (event === 'launch_game') {
         const ctrlUrl = data.controller_url || '';
         showAlert('🎮 ' + (data.name || 'GAME'), 6000);
-        if (ctrlUrl) window.open(ctrlUrl, '_blank');
+        if (ctrlUrl) showGameOverlay(ctrlUrl);
       }
 
       else if (event === 'timer_preset_loaded') {
@@ -3728,6 +3738,26 @@ function wifiForget(name) {
     else showAlert('FORGET FAILED', 2000);
   });
 }
+
+// ── GAME OVERLAY ──────────────────────────────────────────────────────────────
+function showGameOverlay(url) {
+  const sep = url.includes('?') ? '&' : '?';
+  document.getElementById('gameOverlayFrame').src = url + sep + '_v=' + Date.now();
+  document.getElementById('gameOverlay').style.display = 'flex';
+}
+function hideGameOverlay() {
+  document.getElementById('gameOverlay').style.display = 'none';
+  document.getElementById('gameOverlayFrame').src = '';
+}
 </script>
+
+<!-- ── GAME OVERLAY ── -->
+<div id="gameOverlay" style="display:none;position:fixed;inset:0;z-index:9000;background:#0b1a3d;flex-direction:column;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:rgba(0,0,0,0.5);flex-shrink:0;">
+    <span style="color:#f0b429;font-weight:700;letter-spacing:2px;font-size:13px;text-transform:uppercase;">🎮 Game Controller</span>
+    <button onclick="hideGameOverlay()" style="background:rgba(220,38,38,0.2);border:1px solid rgba(220,38,38,0.5);color:#f87171;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;">✕ CLOSE</button>
+  </div>
+  <iframe id="gameOverlayFrame" src="" style="flex:1;border:none;width:100%;"></iframe>
+</div>
 </body>
 </html>

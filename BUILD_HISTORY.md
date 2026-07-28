@@ -294,4 +294,43 @@ Assets are stored at `assets/game_entries/{id}/` on the Pi — the existing asse
 
 ---
 
-*Last updated: July 2026 — Phase 8*
+---
+
+## Phase 9 — Interactive Games & Show Reliability
+
+### Interactive Games
+Two fully interactive games added as first-class show flow steps and manual console triggers:
+
+**Prize Wheel**
+A spin-the-wheel game with a configurable wheel populated from Game Entry names. The wheel spins with physics-based deceleration and lands on a winner. The winner's walk-up fires automatically when the result lands (music, lighting, HDMI overlay). Operator controls: spin, brake, configure. The wheel displays full-screen in the HDMI game iframe overlay; the admin controls it from a dedicated controller tab.
+
+**Shell Game**
+A three-cup shell game display (configurable count of cups). The operator controls the pace from a controller panel: hide the ball, shuffle cups, reveal. Display-side animation shows smooth cup sliding. START fires from the Admin panel with a 3-second countdown before cups move.
+
+### Show Flow: Game Steps
+The Show Flow can now include game steps — not just macros. When a game step is reached, the HDMI display navigates to the game's display URL (inside an iframe overlay), and the admin console shows the game's controller. Advancing past the step tears down the iframe and transitions back to the normal display.
+
+### Walkup Video Preloading — Delay Eliminated
+Walkup videos from Show Flow macros previously showed a 6–7 second black screen before playing. Root cause: Pi 4B Chromium's hardware video decoder takes ~7 seconds to initialize when `video.src` is assigned on an element that has previously decoded content (synchronous GC freeze on the main thread).
+
+**Fix architecture:**
+- Eliminated conflicting dual-preload broadcasts that were overwriting each other at button-click time
+- Server now includes a `next_preload` field in the `display_walkup` WebSocket payload — only sent when called from Show Flow
+- Client uses a **fresh `<video>` element** per preload (never reusing an element with a different src, which was the GC trigger)
+- The fresh element is inserted into the DOM and `play()` called (muted) to prime the hardware decoder pipeline; it pauses itself via `oncanplay` once the first frame is decoded, freeing the GPU
+- When the next walkup fires, the warm element swaps in instantly (readyState ≥ 2 confirmed); old element is hidden immediately and removed from DOM asynchronously — no `src = ''` call, so no synchronous GC
+- Result: step 1 in a show flow still takes ~7 seconds (no prior warmup); steps 2+ are instant
+
+### Display Layer Transition Fixes
+- **Game-to-step transition**: When `hideGameFrame()` removed the game iframe overlay, the previous walkup video (from before the game) was revealed underneath because `showStep()` only hid the walkup layer after the step image finished loading. Fixed: walkup layer now fades out immediately when `showStep()` is called, before the image loads
+- **No-image step**: `showStep()` previously returned early (no-op) when the step had no display image, leaving the walkup layer permanently visible. Fixed: walkup layer always fades to the title layer, even with no image
+- **Warm element z-index**: Fresh preload elements were appended at the end of `#layer-walkup` (after logo and name bar elements), stacking above them. Fixed: inserted before `#wu-frame-hold` with `z-index:1`, matching `#wu-video`
+- **Old element not hidden**: On swap, the retired video element stayed `display:block` for 5 seconds (only hidden via a deferred timeout), causing the previous circle's video to show through. Fixed: old element hidden immediately on swap; DOM removal still deferred to avoid GC during the active walkup
+
+### Admin & Config
+- **DMX look recall**: Scene editor now auto-detects which saved look matches the stored channel values when re-opening a scene. If an exact match is found, the look dropdown pre-selects that look by name. Applying a look also keeps it selected in the dropdown rather than resetting to the placeholder
+- **Game config auto-save**: Editing an existing game config (name, settings) automatically saves on change without requiring an explicit SAVE click
+
+---
+
+*Last updated: July 2026 — Phase 9*
