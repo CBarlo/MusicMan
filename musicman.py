@@ -6163,20 +6163,28 @@ def wled_proxy(node_id, path):
     content_type = up.headers.get('Content-Type', '')
     if 'text/html' in content_type and body:
         proxy_base = f'/wled/{node_id}'
+        # Rewrites both:
+        #   /json/state           → /wled/<id>/json/state  (relative absolute path)
+        #   http://host/json/state → http://host/wled/<id>/json/state  (full origin URL)
+        # WLED 0.14 uses location.origin + path for some API calls, so both forms need
+        # to be caught or those calls land on musicman.py and return HTML 404.
         shim = (
             '<script>'
             '(function(){'
             'var b="%s";'
+            'var _o=location.origin;'
+            'function _rw(u){'
+            'if(typeof u!=="string")return u;'
+            'if(u.charAt(0)==="/"&&!u.startsWith(b))return b+u;'
+            'if(u.startsWith(_o+"/")&&!u.startsWith(_o+b+"/"))return _o+b+u.slice(_o.length);'
+            'return u;}'
             'var _f=window.fetch;'
-            'window.fetch=function(u,o){'
-            'if(typeof u==="string"&&u.charAt(0)==="/"&&!u.startsWith(b))u=b+u;'
-            'return _f.call(this,u,o);};'
+            'window.fetch=function(u,o){return _f.call(this,_rw(u),o);};'
             'var _X=window.XMLHttpRequest;'
             'window.XMLHttpRequest=function(){'
             'var x=new _X(),_op=x.open.bind(x);'
             'x.open=function(m,u){'
-            'if(typeof u==="string"&&u.charAt(0)==="/"&&!u.startsWith(b))u=b+u;'
-            'return _op.apply(x,[m,u].concat([].slice.call(arguments,2)));'
+            'return _op.apply(x,[m,_rw(u)].concat([].slice.call(arguments,2)));'
             '};return x;};'
             '})();'
             '</script>'
