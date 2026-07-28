@@ -1224,20 +1224,6 @@ GAME_TYPES = {
             {'key': 'target_score',  'type': 'number', 'label': 'Target Score', 'default': 200},
         ],
     },
-    'vs_card': {
-        'label': 'VS Card',
-        'icon': '⚔️',
-        'controller_route': '/games/vs_card',
-        'display_route': '/games/vs_card/display',
-        'schema': [
-            {'key': 'side_a', 'type': 'text',   'label': 'Side A Name', 'placeholder': 'e.g. Henry'},
-            {'key': 'side_b', 'type': 'text',   'label': 'Side B Name', 'placeholder': 'e.g. Nolan'},
-            {'key': 'skin',   'type': 'select', 'label': 'Skin', 'default': 'arcade',
-             'options': [{'value': 'arcade', 'label': 'Arcade / Pixel'},
-                         {'value': 'oldwest', 'label': 'Old West'},
-                         {'value': 'scifi',   'label': 'Sci-Fi'}]},
-        ],
-    },
     'musical_chairs': {
         'label': 'Musical Chairs',
         'icon': '🪑',

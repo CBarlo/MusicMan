@@ -5039,8 +5039,11 @@ function _vscSetImage(side, cardId, hasImage) {
 async function uploadVscImage(side, file) {
   if (!file) return;
   if (!_selectedVscId) {
-    toast('Save the card first, then upload a photo', 'err');
-    return;
+    // Auto-save the card so we have an ID, then fall through to upload
+    const name = document.getElementById('vsc-name').value.trim();
+    if (!name) { toast('Enter a card name before uploading a photo', 'err'); return; }
+    await saveVsCard();
+    if (!_selectedVscId) return; // save failed
   }
   const slot   = document.getElementById(`vsc-${side}-slot`);
   const status = document.getElementById(`vsc-${side}-status`);
