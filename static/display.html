@@ -1008,9 +1008,9 @@ function showVsCard(data) {
 
   function _applyHalf(halfEl, mediaEl, nameEl, subEl, cfg, side) {
     halfEl.style.setProperty('--vs-color', cfg.color || (side === 'left' ? '#E83A3A' : '#4A9FD4'));
-    nameEl.textContent = (cfg.label || '').toUpperCase();
-    subEl.textContent  = cfg.sublabel || '';
-    subEl.style.display = cfg.sublabel ? '' : 'none';
+    nameEl.textContent = (cfg.name || cfg.label || '').toUpperCase();
+    subEl.textContent  = cfg.sub || cfg.sublabel || '';
+    subEl.style.display = (cfg.sub || cfg.sublabel) ? '' : 'none';
 
     mediaEl.innerHTML = '';
     if (cfg.image_url) {

@@ -307,7 +307,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="sidebar-section">SHOW</div>
     <div class="nav-item" data-tab="showflow" onclick="switchTab('showflow')">▶ Show Flow</div>
     <div class="nav-item" data-tab="macros" onclick="switchTab('macros')">⚡ Macros</div>
-    <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadGameEntries();loadTimerConfig();loadGamesLibrary();loadVsCards()">🎮 Games</div>
+    <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadGameEntries();loadTimerConfig();loadGamesLibrary()">🎮 Games</div>
     <div class="nav-item" data-tab="slides" onclick="switchTab('slides')">📋 Slides</div>
     <div class="nav-item" data-tab="scenes" onclick="switchTab('scenes')">✦ Lighting Scenes</div>
     <div class="nav-divider"></div>
@@ -1116,6 +1116,113 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <div class="file-empty" style="grid-column:1/-1">NO FILES UPLOADED</div>
         </div>
       </div>
+      <!-- ── VS CARDS ── -->
+      <div class="editor-panel" style="margin-top:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="editor-title" style="margin-bottom:0">⚔ VS CARDS</div>
+          <button class="btn btn-primary btn-sm" onclick="vsCardNew()">+ NEW CARD</button>
+        </div>
+        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin:0 0 14px">Street Fighter-style head-to-head matchup cards for the projector.</p>
+        <div class="split">
+          <div>
+            <div class="roles-grid" id="vsc-grid"></div>
+          </div>
+          <div>
+            <div id="vsc-editor-placeholder" class="editor-placeholder">← Select a card or + NEW CARD</div>
+            <div id="vsc-editor" style="display:none">
+              <div class="editor-title">
+                <span style="font-size:20px">⚔</span>
+                <span id="vsc-editor-title">VS CARD</span>
+              </div>
+
+              <label>CARD NAME</label>
+              <input type="text" id="vsc-name" placeholder="e.g. Henry vs Nolan">
+
+              <label>VS TEXT <span style="font-weight:400;color:var(--text-dim)">(center badge)</span></label>
+              <input type="text" id="vsc-vs-text" placeholder="VS" maxlength="10" style="width:100px">
+
+              <div class="section-divider"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+                <!-- LEFT -->
+                <div>
+                  <div style="font-size:9px;font-weight:800;letter-spacing:3px;color:var(--blue);font-family:'Share Tech Mono',monospace;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">◀ LEFT SIDE</div>
+                  <label>NAME</label>
+                  <input type="text" id="vsc-left-name" placeholder="Challenger name">
+                  <label>SUBLABEL</label>
+                  <input type="text" id="vsc-left-sub" placeholder="e.g. TEAM BLUE">
+                  <label>COLOR</label>
+                  <div class="color-row">
+                    <input type="color" id="vsc-left-color" value="#2B5FA6" oninput="onVscColor('left',this.value)">
+                    <input type="text" id="vsc-left-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="onVscColorHex('left',this.value)" style="flex:1">
+                  </div>
+                  <div class="swatch-row" id="vsc-left-swatches">
+                    <button class="swatch selected" data-color="#2B5FA6" style="background:#2B5FA6" onclick="onVscColorSwatch('left','#2B5FA6')"></button>
+                    <button class="swatch" data-color="#CC2222" style="background:#CC2222" onclick="onVscColorSwatch('left','#CC2222')"></button>
+                    <button class="swatch" data-color="#3CB96A" style="background:#3CB96A" onclick="onVscColorSwatch('left','#3CB96A')"></button>
+                    <button class="swatch" data-color="#8B44CC" style="background:#8B44CC" onclick="onVscColorSwatch('left','#8B44CC')"></button>
+                    <button class="swatch" data-color="#C4610A" style="background:#C4610A" onclick="onVscColorSwatch('left','#C4610A')"></button>
+                  </div>
+                  <label>PHOTO</label>
+                  <div class="asset-slot" id="vsc-left-slot" onclick="document.getElementById('vsc-left-file').click()">
+                    <div class="slot-status" id="vsc-left-status"></div>
+                    <input type="file" id="vsc-left-file" accept="image/*" onchange="uploadVscImage('left',this.files[0])">
+                    <div class="asset-slot-icon" id="vsc-left-icon">📷</div>
+                    <div class="asset-slot-label">LEFT PHOTO</div>
+                    <div class="asset-slot-file empty" id="vsc-left-file-label">No photo — letter avatar used</div>
+                  </div>
+                  <button id="vsc-left-clear" onclick="clearVscImage('left')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
+                </div>
+
+                <!-- RIGHT -->
+                <div>
+                  <div style="font-size:9px;font-weight:800;letter-spacing:3px;color:var(--rust);font-family:'Share Tech Mono',monospace;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">RIGHT SIDE ▶</div>
+                  <label>NAME</label>
+                  <input type="text" id="vsc-right-name" placeholder="Challenger name">
+                  <label>SUBLABEL</label>
+                  <input type="text" id="vsc-right-sub" placeholder="e.g. TEAM RED">
+                  <label>COLOR</label>
+                  <div class="color-row">
+                    <input type="color" id="vsc-right-color" value="#C4610A" oninput="onVscColor('right',this.value)">
+                    <input type="text" id="vsc-right-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="onVscColorHex('right',this.value)" style="flex:1">
+                  </div>
+                  <div class="swatch-row" id="vsc-right-swatches">
+                    <button class="swatch" data-color="#2B5FA6" style="background:#2B5FA6" onclick="onVscColorSwatch('right','#2B5FA6')"></button>
+                    <button class="swatch selected" data-color="#CC2222" style="background:#CC2222" onclick="onVscColorSwatch('right','#CC2222')"></button>
+                    <button class="swatch" data-color="#3CB96A" style="background:#3CB96A" onclick="onVscColorSwatch('right','#3CB96A')"></button>
+                    <button class="swatch" data-color="#8B44CC" style="background:#8B44CC" onclick="onVscColorSwatch('right','#8B44CC')"></button>
+                    <button class="swatch" data-color="#C4610A" style="background:#C4610A" onclick="onVscColorSwatch('right','#C4610A')"></button>
+                  </div>
+                  <label>PHOTO</label>
+                  <div class="asset-slot" id="vsc-right-slot" onclick="document.getElementById('vsc-right-file').click()">
+                    <div class="slot-status" id="vsc-right-status"></div>
+                    <input type="file" id="vsc-right-file" accept="image/*" onchange="uploadVscImage('right',this.files[0])">
+                    <div class="asset-slot-icon" id="vsc-right-icon">📷</div>
+                    <div class="asset-slot-label">RIGHT PHOTO</div>
+                    <div class="asset-slot-file empty" id="vsc-right-file-label">No photo — letter avatar used</div>
+                  </div>
+                  <button id="vsc-right-clear" onclick="clearVscImage('right')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+              <label>THEME</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px" id="vsc-theme-btns">
+                <button class="slide-tpl-btn active" data-theme="arcade" onclick="vsSelectTheme('arcade',this)">ARCADE</button>
+                <button class="slide-tpl-btn" data-theme="fire_ice" onclick="vsSelectTheme('fire_ice',this)">FIRE VS ICE</button>
+                <button class="slide-tpl-btn" data-theme="neon" onclick="vsSelectTheme('neon',this)">NEON</button>
+                <button class="slide-tpl-btn" data-theme="gold_purple" onclick="vsSelectTheme('gold_purple',this)">GOLD / PURPLE</button>
+              </div>
+
+              <div class="btn-row" style="margin-top:18px">
+                <button class="btn btn-primary" onclick="saveVsCard()">✓ SAVE</button>
+                <button class="btn btn-secondary" onclick="fireVsCard()">▶ FIRE</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteVsCard()">🗑 DELETE</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <audio id="preview-player" style="display:none"></audio>
 
@@ -1882,118 +1989,6 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           </div>
 
           <button class="btn btn-primary" onclick="saveTimerConfig()">SAVE TIMER SETTINGS</button>
-        </div>
-      </div>
-
-      <!-- VS CARDS -->
-      <div style="margin-top:24px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <div>
-            <h3 style="margin:0;font-size:15px;letter-spacing:2px">⚔ VS CARDS</h3>
-            <p style="margin:4px 0 0;font-size:11px;color:var(--text-dim);letter-spacing:1px">HEAD-TO-HEAD MATCHUP CARDS FOR THE PROJECTOR</p>
-          </div>
-          <button class="btn btn-primary" onclick="vsCardNew()">+ NEW CARD</button>
-        </div>
-        <div class="split">
-          <div>
-            <div class="roles-grid" id="vsc-grid"></div>
-          </div>
-          <div>
-            <div id="vsc-editor-placeholder" class="editor-placeholder">← Select a card or + NEW CARD</div>
-            <div id="vsc-editor" style="display:none">
-              <div class="editor-panel">
-                <div class="editor-title">
-                  <span style="font-size:20px">⚔</span>
-                  <span id="vsc-editor-title">VS CARD</span>
-                </div>
-
-                <label>CARD NAME</label>
-                <input type="text" id="vsc-name" placeholder="e.g. Henry vs Nolan">
-
-                <label>VS TEXT <span style="font-weight:400;color:var(--text-dim)">(center badge)</span></label>
-                <input type="text" id="vsc-vs-text" placeholder="VS" maxlength="10" style="width:100px">
-
-                <div class="section-divider"></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-
-                  <!-- LEFT -->
-                  <div>
-                    <div style="font-size:9px;font-weight:800;letter-spacing:3px;color:var(--blue);font-family:'Share Tech Mono',monospace;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">◀ LEFT SIDE</div>
-                    <label>NAME</label>
-                    <input type="text" id="vsc-left-name" placeholder="Challenger name">
-                    <label>SUBLABEL</label>
-                    <input type="text" id="vsc-left-sub" placeholder="e.g. TEAM BLUE">
-                    <label>COLOR</label>
-                    <div class="color-row">
-                      <input type="color" id="vsc-left-color" value="#2B5FA6" oninput="onVscColor('left',this.value)">
-                      <input type="text" id="vsc-left-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="onVscColorHex('left',this.value)" style="flex:1">
-                    </div>
-                    <div class="swatch-row" id="vsc-left-swatches">
-                      <button class="swatch selected" data-color="#2B5FA6" style="background:#2B5FA6" onclick="onVscColorSwatch('left','#2B5FA6')"></button>
-                      <button class="swatch" data-color="#CC2222" style="background:#CC2222" onclick="onVscColorSwatch('left','#CC2222')"></button>
-                      <button class="swatch" data-color="#3CB96A" style="background:#3CB96A" onclick="onVscColorSwatch('left','#3CB96A')"></button>
-                      <button class="swatch" data-color="#8B44CC" style="background:#8B44CC" onclick="onVscColorSwatch('left','#8B44CC')"></button>
-                      <button class="swatch" data-color="#C4610A" style="background:#C4610A" onclick="onVscColorSwatch('left','#C4610A')"></button>
-                    </div>
-                    <label>PHOTO</label>
-                    <div class="asset-slot" id="vsc-left-slot" onclick="document.getElementById('vsc-left-file').click()">
-                      <div class="slot-status" id="vsc-left-status"></div>
-                      <input type="file" id="vsc-left-file" accept="image/*" onchange="uploadVscImage('left',this.files[0])">
-                      <div class="asset-slot-icon" id="vsc-left-icon">📷</div>
-                      <div class="asset-slot-label">LEFT PHOTO</div>
-                      <div class="asset-slot-file empty" id="vsc-left-file-label">No photo — letter avatar used</div>
-                    </div>
-                    <button id="vsc-left-clear" onclick="clearVscImage('left')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
-                  </div>
-
-                  <!-- RIGHT -->
-                  <div>
-                    <div style="font-size:9px;font-weight:800;letter-spacing:3px;color:var(--rust);font-family:'Share Tech Mono',monospace;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">RIGHT SIDE ▶</div>
-                    <label>NAME</label>
-                    <input type="text" id="vsc-right-name" placeholder="Challenger name">
-                    <label>SUBLABEL</label>
-                    <input type="text" id="vsc-right-sub" placeholder="e.g. TEAM RED">
-                    <label>COLOR</label>
-                    <div class="color-row">
-                      <input type="color" id="vsc-right-color" value="#C4610A" oninput="onVscColor('right',this.value)">
-                      <input type="text" id="vsc-right-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="onVscColorHex('right',this.value)" style="flex:1">
-                    </div>
-                    <div class="swatch-row" id="vsc-right-swatches">
-                      <button class="swatch" data-color="#2B5FA6" style="background:#2B5FA6" onclick="onVscColorSwatch('right','#2B5FA6')"></button>
-                      <button class="swatch selected" data-color="#CC2222" style="background:#CC2222" onclick="onVscColorSwatch('right','#CC2222')"></button>
-                      <button class="swatch" data-color="#3CB96A" style="background:#3CB96A" onclick="onVscColorSwatch('right','#3CB96A')"></button>
-                      <button class="swatch" data-color="#8B44CC" style="background:#8B44CC" onclick="onVscColorSwatch('right','#8B44CC')"></button>
-                      <button class="swatch" data-color="#C4610A" style="background:#C4610A" onclick="onVscColorSwatch('right','#C4610A')"></button>
-                    </div>
-                    <label>PHOTO</label>
-                    <div class="asset-slot" id="vsc-right-slot" onclick="document.getElementById('vsc-right-file').click()">
-                      <div class="slot-status" id="vsc-right-status"></div>
-                      <input type="file" id="vsc-right-file" accept="image/*" onchange="uploadVscImage('right',this.files[0])">
-                      <div class="asset-slot-icon" id="vsc-right-icon">📷</div>
-                      <div class="asset-slot-label">RIGHT PHOTO</div>
-                      <div class="asset-slot-file empty" id="vsc-right-file-label">No photo — letter avatar used</div>
-                    </div>
-                    <button id="vsc-right-clear" onclick="clearVscImage('right')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
-                  </div>
-                </div>
-
-                <div class="section-divider"></div>
-                <label>THEME</label>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px" id="vsc-theme-btns">
-                  <button class="slide-tpl-btn active" data-theme="arcade" onclick="vsSelectTheme('arcade',this)">ARCADE</button>
-                  <button class="slide-tpl-btn" data-theme="fire_ice" onclick="vsSelectTheme('fire_ice',this)">FIRE VS ICE</button>
-                  <button class="slide-tpl-btn" data-theme="neon" onclick="vsSelectTheme('neon',this)">NEON</button>
-                  <button class="slide-tpl-btn" data-theme="gold_purple" onclick="vsSelectTheme('gold_purple',this)">GOLD / PURPLE</button>
-                </div>
-
-                <div class="btn-row" style="margin-top:18px">
-                  <button class="btn btn-primary" onclick="saveVsCard()">✓ SAVE</button>
-                  <button class="btn btn-secondary" onclick="fireVsCard()">▶ FIRE</button>
-                  <button class="btn btn-danger btn-sm" onclick="deleteVsCard()">🗑 DELETE</button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -8373,6 +8368,7 @@ document.querySelector('[data-tab="display-content"]').addEventListener('click',
   await overlayInit();
   await climaxFxInit();
   await crowdLightInit();
+  await loadVsCards();
 });
 
 // ── CLIMAX FX ───────────────────────────────────────────────────────────────
