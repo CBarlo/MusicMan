@@ -305,6 +305,9 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="nav-item" data-tab="game-entries" onclick="switchTab('game-entries')">🎯 Game Entries</div>
     <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadTimerConfig();loadGamesLibrary()">🎮 Games</div>
     <div class="nav-divider"></div>
+    <div class="sidebar-section">LIVE</div>
+    <div class="nav-item" data-tab="music-viz" onclick="switchTab('music-viz')">🎛 Music Viz</div>
+    <div class="nav-divider"></div>
     <div class="sidebar-section">CONTENT</div>
     <div class="nav-item" data-tab="sounds" onclick="switchTab('sounds')">♪ Audio</div>
     <div class="nav-item" data-tab="display-content" onclick="switchTab('display-content')">🖼 Display</div>
@@ -727,147 +730,6 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
       <div class="page-header">
         <h2>DISPLAY</h2>
         <p>IMAGES &amp; VIDEOS SHOWN ON THE PROJECTOR — USE IN MACROS OR SHOW ON DEMAND</p>
-      </div>
-
-      <!-- ── VISUALIZATION PRESETS ── -->
-      <div class="editor-panel" style="margin-bottom:18px" id="viz-settings-panel">
-        <div class="editor-title">🎛 VISUALIZATION PRESETS</div>
-        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px">
-          Save named presets here, then pick one when adding a <strong>Start Visualization</strong> step to a macro.
-        </p>
-
-        <!-- Preset list + new button -->
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-          <select id="viz-preset-select" style="flex:1" onchange="vizLoadPreset(this.value)">
-            <option value="">— new preset —</option>
-          </select>
-          <button class="btn btn-secondary btn-sm" onclick="vizNewPreset()">+ NEW</button>
-          <button class="btn btn-danger btn-sm" id="viz-delete-btn" style="display:none" onclick="vizDeletePreset()">🗑</button>
-        </div>
-
-        <!-- Preset name -->
-        <div style="margin-bottom:12px">
-          <label>PRESET NAME</label>
-          <input type="text" id="viz-preset-name" placeholder="e.g. Campfire EQ" oninput="vizMarkDirty()">
-        </div>
-
-        <!-- Viz scene type toggle -->
-        <div style="display:flex;gap:8px;margin-bottom:14px">
-          <button id="viz-tab-music" onclick="vizSwitchTab('music')"
-            style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer">
-            🎵 MUSIC
-          </button>
-          <button id="viz-tab-crowd" onclick="vizSwitchTab('crowd')"
-            style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer">
-            📢 CROWD
-          </button>
-        </div>
-        <input type="hidden" id="viz-preset-scene" value="music">
-
-        <!-- ── MUSIC SETTINGS ── -->
-        <div id="viz-panel-music">
-          <div class="card-title" style="margin-bottom:8px">DISPLAY</div>
-          <div style="margin-bottom:12px">
-            <label>BAR COUNT</label>
-            <select id="viz-music-bars" onchange="vizMarkDirty()">
-              <option value="16">16 bars — sparse</option>
-              <option value="24" selected>24 bars — default</option>
-              <option value="32">32 bars — dense</option>
-            </select>
-          </div>
-
-          <div class="card-title" style="margin-bottom:8px">COLORS</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-            <div>
-              <label>LOW</label>
-              <div style="display:flex;gap:6px;align-items:center">
-                <input type="color" id="viz-music-low" value="#c84a0a" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
-                <input type="text" id="viz-music-low-hex" value="#c84a0a" maxlength="7"
-                  oninput="syncColorHex('viz-music-low','viz-music-low-hex')"
-                  style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
-              </div>
-            </div>
-            <div>
-              <label>MID</label>
-              <div style="display:flex;gap:6px;align-items:center">
-                <input type="color" id="viz-music-mid" value="#f5a623" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
-                <input type="text" id="viz-music-mid-hex" value="#f5a623" maxlength="7"
-                  oninput="syncColorHex('viz-music-mid','viz-music-mid-hex')"
-                  style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
-              </div>
-            </div>
-            <div>
-              <label>HIGH</label>
-              <div style="display:flex;gap:6px;align-items:center">
-                <input type="color" id="viz-music-high" value="#fffff0" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
-                <input type="text" id="viz-music-high-hex" value="#fffff0" maxlength="7"
-                  oninput="syncColorHex('viz-music-high','viz-music-high-hex')"
-                  style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- ── CROWD SETTINGS ── -->
-        <div id="viz-panel-crowd" style="display:none">
-          <div class="card-title" style="margin-bottom:8px">DISPLAY TYPE</div>
-          <div style="margin-bottom:12px">
-            <select id="viz-crowd-type" onchange="vizMarkDirty()">
-              <option value="needle_bars">Needle + LED Bars</option>
-              <option value="needle_bars_number">Needle + Bars + Number</option>
-              <option value="needle_number">Needle + Number</option>
-              <option value="needle_only">Needle Only</option>
-              <option value="bars_only">LED Bars (animated)</option>
-              <option value="bars_number">LED Bars + Number</option>
-            </select>
-          </div>
-          <div style="margin-bottom:14px">
-            <label>DEFAULT INPUT</label>
-            <select id="viz-crowd-mode" onchange="vizMarkDirty()">
-              <option value="manual">Manual (console slider)</option>
-              <option value="auto">Auto (pole mics)</option>
-            </select>
-          </div>
-
-          <div class="card-title" style="margin-bottom:8px">COLORS</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:4px">
-            <div>
-              <label>LOW</label>
-              <div style="display:flex;gap:6px;align-items:center">
-                <input type="color" id="viz-crowd-low" value="#3cb96a" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
-                <input type="text" id="viz-crowd-low-hex" value="#3cb96a" maxlength="7"
-                  oninput="syncColorHex('viz-crowd-low','viz-crowd-low-hex')"
-                  style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
-              </div>
-            </div>
-            <div>
-              <label>MID</label>
-              <div style="display:flex;gap:6px;align-items:center">
-                <input type="color" id="viz-crowd-mid" value="#f5a623" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
-                <input type="text" id="viz-crowd-mid-hex" value="#f5a623" maxlength="7"
-                  oninput="syncColorHex('viz-crowd-mid','viz-crowd-mid-hex')"
-                  style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
-              </div>
-            </div>
-            <div>
-              <label>HIGH</label>
-              <div style="display:flex;gap:6px;align-items:center">
-                <input type="color" id="viz-crowd-high" value="#e74c3c" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
-                <input type="text" id="viz-crowd-high-hex" value="#e74c3c" maxlength="7"
-                  oninput="syncColorHex('viz-crowd-high','viz-crowd-high-hex')"
-                  style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Save / status -->
-        <div style="margin-top:14px;display:flex;gap:8px;align-items:center">
-          <button class="btn btn-primary btn-sm" onclick="vizSavePreset()">✓ SAVE PRESET</button>
-          <button class="btn btn-secondary btn-sm" onclick="vizRevertPreset()">↺ REVERT</button>
-          <span id="viz-save-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ SAVED</span>
-        </div>
       </div>
 
       <!-- ── VIDEO OVERLAYS ── -->
@@ -2023,6 +1885,157 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     </div>
     </div>
 
+    <!-- ══════════════ MUSIC VIZ ══════════════ -->
+    <div class="tab-panel" id="tab-music-viz">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2>🎛 MUSIC VIZ</h2>
+          <p>AUDIO-REACTIVE DISPLAY PRESETS — USE IN MACROS OR SHOW FLOW</p>
+        </div>
+        <button class="btn btn-primary" onclick="vizNewPreset()">+ NEW PRESET</button>
+      </div>
+      <div class="split">
+        <div>
+          <div class="roles-grid" id="viz-preset-grid"></div>
+        </div>
+        <div>
+          <div id="viz-editor-placeholder" class="editor-placeholder">← Select a preset or + NEW PRESET</div>
+          <div id="viz-editor" style="display:none">
+            <div class="editor-panel">
+              <div class="editor-title"><span id="viz-editor-title">PRESET</span></div>
+
+              <label>PRESET NAME</label>
+              <input type="text" id="viz-preset-name" placeholder="e.g. Campfire EQ" oninput="vizMarkDirty()">
+
+              <div class="section-divider"></div>
+              <!-- Viz scene type toggle -->
+              <div style="display:flex;gap:8px;margin-bottom:14px">
+                <button id="viz-tab-music" onclick="vizSwitchTab('music')"
+                  style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer">
+                  🎵 MUSIC
+                </button>
+                <button id="viz-tab-crowd" onclick="vizSwitchTab('crowd')"
+                  style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer">
+                  📢 CROWD
+                </button>
+              </div>
+              <input type="hidden" id="viz-preset-scene" value="music">
+
+              <!-- ── MUSIC SETTINGS ── -->
+              <div id="viz-panel-music">
+                <div class="card-title" style="margin-bottom:8px">DISPLAY</div>
+                <div style="margin-bottom:12px">
+                  <label>BAR COUNT</label>
+                  <select id="viz-music-bars" onchange="vizMarkDirty()">
+                    <option value="16">16 bars — sparse</option>
+                    <option value="24" selected>24 bars — default</option>
+                    <option value="32">32 bars — dense</option>
+                  </select>
+                </div>
+
+                <div class="card-title" style="margin-bottom:8px">COLORS</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+                  <div>
+                    <label>LOW</label>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <input type="color" id="viz-music-low" value="#c84a0a" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
+                      <input type="text" id="viz-music-low-hex" value="#c84a0a" maxlength="7"
+                        oninput="syncColorHex('viz-music-low','viz-music-low-hex')"
+                        style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
+                    </div>
+                  </div>
+                  <div>
+                    <label>MID</label>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <input type="color" id="viz-music-mid" value="#f5a623" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
+                      <input type="text" id="viz-music-mid-hex" value="#f5a623" maxlength="7"
+                        oninput="syncColorHex('viz-music-mid','viz-music-mid-hex')"
+                        style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
+                    </div>
+                  </div>
+                  <div>
+                    <label>HIGH</label>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <input type="color" id="viz-music-high" value="#fffff0" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
+                      <input type="text" id="viz-music-high-hex" value="#fffff0" maxlength="7"
+                        oninput="syncColorHex('viz-music-high','viz-music-high-hex')"
+                        style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── CROWD SETTINGS ── -->
+              <div id="viz-panel-crowd" style="display:none">
+                <div class="card-title" style="margin-bottom:8px">DISPLAY TYPE</div>
+                <div style="margin-bottom:12px">
+                  <select id="viz-crowd-type" onchange="vizMarkDirty()">
+                    <option value="needle_bars">Needle + LED Bars</option>
+                    <option value="needle_bars_number">Needle + Bars + Number</option>
+                    <option value="needle_number">Needle + Number</option>
+                    <option value="needle_only">Needle Only</option>
+                    <option value="bars_only">LED Bars (animated)</option>
+                    <option value="bars_number">LED Bars + Number</option>
+                  </select>
+                </div>
+                <div style="margin-bottom:14px">
+                  <label>DEFAULT INPUT</label>
+                  <select id="viz-crowd-mode" onchange="vizMarkDirty()">
+                    <option value="manual">Manual (console slider)</option>
+                    <option value="auto">Auto (pole mics)</option>
+                  </select>
+                </div>
+
+                <div class="card-title" style="margin-bottom:8px">COLORS</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:4px">
+                  <div>
+                    <label>LOW</label>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <input type="color" id="viz-crowd-low" value="#3cb96a" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
+                      <input type="text" id="viz-crowd-low-hex" value="#3cb96a" maxlength="7"
+                        oninput="syncColorHex('viz-crowd-low','viz-crowd-low-hex')"
+                        style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
+                    </div>
+                  </div>
+                  <div>
+                    <label>MID</label>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <input type="color" id="viz-crowd-mid" value="#f5a623" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
+                      <input type="text" id="viz-crowd-mid-hex" value="#f5a623" maxlength="7"
+                        oninput="syncColorHex('viz-crowd-mid','viz-crowd-mid-hex')"
+                        style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
+                    </div>
+                  </div>
+                  <div>
+                    <label>HIGH</label>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <input type="color" id="viz-crowd-high" value="#e74c3c" oninput="vizMarkDirty()" style="width:42px;height:32px;padding:2px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:transparent">
+                      <input type="text" id="viz-crowd-high-hex" value="#e74c3c" maxlength="7"
+                        oninput="syncColorHex('viz-crowd-high','viz-crowd-high-hex')"
+                        style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+              <label>LIGHTING SCENE <span style="font-weight:400;color:var(--text-dim)">(fires with this preset)</span></label>
+              <select id="viz-lighting-scene" onchange="vizMarkDirty()">
+                <option value="">— none —</option>
+              </select>
+
+              <div class="btn-row" style="margin-top:18px">
+                <button class="btn btn-primary" onclick="vizSavePreset()">✓ SAVE</button>
+                <button class="btn btn-secondary" onclick="vizRevertPreset()">↺ REVERT</button>
+                <button class="btn btn-danger btn-sm" id="viz-delete-btn" onclick="vizDeletePreset()">🗑 DELETE</button>
+                <span id="viz-save-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ SAVED</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══════════════ SYSTEM ══════════════ -->
     <div class="tab-panel" id="tab-system">
       <div class="page-header">
@@ -2163,6 +2176,7 @@ function switchTab(name) {
   if (name === 'slides')        { admRenderFields(); loadSavedSlides(); }
   if (name === 'vs-cards')      loadVsCards();
   if (name === 'game-entries')  loadGameEntries();
+  if (name === 'music-viz')     loadMusicViz();
 }
 
 // ── CIRCLES ────────────────────────────────────────────────────────────────
@@ -8278,16 +8292,34 @@ function vizSwitchTab(tab) {
   document.getElementById('viz-tab-crowd').style.cssText += ';' + (tab==='crowd' ? amber : dim);
 }
 
-function vizRefreshPresetSelect(selectId) {
-  const sel = document.getElementById(selectId || 'viz-preset-select');
-  if (!sel) return;
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">— new preset —</option>' +
-    _vizPresets.map(p => `<option value="${p.id}" ${p.id===cur?'selected':''}>${escHtml(p.name)}</option>`).join('');
+function renderVizPresetGrid() {
+  const grid = document.getElementById('viz-preset-grid');
+  if (!grid) return;
+  if (!_vizPresets.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace;padding:12px 0">NO PRESETS YET — CLICK + NEW PRESET</div>';
+    return;
+  }
+  grid.innerHTML = _vizPresets.map(p => {
+    const sel  = p.id === _vizCurrentId ? ' selected' : '';
+    const icon = (p.scene || p.settings?.scene) === 'crowd' ? '📢' : '🎵';
+    return `<div class="circle-card${sel}" onclick="selectVizPreset('${p.id}')">
+      <div class="circle-card-header">
+        <div class="circle-card-name">${icon} ${escHtml(p.name)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectVizPreset(id) {
+  document.getElementById('viz-editor-placeholder').style.display = 'none';
+  document.getElementById('viz-editor').style.display = 'block';
+  vizLoadPreset(id);
+  renderVizPresetGrid();
 }
 
 function vizApplyPresetToForm(p) {
   _vizCurrentId = p ? p.id : null;
+  document.getElementById('viz-editor-title').textContent = p ? p.name.toUpperCase() : 'NEW PRESET';
   const setV = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
   const setC = (pickId, hexId, v) => {
     if (!v) return;
@@ -8305,7 +8337,9 @@ function vizApplyPresetToForm(p) {
     setC('viz-crowd-low','viz-crowd-low-hex','#3cb96a');
     setC('viz-crowd-mid','viz-crowd-mid-hex','#f5a623');
     setC('viz-crowd-high','viz-crowd-high-hex','#e74c3c');
+    setV('viz-lighting-scene', '');
     document.getElementById('viz-delete-btn').style.display = 'none';
+    vizSwitchTab('music');
     return;
   }
   setV('viz-preset-name', p.name);
@@ -8319,14 +8353,16 @@ function vizApplyPresetToForm(p) {
   setC('viz-crowd-low','viz-crowd-low-hex', s.crowd_color_low  || '#3cb96a');
   setC('viz-crowd-mid','viz-crowd-mid-hex', s.crowd_color_mid  || '#f5a623');
   setC('viz-crowd-high','viz-crowd-high-hex',s.crowd_color_high || '#e74c3c');
+  setV('viz-lighting-scene', p.lighting_scene_id || '');
   document.getElementById('viz-delete-btn').style.display = '';
-  // switch to music tab by default
   vizSwitchTab(p.settings?.scene || 'music');
 }
 
 function vizNewPreset() {
-  document.getElementById('viz-preset-select').value = '';
   vizApplyPresetToForm(null);
+  renderVizPresetGrid();
+  document.getElementById('viz-editor-placeholder').style.display = 'none';
+  document.getElementById('viz-editor').style.display = 'block';
 }
 
 function vizLoadPreset(id) {
@@ -8345,6 +8381,7 @@ async function vizSavePreset() {
   const payload = {
     name,
     scene,
+    lighting_scene_id: document.getElementById('viz-lighting-scene').value,
     settings: {
       bars:              parseInt(document.getElementById('viz-music-bars').value) || 24,
       color_low:         document.getElementById('viz-music-low').value,
@@ -8367,7 +8404,7 @@ async function vizSavePreset() {
     }).then(r => r.json());
     _vizCurrentId = saved.id;
     await vizFetchPresets();
-    document.getElementById('viz-preset-select').value = saved.id;
+    document.getElementById('viz-editor-title').textContent = name.toUpperCase();
     document.getElementById('viz-delete-btn').style.display = '';
     document.getElementById('viz-save-status').style.display = 'block';
     setTimeout(() => document.getElementById('viz-save-status').style.display = 'none', 2500);
@@ -8381,15 +8418,15 @@ async function vizDeletePreset() {
     await fetch('/api/viz/presets/' + _vizCurrentId, {method: 'DELETE'});
     _vizCurrentId = null;
     await vizFetchPresets();
-    document.getElementById('viz-preset-select').value = '';
-    vizApplyPresetToForm(null);
+    document.getElementById('viz-editor').style.display = 'none';
+    document.getElementById('viz-editor-placeholder').style.display = 'block';
   } catch(e) { toast('DELETE FAILED', 'err'); }
 }
 
 async function vizFetchPresets() {
   try {
     _vizPresets = await fetch('/api/viz/presets').then(r => r.json());
-    vizRefreshPresetSelect('viz-preset-select');
+    renderVizPresetGrid();
     // also refresh any open macro step preset selects
     document.querySelectorAll('.viz-step-preset').forEach(sel => {
       const cur = sel.value;
@@ -8399,9 +8436,16 @@ async function vizFetchPresets() {
   } catch(e) {}
 }
 
+async function loadMusicViz() {
+  const sceneOpts = ['<option value="">— none —</option>',
+    ...scenes.map(s => `<option value="${escHtml(s.id)}">${escHtml(s.name)}</option>`)].join('');
+  const sceneSel = document.getElementById('viz-lighting-scene');
+  if (sceneSel) sceneSel.innerHTML = sceneOpts;
+  await vizFetchPresets();
+}
+
 // Call when Display tab is opened
 document.querySelector('[data-tab="display-content"]').addEventListener('click', async () => {
-  await vizFetchPresets();
   await overlayInit();
   await climaxFxInit();
   await crowdLightInit();
