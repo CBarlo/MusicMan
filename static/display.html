@@ -210,9 +210,6 @@
 
   .vs-half {
     flex: 1; position: relative;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: flex-end;
-    padding-bottom: 8vh;
     overflow: hidden;
   }
   .vs-half-left  { transform-origin: left center; }
@@ -247,9 +244,16 @@
     opacity: .9;
   }
 
+  #vs-left-media, #vs-right-media {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
   /* Name bar */
   .vs-namebar {
-    text-align: center; margin-top: 2vh; width: 100%;
+    position: absolute; top: calc(50% + 21vh + 2vh); left: 50%;
+    transform: translateX(-50%);
+    text-align: center; width: 100%;
     padding: 0 3vw;
   }
   .vs-name {
@@ -1005,9 +1009,22 @@ function showVsCard(data) {
   // Theme class
   layerVs.className = 'theme-' + theme;
 
+  function _fitVsName(nameEl) {
+    nameEl.style.fontSize = '';
+    const maxWidth = nameEl.clientWidth;
+    let size = parseFloat(getComputedStyle(nameEl).fontSize);
+    let guard = 0;
+    while (nameEl.scrollWidth > maxWidth && guard < 40) {
+      size -= size * 0.06;
+      nameEl.style.fontSize = size + 'px';
+      guard++;
+    }
+  }
+
   function _applyHalf(halfEl, mediaEl, nameEl, subEl, cfg, side) {
     halfEl.style.setProperty('--vs-color', cfg.color || (side === 'left' ? '#E83A3A' : '#4A9FD4'));
     nameEl.textContent = (cfg.name || cfg.label || '').toUpperCase();
+    _fitVsName(nameEl);
     subEl.textContent  = cfg.sub || cfg.sublabel || '';
     subEl.style.display = (cfg.sub || cfg.sublabel) ? '' : 'none';
 
@@ -1028,7 +1045,7 @@ function showVsCard(data) {
     const av = document.createElement('div');
     av.className = 'vs-letter-avatar';
     av.style.setProperty('--vs-color', cfg.color || (side === 'left' ? '#E83A3A' : '#4A9FD4'));
-    av.textContent = (cfg.label || (side === 'left' ? 'L' : 'R')).charAt(0).toUpperCase();
+    av.textContent = (cfg.name || cfg.label || (side === 'left' ? 'L' : 'R')).charAt(0).toUpperCase();
     mediaEl.appendChild(av);
   }
 
