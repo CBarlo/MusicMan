@@ -1330,6 +1330,16 @@ function _drawEQ() {
     }
   }
 
+  _eqRmsSmooth = _eqRmsTarget > _eqRmsSmooth
+    ? _eqRmsSmooth + (_eqRmsTarget - _eqRmsSmooth) * 0.35
+    : Math.max(0, _eqRmsSmooth - 0.015);
+  _eqRmsTarget = Math.max(0, _eqRmsTarget - 0.02);
+  if (_eqRmsSmooth >= _eqRmsPeak) {
+    _eqRmsPeak = _eqRmsSmooth; _eqRmsPeakTtl = 40;
+  } else if (--_eqRmsPeakTtl < 0) {
+    _eqRmsPeak = Math.max(0, _eqRmsPeak - 0.006);
+  }
+
   const baseline = H * 0.64;
   const maxBarH  = baseline * 0.93;
   const totalW   = W * 0.86;
@@ -1339,6 +1349,8 @@ function _drawEQ() {
     _drawWaveStyle(N, startX, totalW, baseline, maxBarH, ctx);
   } else if (_musicVizType === 'dots') {
     _drawDotsStyle(N, startX, totalW, baseline, maxBarH, ctx);
+  } else if (_musicVizType === 'vu') {
+    _drawVuStyle(N, startX, totalW, baseline, maxBarH, ctx);
   } else {
     _drawBarsStyle(N, startX, totalW, baseline, maxBarH, ctx);
   }
@@ -1492,12 +1504,57 @@ function _drawDotsStyle(N, startX, totalW, baseline, maxBarH, ctx) {
   ctx.globalAlpha = 1;
 }
 
+let _eqRmsTarget = 0;
+let _eqRmsSmooth = 0;
+let _eqRmsPeak   = 0;
+let _eqRmsPeakTtl = 0;
+
+// Classic segmented LED bargraph driven by aggregate RMS (not the 32 FFT bins) —
+// green/amber/red zones by position, plus a peak-hold tick. Cheap: N fillRects,
+// no gradients or shadowBlur.
+function _drawVuStyle(N, startX, totalW, baseline, maxBarH, ctx) {
+  const segCount = Math.max(10, Math.min(20, N));
+  const slot = totalW / segCount;
+  const segW = slot * 0.78;
+  const segH = maxBarH * 0.34;
+  const y    = baseline - maxBarH * 0.55 - segH / 2;
+  const level = _eqRmsSmooth;
+
+  for (let i = 0; i < segCount; i++) {
+    const frac = (i + 1) / segCount;
+    const x    = startX + i * slot + (slot - segW) / 2;
+    const lit  = frac <= level;
+    let col;
+    if (frac <= 0.6) col = _eqColors.low;
+    else if (frac <= 0.85) col = _eqColors.mid;
+    else col = _eqColors.high;
+
+    ctx.fillStyle = lit ? col : 'rgba(255,255,255,0.06)';
+    ctx.fillRect(x, y, segW, segH);
+  }
+
+  // Peak-hold tick — a brighter segment outline at the highest recent level
+  const peakIdx = Math.min(segCount - 1, Math.floor(_eqRmsPeak * segCount));
+  if (_eqRmsPeak > 0.02) {
+    const x = startX + peakIdx * slot + (slot - segW) / 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, segW, segH);
+  }
+}
+
 function _eqReceive(data) {
   const raw = data.fft || [], n = raw.length || 1, N = _eqBarCount;
   for (let i = 0; i < N; i++) {
     const src = Math.min(n - 1, Math.floor(Math.pow(i / (N - 1), 0.65) * n));
     const v = raw[src] || 0;
     if (v > _eqTarget[i]) _eqTarget[i] = v;
+  }
+  if (data.rms != null) {
+    // Typical music RMS runs ~0.02-0.3 (beat threshold on the backend is 0.10) —
+    // scale so a solidly loud passage reads near full meter.
+    const lv = Math.min(1, data.rms * 3.3);
+    if (lv > _eqRmsTarget) _eqRmsTarget = lv;
   }
   if (data.beat)  _eqBeat  = 1.0;
   if (data.track) _eqTrack = data.track;
