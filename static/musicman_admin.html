@@ -307,6 +307,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="nav-divider"></div>
     <div class="sidebar-section">LIVE</div>
     <div class="nav-item" data-tab="music-viz" onclick="switchTab('music-viz')">🎛 Music Viz</div>
+    <div class="nav-item" data-tab="crowd-meter" onclick="switchTab('crowd-meter')">📢 Crowd Meter</div>
     <div class="nav-divider"></div>
     <div class="sidebar-section">CONTENT</div>
     <div class="nav-item" data-tab="sounds" onclick="switchTab('sounds')">♪ Audio</div>
@@ -730,221 +731,6 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
       <div class="page-header">
         <h2>DISPLAY</h2>
         <p>IMAGES &amp; VIDEOS SHOWN ON THE PROJECTOR — USE IN MACROS OR SHOW ON DEMAND</p>
-      </div>
-
-      <!-- ── VIDEO OVERLAYS ── -->
-      <div class="editor-panel" style="margin-bottom:18px" id="overlay-panel">
-        <div class="editor-title">🎬 VIDEO OVERLAYS</div>
-        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px">
-          Upload transparent <strong>WebM (VP9+alpha)</strong> clips, then assign them to the 3 crowd buttons.
-          Each button fires instantly from the Console crowd section.
-        </p>
-
-        <!-- Upload -->
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)">
-          <input type="file" id="overlay-file-input" accept=".webm,.mp4,video/webm,video/mp4" style="display:none" onchange="overlayUpload(this)">
-          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('overlay-file-input').click()">⬆ UPLOAD VIDEO</button>
-          <span id="overlay-upload-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ UPLOADED</span>
-        </div>
-
-        <!-- 3 named slots -->
-        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
-          <div style="display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center">
-            <input type="text" id="overlay-name-0" placeholder="e.g. Get Loud" oninput="overlayMarkDirty()"
-              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px">
-            <select id="overlay-file-0" onchange="overlayMarkDirty()"
-              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px">
-              <option value="">— no file —</option>
-            </select>
-            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer;white-space:nowrap">
-              <input type="checkbox" id="overlay-loop-0" checked onchange="overlayMarkDirty()"
-                style="width:13px;height:13px;accent-color:var(--amber)"> LOOP
-            </label>
-          </div>
-          <div style="display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center">
-            <input type="text" id="overlay-name-1" placeholder="e.g. LOUDER!" oninput="overlayMarkDirty()"
-              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px">
-            <select id="overlay-file-1" onchange="overlayMarkDirty()"
-              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px">
-              <option value="">— no file —</option>
-            </select>
-            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer;white-space:nowrap">
-              <input type="checkbox" id="overlay-loop-1" checked onchange="overlayMarkDirty()"
-                style="width:13px;height:13px;accent-color:var(--amber)"> LOOP
-            </label>
-          </div>
-          <div style="display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center">
-            <input type="text" id="overlay-name-2" placeholder="e.g. GET LOUD!!!!!" oninput="overlayMarkDirty()"
-              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px">
-            <select id="overlay-file-2" onchange="overlayMarkDirty()"
-              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px">
-              <option value="">— no file —</option>
-            </select>
-            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer;white-space:nowrap">
-              <input type="checkbox" id="overlay-loop-2" checked onchange="overlayMarkDirty()"
-                style="width:13px;height:13px;accent-color:var(--amber)"> LOOP
-            </label>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-primary btn-sm" onclick="overlaySaveSlots()">✓ SAVE SLOTS</button>
-          <span id="overlay-save-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ SAVED</span>
-        </div>
-      </div>
-
-      <!-- ── CLIMAX FX ── -->
-      <div class="editor-panel" style="margin-bottom:18px">
-        <div class="editor-title">⚡ CLIMAX FX</div>
-        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px">
-          When ⚡ CLIMAX is tapped on the console, this video plays once over the crowd viz and this sound fires simultaneously.
-        </p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <div>
-            <label>VIDEO (WebM / MP4)</label>
-            <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
-              <select id="climax-video"
-                style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:4px;font-size:12px">
-                <option value="">— none —</option>
-              </select>
-              <input type="file" id="climax-video-input" accept=".webm,.mp4,video/webm,video/mp4" style="display:none" onchange="climaxVideoUpload(this)">
-              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('climax-video-input').click()" style="white-space:nowrap">⬆ UPLOAD</button>
-            </div>
-            <span id="climax-video-upload-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none;margin-top:4px;display:block">✓ UPLOADED</span>
-          </div>
-          <div>
-            <label>SOUND EFFECT</label>
-            <select id="climax-sfx"
-              style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:4px;font-size:12px">
-              <option value="">— none —</option>
-            </select>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-primary btn-sm" onclick="climaxFxSave()">✓ SAVE</button>
-          <span id="climax-fx-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ SAVED</span>
-        </div>
-      </div>
-
-      <!-- ── CROWD LIGHTING ── -->
-      <div class="editor-panel" style="margin-bottom:18px">
-        <div class="editor-title">💡 CROWD LIGHTING</div>
-        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px">
-          Select which WLED nodes track the crowd slider — brightness and color follow the level.
-          At ⚡ CLIMAX they strobe white. Choose the glow colors for the three intensity zones.
-        </p>
-        <!-- Node checkboxes -->
-        <div id="crowd-light-list"
-             style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;min-height:30px">
-          <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">
-            LOADING…
-          </span>
-        </div>
-        <!-- Color pickers -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-          <div>
-            <label style="font-size:10px;letter-spacing:1px">LOW COLOR</label>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-              <input type="color" id="crowd-color-low" value="#3cb96a"
-                     style="width:38px;height:28px;border:none;background:none;cursor:pointer;padding:0">
-              <input type="text" id="crowd-color-low-hex" value="#3cb96a" maxlength="7"
-                     oninput="syncCrowdColorHex('low')"
-                     style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-size:11px;font-family:'Share Tech Mono',monospace">
-            </div>
-          </div>
-          <div>
-            <label style="font-size:10px;letter-spacing:1px">MID COLOR</label>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-              <input type="color" id="crowd-color-mid" value="#f5a623"
-                     style="width:38px;height:28px;border:none;background:none;cursor:pointer;padding:0">
-              <input type="text" id="crowd-color-mid-hex" value="#f5a623" maxlength="7"
-                     oninput="syncCrowdColorHex('mid')"
-                     style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-size:11px;font-family:'Share Tech Mono',monospace">
-            </div>
-          </div>
-          <div>
-            <label style="font-size:10px;letter-spacing:1px">HIGH COLOR</label>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-              <input type="color" id="crowd-color-high" value="#e74c3c"
-                     style="width:38px;height:28px;border:none;background:none;cursor:pointer;padding:0">
-              <input type="text" id="crowd-color-high-hex" value="#e74c3c" maxlength="7"
-                     oninput="syncCrowdColorHex('high')"
-                     style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-size:11px;font-family:'Share Tech Mono',monospace">
-            </div>
-          </div>
-        </div>
-
-        <!-- Level effect mode -->
-        <div style="margin-bottom:14px">
-          <div style="font-size:10px;letter-spacing:2px;font-weight:700;margin-bottom:8px">LEVEL EFFECT</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">
-              <input type="radio" name="crowd-climb-mode" id="crowd-mode-bri" value="0"
-                     onchange="document.getElementById('crowd-strip-len-row').style.display='none'"
-                     style="accent-color:var(--amber)"> BRIGHTNESS
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">
-              <input type="radio" name="crowd-climb-mode" id="crowd-mode-climb" value="1"
-                     onchange="document.getElementById('crowd-strip-len-row').style.display='flex'"
-                     style="accent-color:var(--amber)"> ▲ VU METER
-            </label>
-          </div>
-          <div id="crowd-strip-len-row" style="display:none;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <label style="font-size:10px;letter-spacing:1px;white-space:nowrap">LEDs PER STRIP</label>
-            <input type="number" id="crowd-strip-len" value="60" min="1" max="600"
-                   style="width:72px;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">
-            <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px">LEDs</span>
-            <label style="font-size:10px;letter-spacing:1px;white-space:nowrap;margin-left:8px">STRIPS</label>
-            <input type="number" id="crowd-num-strips" value="1" min="1" max="20"
-                   style="width:52px;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">
-          </div>
-        </div>
-
-        <!-- Climax DMX -->
-        <div style="margin-bottom:14px">
-          <div style="font-size:10px;letter-spacing:2px;font-weight:700;margin-bottom:4px">⚡ CLIMAX DMX</div>
-          <p style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px">
-            Pole nodes to fire at full brightness on ⚡ CLIMAX, then black out.
-          </p>
-          <div id="crowd-climax-dmx-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-            <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">LOADING…</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-            <label style="font-size:10px;letter-spacing:1px;white-space:nowrap">BLACKOUT AFTER</label>
-            <input type="number" id="crowd-climax-duration" value="2500" min="500" max="10000" step="250"
-                   style="width:72px;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">
-            <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px">ms</span>
-          </div>
-
-          <!-- Climax scene -->
-          <div style="margin-bottom:10px">
-            <div style="font-size:10px;letter-spacing:2px;font-weight:700;margin-bottom:4px">⚡ CLIMAX SCENE</div>
-            <p style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">
-              Lighting scene to fire at climax — replaces raw DMX above if set.
-            </p>
-            <select id="crowd-climax-scene"
-                    style="width:100%;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px">
-              <option value="">— none (raw max DMX) —</option>
-            </select>
-          </div>
-
-          <!-- Revert scene -->
-          <div>
-            <div style="font-size:10px;letter-spacing:2px;font-weight:700;margin-bottom:4px">↩ REVERT SCENE</div>
-            <p style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">
-              Scene to restore after climax ends — replaces blackout if set.
-            </p>
-            <select id="crowd-revert-scene"
-                    style="width:100%;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px">
-              <option value="">— none (blackout) —</option>
-            </select>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-primary btn-sm" onclick="crowdLightSave()">✓ SAVE</button>
-          <span id="crowd-light-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ SAVED</span>
-        </div>
       </div>
 
       <!-- DEFAULT LOGO -->
@@ -2036,6 +1822,187 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
       </div>
     </div>
 
+    <!-- ══════════════ CROWD METER ══════════════ -->
+    <div class="tab-panel" id="tab-crowd-meter">
+      <div class="page-header">
+        <h2>📢 CROWD METER</h2>
+        <p>LIGHTING, VIDEO OVERLAYS, AND PEAK BEHAVIOR FOR THE CROWD NOISE SLIDER</p>
+      </div>
+
+      <!-- ── CROWD LIGHTING ── -->
+      <div class="editor-panel" style="margin-bottom:18px">
+        <div class="editor-title">💡 CROWD LIGHTING</div>
+        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px">
+          Select which WLED nodes track the crowd slider — brightness and color follow the level.
+          Choose the glow colors for the three intensity zones; DMX fixture tracking below reuses these same colors.
+        </p>
+        <!-- Node checkboxes -->
+        <div id="crowd-light-list"
+             style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;min-height:30px">
+          <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">
+            LOADING…
+          </span>
+        </div>
+        <!-- Color pickers -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <label style="font-size:10px;letter-spacing:1px">LOW COLOR</label>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+              <input type="color" id="crowd-color-low" value="#3cb96a"
+                     style="width:38px;height:28px;border:none;background:none;cursor:pointer;padding:0">
+              <input type="text" id="crowd-color-low-hex" value="#3cb96a" maxlength="7"
+                     oninput="syncCrowdColorHex('low')"
+                     style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-size:11px;font-family:'Share Tech Mono',monospace">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:10px;letter-spacing:1px">MID COLOR</label>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+              <input type="color" id="crowd-color-mid" value="#f5a623"
+                     style="width:38px;height:28px;border:none;background:none;cursor:pointer;padding:0">
+              <input type="text" id="crowd-color-mid-hex" value="#f5a623" maxlength="7"
+                     oninput="syncCrowdColorHex('mid')"
+                     style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-size:11px;font-family:'Share Tech Mono',monospace">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:10px;letter-spacing:1px">HIGH COLOR</label>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+              <input type="color" id="crowd-color-high" value="#e74c3c"
+                     style="width:38px;height:28px;border:none;background:none;cursor:pointer;padding:0">
+              <input type="text" id="crowd-color-high-hex" value="#e74c3c" maxlength="7"
+                     oninput="syncCrowdColorHex('high')"
+                     style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-size:11px;font-family:'Share Tech Mono',monospace">
+            </div>
+          </div>
+        </div>
+
+        <!-- Level effect mode -->
+        <div style="margin-bottom:4px">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;margin-bottom:8px">LEVEL EFFECT</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">
+              <input type="radio" name="crowd-climb-mode" id="crowd-mode-bri" value="0"
+                     onchange="document.getElementById('crowd-strip-len-row').style.display='none'"
+                     style="accent-color:var(--amber)"> BRIGHTNESS
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">
+              <input type="radio" name="crowd-climb-mode" id="crowd-mode-climb" value="1"
+                     onchange="document.getElementById('crowd-strip-len-row').style.display='flex'"
+                     style="accent-color:var(--amber)"> ▲ VU METER (climb)
+            </label>
+          </div>
+          <div id="crowd-strip-len-row" style="display:none;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <label style="font-size:10px;letter-spacing:1px;white-space:nowrap">LEDs PER STRIP</label>
+            <input type="number" id="crowd-strip-len" value="60" min="1" max="600"
+                   style="width:72px;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">
+            <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px">LEDs</span>
+            <label style="font-size:10px;letter-spacing:1px;white-space:nowrap;margin-left:8px">STRIPS</label>
+            <input type="number" id="crowd-num-strips" value="1" min="1" max="20"
+                   style="width:52px;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DMX FIXTURE TRACKING ── -->
+      <div class="editor-panel" style="margin-bottom:18px">
+        <div class="editor-title">🔦 DMX FIXTURE TRACKING</div>
+        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px">
+          Pole fixtures (pinspots/washes) dim up with the crowd level and blend through the same
+          LOW/MID/HIGH colors as the WLED strips above. Leave all checked to track every fixture.
+        </p>
+        <div id="crowd-dmx-fixture-list"
+             style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;min-height:30px">
+          <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">LOADING…</span>
+        </div>
+      </div>
+
+      <!-- ── ON PEAK ── -->
+      <div class="editor-panel" style="margin-bottom:18px">
+        <div class="editor-title">⚡ ON PEAK</div>
+        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px">
+          When ⚡ CLIMAX is tapped on the console, this macro fires. Build a "Climax" macro with
+          whatever scene, sound, or video steps you want — this just decides which one runs.
+        </p>
+        <label>RUN MACRO</label>
+        <select id="crowd-climax-macro" style="width:100%;margin-bottom:14px">
+          <option value="">— none —</option>
+        </select>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:10px;letter-spacing:1px;white-space:nowrap">CLIMAX STATE DURATION</label>
+          <input type="number" id="crowd-climax-duration" value="2500" min="500" max="10000" step="250"
+                 style="width:72px;font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px">
+          <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px">ms — how long the console shows the climax flash</span>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-bottom:18px">
+        <button class="btn btn-primary" onclick="crowdLightSave()">✓ SAVE CROWD METER</button>
+        <span id="crowd-light-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ SAVED</span>
+      </div>
+
+      <!-- ── VIDEO OVERLAYS ── -->
+      <div class="editor-panel" style="margin-bottom:18px" id="overlay-panel">
+        <div class="editor-title">🎬 VIDEO OVERLAYS</div>
+        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px">
+          Upload transparent <strong>WebM (VP9+alpha)</strong> clips, then assign them to the 3 crowd buttons.
+          Each button fires instantly from the Console crowd section.
+        </p>
+
+        <!-- Upload -->
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+          <input type="file" id="overlay-file-input" accept=".webm,.mp4,video/webm,video/mp4" style="display:none" onchange="overlayUpload(this)">
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('overlay-file-input').click()">⬆ UPLOAD VIDEO</button>
+          <span id="overlay-upload-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ UPLOADED</span>
+        </div>
+
+        <!-- 3 named slots -->
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+          <div style="display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center">
+            <input type="text" id="overlay-name-0" placeholder="e.g. Get Loud" oninput="overlayMarkDirty()"
+              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px">
+            <select id="overlay-file-0" onchange="overlayMarkDirty()"
+              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px">
+              <option value="">— no file —</option>
+            </select>
+            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer;white-space:nowrap">
+              <input type="checkbox" id="overlay-loop-0" checked onchange="overlayMarkDirty()"
+                style="width:13px;height:13px;accent-color:var(--amber)"> LOOP
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center">
+            <input type="text" id="overlay-name-1" placeholder="e.g. LOUDER!" oninput="overlayMarkDirty()"
+              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px">
+            <select id="overlay-file-1" onchange="overlayMarkDirty()"
+              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px">
+              <option value="">— no file —</option>
+            </select>
+            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer;white-space:nowrap">
+              <input type="checkbox" id="overlay-loop-1" checked onchange="overlayMarkDirty()"
+                style="width:13px;height:13px;accent-color:var(--amber)"> LOOP
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center">
+            <input type="text" id="overlay-name-2" placeholder="e.g. GET LOUD!!!!!" oninput="overlayMarkDirty()"
+              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px">
+            <select id="overlay-file-2" onchange="overlayMarkDirty()"
+              style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px">
+              <option value="">— no file —</option>
+            </select>
+            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer;white-space:nowrap">
+              <input type="checkbox" id="overlay-loop-2" checked onchange="overlayMarkDirty()"
+                style="width:13px;height:13px;accent-color:var(--amber)"> LOOP
+            </label>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-primary btn-sm" onclick="overlaySaveSlots()">✓ SAVE SLOTS</button>
+          <span id="overlay-save-status" style="font-size:10px;color:var(--green);letter-spacing:1px;display:none">✓ SAVED</span>
+        </div>
+      </div>
+    </div>
+
     <!-- ══════════════ SYSTEM ══════════════ -->
     <div class="tab-panel" id="tab-system">
       <div class="page-header">
@@ -2177,6 +2144,7 @@ function switchTab(name) {
   if (name === 'vs-cards')      loadVsCards();
   if (name === 'game-entries')  loadGameEntries();
   if (name === 'music-viz')     loadMusicViz();
+  if (name === 'crowd-meter')   loadCrowdMeter();
 }
 
 // ── CIRCLES ────────────────────────────────────────────────────────────────
@@ -8444,73 +8412,16 @@ async function loadMusicViz() {
   await vizFetchPresets();
 }
 
-// Call when Display tab is opened
-document.querySelector('[data-tab="display-content"]').addEventListener('click', async () => {
-  await overlayInit();
-  await climaxFxInit();
-  await crowdLightInit();
-});
-
 // ── CLIMAX FX ───────────────────────────────────────────────────────────────
-async function climaxFxInit() {
-  try {
-    const [webmFiles, sfxFiles, cfg] = await Promise.all([
-      fetch('/api/viz/overlay/files').then(r => r.json()),
-      fetch('/api/sfx/list').then(r => r.json()),
-      fetch('/api/config').then(r => r.json()),
-    ]);
-    const fx = cfg.climax_fx || {};
-
-    const vSel = document.getElementById('climax-video');
-    vSel.innerHTML = '<option value="">— none —</option>' +
-      webmFiles.map(f => `<option value="${escHtml(f)}" ${f===fx.video?'selected':''}>${escHtml(f)}</option>`).join('');
-
-    const sSel = document.getElementById('climax-sfx');
-    sSel.innerHTML = '<option value="">— none —</option>' +
-      sfxFiles.map(f => {
-        const name = f.replace(/\.[^.]+$/, '');
-        return `<option value="${escHtml(name)}" ${name===fx.sfx?'selected':''}>${escHtml(f)}</option>`;
-      }).join('');
-  } catch(e) {}
-}
-
-async function climaxFxSave() {
-  try {
-    const cfg = await fetch('/api/config').then(r => r.json());
-    cfg.climax_fx = {
-      video: document.getElementById('climax-video').value,
-      sfx:   document.getElementById('climax-sfx').value,
-    };
-    await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(cfg)});
-    const s = document.getElementById('climax-fx-status');
-    s.style.display = 'inline';
-    setTimeout(() => s.style.display = 'none', 2500);
-  } catch(e) { toast('SAVE FAILED', 'err'); }
-}
-
-async function climaxVideoUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    const res = await fetch('/api/viz/overlay/upload', {method:'POST', body: fd}).then(r => r.json());
-    if (res.error) { toast(res.error, 'err'); return; }
-    await climaxFxInit();
-    document.getElementById('climax-video').value = res.name;
-    const s = document.getElementById('climax-video-upload-status');
-    s.style.display = 'block';
-    setTimeout(() => s.style.display = 'none', 2500);
-  } catch(e) { toast('UPLOAD FAILED', 'err'); }
-  input.value = '';
-}
-
 // ── CROWD LIGHTING ──────────────────────────────────────────────────────────
 function syncCrowdColorHex(zone) {
   const hex = document.getElementById(`crowd-color-${zone}-hex`);
   const pick = document.getElementById(`crowd-color-${zone}`);
   if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) pick.value = hex.value;
+}
+
+async function loadCrowdMeter() {
+  await Promise.all([overlayInit(), crowdLightInit()]);
 }
 
 async function crowdLightInit() {
@@ -8524,8 +8435,7 @@ async function crowdLightInit() {
       ...nodes.map(n => ({ id: n.id, label: n.name || n.id, group: 'POLE' })),
       ...wled.map(d  => ({ id: d.id, label: d.name || d.id, group: 'WLED' })),
     ];
-    const selected        = cfg.crowd_lights      || [];
-    const selectedClimax  = cfg.crowd_climax_dmx  || [];
+    const selected = cfg.crowd_lights || [];
 
     // WLED crowd lights checkboxes
     const el = document.getElementById('crowd-light-list');
@@ -8543,18 +8453,25 @@ async function crowdLightInit() {
         </label>`).join('');
     }
 
-    // Climax DMX checkboxes (pole nodes only)
-    const dmxEl = document.getElementById('crowd-climax-dmx-list');
-    if (!nodes.length) {
-      dmxEl.innerHTML = '<span style="font-size:11px;color:var(--text-dim);font-family:\'Share Tech Mono\',monospace">NO POLE NODES CONFIGURED</span>';
+    // DMX fixture tracking checkboxes (blank/empty selection = all fixtures)
+    const dmxEl = document.getElementById('crowd-dmx-fixture-list');
+    const dmxFixtures = [];
+    for (const n of nodes) {
+      for (const f of (n.fixtures || [])) {
+        dmxFixtures.push({ key: `${n.id}::${f.id}`, label: `${n.name || n.id} · ${f.id}` });
+      }
+    }
+    const selectedDmx = cfg.crowd_dmx_fixtures || [];
+    if (!dmxFixtures.length) {
+      dmxEl.innerHTML = '<span style="font-size:11px;color:var(--text-dim);font-family:\'Share Tech Mono\',monospace">NO DMX FIXTURES CONFIGURED</span>';
     } else {
-      dmxEl.innerHTML = nodes.map(n => `
+      dmxEl.innerHTML = dmxFixtures.map(f => `
         <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;
                       background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:12px;font-weight:700;letter-spacing:1px">
-          <input type="checkbox" value="${escHtml(n.id)}" class="crowd-climax-dmx-cb"
-                 ${selectedClimax.includes(n.id) ? 'checked' : ''}
+          <input type="checkbox" value="${escHtml(f.key)}" class="crowd-dmx-fixture-cb"
+                 ${(!selectedDmx.length || selectedDmx.includes(f.key)) ? 'checked' : ''}
                  style="width:14px;height:14px;accent-color:var(--amber)">
-          ${escHtml(n.name || n.id)}
+          ${escHtml(f.label)}
         </label>`).join('');
     }
 
@@ -8581,15 +8498,11 @@ async function crowdLightInit() {
     if (cfg.crowd_num_strips) document.getElementById('crowd-num-strips').value = cfg.crowd_num_strips;
     if (cfg.crowd_climax_duration_ms) document.getElementById('crowd-climax-duration').value = cfg.crowd_climax_duration_ms;
 
-    // Scene selectors
-    const scList = cfg.scenes || [];
-    const scOpts = scList.map(s => `<option value="${escHtml(s.id)}">${escHtml(s.name || s.id)}</option>`).join('');
-    const climaxSel = document.getElementById('crowd-climax-scene');
-    const revertSel = document.getElementById('crowd-revert-scene');
-    climaxSel.innerHTML = '<option value="">— none (raw max DMX) —</option>' + scOpts;
-    revertSel.innerHTML = '<option value="">— none (blackout) —</option>'   + scOpts;
-    climaxSel.value = cfg.crowd_climax_scene_id || '';
-    revertSel.value = cfg.crowd_revert_scene_id || '';
+    // Climax macro picker
+    const macroOpts = (cfg.macros || []).map(m => `<option value="${escHtml(m.id)}">${escHtml(m.name || m.id)}</option>`).join('');
+    const macroSel = document.getElementById('crowd-climax-macro');
+    macroSel.innerHTML = '<option value="">— none —</option>' + macroOpts;
+    macroSel.value = cfg.crowd_climax_macro_id || '';
   } catch(e) { console.error('crowdLightInit', e); }
 }
 
@@ -8603,10 +8516,11 @@ async function crowdLightSave() {
     cfg.crowd_climb_mode       = document.getElementById('crowd-mode-climb').checked;
     cfg.crowd_strip_len        = parseInt(document.getElementById('crowd-strip-len').value) || 60;
     cfg.crowd_num_strips       = parseInt(document.getElementById('crowd-num-strips').value) || 1;
-    cfg.crowd_climax_dmx         = [...document.querySelectorAll('.crowd-climax-dmx-cb:checked')].map(cb => cb.value);
     cfg.crowd_climax_duration_ms = parseInt(document.getElementById('crowd-climax-duration').value) || 2500;
-    cfg.crowd_climax_scene_id    = document.getElementById('crowd-climax-scene').value;
-    cfg.crowd_revert_scene_id    = document.getElementById('crowd-revert-scene').value;
+    cfg.crowd_climax_macro_id    = document.getElementById('crowd-climax-macro').value;
+    const dmxBoxes  = [...document.querySelectorAll('.crowd-dmx-fixture-cb')];
+    const dmxChecked = dmxBoxes.filter(cb => cb.checked).map(cb => cb.value);
+    cfg.crowd_dmx_fixtures = dmxChecked.length === dmxBoxes.length ? [] : dmxChecked;
     await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(cfg)});
     const s = document.getElementById('crowd-light-status');

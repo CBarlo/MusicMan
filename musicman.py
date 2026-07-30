@@ -403,6 +403,20 @@ def _crowd_color_rgb(cfg, lv):
         t = (lv - 0.5) * 2
         return [_lerp(mi[i], hi[i], t) for i in range(3)]
 
+def _dmx_crowd_channels(fix, lv, color):
+    """Raw DMX channel values for continuous crowd-level tracking on a pole fixture.
+    Assumes the two documented pole fixture layouts (see project_pole_dmx memory):
+    6ch pinspot has no dedicated dimmer — CH1 must stay 255 (unlock RGBW) and CH6
+    stays 0 (manual), so brightness is achieved by scaling the RGB channels directly.
+    8ch wash has a real CH1 master dimmer, so RGB stays at full color and CH1 carries
+    the level; CH6/CH7 stay 0 (no strobe, manual mode)."""
+    n = fix.get('channels', 6)
+    r, g, b = color
+    if n <= 6:
+        return ([255, int(r * lv), int(g * lv), int(b * lv), 0, 0])[:n]
+    else:
+        return ([int(255 * lv), r, g, b, 0, 0, 0, 0])[:n]
+
 _wled_last_preset: dict = {}   # ip → last preset number fired
 
 def _wled_post(ip, payload):
@@ -598,10 +612,11 @@ def _walkup_color_anim(preset_num, color1_hex, color2_hex, cancel_event, cfg):
 
 def _send_crowd_lights(level, climax):
     """Fire-and-forget WLED + DMX updates for crowd lighting. Runs in a daemon thread."""
-    cfg           = load_config()
-    light_ids     = cfg.get('crowd_lights', [])
-    climax_dmx_ids = cfg.get('crowd_climax_dmx', [])
-    if not light_ids and not (climax and climax_dmx_ids):
+    cfg          = load_config()
+    light_ids    = cfg.get('crowd_lights', [])
+    dmx_selected = cfg.get('crowd_dmx_fixtures', [])
+    has_dmx_fixtures = any(node.get('fixtures') for node in cfg.get('pole_nodes', []))
+    if not light_ids and not has_dmx_fixtures and not (climax and cfg.get('crowd_climax_macro_id')):
         return
 
     nodes_map = {n['id']: n.get('ip') for n in cfg.get('pole_nodes',   []) if n.get('ip')}
@@ -642,49 +657,43 @@ def _send_crowd_lights(level, climax):
             if ip:
                 threading.Thread(target=_wled_post, args=(ip, wled_payload), daemon=True).start()
 
-    # ── Climax DMX: scene-based or raw max → revert/blackout after delay ────────
+    # ── DMX fixture tracking (dim/color follow crowd level) ──────────────────
+    # Runs alongside WLED, independent of climb_mode — pole fixtures always
+    # track brightness+color directly, no VU-meter-style climb for DMX.
+    if not climax and has_dmx_fixtures:
+        col = _crowd_color_rgb(cfg, lv)
+        for node in cfg.get('pole_nodes', []):
+            if not node.get('ip'):
+                continue
+            fixtures_out = []
+            for fix in node.get('fixtures', []):
+                key = f"{node['id']}::{fix.get('id')}"
+                if dmx_selected and key not in dmx_selected:
+                    continue
+                fixtures_out.append({'start': fix.get('start', 1),
+                                      'channels': _dmx_crowd_channels(fix, lv, col)})
+            if fixtures_out:
+                threading.Thread(target=_dmx_post, args=(node['ip'], fixtures_out), daemon=True).start()
+
+    # ── Climax: fire the assigned macro ──────────────────────────────────────
+    # Climax behavior (scenes, SFX, video, whatever) lives in the macro itself —
+    # build a "Climax" macro with the steps you want instead of configuring it here.
     if climax:
         _stop_music()   # stops music + playlist, but leaves SFX channel so explosion SFX can play
-        climax_dur      = cfg.get('crowd_climax_duration_ms', 2500) / 1000.0
-        climax_scene_id = cfg.get('crowd_climax_scene_id', '')
-        revert_scene_id = cfg.get('crowd_revert_scene_id', '')
+        climax_dur = cfg.get('crowd_climax_duration_ms', 2500) / 1000.0
+        macro_id   = cfg.get('crowd_climax_macro_id', '')
+        if macro_id:
+            macros = {m['id']: m for m in cfg.get('macros', [])}
+            macro  = macros.get(macro_id)
+            if macro:
+                threading.Thread(target=execute_macro, args=(macro,), daemon=True).start()
 
-        if climax_scene_id:
-            # Scene controls everything at climax — skip raw DMX blast
-            wled_set_scene(climax_scene_id)
-            raw_climax_nodes = []
-        elif climax_dmx_ids:
-            # Legacy: blast all fixture channels to 255
-            raw_climax_nodes = [n for n in cfg.get('pole_nodes', [])
-                                if n['id'] in climax_dmx_ids and n.get('ip')]
-            for node in raw_climax_nodes:
-                fixtures_max = [{'start': f.get('start', 1), 'channels': [255] * f.get('channels', 6)}
-                                for f in node.get('fixtures', [])]
-                if fixtures_max:
-                    threading.Thread(target=_dmx_post, args=(node['ip'], fixtures_max), daemon=True).start()
-        else:
-            raw_climax_nodes = []
-
-        def _after_climax(dur=climax_dur, rsid=revert_scene_id,
-                          lids=list(light_ids), imap=dict(ip_map),
-                          cnodes=list(raw_climax_nodes)):
+        def _clear_climax_state(dur=climax_dur):
             time.sleep(dur)
-            if rsid:
-                wled_set_scene(rsid)
-            else:
-                for lid in lids:
-                    ip = imap.get(lid)
-                    if ip:
-                        threading.Thread(target=_wled_post, args=(ip, {'bri': 0}), daemon=True).start()
-                for node in cnodes:
-                    fixtures_zero = [{'start': f.get('start', 1), 'channels': [0] * f.get('channels', 6)}
-                                     for f in node.get('fixtures', [])]
-                    if fixtures_zero:
-                        threading.Thread(target=_dmx_post, args=(node['ip'], fixtures_zero), daemon=True).start()
             _crowd_state['climax'] = False
             broadcast('viz_crowd', _crowd_state)
 
-        threading.Thread(target=_after_climax, daemon=True).start()
+        threading.Thread(target=_clear_climax_state, daemon=True).start()
 
 # ── SOUND LEVEL POLLING ───────────────────────────────────────────────────────
 _sound_levels    = {}    # node_id → {'level': 0-100, 'name': str, 'ip': str}
