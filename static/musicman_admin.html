@@ -1714,14 +1714,15 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   <select id="viz-music-type" onchange="vizMarkDirty()">
                     <option value="bars">Bars (Classic EQ)</option>
                     <option value="wave">Wave</option>
+                    <option value="dots">Dots</option>
                   </select>
                 </div>
                 <div style="margin-bottom:12px">
-                  <label>BAR COUNT</label>
+                  <label>BAR / DOT COUNT</label>
                   <select id="viz-music-bars" onchange="vizMarkDirty()">
-                    <option value="16">16 bars — sparse</option>
-                    <option value="24" selected>24 bars — default</option>
-                    <option value="32">32 bars — dense</option>
+                    <option value="16">16 — sparse</option>
+                    <option value="24" selected>24 — default</option>
+                    <option value="32">32 — dense</option>
                   </select>
                 </div>
 

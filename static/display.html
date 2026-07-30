@@ -1337,6 +1337,8 @@ function _drawEQ() {
 
   if (_musicVizType === 'wave') {
     _drawWaveStyle(N, startX, totalW, baseline, maxBarH, ctx);
+  } else if (_musicVizType === 'dots') {
+    _drawDotsStyle(N, startX, totalW, baseline, maxBarH, ctx);
   } else {
     _drawBarsStyle(N, startX, totalW, baseline, maxBarH, ctx);
   }
@@ -1448,6 +1450,46 @@ function _drawWaveStyle(N, startX, totalW, baseline, maxBarH, ctx) {
   ctx.scale(1, -0.32);
   ctx.stroke(path);
   ctx.restore();
+}
+
+function _dotsColorAt(lv) {
+  const c = _eqColors;
+  const h2r = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+  const [lr,lg,lb] = h2r(c.low), [mr,mg,mb] = h2r(c.mid), [hr,hg,hb] = h2r(c.high);
+  let r,g,b;
+  if (lv < 0.5) { const t = lv * 2; r = lr+(mr-lr)*t; g = lg+(mg-lg)*t; b = lb+(mb-lb)*t; }
+  else          { const t = (lv-0.5) * 2; r = mr+(hr-mr)*t; g = mg+(hg-mg)*t; b = mb+(hb-mb)*t; }
+  return `rgb(${r|0},${g|0},${b|0})`;
+}
+
+// Cheap by design: dots only change radius/color/tiny bounce — arc() fills only,
+// no shadowBlur, no gradients built per-frame. Safe for Pi-class hardware.
+function _drawDotsStyle(N, startX, totalW, baseline, maxBarH, ctx) {
+  const slot = totalW / N;
+  const rowY = baseline - maxBarH * 0.42;
+  const minR = Math.max(2, slot * 0.12);
+  const maxR = slot * 0.42;
+
+  for (let i = 0; i < N; i++) {
+    const lv  = _eqSmooth[i];
+    const x   = startX + i * slot + slot / 2;
+    const y   = rowY - lv * maxBarH * 0.18;
+    const r   = minR + lv * (maxR - minR);
+    const col = _dotsColorAt(lv);
+
+    // Soft halo — a second translucent circle instead of shadowBlur
+    ctx.globalAlpha = 0.20;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2.0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 }
 
 function _eqReceive(data) {
