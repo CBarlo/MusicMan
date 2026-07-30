@@ -333,4 +333,51 @@ Walkup videos from Show Flow macros previously showed a 6–7 second black scree
 
 ---
 
-*Last updated: July 2026 — Phase 9*
+## Phase 10 — Admin Reorganization & Visualization Overhaul
+
+The admin panel had grown feature-by-feature for nine phases, and it showed: VS Cards lived in a standalone sidebar tab, Game Entries were buried inside the Games tab, Timer Presets were a plain row-list instead of matching the save/rename/select pattern everything else used, and "Display" had become a catch-all holding Music Viz, Crowd Lighting, Video Overlays, and Climax FX — four unrelated features sharing one page. The nav no longer matched how the system actually worked.
+
+### Nav Restructure
+Reorganized the sidebar around what each section is *for*, not just what it configures:
+
+```
+WALK-UPS    Circles · Roles
+SCREEN      Slides · VS Cards · Game Entries · Games
+LIVE        Visualization
+CONTENT     Audio · Display · USB Import
+SHOW        Show Flow · Macros · Lighting Scenes
+SETTINGS    Lighting · System
+```
+
+**Screen** groups everything fired to appear on the projector as a discrete element — Slides, VS Cards, Game Entries, and Games all moved here from wherever they'd landed historically. Game Entries got pulled out of the Games tab into its own tab (it shares Circles/Roles' walk-up music+animation+timing pipeline, not the Games Library's game-config pipeline — a different feature that happened to share a tab). Timer/Timer Presets converted from a flat form + plain row-list into the same grid+editor pattern as Circles and Macros: presets grid on the left, full editor on the right, SAVE / GO LIVE / DELETE buttons.
+
+### Visualization: Music Viz + Crowd Meter Merged
+Originally split into a separate Crowd Meter tab, then folded back into one **Visualization** tab once it became clear the split was redundant — both Music and Crowd presets needed the same Low/Mid/High color concept, just applied to different targets (on-screen bars vs. physical WLED/DMX lighting). Now one preset type, toggled between 🎵 MUSIC and 📢 CROWD, using the established list+editor pattern.
+
+**Crowd presets** own the full lighting picture in one place: WLED node picker + level effect (brightness or VU-meter climb), a new **DMX Fixture Tracking** feature (pole pinspot/wash fixtures dim up and blend through the same colors as the crowd level rises — defaults to all fixtures, opt out individually), Video Overlays, and **On Peak** (the climax behavior).
+
+Saving a Crowd preset makes it live immediately — unlike Music presets (fired on demand via macro/show flow), Crowd lighting drives real hardware continuously, so there's no separate "go live" step. Multiple named Crowd variations can be built and swapped by selecting one and hitting Save.
+
+### Climax Becomes a Macro
+Climax was previously three separate config blocks: a "Climax FX" panel (explosion video + SFX, never actually wired to anything — dead config), a raw-DMX-blast fallback, and scene/revert-scene dropdowns buried inside Crowd Lighting. All three collapsed into one field: **On Peak → Run Macro**. Build a "Climax" macro with whatever scene/SFX/video steps you want; the crowd system just decides which macro fires when the slider peaks. A separate **Revert Scene** field restores normal lighting after the configured climax duration — answering "what happens after climax" explicitly instead of leaving it to whatever the macro's last step set.
+
+Backend: `crowd_climax_macro_id` and `crowd_revert_scene_id` replaced `crowd_climax_scene_id`/`crowd_climax_dmx`/`crowd_revert_scene_id`'s old raw-DMX logic. Since none of the old fields were populated in the live config, no migration was needed — a clean swap.
+
+### DMX Crowd-Level Tracking
+New: pole DMX fixtures (pinspot, wash) now track the crowd level continuously, matching the WLED strips' existing climb behavior. Channel math follows the documented pole hardware layout — 6ch pinspot has no dedicated dimmer channel (CH1 must stay unlocked at 255; brightness comes from scaling the RGB channels directly), 8ch wash has a real CH1 master dimmer (RGB stays at full color, CH1 carries the level). Fixture picker in the admin defaults to tracking every configured fixture, with per-fixture opt-out.
+
+Known follow-up (not yet built): DMX updates currently fire on every slider tick rather than debouncing on release with a smoothed ramp between old/new values. WLED's climb mode already avoids this by running its own animation loop — DMX doesn't have an equivalent yet.
+
+### Six Music Visualization Styles
+Music Viz previously had exactly one look (bars) with no way to change it. Added a Display Type picker with five more options, each deliberately cheap on the Pi's Canvas 2D renderer (avoiding `shadowBlur`, the single most expensive canvas operation, wherever a new style could get the same look without it):
+
+- **Wave** — one smoothed `Path2D` through the 32 FFT bins, gradient stroke + soft fill + a faint mirror reflection reusing the same path via a canvas transform. One fill, two strokes, no shadowBlur.
+- **Dots** — each frequency bin renders as a dot that grows and shifts Low→Mid→High color with its own level, plus a cheap halo (a second translucent circle, not `shadowBlur`).
+- **VU Meter** — a classic segmented LED bargraph driven by the track's aggregate RMS energy (already present in the `viz_music` broadcast but unused until now) rather than the 32 FFT bins — green/amber/red zones by position, with a peak-hold marker.
+- **Radial Bars / Radial Dots** — the same Bars/Dots concepts, radiating outward from a center circle instead of a horizontal row, sized to use most of the available screen while still leaving room for visible bar/dot travel.
+
+**Center logo**: Radial styles support a center media slot — a static image or a looping video (MP4/WebM, drawn frame-by-frame via `drawImage()` on a `<video>` element, same per-frame cost as a static image). Circular-clipped and cover-fit to the available circle, with a Zoom slider (100–250%, default 115%) to crop past any padding baked into an exported logo file without needing a re-export. Upload/serving follows the same per-target asset pattern already used for VS Card photos (`assets/viz/<preset_id>/logo.<ext>`, served via `/api/viz/presets/<id>/logo`).
+
+---
+
+*Last updated: July 2026 — Phase 10*
