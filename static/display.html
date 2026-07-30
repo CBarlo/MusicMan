@@ -1582,6 +1582,11 @@ function _ensureCenterMedia(url, type) {
 }
 
 function _drawCenterMedia(cx, cy, r, ctx) {
+  // Draw the media circle a bit larger than the bars/dots' start radius so it
+  // physically overlaps their base instead of just touching edge-to-edge —
+  // reads as one cohesive shape rather than a ring with a seam.
+  r = r * 1.15;
+
   if (!_centerMedia.ready || !_centerMedia.el) {
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.10)';
