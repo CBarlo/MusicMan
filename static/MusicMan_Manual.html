@@ -796,9 +796,43 @@
   </table>
 
   <div class="callout callout-tip">
-    <div class="callout-title">Steps fire instantly, one after another</div>
-    Steps don't wait for audio to finish. Add a <strong>Wait</strong> step if you need a pause between actions.
-    The exception: Walk-Up steps manage their own timing internally.
+    <div class="callout-title">Which steps pause the macro, and which fire-and-continue</div>
+    <p style="margin-top:0">
+      Most step types fire instantly and the macro moves straight to the next step — they
+      don't wait for anything to finish. Stack several of these in a row (Set Scene, Play SFX,
+      Show Video, Circle Walk-Up, etc.) and they all trigger essentially simultaneously.
+    </p>
+    <table style="margin:8px 0">
+      <tr><th>Only these 3 pause the macro</th><th>How long</th></tr>
+      <tr><td><strong>⏳ Wait</strong></td><td>Its Duration field — that's its entire job</td></tr>
+      <tr><td><strong>🖼 Show Image</strong></td><td>Its Duration field (default 3s)</td></tr>
+      <tr><td><strong>🎬 Show Video</strong></td><td>Its Duration field (default 5s) — <em>unless</em> Loop is checked, in which case it doesn't wait at all</td></tr>
+    </table>
+    <p style="margin-bottom:0">
+      Everything else — Play SFX, Set Scene, Play Music, Stop/Fade Audio, all Timer steps,
+      Walk-Ups, Slides, VS Card, Games, Show Crowd Viz — fires and immediately continues.
+    </p>
+  </div>
+
+  <div class="callout callout-warn">
+    <div class="callout-title">Duration must match the real video length</div>
+    A Show Video step's pause is tied to its <strong>Duration field</strong>, not how long the
+    video file actually plays. If Duration is shorter than the real clip, later steps fire while
+    the video's still playing. If it's longer, there's a dead gap after the video ends before
+    anything else happens. Set Duration to match the clip's actual runtime, and leave Loop
+    unchecked if you want the next step to wait for it.
+  </div>
+
+  <div class="callout callout-tip">
+    <div class="callout-title">Example: a Climax macro</div>
+    <p style="margin-top:0">Steps in order: <strong>Set Scene</strong> (strobe) →
+    <strong>Play SFX</strong> (explosion sound) → <strong>Show Video</strong> (explosion clip,
+    Duration = clip length, Loop off) → <strong>Set Scene</strong> (lights come up) →
+    <strong>Show Image</strong> (static image).</p>
+    <p style="margin-bottom:0">The first three fire together (scene + sound + video all start
+    within the same instant). The macro then pauses for the video step's Duration. Once that
+    elapses, the second scene and the image fire back-to-back — "lights come up, image
+    appears" right as the video ends.</p>
   </div>
 
   <h2 id="show-flow">Show Flow</h2>
