@@ -308,15 +308,15 @@
 
   /* Entry animations */
   @keyframes vs-enter-left {
-    from { transform: translateX(-8vw) scale(.96); opacity:0; }
-    to   { transform: translateX(0)    scale(1);   opacity:1; }
+    from { transform: translateX(-110vw) scale(.92); opacity:0; }
+    to   { transform: translateX(0)      scale(1);   opacity:1; }
   }
   @keyframes vs-enter-right {
-    from { transform: translateX(8vw) scale(.96); opacity:0; }
-    to   { transform: translateX(0)   scale(1);   opacity:1; }
+    from { transform: translateX(110vw)  scale(.92); opacity:0; }
+    to   { transform: translateX(0)      scale(1);   opacity:1; }
   }
-  #layer-vs.vs-active .vs-half-left  { animation: vs-enter-left  .45s cubic-bezier(.2,0,.4,1) forwards; }
-  #layer-vs.vs-active .vs-half-right { animation: vs-enter-right .45s cubic-bezier(.2,0,.4,1) forwards; }
+  #layer-vs.vs-active .vs-half-left  { animation: vs-enter-left  .7s cubic-bezier(.2,0,.4,1) forwards; }
+  #layer-vs.vs-active .vs-half-right { animation: vs-enter-right .7s cubic-bezier(.2,0,.4,1) forwards; }
 
   /* Scanline overlay for arcade theme */
   #layer-vs.theme-arcade::after {

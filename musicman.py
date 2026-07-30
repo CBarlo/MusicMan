@@ -2547,6 +2547,39 @@ def api_vs_card_asset_delete(card_id, side):
     save_vs_cards(cards)
     return jsonify({'ok': True})
 
+@app.route('/api/vs_cards/<card_id>/asset/<side>/link', methods=['POST'])
+def api_vs_card_asset_link(card_id, side):
+    """Copy a display-library image into a VS card's photo slot."""
+    import shutil as _shutil
+    if side not in ('left', 'right') or '..' in card_id:
+        return jsonify({'ok': False, 'error': 'invalid params'}), 400
+    data     = request.get_json()
+    src_file = (data or {}).get('src_file', '')
+    if not src_file or '..' in src_file:
+        return jsonify({'ok': False, 'error': 'missing src_file'}), 400
+    src_path = ASSETS_DIR / 'display' / src_file
+    if not src_path.exists():
+        return jsonify({'ok': False, 'error': 'source file not found'}), 404
+    ext     = src_path.suffix.lower()
+    vs_dir  = ASSETS_DIR / 'vs_cards' / card_id
+    vs_dir.mkdir(parents=True, exist_ok=True)
+    for old_ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        old = vs_dir / (side + old_ext)
+        if old.exists():
+            old.unlink()
+    dst_path = vs_dir / (side + ext)
+    _shutil.copy2(src_path, dst_path)
+    cards = load_vs_cards()
+    for c in cards:
+        if c['id'] == card_id:
+            if side not in c or not isinstance(c[side], dict):
+                c[side] = {}
+            c[side]['image'] = True
+            break
+    save_vs_cards(cards)
+    log.info(f"VS card {card_id} {side} linked from display library: {src_file}")
+    return jsonify({'ok': True})
+
 @app.route('/api/viz/presets/<preset_id>/logo')
 def api_viz_preset_logo(preset_id):
     if '..' in preset_id:

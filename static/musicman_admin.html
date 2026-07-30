@@ -1098,6 +1098,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                     <div class="asset-slot-file empty" id="vsc-left-file-label">No photo — letter avatar used</div>
                   </div>
                   <button id="vsc-left-clear" onclick="clearVscImage('left')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
+                  <button type="button" onclick="openVscLibraryPicker('left')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
                 </div>
 
                 <!-- RIGHT -->
@@ -1128,6 +1129,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                     <div class="asset-slot-file empty" id="vsc-right-file-label">No photo — letter avatar used</div>
                   </div>
                   <button id="vsc-right-clear" onclick="clearVscImage('right')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
+                  <button type="button" onclick="openVscLibraryPicker('right')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
                 </div>
               </div>
 
@@ -5049,6 +5051,60 @@ async function clearVscImage(side) {
       toast(`${side.toUpperCase()} photo removed`, 'ok');
     }
   } catch(e) { toast('Remove failed', 'err'); }
+}
+
+async function openVscLibraryPicker(side) {
+  if (!_selectedVscId) {
+    const name = document.getElementById('vsc-name').value.trim();
+    if (!name) { toast('Enter a card name first', 'err'); return; }
+    await saveVsCard();
+    if (!_selectedVscId) return;
+  }
+  const overlay = document.getElementById('lib-picker-overlay');
+  const list    = document.getElementById('lib-picker-list');
+  const hint    = document.getElementById('lib-picker-hint');
+  hint.textContent = 'TAP AN IMAGE TO USE AS ' + side.toUpperCase() + ' PHOTO';
+  list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;letter-spacing:2px;padding:20px 0;text-align:center">LOADING…</div>';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:flex;flex-direction:column';
+  fetch('/api/display/list').then(r => r.json()).then(files => {
+    const imgExts = new Set(['.jpg','.jpeg','.png','.gif','.webp','.bmp']);
+    const imgFiles = files.filter(f => imgExts.has((f.includes('.') ? f.slice(f.lastIndexOf('.')).toLowerCase() : '')));
+    if (!imgFiles.length) {
+      list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;letter-spacing:2px;padding:20px 0;text-align:center">NO IMAGES — UPLOAD IN THE LIVE → MUSIC VIZ TAB FIRST</div>';
+      return;
+    }
+    const sideJson = escHtml(JSON.stringify(side));
+    list.innerHTML = imgFiles.map(f => {
+      const name = f.replace(/[-_]/g,' ').replace(/\.[^.]+$/,'').toUpperCase();
+      return `<button type="button" onclick="pickVscLibraryItem(${sideJson}, ${escHtml(JSON.stringify(f))})"
+        style="display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);margin-bottom:8px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;transition:border-color .15s">
+        <img src="/assets/display/${encodeURIComponent(f)}" style="width:48px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0;background:var(--bg2)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(name)}</div>
+          <div style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(f)}</div>
+        </div>
+        <span style="font-size:20px;color:var(--text-dim);flex-shrink:0">›</span>
+      </button>`;
+    }).join('');
+  }).catch(() => {
+    list.innerHTML = '<div style="color:var(--red);font-size:12px;letter-spacing:2px;padding:20px 0;text-align:center">FAILED TO LOAD FILES</div>';
+  });
+}
+
+async function pickVscLibraryItem(side, filename) {
+  try {
+    const r = await fetch(`/api/vs_cards/${_selectedVscId}/asset/${side}/link`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ src_file: filename })
+    });
+    const d = await r.json();
+    if (!d.ok) { toast(d.error || 'Link failed', 'err'); return; }
+    const card = savedVsCards.find(c => c.id === _selectedVscId);
+    if (card) { card[side] = card[side] || {}; card[side].image = true; }
+    _vscSetImage(side, _selectedVscId, true);
+    toast(`${side.toUpperCase()} photo set from library`, 'ok');
+    closeLibraryPicker();
+  } catch(e) { toast('Link failed', 'err'); }
 }
 
 async function saveVsCard() {
