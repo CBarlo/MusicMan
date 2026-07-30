@@ -1710,6 +1710,13 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div id="viz-panel-music">
                 <div class="card-title" style="margin-bottom:8px">DISPLAY</div>
                 <div style="margin-bottom:12px">
+                  <label>DISPLAY TYPE</label>
+                  <select id="viz-music-type" onchange="vizMarkDirty()">
+                    <option value="bars">Bars (Classic EQ)</option>
+                    <option value="wave">Wave</option>
+                  </select>
+                </div>
+                <div style="margin-bottom:12px">
                   <label>BAR COUNT</label>
                   <select id="viz-music-bars" onchange="vizMarkDirty()">
                     <option value="16">16 bars — sparse</option>
@@ -8292,6 +8299,7 @@ function vizApplyPresetToForm(p) {
   const s = (p && p.settings) || {};
 
   setV('viz-preset-name', p ? p.name : '');
+  setV('viz-music-type', s.music_display_type || 'bars');
   setV('viz-music-bars', s.bars || 24);
   setC('viz-music-low','viz-music-low-hex', s.color_low  || '#c84a0a');
   setC('viz-music-mid','viz-music-mid-hex', s.color_mid  || '#f5a623');
@@ -8345,6 +8353,7 @@ async function vizSavePreset() {
   const dmxChecked = dmxBoxes.filter(cb => cb.checked).map(cb => cb.value);
 
   const settings = {
+    music_display_type: document.getElementById('viz-music-type').value,
     bars:              parseInt(document.getElementById('viz-music-bars').value) || 24,
     color_low:         document.getElementById('viz-music-low').value,
     color_mid:         document.getElementById('viz-music-mid').value,

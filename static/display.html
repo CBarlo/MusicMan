@@ -1301,6 +1301,8 @@ let _eqTrack   = '';
 let _eqRunning = false;
 let _eqColors  = { low: '#c84a0a', mid: '#f5a623', high: '#fffff0' };
 
+let _musicVizType = 'bars'; // bars | wave
+
 function _drawEQ() {
   if (!_eqRunning) return;
   const W = _eqCanvas.width, H = _eqCanvas.height, ctx = _eqCtx;
@@ -1332,11 +1334,36 @@ function _drawEQ() {
   const maxBarH  = baseline * 0.93;
   const totalW   = W * 0.86;
   const startX   = (W - totalW) / 2;
-  const slot     = totalW / N;
-  const barW     = slot * 0.70;
-  const gapH     = slot * 0.30;
 
-  // Build bar gradient colors from _eqColors
+  if (_musicVizType === 'wave') {
+    _drawWaveStyle(N, startX, totalW, baseline, maxBarH, ctx);
+  } else {
+    _drawBarsStyle(N, startX, totalW, baseline, maxBarH, ctx);
+  }
+
+  // Baseline rule
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(startX, baseline); ctx.lineTo(startX + totalW, baseline);
+  ctx.stroke();
+
+  // Track name
+  if (_eqTrack) {
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.font      = `400 ${Math.round(W * 0.016)}px 'Barlow Condensed','Arial Narrow',Arial,sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(_eqTrack.toUpperCase(), W / 2, H - 26);
+  }
+
+  requestAnimationFrame(_drawEQ);
+}
+
+function _drawBarsStyle(N, startX, totalW, baseline, maxBarH, ctx) {
+  const slot = totalW / N;
+  const barW = slot * 0.70;
+  const gapH = slot * 0.30;
+
   function eqGrad(top) {
     const g = ctx.createLinearGradient(0, baseline, 0, top);
     g.addColorStop(0,    _eqColors.low  + 'dd');
@@ -1375,23 +1402,52 @@ function _drawEQ() {
       ctx.fillRect(x, baseline - pkH - 2, barW, 2);
     }
   }
+}
 
-  // Baseline rule
-  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(startX, baseline); ctx.lineTo(startX + totalW, baseline);
-  ctx.stroke();
+// Cheap by design: one smoothed Path2D reused for fill + stroke + mirror
+// (no shadowBlur, no per-bin draw calls) — safe for Pi-class hardware.
+function _drawWaveStyle(N, startX, totalW, baseline, maxBarH, ctx) {
+  const xAt = i => startX + (i / (N - 1)) * totalW;
+  const yAt = i => baseline - _eqSmooth[i] * maxBarH;
 
-  // Track name
-  if (_eqTrack) {
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.font      = `400 ${Math.round(W * 0.016)}px 'Barlow Condensed','Arial Narrow',Arial,sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText(_eqTrack.toUpperCase(), W / 2, H - 26);
+  const path = new Path2D();
+  path.moveTo(xAt(0), yAt(0));
+  for (let i = 1; i < N - 1; i++) {
+    const mx = (xAt(i) + xAt(i + 1)) / 2;
+    const my = (yAt(i) + yAt(i + 1)) / 2;
+    path.quadraticCurveTo(xAt(i), yAt(i), mx, my);
   }
+  path.lineTo(xAt(N - 1), yAt(N - 1));
 
-  requestAnimationFrame(_drawEQ);
+  // Soft fill under the curve
+  const fillPath = new Path2D(path);
+  fillPath.lineTo(xAt(N - 1), baseline);
+  fillPath.lineTo(xAt(0), baseline);
+  fillPath.closePath();
+  const fillGrad = ctx.createLinearGradient(0, baseline - maxBarH, 0, baseline);
+  fillGrad.addColorStop(0, _eqColors.high + '30');
+  fillGrad.addColorStop(1, _eqColors.low  + '00');
+  ctx.fillStyle = fillGrad;
+  ctx.fill(fillPath);
+
+  // Gradient stroke along the wave
+  const strokeGrad = ctx.createLinearGradient(startX, 0, startX + totalW, 0);
+  strokeGrad.addColorStop(0,   _eqColors.low);
+  strokeGrad.addColorStop(0.5, _eqColors.mid);
+  strokeGrad.addColorStop(1,   _eqColors.high);
+  ctx.strokeStyle = strokeGrad;
+  ctx.lineWidth   = Math.max(2, totalW * 0.004);
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.stroke(path);
+
+  // Faint mirror reflection below baseline — reuses the same path via transform
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.translate(0, baseline * 2);
+  ctx.scale(1, -0.32);
+  ctx.stroke(path);
+  ctx.restore();
 }
 
 function _eqReceive(data) {
@@ -1850,10 +1906,11 @@ function _climaxVideoHide() {
 // ── VIZ: SHOW / HIDE ─────────────────────────────────────────────────────────
 function showMusicViz(settings) {
   if (settings) {
-    if (settings.bars)        _eqBarCount      = Math.min(EQ_MAX, Math.max(8, parseInt(settings.bars) || 24));
-    if (settings.color_low)   _eqColors.low    = settings.color_low;
-    if (settings.color_mid)   _eqColors.mid    = settings.color_mid;
-    if (settings.color_high)  _eqColors.high   = settings.color_high;
+    if (settings.bars)              _eqBarCount   = Math.min(EQ_MAX, Math.max(8, parseInt(settings.bars) || 24));
+    if (settings.color_low)         _eqColors.low  = settings.color_low;
+    if (settings.color_mid)         _eqColors.mid  = settings.color_mid;
+    if (settings.color_high)        _eqColors.high = settings.color_high;
+    if (settings.music_display_type) _musicVizType = settings.music_display_type;
   }
   _activeViz = 'music';
   _resizeCanvas(_eqCanvas);
