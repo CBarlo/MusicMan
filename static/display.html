@@ -1600,17 +1600,12 @@ function _drawCenterMedia(cx, cy, r, ctx) {
   const el = _centerMedia.el;
   const naturalW = el.videoWidth || el.naturalWidth || 1;
   const naturalH = el.videoHeight || el.naturalHeight || 1;
-  // Cover-fit the circle, then apply an extra zoom so any padding baked into
-  // the source art (common in exported logos) can be cropped past without
-  // needing a re-export.
-  const scale = Math.max((r * 2) / naturalW, (r * 2) / naturalH) * _centerMediaZoom;
+  // No circular mask — show the full image/video exactly as uploaded, just
+  // sized (contain-fit, not cover) to roughly the footprint the circle
+  // occupies. Zoom still scales it up if you want it larger/overlapping more.
+  const scale = Math.min((r * 2) / naturalW, (r * 2) / naturalH) * _centerMediaZoom;
   const dw = naturalW * scale, dh = naturalH * scale;
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.clip();
   ctx.drawImage(el, cx - dw / 2, cy - dh / 2, dw, dh);
-  ctx.restore();
 }
 
 // Cheap by design: N line strokes radiating from the center circle, color
