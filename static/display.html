@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Music Man Display</title>
+<link href="/static/fonts/fonts.css" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
 
@@ -1010,11 +1011,13 @@ function showVsCard(data) {
   layerVs.className = 'theme-' + theme;
 
   function _fitVsName(nameEl) {
+    const namebarEl = nameEl.parentElement;
     nameEl.style.fontSize = '';
-    const maxWidth = nameEl.clientWidth;
+    const maxWidth   = nameEl.clientWidth;
+    const availBelow = window.innerHeight - namebarEl.getBoundingClientRect().top - (window.innerHeight * 0.02);
     let size = parseFloat(getComputedStyle(nameEl).fontSize);
     let guard = 0;
-    while (nameEl.scrollWidth > maxWidth && guard < 40) {
+    while ((nameEl.scrollWidth > maxWidth || namebarEl.scrollHeight > availBelow) && guard < 40) {
       size -= size * 0.06;
       nameEl.style.fontSize = size + 'px';
       guard++;
@@ -1024,9 +1027,9 @@ function showVsCard(data) {
   function _applyHalf(halfEl, mediaEl, nameEl, subEl, cfg, side) {
     halfEl.style.setProperty('--vs-color', cfg.color || (side === 'left' ? '#E83A3A' : '#4A9FD4'));
     nameEl.textContent = (cfg.name || cfg.label || '').toUpperCase();
-    _fitVsName(nameEl);
     subEl.textContent  = cfg.sub || cfg.sublabel || '';
     subEl.style.display = (cfg.sub || cfg.sublabel) ? '' : 'none';
+    _fitVsName(nameEl);
 
     mediaEl.innerHTML = '';
     if (cfg.image_url) {
