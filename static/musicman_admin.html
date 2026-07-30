@@ -8308,7 +8308,7 @@ function _renderCrowdDmxFixtureList(selected) {
     <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;
                   background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:12px;font-weight:700;letter-spacing:1px">
       <input type="checkbox" value="${escHtml(f.key)}" class="crowd-dmx-fixture-cb"
-             ${(!selected.length || selected.includes(f.key)) ? 'checked' : ''}
+             ${(selected == null || selected.includes(f.key)) ? 'checked' : ''}
              style="width:14px;height:14px;accent-color:var(--amber)">
       ${escHtml(f.label)}
     </label>`).join('');
@@ -8344,7 +8344,7 @@ function vizApplyPresetToForm(p) {
   setC('viz-crowd-high','viz-crowd-high-hex',s.crowd_color_high || '#e74c3c');
 
   _renderCrowdLightList(s.crowd_lights || []);
-  _renderCrowdDmxFixtureList(s.crowd_dmx_fixtures || []);
+  _renderCrowdDmxFixtureList(p ? (s.crowd_dmx_fixtures ?? []) : null);
 
   const climbMode = !!s.crowd_climb_mode;
   document.getElementById(climbMode ? 'crowd-mode-climb' : 'crowd-mode-bri').checked = true;
@@ -8380,8 +8380,10 @@ async function vizSavePreset() {
   if (!name) { toast('ENTER A PRESET NAME', 'err'); return; }
   const scene = document.getElementById('viz-preset-scene').value || 'music';
 
-  const dmxBoxes   = [...document.querySelectorAll('.crowd-dmx-fixture-cb')];
-  const dmxChecked = dmxBoxes.filter(cb => cb.checked).map(cb => cb.value);
+  // Always store the real checked list (even if empty, meaning "track no
+  // fixtures") — no collapsing-to-empty-means-all shortcut, so an explicit
+  // opt-out actually sticks instead of being indistinguishable from opt-in-all.
+  const dmxChecked = [...document.querySelectorAll('.crowd-dmx-fixture-cb:checked')].map(cb => cb.value);
 
   const existingForMedia = _vizPresets.find(x => x.id === _vizCurrentId);
   const settings = {
@@ -8401,7 +8403,7 @@ async function vizSavePreset() {
     crowd_climb_mode:         document.getElementById('crowd-mode-climb').checked,
     crowd_strip_len:          parseInt(document.getElementById('crowd-strip-len').value) || 60,
     crowd_num_strips:         parseInt(document.getElementById('crowd-num-strips').value) || 1,
-    crowd_dmx_fixtures:       dmxChecked.length === dmxBoxes.length ? [] : dmxChecked,
+    crowd_dmx_fixtures:       dmxChecked,
     crowd_climax_macro_id:    document.getElementById('crowd-climax-macro').value,
     crowd_revert_scene_id:    document.getElementById('crowd-revert-scene').value,
     crowd_climax_duration_ms: parseInt(document.getElementById('crowd-climax-duration').value) || 2500,

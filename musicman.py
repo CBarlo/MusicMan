@@ -614,8 +614,11 @@ def _send_crowd_lights(level, climax):
     """Fire-and-forget WLED + DMX updates for crowd lighting. Runs in a daemon thread."""
     cfg          = load_config()
     light_ids    = cfg.get('crowd_lights', [])
-    dmx_selected = cfg.get('crowd_dmx_fixtures', [])
-    has_dmx_fixtures = any(node.get('fixtures') for node in cfg.get('pole_nodes', []))
+    # None = DMX crowd tracking never configured (opt-in required, no surprise
+    # behavior on existing installs); [] = explicitly "track no fixtures";
+    # [...] = these specific fixtures. Only a real list (any length) turns it on.
+    dmx_selected     = cfg.get('crowd_dmx_fixtures')
+    has_dmx_fixtures = dmx_selected is not None and any(node.get('fixtures') for node in cfg.get('pole_nodes', []))
     if not light_ids and not has_dmx_fixtures and not (climax and cfg.get('crowd_climax_macro_id')):
         return
 
@@ -668,7 +671,7 @@ def _send_crowd_lights(level, climax):
             fixtures_out = []
             for fix in node.get('fixtures', []):
                 key = f"{node['id']}::{fix.get('id')}"
-                if dmx_selected and key not in dmx_selected:
+                if key not in dmx_selected:
                     continue
                 fixtures_out.append({'start': fix.get('start', 1),
                                       'channels': _dmx_crowd_channels(fix, lv, col)})
