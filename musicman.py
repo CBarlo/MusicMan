@@ -6166,7 +6166,10 @@ def api_viz_show():
         preset = next((p for p in cfg.get('viz_presets', []) if p['id'] == preset_id), None)
         if preset:
             settings = dict(preset.get('settings', {}))
-            if settings.get('center_media_type'):
+            if settings.get('center_media_library_file'):
+                # Linked directly to a file already in the Display library — no per-preset copy.
+                settings['center_media_url'] = f"/assets/display/{settings['center_media_library_file']}"
+            elif settings.get('center_media_type'):
                 settings['center_media_url'] = f'/api/viz/presets/{preset_id}/logo'
             payload['settings'] = settings
     broadcast('viz_show', payload)
