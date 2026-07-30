@@ -675,25 +675,28 @@ def _send_crowd_lights(level, climax):
             if fixtures_out:
                 threading.Thread(target=_dmx_post, args=(node['ip'], fixtures_out), daemon=True).start()
 
-    # ── Climax: fire the assigned macro ──────────────────────────────────────
+    # ── Climax: fire the assigned macro, then revert to a scene afterward ────
     # Climax behavior (scenes, SFX, video, whatever) lives in the macro itself —
     # build a "Climax" macro with the steps you want instead of configuring it here.
     if climax:
         _stop_music()   # stops music + playlist, but leaves SFX channel so explosion SFX can play
         climax_dur = cfg.get('crowd_climax_duration_ms', 2500) / 1000.0
         macro_id   = cfg.get('crowd_climax_macro_id', '')
+        revert_id  = cfg.get('crowd_revert_scene_id', '')
         if macro_id:
             macros = {m['id']: m for m in cfg.get('macros', [])}
             macro  = macros.get(macro_id)
             if macro:
                 threading.Thread(target=execute_macro, args=(macro,), daemon=True).start()
 
-        def _clear_climax_state(dur=climax_dur):
+        def _after_climax(dur=climax_dur, rsid=revert_id):
             time.sleep(dur)
+            if rsid:
+                wled_set_scene(rsid)
             _crowd_state['climax'] = False
             broadcast('viz_crowd', _crowd_state)
 
-        threading.Thread(target=_clear_climax_state, daemon=True).start()
+        threading.Thread(target=_after_climax, daemon=True).start()
 
 # ── SOUND LEVEL POLLING ───────────────────────────────────────────────────────
 _sound_levels    = {}    # node_id → {'level': 0-100, 'name': str, 'ip': str}
