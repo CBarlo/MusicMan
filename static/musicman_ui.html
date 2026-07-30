@@ -446,6 +446,14 @@
             </div>
           </div>
 
+          <!-- Crowd Meter preset picker -->
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+            <select id="crowd-preset-select" onchange="activateCrowdPreset(this.value)"
+              style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 8px;border-radius:6px;font-size:12px">
+              <option value="">— crowd preset —</option>
+            </select>
+          </div>
+
           <!-- dB meter bars per node -->
           <div id="crowd-db-meters" style="display:flex;gap:8px;margin-bottom:12px;min-height:28px">
             <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;align-self:center">NO POLE NODES</div>
@@ -3289,33 +3297,15 @@ function crowdSendLevel(val) {
     body: JSON.stringify({level: val, climax: false})}).catch(()=>{});
 }
 
-let _climaxFx = {};
-
-async function loadClimaxFx() {
-  try {
-    const cfg = await fetch('/api/config').then(r => r.json());
-    _climaxFx = cfg.climax_fx || {};
-  } catch(e) {}
-}
-
 function crowdClimax() {
+  // Everything past this point — the assigned Climax macro (scene/SFX/video, whatever
+  // it contains) and the eventual revert/level-reset — is driven server-side by the
+  // active Crowd preset's On Peak settings. The slider snaps back via the viz_crowd
+  // broadcast once the real configured climax duration elapses (see musicman.py
+  // _after_climax) — no client-side timer to keep in sync here.
   _peakLevel = 100;
   fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({level: 100, climax: true})}).catch(()=>{});
-  // Fire explosion video (plays once, auto-hides when done)
-  if (_climaxFx.video) {
-    fetch('/api/viz/overlay', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'play', src: _climaxFx.video, loop: false, fullscreen: true})}).catch(()=>{});
-  }
-  // Fire explosion SFX
-  if (_climaxFx.sfx) {
-    fetch('/api/sfx/play?name=' + encodeURIComponent(_climaxFx.sfx)).catch(()=>{});
-  }
-  setTimeout(() => {
-    _crowdSliderSet(0);
-    fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({level: 0, climax: false})}).catch(()=>{});
-  }, 3000);
   showAlert('⚡ CLIMAX!', 1500);
 }
 
@@ -3323,6 +3313,28 @@ function crowdShowViz() {
   fetch('/api/viz/show', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({scene:'crowd'})}).catch(()=>{});
   showAlert('📺 CROWD VIZ ON', 1500);
+}
+
+// ── CROWD METER PRESET PICKER ─────────────
+async function loadCrowdPresets() {
+  try {
+    const presets = await fetch('/api/viz/presets').then(r => r.json());
+    const crowdPresets = presets.filter(p => p.scene === 'crowd');
+    const sel = document.getElementById('crowd-preset-select');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— crowd preset —</option>' +
+      crowdPresets.map(p => `<option value="${p.id}" ${p.id===cur?'selected':''}>${escHtml(p.name)}</option>`).join('');
+  } catch(e) {}
+}
+
+async function activateCrowdPreset(id) {
+  if (!id) return;
+  try {
+    const res = await fetch(`/api/viz/presets/${id}/activate`, {method:'POST'}).then(r => r.json());
+    if (res.ok) showAlert(`📢 ${res.name} is live`, 1500);
+    else showAlert('Activate failed', 1500);
+  } catch(e) { showAlert('Activate failed', 1500); }
 }
 
 let _overlaySlots = [];
@@ -3470,7 +3482,7 @@ fetch('/api/sound/levels').then(r=>r.json()).then(d=>{ _soundLevels=d; renderDbM
 fetch('/api/crowd/mode').then(r=>r.json()).then(d=>{ _crowdMode=d.mode||'manual'; crowdUpdateModeUI(); }).catch(()=>{});
 fetch('/api/games').then(r=>r.json()).then(d=>{ _gamesData=d; crowdPopulateGameSelects(); }).catch(()=>{});
 overlayLoadSlots();
-loadClimaxFx();
+loadCrowdPresets();
 
 // ── WIFI ──────────────────────────────────
 let _wifiConnectSSID = '';

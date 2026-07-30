@@ -694,6 +694,7 @@ def _send_crowd_lights(level, climax):
             if rsid:
                 wled_set_scene(rsid)
             _crowd_state['climax'] = False
+            _crowd_state['level']  = 0
             broadcast('viz_crowd', _crowd_state)
 
         threading.Thread(target=_after_climax, daemon=True).start()
@@ -6218,6 +6219,35 @@ def api_viz_presets_delete(pid):
     save_config(cfg)
     config = cfg
     return jsonify({'ok': True})
+
+
+@app.route('/api/viz/presets/<pid>/activate', methods=['POST'])
+def api_viz_preset_activate(pid):
+    """Make a saved Crowd preset the live one — pushes its settings into the flat
+    crowd_* config keys _send_crowd_lights actually reads. Lets Console switch
+    between saved Crowd Meter variations without going into Admin."""
+    global config
+    cfg    = load_config()
+    preset = next((p for p in cfg.get('viz_presets', []) if p['id'] == pid), None)
+    if not preset:
+        return jsonify({'ok': False, 'error': 'Preset not found'}), 404
+    if preset.get('scene') != 'crowd':
+        return jsonify({'ok': False, 'error': 'Only crowd presets can be activated'}), 400
+    s = preset.get('settings', {})
+    cfg['crowd_lights']             = s.get('crowd_lights', [])
+    cfg['crowd_color_low']          = s.get('crowd_color_low', '#3cb96a')
+    cfg['crowd_color_mid']          = s.get('crowd_color_mid', '#f5a623')
+    cfg['crowd_color_high']         = s.get('crowd_color_high', '#e74c3c')
+    cfg['crowd_climb_mode']         = s.get('crowd_climb_mode', False)
+    cfg['crowd_strip_len']          = s.get('crowd_strip_len', 60)
+    cfg['crowd_num_strips']         = s.get('crowd_num_strips', 1)
+    cfg['crowd_dmx_fixtures']       = s.get('crowd_dmx_fixtures', [])
+    cfg['crowd_climax_macro_id']    = s.get('crowd_climax_macro_id', '')
+    cfg['crowd_revert_scene_id']    = s.get('crowd_revert_scene_id', '')
+    cfg['crowd_climax_duration_ms'] = s.get('crowd_climax_duration_ms', 2500)
+    save_config(cfg)
+    config = cfg
+    return jsonify({'ok': True, 'id': pid, 'name': preset.get('name')})
 
 
 @app.route('/api/crowd/level', methods=['POST'])
