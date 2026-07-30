@@ -1711,11 +1711,13 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                 <div class="card-title" style="margin-bottom:8px">DISPLAY</div>
                 <div style="margin-bottom:12px">
                   <label>DISPLAY TYPE</label>
-                  <select id="viz-music-type" onchange="vizMarkDirty()">
+                  <select id="viz-music-type" onchange="vizMarkDirty();_vizToggleCenterMediaRow()">
                     <option value="bars">Bars (Classic EQ)</option>
                     <option value="wave">Wave</option>
                     <option value="dots">Dots</option>
                     <option value="vu">VU Meter</option>
+                    <option value="radial_bars">Radial Bars</option>
+                    <option value="radial_dots">Radial Dots</option>
                   </select>
                 </div>
                 <div style="margin-bottom:12px">
@@ -1725,6 +1727,28 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                     <option value="24" selected>24 — default</option>
                     <option value="32">32 — dense</option>
                   </select>
+                </div>
+
+                <div id="viz-center-media-row" style="display:none;margin-bottom:14px">
+                  <label>CENTER LOGO <span style="font-weight:400;color:var(--text-dim)">(image or looping video)</span></label>
+                  <p style="font-size:10px;color:var(--text-dim);letter-spacing:0.5px;margin:2px 0 8px;line-height:1.5">
+                    Best fit: a <strong>square</strong> file with the logo filling the frame edge-to-edge
+                    (no padding), at least 400×400px for images or 400×400 for video. It gets cropped to a
+                    circle — use ZOOM below to crop past any padding without re-exporting.
+                  </p>
+                  <div class="asset-slot" id="viz-center-media-slot" onclick="document.getElementById('viz-center-media-file').click()">
+                    <div class="slot-status" id="viz-center-media-status"></div>
+                    <input type="file" id="viz-center-media-file" accept="image/*,video/mp4,video/webm" onchange="uploadVizCenterMedia(this.files[0])">
+                    <div class="asset-slot-icon" id="viz-center-media-icon">🖼</div>
+                    <div class="asset-slot-label">CENTER MEDIA</div>
+                    <div class="asset-slot-file empty" id="viz-center-media-file-label">No file — plain ring shown</div>
+                  </div>
+                  <button id="viz-center-media-clear" onclick="clearVizCenterMedia()" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE</button>
+
+                  <label style="margin-top:10px">ZOOM <span id="viz-center-media-zoom-val" style="font-weight:400;color:var(--text-dim)">115%</span></label>
+                  <input type="range" id="viz-center-media-zoom" min="100" max="250" value="115" step="5"
+                         oninput="document.getElementById('viz-center-media-zoom-val').textContent=this.value+'%';vizMarkDirty()"
+                         style="width:100%">
                 </div>
 
                 <div class="card-title" style="margin-bottom:8px">COLORS</div>
@@ -8303,6 +8327,11 @@ function vizApplyPresetToForm(p) {
   setV('viz-preset-name', p ? p.name : '');
   setV('viz-music-type', s.music_display_type || 'bars');
   setV('viz-music-bars', s.bars || 24);
+  _vizSetCenterMediaSlot(s.center_media_type || null);
+  _vizToggleCenterMediaRow();
+  const zoomVal = Math.round((s.center_media_zoom || 1.15) * 100);
+  setV('viz-center-media-zoom', zoomVal);
+  document.getElementById('viz-center-media-zoom-val').textContent = zoomVal + '%';
   setC('viz-music-low','viz-music-low-hex', s.color_low  || '#c84a0a');
   setC('viz-music-mid','viz-music-mid-hex', s.color_mid  || '#f5a623');
   setC('viz-music-high','viz-music-high-hex',s.color_high || '#fffff0');
@@ -8354,8 +8383,11 @@ async function vizSavePreset() {
   const dmxBoxes   = [...document.querySelectorAll('.crowd-dmx-fixture-cb')];
   const dmxChecked = dmxBoxes.filter(cb => cb.checked).map(cb => cb.value);
 
+  const existingForMedia = _vizPresets.find(x => x.id === _vizCurrentId);
   const settings = {
     music_display_type: document.getElementById('viz-music-type').value,
+    center_media_type: existingForMedia?.settings?.center_media_type,
+    center_media_zoom: parseInt(document.getElementById('viz-center-media-zoom').value) / 100,
     bars:              parseInt(document.getElementById('viz-music-bars').value) || 24,
     color_low:         document.getElementById('viz-music-low').value,
     color_mid:         document.getElementById('viz-music-mid').value,
@@ -8414,6 +8446,60 @@ async function vizSavePreset() {
     document.getElementById('viz-save-status').style.display = 'block';
     setTimeout(() => document.getElementById('viz-save-status').style.display = 'none', 2500);
   } catch(e) { toast('SAVE FAILED', 'err'); }
+}
+
+function _vizToggleCenterMediaRow() {
+  const type = document.getElementById('viz-music-type').value;
+  const row  = document.getElementById('viz-center-media-row');
+  row.style.display = (type === 'radial_bars' || type === 'radial_dots') ? 'block' : 'none';
+}
+
+function _vizSetCenterMediaSlot(mediaType) {
+  const icon   = document.getElementById('viz-center-media-icon');
+  const label  = document.getElementById('viz-center-media-file-label');
+  const clear  = document.getElementById('viz-center-media-clear');
+  if (mediaType) {
+    icon.textContent = mediaType === 'video' ? '🎬' : '🖼';
+    label.textContent = mediaType === 'video' ? 'Video loop set' : 'Image set';
+    label.classList.remove('empty');
+    clear.style.display = 'block';
+  } else {
+    icon.textContent = '🖼';
+    label.textContent = 'No file — plain ring shown';
+    label.classList.add('empty');
+    clear.style.display = 'none';
+  }
+}
+
+async function uploadVizCenterMedia(file) {
+  if (!file) return;
+  if (!_vizCurrentId) {
+    const name = document.getElementById('viz-preset-name').value.trim();
+    if (!name) { toast('Enter a preset name before uploading', 'err'); return; }
+    await vizSavePreset();
+    if (!_vizCurrentId) return;
+  }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type', 'viz_preset');
+  fd.append('id', _vizCurrentId);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd }).then(r => r.json());
+    if (!res.ok) { toast(res.error || 'UPLOAD FAILED', 'err'); return; }
+    const mediaType = /\.(mp4|webm)$/i.test(file.name) ? 'video' : 'image';
+    _vizSetCenterMediaSlot(mediaType);
+    await vizFetchPresets();
+    toast('Center media uploaded', 'ok');
+  } catch(e) { toast('UPLOAD FAILED', 'err'); }
+}
+
+async function clearVizCenterMedia() {
+  if (!_vizCurrentId) return;
+  try {
+    await fetch(`/api/viz/presets/${_vizCurrentId}/logo`, { method: 'DELETE' });
+    _vizSetCenterMediaSlot(null);
+    await vizFetchPresets();
+  } catch(e) { toast('REMOVE FAILED', 'err'); }
 }
 
 async function vizDeletePreset() {

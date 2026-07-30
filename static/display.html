@@ -1344,8 +1344,17 @@ function _drawEQ() {
   const maxBarH  = baseline * 0.93;
   const totalW   = W * 0.86;
   const startX   = (W - totalW) / 2;
+  const isRadial = _musicVizType === 'radial_bars' || _musicVizType === 'radial_dots';
 
-  if (_musicVizType === 'wave') {
+  if (isRadial) {
+    // Slightly above true center so the track name below still has clear room.
+    const cx     = W / 2;
+    const cy     = H * 0.46;
+    const maxR   = Math.min(W, H * 0.85) * 0.47;
+    const innerR = maxR * 0.30;
+    if (_musicVizType === 'radial_bars') _drawRadialBarsStyle(N, cx, cy, innerR, maxR, ctx);
+    else _drawRadialDotsStyle(N, cx, cy, innerR, maxR, ctx);
+  } else if (_musicVizType === 'wave') {
     _drawWaveStyle(N, startX, totalW, baseline, maxBarH, ctx);
   } else if (_musicVizType === 'dots') {
     _drawDotsStyle(N, startX, totalW, baseline, maxBarH, ctx);
@@ -1355,12 +1364,14 @@ function _drawEQ() {
     _drawBarsStyle(N, startX, totalW, baseline, maxBarH, ctx);
   }
 
-  // Baseline rule
-  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(startX, baseline); ctx.lineTo(startX + totalW, baseline);
-  ctx.stroke();
+  // Baseline rule (linear styles only — a straight line through a circle looks wrong)
+  if (!isRadial) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(startX, baseline); ctx.lineTo(startX + totalW, baseline);
+    ctx.stroke();
+  }
 
   // Track name
   if (_eqTrack) {
@@ -1541,6 +1552,111 @@ function _drawVuStyle(N, startX, totalW, baseline, maxBarH, ctx) {
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, segW, segH);
   }
+}
+
+// ── CENTER MEDIA (image or looping video) for radial styles ─────────────────
+let _centerMedia = { url: null, type: null, el: null, ready: false };
+let _centerMediaZoom = 1.15; // slight default crop-in to hide typical logo-export padding
+
+function _ensureCenterMedia(url, type) {
+  if (!url) {
+    if (_centerMedia.url !== null) _centerMedia = { url: null, type: null, el: null, ready: false };
+    return;
+  }
+  if (_centerMedia.url === url && _centerMedia.type === type) return;
+  let el;
+  if (type === 'video') {
+    el = document.createElement('video');
+    el.muted = true; el.loop = true; el.playsInline = true; el.autoplay = true;
+    el.src = url;
+    el.play().catch(() => {});
+  } else {
+    el = new Image();
+    el.src = url;
+  }
+  const entry = { url, type, el, ready: false };
+  _centerMedia = entry;
+  const markReady = () => { entry.ready = true; };
+  el.addEventListener(type === 'video' ? 'loadeddata' : 'load', markReady);
+  el.addEventListener('error', () => { entry.ready = false; });
+}
+
+function _drawCenterMedia(cx, cy, r, ctx) {
+  if (!_centerMedia.ready || !_centerMedia.el) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  const el = _centerMedia.el;
+  const naturalW = el.videoWidth || el.naturalWidth || 1;
+  const naturalH = el.videoHeight || el.naturalHeight || 1;
+  // Cover-fit the circle, then apply an extra zoom so any padding baked into
+  // the source art (common in exported logos) can be cropped past without
+  // needing a re-export.
+  const scale = Math.max((r * 2) / naturalW, (r * 2) / naturalH) * _centerMediaZoom;
+  const dw = naturalW * scale, dh = naturalH * scale;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(el, cx - dw / 2, cy - dh / 2, dw, dh);
+  ctx.restore();
+}
+
+// Cheap by design: N line strokes radiating from the center circle, color
+// shifts LOW→MID→HIGH by each bin's own level. No shadowBlur.
+function _drawRadialBarsStyle(N, cx, cy, innerR, maxR, ctx) {
+  const barLen  = maxR - innerR;
+  const angStep = (Math.PI * 2) / N;
+  const lw = Math.max(2, (innerR * angStep) * 0.62);
+  for (let i = 0; i < N; i++) {
+    const ang = i * angStep - Math.PI / 2;
+    const lv  = _eqSmooth[i];
+    const r2  = innerR + lv * barLen;
+    ctx.strokeStyle = _dotsColorAt(lv);
+    ctx.lineWidth   = lw;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(ang) * innerR, cy + Math.sin(ang) * innerR);
+    ctx.lineTo(cx + Math.cos(ang) * r2,     cy + Math.sin(ang) * r2);
+    ctx.stroke();
+  }
+  _drawCenterMedia(cx, cy, innerR, ctx);
+}
+
+// Same idea as the linear Dots style, but each dot orbits outward from the
+// center circle instead of sitting in a row. Same cheap arc()-only approach.
+function _drawRadialDotsStyle(N, cx, cy, innerR, maxR, ctx) {
+  const travel  = maxR - innerR;
+  const angStep = (Math.PI * 2) / N;
+  const minR    = Math.max(2, (innerR * angStep) * 0.16);
+  const maxDotR = (innerR * angStep) * 0.46;
+  for (let i = 0; i < N; i++) {
+    const ang  = i * angStep - Math.PI / 2;
+    const lv   = _eqSmooth[i];
+    const dist = innerR + lv * travel;
+    const x = cx + Math.cos(ang) * dist, y = cy + Math.sin(ang) * dist;
+    const r = minR + lv * (maxDotR - minR);
+    const col = _dotsColorAt(lv);
+
+    ctx.globalAlpha = 0.20;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2.0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  _drawCenterMedia(cx, cy, innerR, ctx);
 }
 
 function _eqReceive(data) {
@@ -2010,6 +2126,8 @@ function showMusicViz(settings) {
     if (settings.color_mid)         _eqColors.mid  = settings.color_mid;
     if (settings.color_high)        _eqColors.high = settings.color_high;
     if (settings.music_display_type) _musicVizType = settings.music_display_type;
+    _ensureCenterMedia(settings.center_media_url || null, settings.center_media_type || null);
+    _centerMediaZoom = settings.center_media_zoom != null ? parseFloat(settings.center_media_zoom) : 1.15;
   }
   _activeViz = 'music';
   _resizeCanvas(_eqCanvas);

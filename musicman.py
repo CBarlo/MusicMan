@@ -2543,6 +2543,36 @@ def api_vs_card_asset_delete(card_id, side):
     save_vs_cards(cards)
     return jsonify({'ok': True})
 
+@app.route('/api/viz/presets/<preset_id>/logo')
+def api_viz_preset_logo(preset_id):
+    if '..' in preset_id:
+        return '', 400
+    viz_dir = ASSETS_DIR / 'viz' / preset_id
+    for ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.webm'):
+        f = viz_dir / ('logo' + ext)
+        if f.exists():
+            return send_from_directory(str(viz_dir), f.name)
+    return '', 404
+
+@app.route('/api/viz/presets/<preset_id>/logo', methods=['DELETE'])
+def api_viz_preset_logo_delete(preset_id):
+    global config
+    if '..' in preset_id:
+        return jsonify({'ok': False}), 400
+    viz_dir = ASSETS_DIR / 'viz' / preset_id
+    for ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.webm'):
+        f = viz_dir / ('logo' + ext)
+        if f.exists():
+            f.unlink()
+    cfg = load_config()
+    for p in cfg.get('viz_presets', []):
+        if p['id'] == preset_id:
+            p.get('settings', {}).pop('center_media_type', None)
+            break
+    save_config(cfg)
+    config = cfg
+    return jsonify({'ok': True})
+
 @app.route('/api/display/vs_card', methods=['POST'])
 def api_display_vs_card():
     data = request.get_json() or {}
@@ -4448,6 +4478,15 @@ def api_upload():
             if old.exists():
                 old.unlink()
         dest = vs_dir / (asset_type + ext)
+    elif target_type == 'viz_preset' and target_id:
+        ext = Path(f.filename).suffix.lower() or '.png'
+        viz_dir = ASSETS_DIR / 'viz' / target_id
+        viz_dir.mkdir(parents=True, exist_ok=True)
+        for old_ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.webm'):
+            old = viz_dir / ('logo' + old_ext)
+            if old.exists():
+                old.unlink()
+        dest = viz_dir / ('logo' + ext)
     else:
         return jsonify({'ok': False, 'error': 'Unknown target type'}), 400
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -4529,6 +4568,16 @@ def api_upload():
                 break
         save_vs_cards(vsc_cards)
         log.info(f"VS card {target_id} {asset_type}.image = True")
+    elif target_type == 'viz_preset' and target_id:
+        presets = cfg.get('viz_presets', [])
+        for p in presets:
+            if p['id'] == target_id:
+                p.setdefault('settings', {})['center_media_type'] = \
+                    'video' if ext in ('.mp4', '.webm') else 'image'
+                break
+        save_config(cfg)
+        config = cfg
+        log.info(f"Viz preset {target_id} center_media_type = {ext}")
     return jsonify({'ok': True, 'path': str(dest), 'filename': stored_name})
 
 # ── ADMIN — CLEAR ASSET ──
@@ -6112,7 +6161,10 @@ def api_viz_show():
         cfg    = load_config()
         preset = next((p for p in cfg.get('viz_presets', []) if p['id'] == preset_id), None)
         if preset:
-            payload['settings'] = preset.get('settings', {})
+            settings = dict(preset.get('settings', {}))
+            if settings.get('center_media_type'):
+                settings['center_media_url'] = f'/api/viz/presets/{preset_id}/logo'
+            payload['settings'] = settings
     broadcast('viz_show', payload)
     if scene == 'music':
         _start_audio_analyzer()
