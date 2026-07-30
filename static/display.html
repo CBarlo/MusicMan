@@ -991,7 +991,6 @@ const layerVs = document.getElementById('layer-vs');
 
 function hideVsCard() {
   layerVs.classList.remove('vs-active');
-  layerVs.style.opacity      = '0';
   layerVs.style.pointerEvents = 'none';
 }
 
@@ -1049,7 +1048,7 @@ function showVsCard(data) {
   );
 
   // Flash in
-  layerVs.style.opacity       = '0';
+  layerVs.style.opacity       = '';
   layerVs.style.pointerEvents = 'auto';
   requestAnimationFrame(() => {
     layerVs.classList.add('vs-active');
