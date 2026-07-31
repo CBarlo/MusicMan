@@ -278,7 +278,6 @@
       <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('walkup',this)">CIRCLES</div>
       <div class="page-tab" onclick="showPage('roles',this)">ROLES</div>
-      <div class="page-tab" onclick="showPage('entries',this);loadEntriesTab()">ENTRIES</div>
       <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('sfx',this);buildSfxGrid()">SFX</div>
       <div class="page-tab" onclick="showPage('music',this);loadMusicTracks()">MUSIC</div>
@@ -287,7 +286,6 @@
       <div class="page-tab" onclick="showPage('vscards',this);loadVsCardsConsole()">VS CARDS</div>
       <div class="page-tab" onclick="showPage('viz',this);loadVizTab()">VIZ</div>
       <div class="tab-sep"></div>
-      <div class="page-tab" onclick="showPage('timers',this);loadTimersTab()">TIMERS</div>
       <div class="page-tab" onclick="showPage('games',this);loadGamesOnlyTab()">GAMES</div>
       <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('lights',this);loadLightsTab()">LIGHTS</div>
@@ -539,18 +537,24 @@
     </div>
 
     <!-- ── ENTRIES TAB ── -->
-    <div class="page" id="page-entries">
+    <div class="page" id="page-games">
+
+      <!-- GAME WALK-UPS -->
       <div class="games-section" id="ge-section">
+        <div class="section-label">🎮 GAME WALK-UPS</div>
         <div class="walkup-grid" id="geGrid"></div>
       </div>
-    </div>
 
-    <!-- ── TIMERS TAB ── -->
-    <div class="page" id="page-timers">
+      <!-- GAME LIBRARY -->
+      <div class="games-section" id="gl-ui-section">
+        <div class="section-label">📚 GAME LIBRARY</div>
+        <div id="gl-ui-type-tabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px"></div>
+        <div id="gl-ui-config-list" style="min-height:28px"></div>
+      </div>
 
       <!-- COUNTDOWN TIMER -->
       <div class="games-section">
-        <div class="section-label">COUNTDOWN TIMER</div>
+        <div class="section-label">⏱ COUNTDOWN TIMER</div>
         <div class="games-row">
           <span class="games-label">DURATION</span>
           <input id="cdMins" type="number" min="0" max="99" value="3" class="games-input" style="width:52px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--amber)" oninput="cdMarkDirty()">
@@ -614,7 +618,7 @@
 
       <!-- STOPWATCH -->
       <div class="games-section">
-        <div class="section-label">STOPWATCH</div>
+        <div class="section-label">⏱ STOPWATCH</div>
         <div class="games-row" style="margin-bottom:12px">
           <span class="games-label">DISPLAY</span>
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
@@ -643,8 +647,8 @@
 
       <!-- RANKINGS -->
       <div class="games-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;margin-bottom:4px">
-          <span style="font-size:10px;letter-spacing:2px;color:var(--text-dim)">RANKINGS</span>
+        <div class="section-label">🏆 RANKINGS</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
           <button id="lbSortBtn" onclick="lbToggleSort()" style="font-size:10px;letter-spacing:1px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text-dim)">&#9650; FASTEST FIRST</button>
         </div>
         <div id="leaderboard" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden">
@@ -654,18 +658,6 @@
           <button class="games-btn" onclick="gtShowOnScreen()" style="flex:1;border-color:var(--amber-dim);color:var(--amber);font-size:13px;padding:9px">&#128250; SHOW SCORES</button>
           <button class="games-btn" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('DISPLAY CLEARED',1500)" style="border-color:var(--border);color:var(--text-dim);font-size:13px;padding:9px">&#10005; CLEAR</button>
         </div>
-      </div>
-
-    </div><!-- /page-timers -->
-
-    <!-- ── GAMES TAB ── -->
-    <div class="page" id="page-games">
-
-      <!-- GAME LIBRARY RECALL -->
-      <div class="games-section" id="gl-ui-section">
-        <div class="section-label">🎮 GAME LIBRARY</div>
-        <div id="gl-ui-type-tabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px"></div>
-        <div id="gl-ui-config-list" style="min-height:28px"></div>
       </div>
 
       <!-- SHELL GAME -->
@@ -964,10 +956,13 @@ function navToPage(id) {
   showPage(id, tab);
 }
 
-function loadEntriesTab()   { buildGameEntriesGrid(); }
 function loadSlidesTab()    { loadSavedSlidesConsole(); setTimeout(updateConsPreview, 100); }
 function loadVizTab()       { vizConsoleLoadPresets(); }
-async function loadTimersTab() {
+async function loadGamesOnlyTab() {
+  buildGameEntriesGrid();
+  loadGlUi();
+  await sgUiLoadConfig();
+  await sgUiLoadThemes();
   await loadCdAudioOptions();
   await loadCdDisplayOptions();
   await loadGamesList();
@@ -979,11 +974,11 @@ async function loadTimersTab() {
       document.getElementById('cdSecs2').value = cdTotal%60;
       renderCd();
     }
-    if (t.start_sound)                    { const s=document.getElementById('cdStartAudio');   if(s) s.value=t.start_sound; }
-    if (t.start_sound_duration!==undefined) document.getElementById('cdStartDuration').value=t.start_sound_duration;
-    if (t.start_sound_fade!==undefined)     document.getElementById('cdStartFade').value=t.start_sound_fade;
-    if (t.end_sound)                      { const s=document.getElementById('cdEndAudio');     if(s) s.value=t.end_sound; }
-    if (t.end_display)                    { const s=document.getElementById('cdEndDisplay');   if(s) s.value=t.end_display; }
+    if (t.start_sound)                      { const s=document.getElementById('cdStartAudio');   if(s) s.value=t.start_sound; }
+    if (t.start_sound_duration!==undefined)   document.getElementById('cdStartDuration').value=t.start_sound_duration;
+    if (t.start_sound_fade!==undefined)       document.getElementById('cdStartFade').value=t.start_sound_fade;
+    if (t.end_sound)                        { const s=document.getElementById('cdEndAudio');     if(s) s.value=t.end_sound; }
+    if (t.end_display)                      { const s=document.getElementById('cdEndDisplay');   if(s) s.value=t.end_display; }
     const animEl = document.getElementById('cdShowEndAnim');   if(animEl)  animEl.checked  = t.show_end_display !== false;
     const cdLpEl = document.getElementById('cdStartLoop');     if(cdLpEl)  cdLpEl.checked  = t.start_sound_loop !== false;
     const cdLedEl= document.getElementById('cdCountdownLeds'); if(cdLedEl) cdLedEl.checked = !!t.countdown_leds;
@@ -992,7 +987,6 @@ async function loadTimersTab() {
   document.getElementById('cdSetBtn').style.borderColor='';
   document.getElementById('cdSetBtn').style.color='';
 }
-async function loadGamesOnlyTab() { loadGlUi(); await sgUiLoadConfig(); await sgUiLoadThemes(); }
 
 function _hsDot(id, ok) {
   const el = document.getElementById(id);
