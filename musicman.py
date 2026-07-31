@@ -6093,7 +6093,7 @@ def _start_sound_poll():
                 # Circle colour animation owns the strips — stand aside
                 time.sleep(1 / 8)
                 continue
-            if config.get('crowd_lights') and config.get('crowd_climb_mode', False):
+            if config.get('crowd_lights') and config.get('crowd_climb_mode', False) and not _crowd_state.get('climax'):
                 target = _crowd_state.get('level', 0) / 100.0
                 diff   = target - _crowd_led_display
                 alpha  = ATTACK if diff > 0 else DECAY

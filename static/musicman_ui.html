@@ -3244,14 +3244,17 @@ function initWebSocket() {
       }
       else if (['display_walkup','display_step','display_animation','display_clear','display_standby','display_leaderboard'].includes(event)) {
         vizConsoleUpdateStatus(null);
-        _crowdSliderSet(0);
-        fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({level:0, climax:false})}).catch(()=>{});
+        if (!_crowdClimax) {   // don't reset crowd while climax macro owns the display
+          _crowdSliderSet(0);
+          fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({level:0, climax:false})}).catch(()=>{});
+        }
       }
 
       else if (event === 'viz_crowd') {
         if (!_vizActiveScene) return;
         const lv = data.level || 0;
+        _crowdClimax = !!(data.climax);
         _crowdSliderSet(lv);
         const bug = document.getElementById('crowd-bug');
         if (bug) {
@@ -3317,6 +3320,7 @@ function vizConsoleHide() {
 
 // ── CROWD CONTROL ─────────────────────────
 let _crowdMode   = 'manual';
+let _crowdClimax = false;
 let _soundLevels = {};
 let _crowdClimax = false;
 let _peakLevel   = 0;   // peak across all nodes this session
