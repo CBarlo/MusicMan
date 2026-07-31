@@ -140,6 +140,17 @@
   .slide-field::placeholder { color:var(--text-dim); }
   .slide-field-ta { resize:vertical;min-height:80px;line-height:1.5; }
   .slide-field-label { font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin-bottom:3px;display:block; }
+  .split { display:grid; grid-template-columns:1fr 340px; gap:16px; align-items:start; }
+  .roles-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px; }
+  .editor-panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px; }
+  .editor-title { font-size:10px; letter-spacing:3px; color:var(--text-dim); font-weight:700; margin-bottom:12px; }
+  .circle-card { background:var(--bg3); border:2px solid var(--border); border-radius:10px; padding:12px; cursor:pointer; transition:all .2s; }
+  .circle-card:hover { border-color:var(--border2); }
+  .circle-card-name { font-size:13px; font-weight:800; line-height:1.2; margin-bottom:4px; }
+  .btn-row { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .btn { padding:9px 18px; border-radius:7px; border:none; font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700; letter-spacing:1.5px; cursor:pointer; transition:all .15s; }
+  .btn-primary { background:var(--amber); color:#1a1400; }
+  .btn-secondary { background:var(--bg3); color:var(--text); border:1px solid var(--border); }
   .macro-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .macro-btn { padding: 14px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: all .2s; text-align: left; display: flex; flex-direction: column; gap: 4px; }
   .macro-btn:hover { border-color: var(--amber-dim); background: var(--bg3); transform: translateY(-1px); }
@@ -314,71 +325,72 @@
     </div>
     <!-- ── SLIDES TAB ── -->
     <div class="page" id="page-slides">
-      <div style="padding:4px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">📋 SLIDES</div>
+        <button onclick="loadSavedSlidesConsole()" style="font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">↺</button>
+      </div>
+      <div class="split">
 
-        <!-- LIVE SLIDE BUILDER -->
-        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
-          <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);margin-bottom:10px;font-weight:700">LIVE SLIDE</div>
-
-          <!-- Template selector -->
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="slideTemplates">
-            <button class="slide-tpl-btn active" data-tpl="big_title"   onclick="selectSlideTemplate('big_title',this)">BIG TITLE</button>
-            <button class="slide-tpl-btn"        data-tpl="bulletin"    onclick="selectSlideTemplate('bulletin',this)">BULLETIN</button>
-            <button class="slide-tpl-btn"        data-tpl="next_event"  onclick="selectSlideTemplate('next_event',this)">NEXT EVENT</button>
-            <button class="slide-tpl-btn"        data-tpl="spotlight"   onclick="selectSlideTemplate('spotlight',this)">SPOTLIGHT</button>
-            <button class="slide-tpl-btn"        data-tpl="qr"          onclick="selectSlideTemplate('qr',this)">QR CODE</button>
+        <!-- Left: saved slides grid + display images -->
+        <div>
+          <div class="roles-grid" id="saved-slides-console">
+            <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;grid-column:1/-1">LOADING…</div>
           </div>
+          <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin:0 0 8px">DISPLAY IMAGES</div>
+          <button onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Projector cleared',1500)"
+            style="margin-bottom:10px;background:var(--surface);border:1px solid var(--border2);color:var(--text-dim);padding:6px 16px;border-radius:6px;font-size:11px;letter-spacing:2px;cursor:pointer;font-weight:700">&#x2715; CLEAR PROJECTOR</button>
+          <div class="sfx-grid" id="displayGrid"></div>
+        </div>
 
-          <!-- Dynamic fields -->
-          <div id="slideFields" oninput="updateConsPreview()" onchange="updateConsPreview()"></div>
+        <!-- Right: live slide builder -->
+        <div>
+          <div class="editor-panel">
+            <div class="editor-title">LIVE SLIDE</div>
 
-          <!-- Accent color -->
-          <div style="margin:10px 0 12px">
-            <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin-bottom:5px">ACCENT</div>
-            <div class="color-row" style="margin-bottom:5px">
-              <input type="color" id="cons-sl-color" value="#F5A623" oninput="consSlColorWheel(this.value)">
-              <input type="text" id="cons-sl-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="consSlColorHex(this.value)" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 7px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600">
+            <label class="slide-field-label">TEMPLATE</label>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px" id="slideTemplates">
+              <button class="slide-tpl-btn active" data-tpl="big_title"  onclick="selectSlideTemplate('big_title',this)">BIG TITLE</button>
+              <button class="slide-tpl-btn"        data-tpl="bulletin"   onclick="selectSlideTemplate('bulletin',this)">BULLETIN</button>
+              <button class="slide-tpl-btn"        data-tpl="next_event" onclick="selectSlideTemplate('next_event',this)">NEXT EVENT</button>
+              <button class="slide-tpl-btn"        data-tpl="spotlight"  onclick="selectSlideTemplate('spotlight',this)">SPOTLIGHT</button>
+              <button class="slide-tpl-btn"        data-tpl="qr"         onclick="selectSlideTemplate('qr',this)">QR CODE</button>
             </div>
-            <div class="swatch-row" id="cons-sl-swatches">
-              <button class="swatch selected" data-color="#F5A623" style="background:#F5A623" onclick="consSlColorSwatch('#F5A623')" title="Amber"></button>
-              <button class="swatch"           data-color="#4A9FD4" style="background:#4A9FD4" onclick="consSlColorSwatch('#4A9FD4')" title="Blue"></button>
-              <button class="swatch"           data-color="#3CB96A" style="background:#3CB96A" onclick="consSlColorSwatch('#3CB96A')" title="Green"></button>
-              <button class="swatch"           data-color="#FFFFFF" style="background:#FFFFFF" onclick="consSlColorSwatch('#FFFFFF')" title="White"></button>
-              <button class="swatch"           data-color="#E83A3A" style="background:#E83A3A" onclick="consSlColorSwatch('#E83A3A')" title="Red"></button>
+
+            <div id="slideFields" oninput="updateConsPreview()" onchange="updateConsPreview()"></div>
+
+            <div style="margin:10px 0 12px">
+              <label class="slide-field-label">ACCENT</label>
+              <div class="color-row" style="margin-bottom:5px">
+                <input type="color" id="cons-sl-color" value="#F5A623" oninput="consSlColorWheel(this.value)">
+                <input type="text" id="cons-sl-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="consSlColorHex(this.value)"
+                  style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 7px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600">
+              </div>
+              <div class="swatch-row" id="cons-sl-swatches">
+                <button class="swatch selected" data-color="#F5A623" style="background:#F5A623" onclick="consSlColorSwatch('#F5A623')" title="Amber"></button>
+                <button class="swatch"          data-color="#4A9FD4" style="background:#4A9FD4" onclick="consSlColorSwatch('#4A9FD4')" title="Blue"></button>
+                <button class="swatch"          data-color="#3CB96A" style="background:#3CB96A" onclick="consSlColorSwatch('#3CB96A')" title="Green"></button>
+                <button class="swatch"          data-color="#FFFFFF" style="background:#FFFFFF" onclick="consSlColorSwatch('#FFFFFF')" title="White"></button>
+                <button class="swatch"          data-color="#E83A3A" style="background:#E83A3A" onclick="consSlColorSwatch('#E83A3A')" title="Red"></button>
+              </div>
             </div>
-          </div>
 
-          <!-- Live preview -->
-          <div class="sl-prev sl-prev--full" id="cons-slide-preview" style="margin:0 0 12px">
-            <div style="color:rgba(255,255,255,.2);font-size:9px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SLIDE</div>
-          </div>
+            <label class="slide-field-label">PREVIEW</label>
+            <div class="sl-prev sl-prev--full" id="cons-slide-preview" style="margin-bottom:12px">
+              <div style="color:rgba(255,255,255,.2);font-size:9px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SLIDE</div>
+            </div>
 
-          <!-- Send / Clear / Save -->
-          <div style="display:flex;gap:8px;margin-bottom:8px">
-            <button onclick="sendSlide()" style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">&#9654; SEND TO DISPLAY</button>
-            <button onclick="clearSlide()" style="padding:10px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">&#x2715; CLEAR</button>
-          </div>
-          <div style="display:flex;gap:8px">
-            <input id="sl-save-name" type="text" placeholder="Name to save as…" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:7px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
-            <button onclick="saveSlideConsole()" style="padding:8px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">💾 SAVE</button>
+            <div class="btn-row">
+              <button onclick="sendSlide()" class="btn btn-primary">&#9654; SEND</button>
+              <button onclick="clearSlide()" class="btn btn-secondary">&#x2715; CLEAR</button>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <input id="sl-save-name" type="text" placeholder="Name to save as…"
+                style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
+              <button onclick="saveSlideConsole()" class="btn btn-secondary">💾 SAVE</button>
+            </div>
           </div>
         </div>
 
-        <!-- Saved slides -->
-        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">SAVED SLIDES</div>
-            <button onclick="loadSavedSlidesConsole()" style="font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">↺</button>
-          </div>
-          <div id="saved-slides-console" style="display:flex;flex-direction:column;gap:6px">
-            <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px">LOADING…</div>
-          </div>
-        </div>
-
-        <!-- Display images -->
-        <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Tap an image to send it to the connected display. Use CLEAR PROJECTOR to blank the screen.</div>
-        <button id="clearDisplayBtn" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Projector cleared',1500)" style="margin-bottom:12px;background:var(--surface);border:1px solid var(--border2);color:var(--text-dim);padding:6px 16px;border-radius:6px;font-size:11px;letter-spacing:2px;cursor:pointer;font-weight:700">&#x2715; CLEAR PROJECTOR</button>
-        <div class="sfx-grid" id="displayGrid"></div>
       </div>
     </div>
 
@@ -1398,18 +1410,15 @@ async function loadSavedSlidesConsole() {
     return;
   }
   el.innerHTML = slides.map(s => `
-    <div style="display:flex;gap:6px;align-items:center">
-      <div class="sl-prev sl-prev--thumb" data-slide-id="${s.id}"></div>
-      <button onclick="pushSavedSlide('${s.id}')"
-        style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;text-align:left;font-family:'Barlow Condensed',sans-serif">
-        <span style="font-size:14px;font-weight:700;letter-spacing:.5px">${s.name}</span>
-        <span style="font-size:10px;letter-spacing:1px;color:var(--text-dim)">${(s.template||'').replace('_',' ').toUpperCase()}</span>
-      </button>
-      <button onclick="deleteSavedSlideConsole('${s.id}')"
-        style="padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-size:13px;font-family:'Barlow Condensed',sans-serif;font-weight:700">✕</button>
+    <div class="circle-card" onclick="pushSavedSlide('${escHtml(s.id)}')">
+      <div class="sl-prev sl-prev--full" data-slide-id="${escHtml(s.id)}" style="margin-bottom:8px;pointer-events:none"></div>
+      <div class="circle-card-name">${escHtml(s.name)}</div>
+      <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px;font-family:'Share Tech Mono',monospace">${(s.template||'').replace('_',' ').toUpperCase()}</div>
+      <button onclick="event.stopPropagation();deleteSavedSlideConsole('${escHtml(s.id)}')"
+        style="width:100%;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-size:11px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px">✕ REMOVE</button>
     </div>`).join('');
   slides.forEach(s => {
-    const el2 = document.querySelector('.sl-prev[data-slide-id="' + s.id + '"]');
+    const el2 = document.querySelector(`#saved-slides-console .sl-prev[data-slide-id="${s.id}"]`);
     if (el2) renderSlPreview(s, el2);
   });
 }
