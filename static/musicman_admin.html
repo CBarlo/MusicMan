@@ -6378,7 +6378,7 @@ async function loadShowFlowTemplates() {
 
 async function saveShowFlowTemplate() {
   const name = document.getElementById('sft-name')?.value.trim();
-  if (!name) { showToast('ENTER A NAME FIRST', 'err'); return; }
+  if (!name) { toast('ENTER A NAME FIRST', 'err'); return; }
   try {
     const r = await fetch('/api/admin/show_flow_templates', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -6386,28 +6386,28 @@ async function saveShowFlowTemplate() {
     });
     if ((await r.json()).ok) {
       document.getElementById('sft-name').value = '';
-      showToast('FLOW SAVED', 'ok');
+      toast('FLOW SAVED', 'ok');
       await loadShowFlowTemplates();
-    } else { showToast('SAVE FAILED', 'err'); }
-  } catch(e) { showToast('SAVE FAILED', 'err'); }
+    } else { toast('SAVE FAILED', 'err'); }
+  } catch(e) { toast('SAVE FAILED', 'err'); }
 }
 
 async function loadShowFlowTemplate(id) {
   if (!confirm('Replace the current show flow with this template?')) return;
   try {
     const r = await fetch(`/api/admin/show_flow_templates/${id}/load`, { method: 'POST' });
-    if ((await r.json()).ok) { showToast('FLOW LOADED', 'ok'); await loadShowFlow(); }
-    else { showToast('LOAD FAILED', 'err'); }
-  } catch(e) { showToast('LOAD FAILED', 'err'); }
+    if ((await r.json()).ok) { toast('FLOW LOADED', 'ok'); await loadShowFlow(); }
+    else { toast('LOAD FAILED', 'err'); }
+  } catch(e) { toast('LOAD FAILED', 'err'); }
 }
 
 async function deleteShowFlowTemplate(id) {
   if (!confirm('Delete this saved flow?')) return;
   try {
     await fetch(`/api/admin/show_flow_templates/${id}`, { method: 'DELETE' });
-    showToast('DELETED', 'info');
+    toast('DELETED', 'info');
     await loadShowFlowTemplates();
-  } catch(e) { showToast('DELETE FAILED', 'err'); }
+  } catch(e) { toast('DELETE FAILED', 'err'); }
 }
 
 // ── TIMER CONFIG ───────────────────────────────────────────────────────────
