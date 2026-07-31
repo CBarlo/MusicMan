@@ -58,8 +58,8 @@
   .btn-transport.danger:hover { background: #330000; }
   .vol-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
   .vol-label { font-size: 10px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; letter-spacing: 2px; width: 32px; }
-  .vol-slider { flex: 1; -webkit-appearance: none; height: 4px; background: var(--bg3); border-radius: 2px; outline: none; }
-  .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--amber); cursor: pointer; }
+  .vol-slider { flex: 1; -webkit-appearance: none; height: 8px; background: var(--bg3); border-radius: 4px; outline: none; }
+  .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--amber); cursor: pointer; }
   .vol-val { font-size: 11px; color: var(--amber); font-family: 'Share Tech Mono', monospace; width: 32px; text-align: right; }
   .timer-panel { padding: 14px 16px; background: var(--bg3); border-bottom: 1px solid var(--border); }
   .timer-display { font-family: 'Share Tech Mono', monospace; font-size: 54px; line-height: 1; color: var(--amber); text-align: center; text-shadow: 0 0 30px #F5A62355; letter-spacing: 4px; transition: color .3s, text-shadow .3s; }
@@ -97,6 +97,9 @@
   .scene-btn { height: 46px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .scene-btn:hover { background: var(--bg3); }
   .scene-btn.active { border-color: var(--amber); background: var(--amber-dim); color: var(--amber); box-shadow: 0 0 12px #F5A62333; }
+  .scene-btn[draggable=true] { cursor: grab; }
+  .scene-btn[draggable=true]:active { cursor: grabbing; }
+  .scene-btn.drag-over { border-color: var(--amber); opacity: 0.6; outline: 2px dashed var(--amber); }
   .scene-icon { font-size: 16px; }
   .dim-row { display: flex; align-items: center; gap: 8px; margin-top: 22px; }
   .right { display: flex; flex-direction: column; overflow: hidden; }
@@ -196,6 +199,10 @@
     <div class="hstat"><div class="status-dot dim" id="hs-ipad"></div><div class="hstat-label">IPAD</div></div>
     <div id="hs-poles" style="display:flex;gap:8px"></div>
     <div style="width:1px;height:28px;background:var(--border);margin:0 4px"></div>
+    <div id="panel-mic-wrap" style="display:none;align-items:center;gap:8px">
+      <span style="font-size:8px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap">MIC</span>
+      <div id="panel-db-meters" style="display:flex;flex-direction:column;gap:3px;min-width:130px"></div>
+    </div>
     <span class="clock" id="clock">00:00:00</span>
   </div>
 </div>
@@ -222,10 +229,6 @@
         <button class="btn-transport" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Display cleared',1500)" style="flex:1;font-size:10px;letter-spacing:1px">&#9723; CLEAR</button>
       </div>
       <button onclick="killAll()" style="width:100%;margin-top:8px;height:42px;border-radius:8px;border:2px solid #c0392b;background:#2d0a0a;color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;cursor:pointer">&#9760; KILL ALL</button>
-      <div id="panel-mic-wrap" style="display:none;margin-top:10px">
-        <div style="font-size:8px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;margin-bottom:5px">MIC LEVELS</div>
-        <div id="panel-db-meters" style="display:flex;flex-direction:column;gap:4px"></div>
-      </div>
       <div class="vol-row">
         <span class="vol-label">MUSIC</span>
         <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="80" oninput="updateVol(this.value)">
@@ -264,40 +267,6 @@
         <span class="vol-label" style="width:40px;font-size:9px;">DIM</span>
         <input type="range" class="vol-slider" min="0" max="100" value="75" oninput="updateBright(this.value)">
         <span class="vol-val" id="brightVal">75%</span>
-      </div>
-      <div style="margin-top:20px">
-        <div class="section-label">WLED LIVE TUNE</div>
-        <select id="wledTuneDevice" onchange="wledTuneDeviceChange()"
-          style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;margin-bottom:10px">
-          <option value="">— select device —</option>
-        </select>
-        <div id="wledTuneSliders" style="display:none">
-          <div class="dim-row" style="margin-top:4px">
-            <span class="vol-label" style="width:40px;font-size:9px">SPEED</span>
-            <input type="range" class="vol-slider" id="wts_sx" min="0" max="255" value="128" oninput="wledTuneInput('sx',this.value);document.getElementById('wtv_sx').textContent=this.value">
-            <span class="vol-val" id="wtv_sx" style="width:28px">128</span>
-          </div>
-          <div class="dim-row" style="margin-top:14px">
-            <span class="vol-label" style="width:40px;font-size:9px">INTENS</span>
-            <input type="range" class="vol-slider" id="wts_ix" min="0" max="255" value="128" oninput="wledTuneInput('ix',this.value);document.getElementById('wtv_ix').textContent=this.value">
-            <span class="vol-val" id="wtv_ix" style="width:28px">128</span>
-          </div>
-          <div class="dim-row" style="margin-top:14px">
-            <span class="vol-label" style="width:40px;font-size:9px">C1</span>
-            <input type="range" class="vol-slider" id="wts_c1" min="0" max="255" value="128" oninput="wledTuneInput('c1',this.value);document.getElementById('wtv_c1').textContent=this.value">
-            <span class="vol-val" id="wtv_c1" style="width:28px">128</span>
-          </div>
-          <div class="dim-row" style="margin-top:14px">
-            <span class="vol-label" style="width:40px;font-size:9px">C2</span>
-            <input type="range" class="vol-slider" id="wts_c2" min="0" max="255" value="128" oninput="wledTuneInput('c2',this.value);document.getElementById('wtv_c2').textContent=this.value">
-            <span class="vol-val" id="wtv_c2" style="width:28px">128</span>
-          </div>
-          <div class="dim-row" style="margin-top:14px">
-            <span class="vol-label" style="width:40px;font-size:9px">C3</span>
-            <input type="range" class="vol-slider" id="wts_c3" min="0" max="255" value="128" oninput="wledTuneInput('c3',this.value);document.getElementById('wtv_c3').textContent=this.value">
-            <span class="vol-val" id="wtv_c3" style="width:28px">128</span>
-          </div>
-        </div>
       </div>
       <div class="credits" style="margin-top:16px">MUSIC MAN CONSOLE &middot; BROKEN ARROW EXPEDITION<br>BORING BADGER (CHRIS) &middot; GAMING GECKO (HENRY) &middot; LITTLE RED MACHINE (NOLAN)</div>
     </div>
@@ -799,6 +768,42 @@
             <div id="dlk-saved"></div>
           </div>
           <div id="dlk-empty" style="color:var(--text-dim);font-size:10px;font-family:'Share Tech Mono',monospace;letter-spacing:2px">NO FIXTURE TYPES CONFIGURED IN ADMIN</div>
+        </div>
+      </div>
+
+      <!-- WLED LIVE TUNE -->
+      <div class="games-section">
+        <div class="section-label">WLED LIVE TUNE</div>
+        <select id="wledTuneDevice" onchange="wledTuneDeviceChange()"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;margin-bottom:10px">
+          <option value="">— select device —</option>
+        </select>
+        <div id="wledTuneSliders" style="display:none">
+          <div class="dim-row" style="margin-top:4px">
+            <span class="vol-label" style="width:40px;font-size:9px">SPEED</span>
+            <input type="range" class="vol-slider" id="wts_sx" min="0" max="255" value="128" oninput="wledTuneInput('sx',this.value);document.getElementById('wtv_sx').textContent=this.value">
+            <span class="vol-val" id="wtv_sx" style="width:28px">128</span>
+          </div>
+          <div class="dim-row" style="margin-top:14px">
+            <span class="vol-label" style="width:40px;font-size:9px">INTENS</span>
+            <input type="range" class="vol-slider" id="wts_ix" min="0" max="255" value="128" oninput="wledTuneInput('ix',this.value);document.getElementById('wtv_ix').textContent=this.value">
+            <span class="vol-val" id="wtv_ix" style="width:28px">128</span>
+          </div>
+          <div class="dim-row" style="margin-top:14px">
+            <span class="vol-label" style="width:40px;font-size:9px">C1</span>
+            <input type="range" class="vol-slider" id="wts_c1" min="0" max="255" value="128" oninput="wledTuneInput('c1',this.value);document.getElementById('wtv_c1').textContent=this.value">
+            <span class="vol-val" id="wtv_c1" style="width:28px">128</span>
+          </div>
+          <div class="dim-row" style="margin-top:14px">
+            <span class="vol-label" style="width:40px;font-size:9px">C2</span>
+            <input type="range" class="vol-slider" id="wts_c2" min="0" max="255" value="128" oninput="wledTuneInput('c2',this.value);document.getElementById('wtv_c2').textContent=this.value">
+            <span class="vol-val" id="wtv_c2" style="width:28px">128</span>
+          </div>
+          <div class="dim-row" style="margin-top:14px">
+            <span class="vol-label" style="width:40px;font-size:9px">C3</span>
+            <input type="range" class="vol-slider" id="wts_c3" min="0" max="255" value="128" oninput="wledTuneInput('c3',this.value);document.getElementById('wtv_c3').textContent=this.value">
+            <span class="vol-val" id="wtv_c3" style="width:28px">128</span>
+          </div>
         </div>
       </div>
 
@@ -2582,8 +2587,42 @@ async function buildSceneGrid(){
       btn.dataset.sceneId=s.id;
       btn.innerHTML=`<span class="scene-icon">${s.icon||'✦'}</span> ${escHtml((s.name||s.id).toUpperCase())}`;
       btn.onclick=()=>setScene(s.id,btn);
+      if(gridId==='sceneGrid') _sceneAddDrag(btn);
       grid.appendChild(btn);
     });
+  });
+}
+
+let _sceneDragSrc = null;
+function _sceneAddDrag(btn) {
+  btn.draggable = true;
+  btn.addEventListener('dragstart', e => {
+    _sceneDragSrc = btn;
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => { btn.style.opacity = '0.4'; }, 0);
+  });
+  btn.addEventListener('dragend', () => {
+    btn.style.opacity = '';
+    document.querySelectorAll('#sceneGrid .scene-btn').forEach(b => b.classList.remove('drag-over'));
+  });
+  btn.addEventListener('dragover', e => { e.preventDefault(); btn.classList.add('drag-over'); });
+  btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+  btn.addEventListener('drop', e => {
+    e.preventDefault();
+    btn.classList.remove('drag-over');
+    if (!_sceneDragSrc || _sceneDragSrc === btn) return;
+    const grid = document.getElementById('sceneGrid');
+    const children = [...grid.children];
+    const fromIdx = children.indexOf(_sceneDragSrc);
+    const toIdx   = children.indexOf(btn);
+    if (fromIdx < 0 || toIdx < 0) return;
+    if (fromIdx < toIdx) grid.insertBefore(_sceneDragSrc, btn.nextSibling);
+    else grid.insertBefore(_sceneDragSrc, btn);
+    const order = [...grid.children].map(b => b.dataset.sceneId);
+    fetch('/api/admin/scenes/reorder', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({order})}).catch(()=>{});
+    const lg = document.getElementById('sceneGridLights');
+    if (lg) order.forEach(id => { const b = lg.querySelector(`[data-scene-id="${id}"]`); if (b) lg.appendChild(b); });
+    _sceneDragSrc = null;
   });
 }
 
@@ -3517,7 +3556,7 @@ function renderDbMeters() {
   const htmlp = nodes.map(([id,info]) => panelRowHTML(id, info)).join('');
   if (c1) c1.innerHTML = html1;
   if (c2) c2.innerHTML = html2;
-  if (cp) { cp.innerHTML = htmlp; if (pw) pw.style.display = ''; }
+  if (cp) { cp.innerHTML = htmlp; if (pw) pw.style.display = 'flex'; }
 }
 
 // Bootstrap crowd state on page load

@@ -3943,6 +3943,21 @@ def api_delete_scene():
     config = cfg
     return jsonify({'ok': True})
 
+@app.route('/api/admin/scenes/reorder', methods=['POST'])
+def api_reorder_scenes():
+    global config
+    data  = request.get_json()
+    order = data.get('order', [])
+    cfg   = load_config()
+    scenes     = cfg.get('scenes', [])
+    scene_map  = {s['id']: s for s in scenes}
+    ordered    = [scene_map[sid] for sid in order if sid in scene_map]
+    remaining  = [s for s in scenes if s['id'] not in set(order)]
+    cfg['scenes'] = ordered + remaining
+    save_config(cfg)
+    config = cfg
+    return jsonify({'ok': True})
+
 @app.route('/api/admin/macro', methods=['POST'])
 def api_save_macro():
     global config
