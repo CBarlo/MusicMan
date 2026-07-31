@@ -685,17 +685,19 @@ def _send_crowd_lights(level, climax):
         _stop_music()   # stops music + playlist, but leaves SFX channel so explosion SFX can play
         climax_dur = cfg.get('crowd_climax_duration_ms', 2500) / 1000.0
         macro_id   = cfg.get('crowd_climax_macro_id', '')
-        revert_id  = cfg.get('crowd_revert_scene_id', '')
+        revert_id  = cfg.get('crowd_revert_macro_id', '')
+        all_macros = {m['id']: m for m in cfg.get('macros', [])}
         if macro_id:
-            macros = {m['id']: m for m in cfg.get('macros', [])}
-            macro  = macros.get(macro_id)
+            macro = all_macros.get(macro_id)
             if macro:
                 threading.Thread(target=execute_macro, args=(macro,), daemon=True).start()
 
-        def _after_climax(dur=climax_dur, rsid=revert_id):
+        def _after_climax(dur=climax_dur, rsid=revert_id, macro_map=all_macros):
             time.sleep(dur)
             if rsid:
-                wled_set_scene(rsid)
+                revert_macro = macro_map.get(rsid)
+                if revert_macro:
+                    execute_macro(revert_macro)
             _crowd_state['climax'] = False
             _crowd_state['level']  = 0
             broadcast('viz_crowd', _crowd_state)
@@ -6358,7 +6360,7 @@ def api_viz_preset_activate(pid):
     cfg['crowd_num_strips']         = s.get('crowd_num_strips', 1)
     cfg['crowd_dmx_fixtures']       = s.get('crowd_dmx_fixtures', [])
     cfg['crowd_climax_macro_id']    = s.get('crowd_climax_macro_id', '')
-    cfg['crowd_revert_scene_id']    = s.get('crowd_revert_scene_id', '')
+    cfg['crowd_revert_macro_id']    = s.get('crowd_revert_macro_id', '')
     cfg['crowd_climax_duration_ms'] = s.get('crowd_climax_duration_ms', 2500)
     save_config(cfg)
     config = cfg

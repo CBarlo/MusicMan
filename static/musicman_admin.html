@@ -2007,14 +2007,14 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                 <!-- ── ON PEAK ── -->
                 <div class="card-title" style="margin-bottom:8px">⚡ ON PEAK</div>
                 <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:10px">
-                  When ⚡ CLIMAX is tapped, this macro fires, then the revert scene restores normal lighting.
+                  When ⚡ CLIMAX is tapped, the climax macro fires. After the climax duration, the revert macro runs — use it to restore lights and put the logo back on screen.
                 </p>
-                <label>RUN MACRO</label>
+                <label>CLIMAX MACRO</label>
                 <select id="crowd-climax-macro" style="width:100%;margin-bottom:10px">
                   <option value="">— none —</option>
                 </select>
-                <label>REVERT TO SCENE <span style="font-weight:400;color:var(--text-dim)">(after climax ends)</span></label>
-                <select id="crowd-revert-scene" style="width:100%;margin-bottom:10px">
+                <label>REVERT MACRO <span style="font-weight:400;color:var(--text-dim)">(fires after climax ends)</span></label>
+                <select id="crowd-revert-macro" style="width:100%;margin-bottom:10px">
                   <option value="">— none —</option>
                 </select>
                 <div style="display:flex;align-items:center;gap:8px">
@@ -8664,7 +8664,7 @@ function vizApplyPresetToForm(p) {
   setV('crowd-num-strips', s.crowd_num_strips || 1);
   setV('crowd-climax-duration', s.crowd_climax_duration_ms || 2500);
   setV('crowd-climax-macro', s.crowd_climax_macro_id || '');
-  setV('crowd-revert-scene', s.crowd_revert_scene_id || '');
+  setV('crowd-revert-macro', s.crowd_revert_macro_id || '');
 
   document.getElementById('viz-delete-btn').style.display = p ? '' : 'none';
   vizSwitchTab(p ? p.scene : 'music');
@@ -8721,7 +8721,7 @@ async function vizSavePreset() {
     crowd_num_strips:         parseInt(document.getElementById('crowd-num-strips').value) || 1,
     crowd_dmx_fixtures:       dmxChecked,
     crowd_climax_macro_id:    document.getElementById('crowd-climax-macro').value,
-    crowd_revert_scene_id:    document.getElementById('crowd-revert-scene').value,
+    crowd_revert_macro_id:    document.getElementById('crowd-revert-macro').value,
     crowd_climax_duration_ms: parseInt(document.getElementById('crowd-climax-duration').value) || 2500,
     scene,
   };
@@ -8754,7 +8754,7 @@ async function vizSavePreset() {
       cfg.crowd_num_strips         = settings.crowd_num_strips;
       cfg.crowd_dmx_fixtures       = settings.crowd_dmx_fixtures;
       cfg.crowd_climax_macro_id    = settings.crowd_climax_macro_id;
-      cfg.crowd_revert_scene_id    = settings.crowd_revert_scene_id;
+      cfg.crowd_revert_macro_id    = settings.crowd_revert_macro_id;
       cfg.crowd_climax_duration_ms = settings.crowd_climax_duration_ms;
       await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify(cfg)});
@@ -8902,11 +8902,11 @@ async function loadMusicViz() {
     ...scenes.map(s => `<option value="${escHtml(s.id)}">${escHtml(s.name)}</option>`)].join('');
   const lightingSceneSel = document.getElementById('viz-lighting-scene');
   if (lightingSceneSel) lightingSceneSel.innerHTML = sceneOpts;
-  const revertSceneSel = document.getElementById('crowd-revert-scene');
-  if (revertSceneSel) revertSceneSel.innerHTML = sceneOpts;
   const macroOpts = (cfg.macros || []).map(m => `<option value="${escHtml(m.id)}">${escHtml(m.name || m.id)}</option>`).join('');
   const macroSel = document.getElementById('crowd-climax-macro');
   if (macroSel) macroSel.innerHTML = '<option value="">— none —</option>' + macroOpts;
+  const revertMacroSel = document.getElementById('crowd-revert-macro');
+  if (revertMacroSel) revertMacroSel.innerHTML = '<option value="">— none —</option>' + macroOpts;
   await _crowdOptionsInit();
   await overlayInit();
   await vizFetchPresets();
