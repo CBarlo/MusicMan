@@ -276,6 +276,8 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
 .sd-preview-set  { display:flex; gap:10px; align-items:flex-start; margin-top:6px }
 .sd-preview-col  { display:flex; flex-direction:column; align-items:center; gap:4px }
 .sd-preview-col span { font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px }
+/* VS Cards needs a wider editor panel to fit the 2-column LEFT/RIGHT side layout */
+#tab-vs-cards .split { grid-template-columns: 1fr 560px; }
 </style>
 </head>
 <body>
