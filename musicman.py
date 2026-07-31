@@ -379,8 +379,9 @@ _last_scene_dmx  = {}    # node_id → [{start, channels}] (unscaled) from last 
 
 # ── VIZ STATE ─────────────────────────────────────────────────────────────────
 _viz_scene   = None   # 'music' | 'crowd' | None
-_crowd_state   = {'level': 0, 'climax': False}
-_crowd_mode    = 'manual'   # 'manual' | 'auto' (auto = driven by pole mic dB)
+_crowd_state        = {'level': 0, 'climax': False}
+_crowd_mode         = 'manual'   # 'manual' | 'auto' (auto = driven by pole mic dB)
+_crowd_post_climax  = False      # blocks anim + auto-poll until operator re-engages crowd
 _wled_udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # ── CROWD LIGHTING HELPERS ─────────────────────────────────────────────────────
@@ -715,13 +716,15 @@ def _send_crowd_lights(level, climax):
                     threading.Thread(target=execute_macro, args=(single, cancel), daemon=True).start()
 
         def _after_climax(dur=climax_dur, rsid=revert_id, macro_map=all_macros):
+            global _crowd_post_climax
             time.sleep(dur)
             if rsid:
                 revert_macro = macro_map.get(rsid)
                 if revert_macro:
                     execute_macro(revert_macro)
-            _crowd_state['climax'] = False
-            _crowd_state['level']  = 0
+            _crowd_post_climax      = True   # block anim + auto-poll until operator re-engages
+            _crowd_state['climax']  = False
+            _crowd_state['level']   = 0
             broadcast('viz_crowd', _crowd_state)
 
         threading.Thread(target=_after_climax, daemon=True).start()
@@ -6115,7 +6118,7 @@ def _start_sound_poll():
                 # Circle colour animation owns the strips — stand aside
                 time.sleep(1 / 8)
                 continue
-            if config.get('crowd_lights') and config.get('crowd_climb_mode', False) and not _crowd_state.get('climax'):
+            if config.get('crowd_lights') and config.get('crowd_climb_mode', False) and not _crowd_state.get('climax') and not _crowd_post_climax:
                 target = _crowd_state.get('level', 0) / 100.0
                 diff   = target - _crowd_led_display
                 alpha  = ATTACK if diff > 0 else DECAY
@@ -6162,7 +6165,7 @@ def _start_sound_poll():
                 updated[nid] = {'level': display_level, 'name': name, 'ip': ip}
             _sound_levels.update(updated)
             broadcast('sound_levels', _sound_levels)
-            if _crowd_mode == 'auto' and count > 0:
+            if _crowd_mode == 'auto' and count > 0 and not _crowd_post_climax:
                 avg = int(total / count)
                 _crowd_state['level'] = avg
                 broadcast('viz_crowd', _crowd_state)
@@ -6406,9 +6409,11 @@ def api_viz_preset_activate(pid):
 
 @app.route('/api/crowd/level', methods=['POST'])
 def api_crowd_level():
+    global _crowd_post_climax
     data   = request.json or {}
     level  = max(0, min(100, int(data.get('level', 0))))
     climax = bool(data.get('climax', False))
+    _crowd_post_climax     = False   # operator re-engaged crowd control
     _crowd_state['level']  = level
     _crowd_state['climax'] = climax
     broadcast('viz_crowd', _crowd_state)
