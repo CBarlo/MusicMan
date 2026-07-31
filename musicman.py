@@ -2612,6 +2612,7 @@ def api_viz_preset_logo_delete(preset_id):
 
 @app.route('/api/display/vs_card', methods=['POST'])
 def api_display_vs_card():
+    global _walkup_fade_cancel
     data = request.get_json() or {}
     card_id = data.get('id', '')
     if card_id:
@@ -2622,9 +2623,43 @@ def api_display_vs_card():
         card.update({k: v for k, v in data.items() if k != 'id' and v})
     else:
         card = data
-    cid = card.get('id', card_id)
+    cid  = card.get('id', card_id)
     card = _vs_card_resolve_images(card, cid)
     _ensure_display_for('display_vs_card', card)
+
+    walkup       = card.get('walkup') or {}
+    music_lib    = walkup.get('walkup_music_lib') or ''
+    walkup_scene = walkup.get('walkup_scene') or None
+    stage_scene  = walkup.get('stage_scene')  or 'campfire'
+
+    if walkup_scene:
+        threading.Thread(target=lambda: wled_set_scene(walkup_scene), daemon=True).start()
+
+    if music_lib:
+        _walkup_fade_cancel.set()
+        _walkup_fade_cancel = threading.Event()
+        cancel     = _walkup_fade_cancel
+        music_file = ASSETS_DIR / 'music' / music_lib
+        def _play_vsc_music():
+            if not music_file.exists():
+                log.warning(f'VS card music not found: {music_file}')
+                return
+            vol_trim = walkup.get('volume_trim', 100)
+            trimmed  = max(0, min(100, int(audio_state['volume'] * vol_trim / 100)))
+            play_audio(str(music_file), volume=trimmed,
+                       start_pos=walkup.get('start_time', 0), crossfade_ms=1000)
+            my_session = _audio_session
+            duration   = walkup.get('duration', 30)
+            fade_dur   = walkup.get('fade_duration', 3)
+            def _auto_fade(ev=cancel, sess=my_session):
+                if ev.wait(timeout=duration): return
+                if _audio_session != sess:    return
+                fade_audio(fade_dur)
+                if ev.wait(timeout=fade_dur + 0.5): return
+                if _audio_session == sess: wled_set_scene(stage_scene)
+            threading.Thread(target=_auto_fade, daemon=True).start()
+        threading.Thread(target=_play_vsc_music, daemon=True).start()
+
     return jsonify({'ok': True})
 
 @app.route('/api/slides')
