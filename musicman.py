@@ -622,6 +622,8 @@ def _send_crowd_lights(level, climax):
     has_dmx_fixtures = dmx_selected is not None and any(node.get('fixtures') for node in cfg.get('pole_nodes', []))
     if not light_ids and not has_dmx_fixtures and not (climax and cfg.get('crowd_climax_macro_id')):
         return
+    if _crowd_post_climax and not climax:
+        return  # post-climax lockout: revert scene owns the lights until operator re-engages
 
     nodes_map = {n['id']: n.get('ip') for n in cfg.get('pole_nodes',   []) if n.get('ip')}
     wled_map  = {d['id']: d.get('ip') for d in cfg.get('wled_devices', []) if d.get('ip')}
@@ -6413,7 +6415,8 @@ def api_crowd_level():
     data   = request.json or {}
     level  = max(0, min(100, int(data.get('level', 0))))
     climax = bool(data.get('climax', False))
-    _crowd_post_climax     = False   # operator re-engaged crowd control
+    if level > 0 or climax:
+        _crowd_post_climax = False   # operator actively re-engaged crowd
     _crowd_state['level']  = level
     _crowd_state['climax'] = climax
     broadcast('viz_crowd', _crowd_state)

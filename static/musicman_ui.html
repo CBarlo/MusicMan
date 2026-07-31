@@ -3243,9 +3243,11 @@ function initWebSocket() {
       else if (event === 'viz_show') { vizConsoleUpdateStatus(data.scene); }
       else if (event === 'viz_hide') {
         vizConsoleUpdateStatus(null);
-        _crowdSliderSet(0);
-        fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({level:0, climax:false})}).catch(()=>{});
+        if (!_crowdClimax) {
+          _crowdSliderSet(0);
+          fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({level:0, climax:false})}).catch(()=>{});
+        }
       }
       else if (['display_walkup','display_step','display_animation','display_clear','display_standby','display_leaderboard'].includes(event)) {
         vizConsoleUpdateStatus(null);
