@@ -690,7 +690,27 @@ def _send_crowd_lights(level, climax):
         if macro_id:
             macro = all_macros.get(macro_id)
             if macro:
-                threading.Thread(target=execute_macro, args=(macro,), daemon=True).start()
+                # Pre-warm SFX cache so Sound() file I/O doesn't delay the first play
+                sfx_dir = ASSETS_DIR / 'sfx'
+                for step in macro.get('steps', []):
+                    if step.get('action') == 'sfx':
+                        name = step.get('name', '')
+                        for ext in ('.mp3', '.wav', '.ogg', '.flac'):
+                            fp = sfx_dir / (name + ext)
+                            if fp.exists():
+                                if str(fp) not in _sfx_cache:
+                                    try:
+                                        _sfx_cache[str(fp)] = pygame.mixer.Sound(str(fp))
+                                    except Exception:
+                                        pass
+                                break
+                # Fire every climax step simultaneously — no sequential waits, instant impact.
+                cancel = threading.Event()
+                for step in macro.get('steps', []):
+                    if step.get('action') == 'wait':
+                        continue
+                    single = {**macro, 'steps': [step]}
+                    threading.Thread(target=execute_macro, args=(single, cancel), daemon=True).start()
 
         def _after_climax(dur=climax_dur, rsid=revert_id, macro_map=all_macros):
             time.sleep(dur)
