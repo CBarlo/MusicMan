@@ -682,6 +682,8 @@ def _send_crowd_lights(level, climax):
     # Climax behavior (scenes, SFX, video, whatever) lives in the macro itself —
     # build a "Climax" macro with the steps you want instead of configuring it here.
     if climax:
+        global _crowd_led_display
+        _crowd_led_display = 0.0   # zero before anim pauses so it starts from 0 when it resumes
         _stop_music()   # stops music + playlist, but leaves SFX channel so explosion SFX can play
         climax_dur = cfg.get('crowd_climax_duration_ms', 2500) / 1000.0
         macro_id   = cfg.get('crowd_climax_macro_id', '')

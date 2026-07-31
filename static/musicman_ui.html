@@ -408,50 +408,53 @@
     <!-- ── VIZ TAB ── -->
     <div class="page" id="page-viz">
 
-      <!-- VISUALIZER -->
-      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
+      <!-- ── WHAT TO SHOW ON SCREEN ── -->
+      <div class="games-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">📺 VISUALIZER</div>
+          <div class="section-label" style="margin-bottom:0">ON-SCREEN DISPLAY</div>
           <span id="viz-status-badge" style="font-size:9px;letter-spacing:2px;padding:3px 10px;border-radius:12px;font-weight:700;background:var(--surface);color:var(--text-dim);border:1px solid var(--border)">OFF</span>
         </div>
-        <div style="display:flex;gap:6px;align-items:center">
+        <!-- Music viz row -->
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
           <button onclick="vizConsoleGo('music')"
-            style="padding:9px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
-            🎵 MUSIC
+            style="padding:10px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
+            🎵 MUSIC VIZ
           </button>
           <select id="viz-console-preset"
-            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:7px;font-size:12px">
-            <option value="">— any preset —</option>
+            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:7px;font-size:12px"
+            title="Music visualizer style preset">
+            <option value="">— viz preset —</option>
           </select>
-          <button onclick="vizConsoleGo('crowd')"
-            style="padding:9px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
-            📢 CROWD
-          </button>
-          <button onclick="vizConsoleHide()"
-            style="padding:9px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
-            ■
-          </button>
         </div>
+        <!-- Crowd meter row -->
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+          <button onclick="vizConsoleGo('crowd')"
+            style="padding:10px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
+            📢 CROWD METER
+          </button>
+          <select id="crowd-preset-select" onchange="activateCrowdPreset(this.value)"
+            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:7px;font-size:12px"
+            title="Crowd meter preset — controls lights, macros, climax settings">
+            <option value="">— crowd preset —</option>
+          </select>
+        </div>
+        <!-- Hide -->
+        <button onclick="vizConsoleHide()"
+          style="width:100%;padding:8px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer">
+          ■ HIDE VIZ
+        </button>
       </div>
 
-      <!-- CROWD CONTROL -->
-      <div id="crowd-control-section" style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
+      <!-- ── CROWD CONTROL ── -->
+      <div id="crowd-control-section" class="games-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">📢 CROWD CONTROL</div>
+          <div class="section-label" style="margin-bottom:0">📢 CROWD CONTROL</div>
           <div style="display:flex;gap:5px">
             <button id="crowd-mode-manual" onclick="crowdSetMode('manual')"
               style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber)">MANUAL</button>
             <button id="crowd-mode-auto" onclick="crowdSetMode('auto')"
               style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">AUTO (MIC)</button>
           </div>
-        </div>
-
-        <!-- Crowd Meter preset picker -->
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
-          <select id="crowd-preset-select" onchange="activateCrowdPreset(this.value)"
-            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 8px;border-radius:6px;font-size:12px">
-            <option value="">— crowd preset —</option>
-          </select>
         </div>
 
         <!-- dB meter bars per node -->
@@ -475,22 +478,13 @@
             </div>
             <span id="crowd-level-pct" style="font-size:13px;font-weight:700;color:var(--amber);font-family:'Share Tech Mono',monospace;min-width:38px">0%</span>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button onclick="crowdClimax()"
-              style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--red,#c0392b);background:rgba(192,57,43,0.18);color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer">
-              ⚡ CLIMAX
-            </button>
-            <button onclick="crowdShowViz()"
-              style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">
-              📺 SHOW VIZ
-            </button>
-            <button onclick="crowdHideViz()"
-              style="padding:10px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">
-              ✕
-            </button>
-          </div>
+          <!-- CLIMAX — full width, prominent -->
+          <button onclick="crowdClimax()"
+            style="width:100%;padding:13px;border-radius:8px;border:2px solid #c0392b;background:rgba(192,57,43,0.18);color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:3px;cursor:pointer;margin-bottom:8px">
+            ⚡ CLIMAX
+          </button>
           <!-- Overlay buttons -->
-          <div id="crowd-overlay-row" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <div id="crowd-overlay-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
             <button id="overlay-btn-0" onclick="crowdOverlay(0)"
               style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">—</button>
             <button id="overlay-btn-1" onclick="crowdOverlay(1)"
@@ -500,17 +494,20 @@
             <button onclick="crowdOverlayStop()"
               style="padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">■</button>
           </div>
-          <!-- Record to leaderboard -->
-          <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;display:flex;gap:8px;align-items:center">
-            <select id="crowd-record-game" class="games-select" style="flex:1">
-              <option value="">— select game —</option>
-            </select>
-            <input id="crowd-record-label" type="text" placeholder="Team name"
-              style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
-            <button onclick="crowdRecord()"
-              style="padding:7px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(60,185,106,0.15);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
-              ⏺ REC
-            </button>
+          <!-- Record crowd score -->
+          <div style="border-top:1px solid var(--border);padding-top:10px">
+            <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px;font-weight:700">RECORD CROWD SCORE</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="crowd-record-game" class="games-select" style="flex:1">
+                <option value="">— select game —</option>
+              </select>
+              <input id="crowd-record-label" type="text" placeholder="Team name"
+                style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
+              <button onclick="crowdRecord()"
+                style="padding:7px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(60,185,106,0.15);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
+                ⏺ REC
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -560,13 +557,20 @@
       <!-- GAME LIBRARY -->
       <div class="games-section" id="gl-ui-section">
         <div class="section-label">📚 GAME LIBRARY</div>
-        <div id="gl-ui-type-tabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px"></div>
         <div id="gl-ui-config-list" style="min-height:28px"></div>
       </div>
 
       <!-- COUNTDOWN TIMER -->
       <div class="games-section">
         <div class="section-label">⏱ COUNTDOWN TIMER</div>
+        <!-- Preset recall -->
+        <div class="games-row" style="margin-bottom:10px">
+          <select id="timerPresetSelect" class="games-select" style="flex:1">
+            <option value="">— saved presets —</option>
+          </select>
+          <button class="games-btn" onclick="consoleLoadPreset()" style="border-color:var(--amber-dim);color:var(--amber)">LOAD</button>
+          <button class="games-btn" onclick="consoleSavePreset()">SAVE</button>
+        </div>
         <div class="games-row">
           <span class="games-label">DURATION</span>
           <input id="cdMins" type="number" min="0" max="99" value="3" class="games-input" style="width:52px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--amber)" oninput="cdMarkDirty()">
@@ -643,17 +647,20 @@
           <button class="btn-timer start" id="swStartBtn" onclick="swToggle()" style="background:var(--green);border-color:var(--green)">&#9654; START</button>
           <button class="btn-timer reset" onclick="swReset()">&#8634; RESET</button>
         </div>
-        <div class="games-row" style="flex-wrap:wrap;margin-top:10px">
-          <select id="gameSelect" class="games-select" style="flex:1;min-width:130px" onchange="renderLeaderboard()">
-            <option value="">— select game —</option>
-          </select>
-          <button class="games-btn" onclick="gtNewGame()">+ NEW</button>
-          <button class="games-btn" onclick="gtClear()">CLEAR</button>
-          <button class="games-btn danger" onclick="gtDelete()">DEL</button>
-        </div>
-        <div class="games-row" style="margin-top:4px">
-          <input id="gtLabel" type="text" placeholder="Runner name…" class="games-input" style="flex:1" autocomplete="off">
-          <button class="games-btn primary" onclick="gtRecord()">&#9203; RECORD</button>
+        <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px">
+          <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px;font-weight:700">RECORD RACE TIME</div>
+          <div class="games-row" style="flex-wrap:wrap">
+            <select id="gameSelect" class="games-select" style="flex:1;min-width:130px" onchange="renderLeaderboard()">
+              <option value="">— select game —</option>
+            </select>
+            <button class="games-btn" onclick="gtNewGame()">+ NEW</button>
+            <button class="games-btn" onclick="gtClear()">CLEAR</button>
+            <button class="games-btn danger" onclick="gtDelete()">DEL</button>
+          </div>
+          <div class="games-row" style="margin-top:4px">
+            <input id="gtLabel" type="text" placeholder="Runner name…" class="games-input" style="flex:1" autocomplete="off">
+            <button class="games-btn primary" onclick="gtRecord()">&#9203; RECORD</button>
+          </div>
         </div>
       </div>
 
@@ -703,16 +710,19 @@
         <div id="games-db-meters" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;min-height:48px">
           <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;align-self:center">NO POLE NODES CONFIGURED</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);padding-top:10px">
-          <select id="db-record-game" class="games-select" style="flex:1">
-            <option value="">— select game —</option>
-          </select>
-          <input id="db-record-label" type="text" placeholder="Team name"
-            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
-          <button onclick="dbRecord()"
-            style="padding:7px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(60,185,106,0.15);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
-            ⏺ REC
-          </button>
+        <div style="border-top:1px solid var(--border);padding-top:10px">
+          <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px;font-weight:700">RECORD CROWD SCORE</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="db-record-game" class="games-select" style="flex:1">
+              <option value="">— select game —</option>
+            </select>
+            <input id="db-record-label" type="text" placeholder="Team name"
+              style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
+            <button onclick="dbRecord()"
+              style="padding:7px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(60,185,106,0.15);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
+              ⏺ REC
+            </button>
+          </div>
         </div>
       </div>
 
@@ -969,7 +979,7 @@ function navToPage(id) {
 }
 
 function loadSlidesTab()    { loadSavedSlidesConsole(); setTimeout(updateConsPreview, 100); }
-function loadVizTab()       { vizConsoleLoadPresets(); }
+function loadVizTab()       { vizConsoleLoadPresets(); loadCrowdPresets(); }
 async function loadGamesOnlyTab() {
   buildGameEntriesGrid();
   loadGlUi();
@@ -1684,58 +1694,42 @@ let _glUiSelType   = '';
 
 async function loadGlUi() {
   try { _glUiGameTypes = await fetch('/api/game_types').then(r => r.json()); } catch(e) { _glUiGameTypes = []; }
-  _renderGlUiTabs();
-  if (_glUiGameTypes.length) await _glUiSelectType(_glUiGameTypes[0].id);
+  await Promise.all(_glUiGameTypes.map(async g => {
+    try { _glUiConfigs[g.id] = await fetch(`/api/game_configs?game_type_id=${g.id}`).then(r => r.json()); }
+    catch(e) { _glUiConfigs[g.id] = []; }
+  }));
+  _renderAllGlUiConfigs();
 }
 
-function _renderGlUiTabs() {
-  const el = document.getElementById('gl-ui-type-tabs');
-  if (!el) return;
-  el.innerHTML = _glUiGameTypes.map(g =>
-    `<button id="glui-tab-${g.id}" onclick="_glUiSelectType('${g.id}')"
-      class="games-btn" style="font-size:11px;padding:5px 10px"
-    >${g.icon||''} ${g.label.toUpperCase()}</button>`
-  ).join('');
-}
-
-async function _glUiSelectType(typeId) {
-  _glUiSelType = typeId;
-  _glUiGameTypes.forEach(g => {
-    const b = document.getElementById(`glui-tab-${g.id}`);
-    if (!b) return;
-    b.style.borderColor = g.id === typeId ? 'var(--amber)' : '';
-    b.style.color       = g.id === typeId ? 'var(--amber)' : '';
-  });
-  try {
-    _glUiConfigs[typeId] = await fetch(`/api/game_configs?game_type_id=${typeId}`).then(r => r.json());
-  } catch(e) { _glUiConfigs[typeId] = []; }
-  _renderGlUiConfigs();
-}
-
-function _renderGlUiConfigs() {
+function _renderAllGlUiConfigs() {
   const el = document.getElementById('gl-ui-config-list');
   if (!el) return;
-  const configs = _glUiConfigs[_glUiSelType] || [];
-  const gt = _glUiGameTypes.find(g => g.id === _glUiSelType);
-  if (!configs.length) {
+  let html = '';
+  let anyConfigs = false;
+  _glUiGameTypes.forEach(gt => {
+    const configs = _glUiConfigs[gt.id] || [];
+    if (!configs.length) return;
+    anyConfigs = true;
+    html += `<div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);margin:8px 0 4px;font-weight:700">${gt.icon||''} ${gt.label.toUpperCase()}</div>`;
+    html += configs.map(c => `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+        <span style="flex:1;font-size:12px;font-weight:700;letter-spacing:0.5px;color:var(--text)">${c.name}</span>
+        <button class="games-btn primary" onclick="glUiGoLive('${gt.id}','${c.id}')" style="font-size:11px;padding:4px 10px">GO LIVE</button>
+      </div>`).join('');
+  });
+  if (!anyConfigs) {
     el.innerHTML = `<div style="color:var(--text-dim);font-size:11px;letter-spacing:1.5px">NO SAVED CONFIGS — CREATE IN ADMIN › GAMES</div>`;
     return;
   }
-  el.innerHTML = configs.map(c => `
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-      <span style="flex:1;font-size:12px;font-weight:700;letter-spacing:0.5px;color:var(--text)">${c.name}</span>
-      <button class="games-btn primary" onclick="glUiGoLive('${c.id}')" style="font-size:11px;padding:4px 10px">GO LIVE</button>
-    </div>`).join('');
+  el.innerHTML = html;
 }
 
-async function glUiGoLive(configId) {
-  const gt = _glUiGameTypes.find(g => g.id === _glUiSelType);
-  if (!gt) return;
+async function glUiGoLive(typeId, configId) {
   try {
     const r = await fetch('/api/games/launch', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ game_type_id: _glUiSelType, config_id: configId }),
+      body: JSON.stringify({ game_type_id: typeId, config_id: configId }),
     });
     const d = await r.json();
     if (d.ok) showGameOverlay(d.controller_url);
@@ -3252,15 +3246,15 @@ function initWebSocket() {
       }
 
       else if (event === 'viz_crowd') {
-        if (!_vizActiveScene) return;
         const lv = data.level || 0;
-        _crowdClimax = !!(data.climax);
-        _crowdSliderSet(lv);
-        const bug = document.getElementById('crowd-bug');
-        if (bug) {
+        _crowdClimax = !!(data.climax);       // must be before any early return
+        const _bug = document.getElementById('crowd-bug');
+        if (_bug) {
           document.getElementById('crowd-bug-level').textContent = lv + '%';
-          bug.style.display = lv > 0 ? 'flex' : 'none';
+          _bug.style.display = (lv > 0 && _vizActiveScene === 'crowd') ? 'flex' : 'none';
         }
+        if (!_vizActiveScene) return;
+        _crowdSliderSet(lv);
       }
 
     } catch(e) { console.warn('WS parse error', e); }
