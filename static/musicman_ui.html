@@ -104,6 +104,7 @@
   .page-tab { padding: 10px 14px; font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--text-dim); border-bottom: 2px solid transparent; cursor: pointer; transition: all .15s; margin-bottom: -2px; flex-shrink: 0; white-space: nowrap; }
   .page-tab:hover { color: var(--text); }
   .page-tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+  .tab-sep { width: 1px; background: var(--border); align-self: stretch; margin: 8px 2px; flex-shrink: 0; }
   .page { display: none; flex: 1; overflow-y: auto; padding: 16px; }
   .page.active { display: block; }
   .walkup-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -304,13 +305,22 @@
   <div class="right">
     <div class="page-tabs">
       <div class="page-tab active" onclick="showPage('show',this)">SHOW</div>
+      <div class="page-tab" onclick="showPage('macros',this)">MACROS</div>
+      <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('walkup',this)">CIRCLES</div>
       <div class="page-tab" onclick="showPage('roles',this)">ROLES</div>
-      <div class="page-tab" onclick="showPage('macros',this)">MACROS</div>
+      <div class="page-tab" onclick="showPage('entries',this);loadEntriesTab()">ENTRIES</div>
+      <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('sfx',this);buildSfxGrid()">SFX</div>
       <div class="page-tab" onclick="showPage('music',this);loadMusicTracks()">MUSIC</div>
-      <div class="page-tab" onclick="showPage('display',this);loadSavedSlidesConsole();loadVsCardsConsole();setTimeout(updateConsPreview,100);vizConsoleLoadPresets()">DISPLAY</div>
-      <div class="page-tab" onclick="showPage('games',this);loadGamesTab()">GAMES/TIMERS</div>
+      <div class="tab-sep"></div>
+      <div class="page-tab" onclick="showPage('slides',this);loadSlidesTab()">SLIDES</div>
+      <div class="page-tab" onclick="showPage('vscards',this);loadVsCardsConsole()">VS CARDS</div>
+      <div class="page-tab" onclick="showPage('viz',this);loadVizTab()">VIZ</div>
+      <div class="tab-sep"></div>
+      <div class="page-tab" onclick="showPage('timers',this);loadTimersTab()">TIMERS</div>
+      <div class="page-tab" onclick="showPage('games',this);loadGamesOnlyTab()">GAMES</div>
+      <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('lights',this);loadLightsTab()">LIGHTS</div>
       <div class="page-tab" onclick="showPage('wifi',this);loadWifi()">WIFI</div>
       <div class="page-tab" onclick="showPage('help',this)">HELP</div>
@@ -335,7 +345,8 @@
       <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Tap a macro to fire a pre-programmed sequence of sound and lights.</div>
       <div class="macro-grid" id="macroGrid"></div>
     </div>
-    <div class="page" id="page-display">
+    <!-- ── SLIDES TAB ── -->
+    <div class="page" id="page-slides">
       <div style="padding:4px 0">
 
         <!-- LIVE SLIDE BUILDER -->
@@ -397,139 +408,132 @@
           </div>
         </div>
 
-        <!-- VS CARDS -->
-        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">⚔ VS CARDS</div>
-            <button onclick="loadVsCardsConsole()" style="font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">↺</button>
-          </div>
-          <div id="vs-cards-console" style="display:flex;flex-direction:column;gap:6px">
-            <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px">LOADING…</div>
-          </div>
-        </div>
-
-        <!-- VISUALIZER -->
-        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">📺 VISUALIZER</div>
-            <span id="viz-status-badge" style="font-size:9px;letter-spacing:2px;padding:3px 10px;border-radius:12px;font-weight:700;background:var(--surface);color:var(--text-dim);border:1px solid var(--border)">OFF</span>
-          </div>
-          <div style="display:flex;gap:6px;align-items:center">
-            <button onclick="vizConsoleGo('music')"
-              style="padding:9px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
-              🎵 MUSIC
-            </button>
-            <select id="viz-console-preset"
-              style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:7px;font-size:12px">
-              <option value="">— any preset —</option>
-            </select>
-            <button onclick="vizConsoleGo('crowd')"
-              style="padding:9px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
-              📢 CROWD
-            </button>
-            <button onclick="vizConsoleHide()"
-              style="padding:9px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
-              ■
-            </button>
-          </div>
-        </div>
-
-        <!-- CROWD CONTROL -->
-        <div id="crowd-control-section" style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">📢 CROWD CONTROL</div>
-            <div style="display:flex;gap:5px">
-              <button id="crowd-mode-manual" onclick="crowdSetMode('manual')"
-                style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber)">MANUAL</button>
-              <button id="crowd-mode-auto" onclick="crowdSetMode('auto')"
-                style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">AUTO (MIC)</button>
-            </div>
-          </div>
-
-          <!-- Crowd Meter preset picker -->
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
-            <select id="crowd-preset-select" onchange="activateCrowdPreset(this.value)"
-              style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 8px;border-radius:6px;font-size:12px">
-              <option value="">— crowd preset —</option>
-            </select>
-          </div>
-
-          <!-- dB meter bars per node -->
-          <div id="crowd-db-meters" style="display:flex;gap:8px;margin-bottom:12px;min-height:28px">
-            <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;align-self:center">NO POLE NODES</div>
-          </div>
-
-          <!-- Manual controls -->
-          <div id="crowd-manual-panel">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-              <span style="font-size:9px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;width:24px">LOW</span>
-              <!-- fat crowd slider: 48px track, 36px thumb, pointer-event drag -->
-              <div id="crowd-slider-wrap" style="flex:1;position:relative;height:48px;cursor:pointer;touch-action:none"
-                onpointerdown="crowdSliderPointer(event,'down')"
-                onpointermove="crowdSliderPointer(event,'move')"
-                onpointerup="crowdSliderPointer(event,'up')"
-                onpointercancel="crowdSliderPointer(event,'up')">
-                <!-- track -->
-                <div style="position:absolute;top:50%;left:0;right:0;height:10px;transform:translateY(-50%);background:var(--bg3);border-radius:5px;overflow:hidden">
-                  <div id="crowd-slider-fill" style="height:100%;width:0%;background:var(--amber);border-radius:5px;transition:width 0.05s"></div>
-                </div>
-                <!-- thumb -->
-                <div id="crowd-slider-thumb" style="position:absolute;top:50%;left:0%;width:36px;height:36px;transform:translate(-50%,-50%);background:var(--amber);border-radius:50%;border:3px solid #fff2;box-shadow:0 2px 8px #0006"></div>
-              </div>
-              <span id="crowd-level-pct" style="font-size:13px;font-weight:700;color:var(--amber);font-family:'Share Tech Mono',monospace;min-width:38px">0%</span>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button onclick="crowdClimax()"
-                style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--red,#c0392b);background:rgba(192,57,43,0.18);color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer">
-                ⚡ CLIMAX
-              </button>
-              <button onclick="crowdShowViz()"
-                style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">
-                📺 SHOW VIZ
-              </button>
-              <button onclick="crowdHideViz()"
-                style="padding:10px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">
-                ✕
-              </button>
-            </div>
-            <!-- Overlay buttons -->
-            <div id="crowd-overlay-row" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-              <button id="overlay-btn-0" onclick="crowdOverlay(0)"
-                style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">
-                —
-              </button>
-              <button id="overlay-btn-1" onclick="crowdOverlay(1)"
-                style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">
-                —
-              </button>
-              <button id="overlay-btn-2" onclick="crowdOverlay(2)"
-                style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">
-                —
-              </button>
-              <button onclick="crowdOverlayStop()"
-                style="padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
-                ■
-              </button>
-            </div>
-            <!-- Record to leaderboard -->
-            <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;display:flex;gap:8px;align-items:center">
-              <select id="crowd-record-game" class="games-select" style="flex:1">
-                <option value="">— select game —</option>
-              </select>
-              <input id="crowd-record-label" type="text" placeholder="Team name"
-                style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
-              <button onclick="crowdRecord()"
-                style="padding:7px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(60,185,106,0.15);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
-                ⏺ REC
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Existing display images -->
+        <!-- Display images -->
         <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Tap an image to send it to the connected display. Use CLEAR PROJECTOR to blank the screen.</div>
         <button id="clearDisplayBtn" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Projector cleared',1500)" style="margin-bottom:12px;background:var(--surface);border:1px solid var(--border2);color:var(--text-dim);padding:6px 16px;border-radius:6px;font-size:11px;letter-spacing:2px;cursor:pointer;font-weight:700">&#x2715; CLEAR PROJECTOR</button>
         <div class="sfx-grid" id="displayGrid"></div>
+      </div>
+    </div>
+
+    <!-- ── VS CARDS TAB ── -->
+    <div class="page" id="page-vscards">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">⚔ VS CARDS</div>
+        <button onclick="loadVsCardsConsole()" style="font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">↺</button>
+      </div>
+      <div id="vs-cards-console" style="display:flex;flex-direction:column;gap:6px">
+        <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px">LOADING…</div>
+      </div>
+    </div>
+
+    <!-- ── VIZ TAB ── -->
+    <div class="page" id="page-viz">
+
+      <!-- VISUALIZER -->
+      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">📺 VISUALIZER</div>
+          <span id="viz-status-badge" style="font-size:9px;letter-spacing:2px;padding:3px 10px;border-radius:12px;font-weight:700;background:var(--surface);color:var(--text-dim);border:1px solid var(--border)">OFF</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button onclick="vizConsoleGo('music')"
+            style="padding:9px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
+            🎵 MUSIC
+          </button>
+          <select id="viz-console-preset"
+            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:7px;font-size:12px">
+            <option value="">— any preset —</option>
+          </select>
+          <button onclick="vizConsoleGo('crowd')"
+            style="padding:9px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap">
+            📢 CROWD
+          </button>
+          <button onclick="vizConsoleHide()"
+            style="padding:9px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+            ■
+          </button>
+        </div>
+      </div>
+
+      <!-- CROWD CONTROL -->
+      <div id="crowd-control-section" style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">📢 CROWD CONTROL</div>
+          <div style="display:flex;gap:5px">
+            <button id="crowd-mode-manual" onclick="crowdSetMode('manual')"
+              style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber)">MANUAL</button>
+            <button id="crowd-mode-auto" onclick="crowdSetMode('auto')"
+              style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">AUTO (MIC)</button>
+          </div>
+        </div>
+
+        <!-- Crowd Meter preset picker -->
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+          <select id="crowd-preset-select" onchange="activateCrowdPreset(this.value)"
+            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 8px;border-radius:6px;font-size:12px">
+            <option value="">— crowd preset —</option>
+          </select>
+        </div>
+
+        <!-- dB meter bars per node -->
+        <div id="crowd-db-meters" style="display:flex;gap:8px;margin-bottom:12px;min-height:28px">
+          <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;align-self:center">NO POLE NODES</div>
+        </div>
+
+        <!-- Manual controls -->
+        <div id="crowd-manual-panel">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <span style="font-size:9px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;width:24px">LOW</span>
+            <div id="crowd-slider-wrap" style="flex:1;position:relative;height:48px;cursor:pointer;touch-action:none"
+              onpointerdown="crowdSliderPointer(event,'down')"
+              onpointermove="crowdSliderPointer(event,'move')"
+              onpointerup="crowdSliderPointer(event,'up')"
+              onpointercancel="crowdSliderPointer(event,'up')">
+              <div style="position:absolute;top:50%;left:0;right:0;height:10px;transform:translateY(-50%);background:var(--bg3);border-radius:5px;overflow:hidden">
+                <div id="crowd-slider-fill" style="height:100%;width:0%;background:var(--amber);border-radius:5px;transition:width 0.05s"></div>
+              </div>
+              <div id="crowd-slider-thumb" style="position:absolute;top:50%;left:0%;width:36px;height:36px;transform:translate(-50%,-50%);background:var(--amber);border-radius:50%;border:3px solid #fff2;box-shadow:0 2px 8px #0006"></div>
+            </div>
+            <span id="crowd-level-pct" style="font-size:13px;font-weight:700;color:var(--amber);font-family:'Share Tech Mono',monospace;min-width:38px">0%</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button onclick="crowdClimax()"
+              style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--red,#c0392b);background:rgba(192,57,43,0.18);color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer">
+              ⚡ CLIMAX
+            </button>
+            <button onclick="crowdShowViz()"
+              style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">
+              📺 SHOW VIZ
+            </button>
+            <button onclick="crowdHideViz()"
+              style="padding:10px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">
+              ✕
+            </button>
+          </div>
+          <!-- Overlay buttons -->
+          <div id="crowd-overlay-row" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+            <button id="overlay-btn-0" onclick="crowdOverlay(0)"
+              style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">—</button>
+            <button id="overlay-btn-1" onclick="crowdOverlay(1)"
+              style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">—</button>
+            <button id="overlay-btn-2" onclick="crowdOverlay(2)"
+              style="flex:1;padding:8px 6px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;display:none">—</button>
+            <button onclick="crowdOverlayStop()"
+              style="padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">■</button>
+          </div>
+          <!-- Record to leaderboard -->
+          <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;display:flex;gap:8px;align-items:center">
+            <select id="crowd-record-game" class="games-select" style="flex:1">
+              <option value="">— select game —</option>
+            </select>
+            <input id="crowd-record-label" type="text" placeholder="Team name"
+              style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600">
+            <button onclick="crowdRecord()"
+              style="padding:7px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(60,185,106,0.15);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">
+              ⏺ REC
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="page" id="page-music">
@@ -565,21 +569,15 @@
       </div>
     </div>
 
-    <!-- ── GAMES TAB ── -->
-    <div class="page" id="page-games">
-
-      <!-- GAME LIBRARY RECALL -->
-      <div class="games-section" id="gl-ui-section">
-        <div class="section-label">🎮 GAME LIBRARY</div>
-        <div id="gl-ui-type-tabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px"></div>
-        <div id="gl-ui-config-list" style="min-height:28px"></div>
-      </div>
-
-      <!-- GAME ENTRIES -->
-      <div class="games-section" id="ge-section" style="display:none">
-        <div class="section-label">GAME ENTRIES</div>
+    <!-- ── ENTRIES TAB ── -->
+    <div class="page" id="page-entries">
+      <div class="games-section" id="ge-section">
         <div class="walkup-grid" id="geGrid"></div>
       </div>
+    </div>
+
+    <!-- ── TIMERS TAB ── -->
+    <div class="page" id="page-timers">
 
       <!-- COUNTDOWN TIMER -->
       <div class="games-section">
@@ -674,7 +672,7 @@
         </div>
       </div>
 
-      <!-- GAME TIMES -->
+      <!-- RANKINGS -->
       <div class="games-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;margin-bottom:4px">
           <span style="font-size:10px;letter-spacing:2px;color:var(--text-dim)">RANKINGS</span>
@@ -687,6 +685,18 @@
           <button class="games-btn" onclick="gtShowOnScreen()" style="flex:1;border-color:var(--amber-dim);color:var(--amber);font-size:13px;padding:9px">&#128250; SHOW SCORES</button>
           <button class="games-btn" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('DISPLAY CLEARED',1500)" style="border-color:var(--border);color:var(--text-dim);font-size:13px;padding:9px">&#10005; CLEAR</button>
         </div>
+      </div>
+
+    </div><!-- /page-timers -->
+
+    <!-- ── GAMES TAB ── -->
+    <div class="page" id="page-games">
+
+      <!-- GAME LIBRARY RECALL -->
+      <div class="games-section" id="gl-ui-section">
+        <div class="section-label">🎮 GAME LIBRARY</div>
+        <div id="gl-ui-type-tabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px"></div>
+        <div id="gl-ui-config-list" style="min-height:28px"></div>
       </div>
 
       <!-- SHELL GAME -->
@@ -720,7 +730,6 @@
         <div id="games-db-meters" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;min-height:48px">
           <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;align-self:center">NO POLE NODES CONFIGURED</div>
         </div>
-        <!-- Record peak to leaderboard -->
         <div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);padding-top:10px">
           <select id="db-record-game" class="games-select" style="flex:1">
             <option value="">— select game —</option>
@@ -942,8 +951,43 @@ function showPage(id,tab) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  tab.classList.add('active');
+  if (tab) tab.classList.add('active');
 }
+
+function navToPage(id) {
+  const tab = document.querySelector(`.page-tab[onclick*="showPage('${id}'"]`);
+  showPage(id, tab);
+}
+
+function loadEntriesTab()   { buildGameEntriesGrid(); }
+function loadSlidesTab()    { loadSavedSlidesConsole(); setTimeout(updateConsPreview, 100); }
+function loadVizTab()       { vizConsoleLoadPresets(); }
+async function loadTimersTab() {
+  await loadCdAudioOptions();
+  await loadCdDisplayOptions();
+  await loadGamesList();
+  try {
+    const t = await fetch('/api/countdown/config').then(r=>r.json());
+    if (t.duration) {
+      cdTotal = cdSecs = t.duration;
+      document.getElementById('cdMins').value  = Math.floor(cdTotal/60);
+      document.getElementById('cdSecs2').value = cdTotal%60;
+      renderCd();
+    }
+    if (t.start_sound)                    { const s=document.getElementById('cdStartAudio');   if(s) s.value=t.start_sound; }
+    if (t.start_sound_duration!==undefined) document.getElementById('cdStartDuration').value=t.start_sound_duration;
+    if (t.start_sound_fade!==undefined)     document.getElementById('cdStartFade').value=t.start_sound_fade;
+    if (t.end_sound)                      { const s=document.getElementById('cdEndAudio');     if(s) s.value=t.end_sound; }
+    if (t.end_display)                    { const s=document.getElementById('cdEndDisplay');   if(s) s.value=t.end_display; }
+    const animEl = document.getElementById('cdShowEndAnim');   if(animEl)  animEl.checked  = t.show_end_display !== false;
+    const cdLpEl = document.getElementById('cdStartLoop');     if(cdLpEl)  cdLpEl.checked  = t.start_sound_loop !== false;
+    const cdLedEl= document.getElementById('cdCountdownLeds'); if(cdLedEl) cdLedEl.checked = !!t.countdown_leds;
+  } catch(e) {}
+  cdDirty = false;
+  document.getElementById('cdSetBtn').style.borderColor='';
+  document.getElementById('cdSetBtn').style.color='';
+}
+async function loadGamesOnlyTab() { loadGlUi(); await sgUiLoadConfig(); await sgUiLoadThemes(); }
 
 function _hsDot(id, ok) {
   const el = document.getElementById(id);
@@ -2221,8 +2265,7 @@ async function buildShowFlowGrid() {
         const el = e.target.closest('[data-inline-action]');
         if (el.dataset.inlineAction === 'viz_display') {
           const scene = el.dataset.vizScene || 'crowd';
-          const displayTab = document.querySelector('[onclick*="showPage(\'display\'"]');
-          showPage('display', displayTab);
+          navToPage('viz');
           loadSavedSlidesConsole();
           vizConsoleLoadPresets();
           setTimeout(() => {
@@ -3077,7 +3120,7 @@ function initWebSocket() {
       else if (event === 'display_navigate') {
         const url = (data.url || '');
         if (url.startsWith('/shell-game')) {
-          switchTab('games');
+          navToPage('games');
           sgUiLoadConfig();
         }
       }
@@ -3379,7 +3422,7 @@ function crowdHideViz() {
 }
 
 function crowdBugTap() {
-  showPage('display', document.querySelector('[onclick*="showPage(\'display\'"]'));
+  navToPage('viz');
   setTimeout(() => {
     const el = document.getElementById('crowd-control-section');
     if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
