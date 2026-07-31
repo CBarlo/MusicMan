@@ -5275,6 +5275,46 @@ def api_save_show_flow():
     save_config(cfg)
     return jsonify({'ok': True})
 
+@app.route('/api/admin/show_flow_templates')
+def api_show_flow_templates_list():
+    return jsonify(load_config().get('show_flow_templates', []))
+
+@app.route('/api/admin/show_flow_templates', methods=['POST'])
+def api_show_flow_templates_save():
+    data = request.json or {}
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'ok': False, 'error': 'name required'}), 400
+    cfg = load_config()
+    templates = cfg.get('show_flow_templates', [])
+    tid  = data.get('id') or f'sft_{int(time.time()*1000)}'
+    tmpl = {'id': tid, 'name': name, 'steps': data.get('steps', cfg.get('show_flow', []))}
+    idx  = next((i for i, t in enumerate(templates) if t['id'] == tid), None)
+    if idx is not None:
+        templates[idx] = tmpl
+    else:
+        templates.append(tmpl)
+    cfg['show_flow_templates'] = templates
+    save_config(cfg)
+    return jsonify({'ok': True, 'id': tid})
+
+@app.route('/api/admin/show_flow_templates/<tid>', methods=['DELETE'])
+def api_show_flow_templates_delete(tid):
+    cfg = load_config()
+    cfg['show_flow_templates'] = [t for t in cfg.get('show_flow_templates', []) if t['id'] != tid]
+    save_config(cfg)
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/show_flow_templates/<tid>/load', methods=['POST'])
+def api_show_flow_templates_load(tid):
+    cfg = load_config()
+    tmpl = next((t for t in cfg.get('show_flow_templates', []) if t['id'] == tid), None)
+    if not tmpl:
+        return jsonify({'ok': False, 'error': 'not found'}), 404
+    cfg['show_flow'] = tmpl.get('steps', [])
+    save_config(cfg)
+    return jsonify({'ok': True})
+
 @app.route('/api/admin/timer', methods=['POST'])
 def api_save_timer():
     cfg  = load_config()

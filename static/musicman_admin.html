@@ -306,20 +306,18 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadTimerConfig();loadGamesLibrary()">🎮 Games</div>
     <div class="nav-divider"></div>
     <div class="sidebar-section">LIVE</div>
-    <div class="nav-item" data-tab="music-viz" onclick="switchTab('music-viz')">🎛 Visualization</div>
-    <div class="nav-divider"></div>
-    <div class="sidebar-section">CONTENT</div>
-    <div class="nav-item" data-tab="sounds" onclick="switchTab('sounds')">♪ Audio</div>
-    <div class="nav-item" data-tab="display-content" onclick="switchTab('display-content')">🖼 Display</div>
-    <div class="nav-item" data-tab="usb" onclick="switchTab('usb');browseUsb()">💾 USB Import</div>
+    <div class="nav-item" data-tab="music-viz" onclick="switchTab('music-viz')">🎛 Music Viz</div>
     <div class="nav-divider"></div>
     <div class="sidebar-section">SHOW</div>
     <div class="nav-item" data-tab="showflow" onclick="switchTab('showflow')">▶ Show Flow</div>
     <div class="nav-item" data-tab="macros" onclick="switchTab('macros')">⚡ Macros</div>
-    <div class="nav-item" data-tab="scenes" onclick="switchTab('scenes')">✦ Lighting Scenes</div>
     <div class="nav-divider"></div>
     <div class="sidebar-section">SETTINGS</div>
     <div class="nav-item" data-tab="lighting" onclick="switchTab('lighting')">✦ Lighting</div>
+    <div class="nav-item" data-tab="scenes" onclick="switchTab('scenes')">✦ Lighting Scenes</div>
+    <div class="nav-item" data-tab="sounds" onclick="switchTab('sounds')">♪ Audio</div>
+    <div class="nav-item" data-tab="display-content" onclick="switchTab('display-content')">🖼 Display</div>
+    <div class="nav-item" data-tab="usb" onclick="switchTab('usb');browseUsb()">💾 USB Import</div>
     <div class="nav-item" data-tab="system" onclick="switchTab('system')">⚙ System</div>
   </div>
 
@@ -797,68 +795,71 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
 
     <!-- ══════════════ SLIDES ══════════════ -->
     <div class="tab-panel" id="tab-slides">
-      <div class="page-header">
-        <h2>LIVE SLIDES</h2>
-        <p>BUILD A CUSTOM SLIDE AND PUSH IT TO THE PROJECTOR</p>
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2>LIVE SLIDES</h2>
+          <p>SAVE AND PUSH CUSTOM SLIDES TO THE PROJECTOR</p>
+        </div>
+        <button class="btn btn-primary" onclick="admNewSlide()">+ NEW SLIDE</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
-        <!-- builder -->
-        <div class="card">
-          <div class="card-title">SLIDE BUILDER</div>
-          <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-bottom:8px;font-weight:700">TEMPLATE</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px" id="adm-slide-tpls">
-            <button class="slide-tpl-btn active" data-tpl="big_title"  onclick="admSelectTpl('big_title',this)">BIG TITLE</button>
-            <button class="slide-tpl-btn"        data-tpl="bulletin"   onclick="admSelectTpl('bulletin',this)">BULLETIN</button>
-            <button class="slide-tpl-btn"        data-tpl="next_event" onclick="admSelectTpl('next_event',this)">NEXT EVENT</button>
-            <button class="slide-tpl-btn"        data-tpl="spotlight"  onclick="admSelectTpl('spotlight',this)">SPOTLIGHT</button>
-            <button class="slide-tpl-btn"        data-tpl="qr"         onclick="admSelectTpl('qr',this)">QR CODE</button>
+      <div class="split">
+        <!-- Left: saved slides grid -->
+        <div>
+          <div class="roles-grid" id="adm-slides-grid">
+            <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:'Share Tech Mono',monospace;grid-column:1/-1">NO SAVED SLIDES YET</div>
           </div>
-          <div id="adm-slide-fields" oninput="updateAdmPreview()"></div>
-          <div style="display:flex;gap:7px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-            <div style="display:flex;flex-direction:column;gap:4px;width:100%">
-              <label style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin:0">ACCENT</label>
-              <div class="color-row">
-                <input type="color" id="adm-sl-color" value="#F5A623" oninput="admSlColorWheel(this.value)">
-                <input type="text" id="adm-sl-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="admSlColorHex(this.value)" style="flex:1">
+        </div>
+        <!-- Right: editor -->
+        <div>
+          <div id="adm-slide-placeholder" class="editor-placeholder">← Select a slide to edit,<br>or click + NEW SLIDE</div>
+          <div id="adm-slide-editor" style="display:none">
+            <div class="editor-panel">
+              <div class="editor-title"><span id="adm-sl-editor-title">SLIDE</span></div>
+
+              <label>NAME</label>
+              <input type="text" id="adm-slide-save-name" placeholder="Slide name…">
+
+              <label style="margin-top:10px">TEMPLATE</label>
+              <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px" id="adm-slide-tpls">
+                <button class="slide-tpl-btn active" data-tpl="big_title"  onclick="admSelectTpl('big_title',this)">BIG TITLE</button>
+                <button class="slide-tpl-btn"        data-tpl="bulletin"   onclick="admSelectTpl('bulletin',this)">BULLETIN</button>
+                <button class="slide-tpl-btn"        data-tpl="next_event" onclick="admSelectTpl('next_event',this)">NEXT EVENT</button>
+                <button class="slide-tpl-btn"        data-tpl="spotlight"  onclick="admSelectTpl('spotlight',this)">SPOTLIGHT</button>
+                <button class="slide-tpl-btn"        data-tpl="qr"         onclick="admSelectTpl('qr',this)">QR CODE</button>
               </div>
-              <div class="swatch-row" id="adm-sl-swatches">
-                <button class="swatch selected" data-color="#F5A623" style="background:#F5A623" onclick="admSlColorSwatch('#F5A623')" title="Amber"></button>
-                <button class="swatch"           data-color="#4A9FD4" style="background:#4A9FD4" onclick="admSlColorSwatch('#4A9FD4')" title="Blue"></button>
-                <button class="swatch"           data-color="#3CB96A" style="background:#3CB96A" onclick="admSlColorSwatch('#3CB96A')" title="Green"></button>
-                <button class="swatch"           data-color="#FFFFFF" style="background:#FFFFFF" onclick="admSlColorSwatch('#FFFFFF')" title="White"></button>
-                <button class="swatch"           data-color="#E83A3A" style="background:#E83A3A" onclick="admSlColorSwatch('#E83A3A')" title="Red"></button>
+
+              <div id="adm-slide-fields" oninput="updateAdmPreview()"></div>
+
+              <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;margin-bottom:8px">
+                <label style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin:0">ACCENT</label>
+                <div class="color-row">
+                  <input type="color" id="adm-sl-color" value="#F5A623" oninput="admSlColorWheel(this.value)">
+                  <input type="text" id="adm-sl-color-hex" maxlength="7" placeholder="#RRGGBB" oninput="admSlColorHex(this.value)" style="flex:1">
+                </div>
+                <div class="swatch-row" id="adm-sl-swatches">
+                  <button class="swatch selected" data-color="#F5A623" style="background:#F5A623" onclick="admSlColorSwatch('#F5A623')" title="Amber"></button>
+                  <button class="swatch"           data-color="#4A9FD4" style="background:#4A9FD4" onclick="admSlColorSwatch('#4A9FD4')" title="Blue"></button>
+                  <button class="swatch"           data-color="#3CB96A" style="background:#3CB96A" onclick="admSlColorSwatch('#3CB96A')" title="Green"></button>
+                  <button class="swatch"           data-color="#FFFFFF" style="background:#FFFFFF" onclick="admSlColorSwatch('#FFFFFF')" title="White"></button>
+                  <button class="swatch"           data-color="#E83A3A" style="background:#E83A3A" onclick="admSlColorSwatch('#E83A3A')" title="Red"></button>
+                </div>
+              </div>
+
+              <label>PREVIEW</label>
+              <div id="adm-slide-preview" class="sl-prev sl-prev--full" style="margin-bottom:12px">
+                <div style="color:rgba(255,255,255,.2);font-size:9px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SLIDE</div>
+              </div>
+
+              <div class="btn-row">
+                <button class="btn btn-primary" onclick="admSaveSlide()">💾 SAVE</button>
+                <button onclick="admSendFromEditor()" class="btn btn-secondary">▶ PUSH</button>
+              </div>
+              <div style="margin-top:8px;display:flex;gap:8px">
+                <button onclick="admClearSlide()" class="btn btn-secondary" style="flex:1">✕ CLEAR DISPLAY</button>
+                <button id="adm-sl-delete-btn" onclick="admDeleteCurrentSlide()" style="display:none;flex:1;padding:8px;border-radius:7px;border:1px solid var(--rust,#c0392b);background:var(--rust-dim,#2d0a0a);color:var(--rust,#c0392b);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;cursor:pointer">🗑 DELETE</button>
               </div>
             </div>
           </div>
-          <div style="display:flex;gap:8px">
-            <button onclick="admSendSlide()" style="flex:1;padding:10px;border-radius:7px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">&#9654; SEND TO DISPLAY</button>
-            <button onclick="admClearSlide()" style="padding:10px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer">&#x2715; CLEAR</button>
-          </div>
-        </div>
-        <!-- live preview -->
-        <div class="card" style="position:sticky;top:16px">
-          <div class="card-title" style="margin-bottom:10px">LIVE PREVIEW</div>
-          <div id="adm-slide-preview" class="sl-prev sl-prev--full" style="margin-bottom:8px">
-            <div style="color:rgba(255,255,255,.2);font-size:9px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SLIDE</div>
-          </div>
-          <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px">Updates as you type. Hit SEND to push to the projector.</div>
-        </div>
-      </div>
-
-      <!-- SAVED SLIDES -->
-      <div class="card" style="margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="card-title" style="margin-bottom:0">SAVED SLIDES</div>
-            <button onclick="loadSavedSlides()" class="btn btn-secondary btn-sm" style="font-size:11px;padding:4px 10px">↺ REFRESH</button>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input id="adm-slide-save-name" type="text" placeholder="Slide name…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:180px;font-family:'Barlow Condensed',sans-serif;font-weight:600">
-            <button onclick="admSaveSlide()" class="btn btn-primary btn-sm">💾 SAVE CURRENT</button>
-          </div>
-        </div>
-        <div id="adm-saved-slides-list">
-          <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SAVED SLIDES YET</div>
         </div>
       </div>
     </div>
@@ -1382,6 +1383,20 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <button id="sf-confirm-btn" class="btn-primary" style="width:100%;margin-bottom:8px" onclick="confirmAddStep()">ADD TO SHOW</button>
           <button id="sf-cancel-edit-btn" class="btn btn-secondary" style="width:100%;display:none" onclick="sfCancelEdit()">CANCEL</button>
         </div>
+      </div>
+    </div>
+
+    <!-- SAVED FLOW TEMPLATES -->
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">SAVED FLOWS</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="sft-name" type="text" placeholder="Flow template name…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:200px;font-family:'Barlow Condensed',sans-serif;font-weight:600">
+          <button onclick="saveShowFlowTemplate()" class="btn btn-primary btn-sm">💾 SAVE CURRENT</button>
+        </div>
+      </div>
+      <div id="sft-list">
+        <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SAVED FLOWS YET</div>
       </div>
     </div>
 
@@ -2141,6 +2156,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await loadStepLists();
   await loadGamesLibrary();
   await loadShowFlow();
+  await loadShowFlowTemplates();
   await loadPoleNodes();
 });
 
@@ -2154,7 +2170,7 @@ function switchTab(name) {
   if (name === 'system')        { loadHealth(); startHealthAutoRefresh(); } else { stopHealthAutoRefresh(); }
   if (name === 'lighting')      { loadPoleNodes(); }
   if (name === 'scenes')        { loadPoleNodes(); renderSceneGrid && renderSceneGrid(); }
-  if (name === 'showflow')        loadShowFlow();
+  if (name === 'showflow')      { loadShowFlow(); loadShowFlowTemplates(); }
   if (name === 'display-content') loadDisplayFiles();
   if (name === 'slides')        { admRenderFields(); loadSavedSlides(); }
   if (name === 'vs-cards')      loadVsCards();
@@ -4770,8 +4786,9 @@ async function admUsbImport(path, dest, rowIdx) {
 }
 
 // ── LIVE SLIDE BUILDER (admin) ─────────────────────────────────────────────
-let _admSlideTpl   = 'big_title';
-let _admSlideColor = '#F5A623';
+let _admSlideTpl        = 'big_title';
+let _admSlideColor      = '#F5A623';
+let _admSelectedSlideId = null;
 
 const _ADM_SLIDE_FIELDS = {
   big_title: `
@@ -5291,30 +5308,31 @@ function _sfPopulateVsSelect() {
     savedVsCards.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`).join('');
 }
 
-async function loadSavedSlides() {
-  try { savedSlides = await fetch('/api/slides').then(r => r.json()); } catch(e) { savedSlides = []; }
-  const el = document.getElementById('adm-saved-slides-list');
+function _renderSlidesGrid() {
+  const el = document.getElementById('adm-slides-grid');
   if (!el) return;
   if (!savedSlides.length) {
-    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace">NO SAVED SLIDES YET</div>';
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace;grid-column:1/-1">NO SAVED SLIDES YET</div>';
     return;
   }
-  el.innerHTML = savedSlides.map(s => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;margin-bottom:6px">
-      <div class="sl-prev sl-prev--thumb" data-slide-id="${escHtml(s.id)}"></div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.name)}</div>
-        <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;font-family:'Share Tech Mono',monospace">${(s.template||'').replace('_',' ').toUpperCase()} · ${((s.theme||'').startsWith('#') ? s.theme.toUpperCase() : (s.theme||'AMBER').toUpperCase())}</div>
-      </div>
-      <button onclick="admPushSavedSlide('${escHtml(s.id)}')" style="padding:5px 10px;border-radius:5px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">▶ PUSH</button>
-      <button onclick="admLoadSavedSlide('${escHtml(s.id)}')" style="padding:5px 10px;border-radius:5px;border:1px solid var(--border2);background:var(--surface);color:var(--text-dim);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">✎ EDIT</button>
-      <button onclick="admDeleteSavedSlide('${escHtml(s.id)}')" style="padding:5px 10px;border-radius:5px;border:1px solid var(--border2);background:var(--surface);color:var(--text-dim);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">🗑</button>
-    </div>`).join('');
-  // render thumbnails
+  el.innerHTML = savedSlides.map(s => {
+    const sel = s.id === _admSelectedSlideId ? ' selected' : '';
+    return `<div class="circle-card${sel}" onclick="admLoadSavedSlide('${escHtml(s.id)}')">
+      <div class="sl-prev sl-prev--full" data-slide-id="${escHtml(s.id)}" style="margin-bottom:8px;pointer-events:none"></div>
+      <div class="circle-card-name" style="margin-bottom:4px">${escHtml(s.name)}</div>
+      <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px;font-family:'Share Tech Mono',monospace">${(s.template||'').replace('_',' ').toUpperCase()}</div>
+      <button onclick="event.stopPropagation();admPushSavedSlide('${escHtml(s.id)}')" style="width:100%;padding:5px;border-radius:5px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">▶ PUSH</button>
+    </div>`;
+  }).join('');
   savedSlides.forEach(s => {
-    const el2 = document.querySelector(`.sl-prev[data-slide-id="${s.id}"]`);
+    const el2 = document.querySelector(`#adm-slides-grid .sl-prev[data-slide-id="${s.id}"]`);
     if (el2) renderSlPreview(s, el2);
   });
+}
+
+async function loadSavedSlides() {
+  try { savedSlides = await fetch('/api/slides').then(r => r.json()); } catch(e) { savedSlides = []; }
+  _renderSlidesGrid();
 }
 
 async function admSaveSlide() {
@@ -5322,6 +5340,7 @@ async function admSaveSlide() {
   if (!name) { showToast('ENTER A NAME FIRST', 'err'); return; }
   const g = id => document.getElementById(id)?.value?.trim() || '';
   const data = { name, template: _admSlideTpl, theme: _admSlideColor };
+  if (_admSelectedSlideId) data.id = _admSelectedSlideId;
   if (_admSlideTpl === 'big_title')  { data.headline = g('adm_sl_headline'); data.subtitle   = g('adm_sl_subtitle'); }
   if (_admSlideTpl === 'bulletin')   { data.headline = g('adm_sl_headline'); data.lines       = g('adm_sl_lines'); }
   if (_admSlideTpl === 'next_event') { data.label = g('adm_sl_label') || 'NEXT CAMP'; data.event_name = g('adm_sl_event_name'); data.date_text = g('adm_sl_date_text'); }
@@ -5329,9 +5348,12 @@ async function admSaveSlide() {
   if (_admSlideTpl === 'qr')         { data.headline = g('adm_sl_headline'); data.body        = g('adm_sl_body');    data.qr_url = g('adm_sl_qr_url'); }
   try {
     const r = await fetch('/api/slides', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
-    if ((await r.json()).ok) {
+    const res = await r.json();
+    if (res.ok) {
+      _admSelectedSlideId = res.id;
+      document.getElementById('adm-sl-editor-title').textContent = name.toUpperCase();
+      document.getElementById('adm-sl-delete-btn').style.display = 'block';
       showToast('SLIDE SAVED', 'ok');
-      document.getElementById('adm-slide-save-name').value = '';
       await loadSavedSlides();
     } else { showToast('SAVE FAILED', 'err'); }
   } catch(e) { showToast('SAVE FAILED', 'err'); }
@@ -5371,7 +5393,13 @@ function admLoadSavedSlide(id) {
   set('adm_sl_qr_url',     s.qr_url     || '');
   if (s.image) { const img = document.getElementById('adm_sl_image'); if (img) img.value = s.image; }
   document.getElementById('adm-slide-save-name').value = s.name;
-  showToast('LOADED INTO BUILDER', 'info');
+  _admSelectedSlideId = id;
+  document.getElementById('adm-slide-placeholder').style.display = 'none';
+  document.getElementById('adm-slide-editor').style.display = 'block';
+  document.getElementById('adm-sl-editor-title').textContent = s.name.toUpperCase();
+  document.getElementById('adm-sl-delete-btn').style.display = 'block';
+  _renderSlidesGrid();
+  updateAdmPreview();
 }
 
 async function admDeleteSavedSlide(id) {
@@ -5381,6 +5409,45 @@ async function admDeleteSavedSlide(id) {
     await loadSavedSlides();
     showToast('DELETED', 'info');
   } catch(e) { showToast('DELETE FAILED', 'err'); }
+}
+
+function admNewSlide() {
+  _admSelectedSlideId = null;
+  _admSlideTpl   = 'big_title';
+  _admSlideColor = '#F5A623';
+  document.querySelectorAll('#adm-slide-tpls .slide-tpl-btn').forEach(b => b.classList.toggle('active', b.dataset.tpl === 'big_title'));
+  const cw = document.getElementById('adm-sl-color');     if (cw) cw.value = '#F5A623';
+  const ch = document.getElementById('adm-sl-color-hex'); if (ch) ch.value = '#F5A623';
+  updateSwatchSel('adm-sl-swatches', '#F5A623');
+  admRenderFields();
+  const nameEl = document.getElementById('adm-slide-save-name'); if (nameEl) nameEl.value = '';
+  document.getElementById('adm-slide-placeholder').style.display = 'none';
+  document.getElementById('adm-slide-editor').style.display = 'block';
+  document.getElementById('adm-sl-editor-title').textContent = 'NEW SLIDE';
+  document.getElementById('adm-sl-delete-btn').style.display = 'none';
+  _renderSlidesGrid();
+  updateAdmPreview();
+}
+
+async function admDeleteCurrentSlide() {
+  if (!_admSelectedSlideId) return;
+  if (!confirm('Delete this slide?')) return;
+  try {
+    await fetch(`/api/slides/${_admSelectedSlideId}`, { method: 'DELETE' });
+    _admSelectedSlideId = null;
+    document.getElementById('adm-slide-placeholder').style.display = '';
+    document.getElementById('adm-slide-editor').style.display = 'none';
+    await loadSavedSlides();
+    showToast('SLIDE DELETED', 'info');
+  } catch(e) { showToast('DELETE FAILED', 'err'); }
+}
+
+async function admSendFromEditor() {
+  if (_admSelectedSlideId) {
+    await admPushSavedSlide(_admSelectedSlideId);
+  } else {
+    await admSendSlide();
+  }
 }
 
 // ── GAMES LIBRARY ──────────────────────────────────────────────────────────
@@ -6286,6 +6353,60 @@ async function saveShowFlow() {
       toast('Show flow saved', 'ok');
     } else { toast('Save failed', 'err'); }
   } catch(e) { toast('Save failed', 'err'); }
+}
+
+// ── SHOW FLOW TEMPLATES ───────────────────────────────────────────────────
+let _showFlowTemplates = [];
+
+async function loadShowFlowTemplates() {
+  try { _showFlowTemplates = await fetch('/api/admin/show_flow_templates').then(r => r.json()); } catch(e) { _showFlowTemplates = []; }
+  const el = document.getElementById('sft-list');
+  if (!el) return;
+  if (!_showFlowTemplates.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace">NO SAVED FLOWS YET</div>';
+    return;
+  }
+  el.innerHTML = _showFlowTemplates.map(t => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;margin-bottom:6px">
+      <div style="flex:1;font-size:13px;font-weight:700;color:var(--text);letter-spacing:.5px">${escHtml(t.name)}</div>
+      <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;font-family:'Share Tech Mono',monospace;white-space:nowrap">${(t.steps||[]).length} STEPS</div>
+      <button onclick="loadShowFlowTemplate('${escHtml(t.id)}')" style="padding:5px 10px;border-radius:5px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">⤓ LOAD</button>
+      <button onclick="deleteShowFlowTemplate('${escHtml(t.id)}')" style="padding:5px 10px;border-radius:5px;border:1px solid var(--border2);background:var(--surface);color:var(--text-dim);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">🗑</button>
+    </div>`).join('');
+}
+
+async function saveShowFlowTemplate() {
+  const name = document.getElementById('sft-name')?.value.trim();
+  if (!name) { showToast('ENTER A NAME FIRST', 'err'); return; }
+  try {
+    const r = await fetch('/api/admin/show_flow_templates', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name, steps: showFlow })
+    });
+    if ((await r.json()).ok) {
+      document.getElementById('sft-name').value = '';
+      showToast('FLOW SAVED', 'ok');
+      await loadShowFlowTemplates();
+    } else { showToast('SAVE FAILED', 'err'); }
+  } catch(e) { showToast('SAVE FAILED', 'err'); }
+}
+
+async function loadShowFlowTemplate(id) {
+  if (!confirm('Replace the current show flow with this template?')) return;
+  try {
+    const r = await fetch(`/api/admin/show_flow_templates/${id}/load`, { method: 'POST' });
+    if ((await r.json()).ok) { showToast('FLOW LOADED', 'ok'); await loadShowFlow(); }
+    else { showToast('LOAD FAILED', 'err'); }
+  } catch(e) { showToast('LOAD FAILED', 'err'); }
+}
+
+async function deleteShowFlowTemplate(id) {
+  if (!confirm('Delete this saved flow?')) return;
+  try {
+    await fetch(`/api/admin/show_flow_templates/${id}`, { method: 'DELETE' });
+    showToast('DELETED', 'info');
+    await loadShowFlowTemplates();
+  } catch(e) { showToast('DELETE FAILED', 'err'); }
 }
 
 // ── TIMER CONFIG ───────────────────────────────────────────────────────────
