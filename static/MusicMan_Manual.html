@@ -322,6 +322,7 @@
       <li><a href="#shell-game-run">Shell Game — live operation</a></li>
       <li><a href="#prize-wheel-run">Prize Wheel — live operation</a></li>
       <li><a href="#usb-run">USB Playlist tab</a></li>
+      <li><a href="#streamdeck-run">Stream Deck</a></li>
       <li><a href="#kill-all">Emergency stop (Kill All)</a></li>
     </ul>
   </div>
@@ -377,6 +378,7 @@
     <li><strong>HDMI display, TV, or projector</strong> connected to the Pi's HDMI port</li>
     <li><strong>USB drive</strong> with your music, SFX, and image files</li>
     <li><strong>iPad or any device with a browser</strong> — connects to MusicMan WiFi</li>
+    <li><strong>Elgato Stream Deck</strong> (optional — plugs into the Pi for a dedicated hardware control surface)</li>
     <li><strong>WLED lighting controllers</strong> (optional — needed for lighting scenes and crowd lights)</li>
     <li><strong>Anker SOLIX C300</strong> power stations (optional — for battery-powered pole lighting)</li>
   </ul>
@@ -392,8 +394,16 @@
     <li>Connect your <strong>speakers or PA system</strong> to the audio output jack on the box.</li>
     <li>Connect the <strong>HDMI display or projector</strong> to the Pi's HDMI port. Do this <em>before</em> powering on.</li>
     <li>Plug in your <strong>USB drive</strong> (with music/SFX files) into a USB port on the Pi.</li>
+    <li>If you have a Stream Deck, plug it into any USB port on the Pi now.</li>
     <li>Connect the Pi to <strong>power</strong>. Give it about 60 seconds to fully boot.</li>
   </ol>
+
+  <div class="callout callout-info">
+    <div class="callout-title">Stream Deck — no configuration needed</div>
+    The Stream Deck service starts automatically when the Pi boots. As soon as it detects the deck,
+    it loads your circles, roles, macros, and show flow from the system and lights up the keys.
+    If you unplug and replug it mid-show, it reconnects on its own within a few seconds.
+  </div>
 
   <h2 id="hdmi">The HDMI Display</h2>
   <p>
@@ -1605,6 +1615,102 @@
     <li>Toggle <kbd>🔀 SHUFFLE</kbd> before selecting to shuffle the order.</li>
     <li>Use <kbd>⏭ NEXT TRACK</kbd> to skip ahead.</li>
   </ol>
+
+  <h2 id="streamdeck-run">Stream Deck</h2>
+  <p>
+    The Stream Deck is a 15-key hardware controller plugged directly into the Pi via USB.
+    It gives you one-touch access to the most common show actions without touching the iPad —
+    useful when you're on your feet, running walk-ups, or just want faster hands on transport and volume.
+  </p>
+  <p>
+    The deck organizes into <strong>8 pages</strong>. You always start on the <strong>MAIN</strong> page.
+    Navigation buttons on each page take you to a sub-page; a <kbd>HOME ←</kbd> key on every sub-page
+    brings you back.
+  </p>
+  <p>
+    Buttons update <strong>live</strong> as the show runs — the active walk-up glows, the timer counts
+    down on the key face, the current show step lights up bright and completed steps dim with a checkmark.
+    You don't need to track state manually; the deck shows it.
+  </p>
+
+  <h3>Pages at a glance</h3>
+  <table>
+    <tr><th>Page</th><th>What's on it</th></tr>
+    <tr><td><strong>MAIN</strong></td><td>Audio transport, volume, timer controls, navigation to all other pages</td></tr>
+    <tr><td><strong>SHOW</strong></td><td>Show flow steps 1–12 — tap to fire any step</td></tr>
+    <tr><td><strong>SHOW 2</strong></td><td>Show flow steps 13–24 (appears automatically if your show has more than 12 steps)</td></tr>
+    <tr><td><strong>WALKUPS</strong></td><td>Circle walk-up buttons with each kid's logo photo</td></tr>
+    <tr><td><strong>ROLES</strong></td><td>Role walk-up buttons with logo photos</td></tr>
+    <tr><td><strong>SFX</strong></td><td>Sound effect buttons, one per SFX file (up to 13)</td></tr>
+    <tr><td><strong>MACROS</strong></td><td>Macro buttons, one per macro (up to 13)</td></tr>
+    <tr><td><strong>DISPLAY</strong></td><td>Logo / blackout / standby + up to 10 display files you can push to the projector</td></tr>
+  </table>
+
+  <h3>MAIN page</h3>
+  <p>This is the default page. The 15 keys are arranged in three rows of five:</p>
+  <table>
+    <tr><th>Key</th><th>Label</th><th>What it does</th></tr>
+    <tr><td>Top-left</td><td><kbd>STOP AUDIO</kbd></td><td>Stops all music immediately</td></tr>
+    <tr><td>Top-2</td><td><kbd>PAUSE</kbd> / <kbd>RESUME</kbd></td><td>Pauses or resumes the current track — label flips to match current state</td></tr>
+    <tr><td>Top-3</td><td><kbd>→ SHOW</kbd></td><td>Go to Show Flow page</td></tr>
+    <tr><td>Top-4</td><td><kbd>→ WALKUPS</kbd></td><td>Go to Walk-Ups page</td></tr>
+    <tr><td>Top-right</td><td><kbd>→ SFX</kbd></td><td>Go to SFX page</td></tr>
+    <tr><td>Mid-left</td><td><kbd>START TIMER</kbd> / <kbd>MM:SS</kbd></td><td>Starts the timer on first press. While running, shows a live countdown on the key face. Press again to pause.</td></tr>
+    <tr><td>Mid-2</td><td><kbd>RESET TIMER</kbd></td><td>Resets the timer to its configured duration</td></tr>
+    <tr><td>Mid-3</td><td><kbd>→ ROLES</kbd></td><td>Go to Roles page</td></tr>
+    <tr><td>Mid-4</td><td><kbd>→ MACROS</kbd></td><td>Go to Macros page</td></tr>
+    <tr><td>Mid-right</td><td><kbd>→ DISPLAY</kbd></td><td>Go to Display page</td></tr>
+    <tr><td>Bottom-left</td><td><kbd>FADE OUT</kbd></td><td>Fades music out gradually</td></tr>
+    <tr><td>Bottom-2</td><td><kbd>MUS VOL▼</kbd></td><td>Music volume down 10% — current percentage shown on key</td></tr>
+    <tr><td>Bottom-3</td><td><kbd>MUS VOL▲</kbd></td><td>Music volume up 10%</td></tr>
+    <tr><td>Bottom-4</td><td><kbd>SFX VOL▼</kbd></td><td>SFX volume down 10% — current percentage shown on key</td></tr>
+    <tr><td>Bottom-right</td><td><kbd>SFX VOL▲</kbd></td><td>SFX volume up 10%</td></tr>
+  </table>
+
+  <h3>SHOW page</h3>
+  <p>
+    The first 12 keys map directly to your show flow steps in order. Each key shows the step number
+    and its name. As the show runs:
+  </p>
+  <ul>
+    <li>The <strong>currently active step</strong> glows bright with a colored border</li>
+    <li><strong>Completed steps</strong> dim and show a checkmark (✓)</li>
+    <li><strong>Upcoming steps</strong> show at normal brightness</li>
+  </ul>
+  <p>Tap any key to fire that step directly — you're not locked to going in order.</p>
+  <p>The bottom row has a live timer key (same as MAIN), a <kbd>HOME ←</kbd> key, and a <kbd>→ SHOW 2</kbd>
+  key if your show has more than 12 steps.</p>
+
+  <h3>WALKUPS and ROLES pages</h3>
+  <p>
+    Up to 13 buttons, one per circle or role. Each button shows the kid's or role's actual logo photo
+    on the key face. The active walk-up glows with a colored border. Tap any button to fire that
+    walk-up — music, lighting, and display all trigger just like pressing the button in the console.
+    <kbd>HOME ←</kbd> is always bottom-left.
+  </p>
+
+  <h3>SFX and MACROS pages</h3>
+  <p>
+    Up to 13 color-coded buttons, one per SFX file or macro. Labels are the file or macro name
+    (truncated to fit). Tap to fire. <kbd>HOME ←</kbd> is bottom-left.
+  </p>
+
+  <h3>DISPLAY page</h3>
+  <table>
+    <tr><th>Key</th><th>What it does</th></tr>
+    <tr><td><kbd>BAE LOGO</kbd></td><td>Sends the display to standby (shows the expedition logo)</td></tr>
+    <tr><td><kbd>BLACK OUT</kbd></td><td>Blacks out the display completely</td></tr>
+    <tr><td><kbd>STAND BY</kbd></td><td>Same as BAE LOGO — returns to the standby screen</td></tr>
+    <tr><td>Keys 4–13</td><td>Up to 10 display files from your display library — tap to push that image or video to the projector immediately</td></tr>
+    <tr><td><kbd>HOME ←</kbd></td><td>Back to MAIN</td></tr>
+  </table>
+
+  <div class="callout callout-tip">
+    <div class="callout-title">Tip — deck and iPad work together</div>
+    The Stream Deck and the iPad console are fully in sync. You can use both at the same time —
+    fire a walk-up from the deck while an assistant navigates slides on the iPad.
+    Every action on the deck appears instantly in the console, and vice versa.
+  </div>
 
   <h2 id="kill-all">Emergency Stop — Kill All</h2>
   <div class="callout callout-warn">
