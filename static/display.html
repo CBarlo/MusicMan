@@ -1364,7 +1364,7 @@ function connectWS() {
       else if (msg.event === 'countdown_state')   { handleCountdownState(data); }
       else if (msg.event === 'countdown_expired') { hideChronoOverlay('countdown'); }
       else if (msg.event === 'stopwatch_state')   { handleStopwatchState(data); }
-      else if (msg.event === 'viz_show')    { if (data.scene === 'crowd') showCrowdViz(data.settings); else showMusicViz(data.settings); }
+      else if (msg.event === 'viz_show')    { hideGameFrame(); hideChronoOverlay(); hideVsCard(); if (data.scene === 'crowd') showCrowdViz(data.settings); else showMusicViz(data.settings); }
       else if (msg.event === 'viz_hide')    { hideViz(); }
       else if (msg.event === 'viz_music')   { _eqReceive(data); }
       else if (msg.event === 'viz_crowd')   { _crowdReceive(data); }
