@@ -40,3 +40,17 @@
   font-display: swap;
   src: url('inter-latin.woff2') format('woff2');
 }
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('PressStart2P.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'VT323';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('VT323.woff2') format('woff2');
+}

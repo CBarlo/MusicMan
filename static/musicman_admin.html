@@ -1099,6 +1099,11 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   </div>
                   <button id="vsc-left-clear" onclick="clearVscImage('left')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
                   <button type="button" onclick="openVscLibraryPicker('left')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
+                  <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                    <label style="flex:0 0 auto;margin:0;font-size:9px">SIZE</label>
+                    <input type="range" id="vsc-left-scale" min="50" max="250" step="5" value="100" oninput="document.getElementById('vsc-left-scale-val').textContent=this.value+'%'" style="flex:1">
+                    <span id="vsc-left-scale-val" style="font-size:10px;min-width:36px;text-align:right;font-family:'Share Tech Mono',monospace;color:var(--text-dim)">100%</span>
+                  </div>
                 </div>
 
                 <!-- RIGHT -->
@@ -1130,6 +1135,11 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   </div>
                   <button id="vsc-right-clear" onclick="clearVscImage('right')" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;display:none">✕ REMOVE PHOTO</button>
                   <button type="button" onclick="openVscLibraryPicker('right')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:4px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📚 PICK FROM LIBRARY</button>
+                  <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                    <label style="flex:0 0 auto;margin:0;font-size:9px">SIZE</label>
+                    <input type="range" id="vsc-right-scale" min="50" max="250" step="5" value="100" oninput="document.getElementById('vsc-right-scale-val').textContent=this.value+'%'" style="flex:1">
+                    <span id="vsc-right-scale-val" style="font-size:10px;min-width:36px;text-align:right;font-family:'Share Tech Mono',monospace;color:var(--text-dim)">100%</span>
+                  </div>
                 </div>
               </div>
 
@@ -1139,7 +1149,6 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                 <button class="slide-tpl-btn active" data-theme="arcade" onclick="vsSelectTheme('arcade',this)">ARCADE</button>
                 <button class="slide-tpl-btn" data-theme="fire_ice" onclick="vsSelectTheme('fire_ice',this)">FIRE VS ICE</button>
                 <button class="slide-tpl-btn" data-theme="neon" onclick="vsSelectTheme('neon',this)">NEON</button>
-                <button class="slide-tpl-btn" data-theme="gold_purple" onclick="vsSelectTheme('gold_purple',this)">GOLD / PURPLE</button>
                 <button class="slide-tpl-btn" data-theme="nes" onclick="vsSelectTheme('nes',this)">8-BIT NES</button>
               </div>
 
@@ -4920,6 +4929,12 @@ function selectVsCard(id) {
   _vscUpdateSwatch('right', rc);
   _vscSetImage('left',  id, L.image);
   _vscSetImage('right', id, R.image);
+  const ls = Math.round((L.image_scale || 1.0) * 100);
+  const rs = Math.round((R.image_scale || 1.0) * 100);
+  document.getElementById('vsc-left-scale').value         = ls;
+  document.getElementById('vsc-left-scale-val').textContent = ls + '%';
+  document.getElementById('vsc-right-scale').value         = rs;
+  document.getElementById('vsc-right-scale-val').textContent = rs + '%';
   _vscTheme = card.theme || 'arcade';
   document.querySelectorAll('#vsc-theme-btns .slide-tpl-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.theme === _vscTheme);
@@ -4948,6 +4963,10 @@ function vsCardNew() {
   _vscUpdateSwatch('right', rc);
   _vscSetImage('left',  null, null);
   _vscSetImage('right', null, null);
+  document.getElementById('vsc-left-scale').value          = 100;
+  document.getElementById('vsc-left-scale-val').textContent  = '100%';
+  document.getElementById('vsc-right-scale').value         = 100;
+  document.getElementById('vsc-right-scale-val').textContent = '100%';
   document.querySelectorAll('#vsc-theme-btns .slide-tpl-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.theme === 'arcade');
   });
@@ -5117,8 +5136,8 @@ async function saveVsCard() {
     name,
     vs_text: document.getElementById('vsc-vs-text').value.trim() || 'VS',
     theme:   _vscTheme,
-    left:  { name: document.getElementById('vsc-left-name').value.trim(),  sub: document.getElementById('vsc-left-sub').value.trim(),  color: document.getElementById('vsc-left-color').value,  image: !!((existing.left||{}).image)  },
-    right: { name: document.getElementById('vsc-right-name').value.trim(), sub: document.getElementById('vsc-right-sub').value.trim(), color: document.getElementById('vsc-right-color').value, image: !!((existing.right||{}).image) },
+    left:  { name: document.getElementById('vsc-left-name').value.trim(),  sub: document.getElementById('vsc-left-sub').value.trim(),  color: document.getElementById('vsc-left-color').value,  image: !!((existing.left||{}).image),  image_scale: parseFloat(document.getElementById('vsc-left-scale').value)  / 100 || 1.0 },
+    right: { name: document.getElementById('vsc-right-name').value.trim(), sub: document.getElementById('vsc-right-sub').value.trim(), color: document.getElementById('vsc-right-color').value, image: !!((existing.right||{}).image), image_scale: parseFloat(document.getElementById('vsc-right-scale').value) / 100 || 1.0 },
   };
   try {
     const r = await fetch('/api/vs_cards', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });

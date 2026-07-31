@@ -230,8 +230,9 @@
 
   /* Portrait / letter avatar */
   .vs-portrait {
-    width: 32vw; height: 42vh;
-    object-fit: cover; object-position: top center;
+    max-width:  calc(var(--img-scale, 1.0) * 36vw);
+    max-height: calc(var(--img-scale, 1.0) * 60vh);
+    width: auto; height: auto;
     display: block;
     filter: drop-shadow(0 0 3vw var(--vs-color, #E83A3A));
     border-radius: 4px;
@@ -336,63 +337,83 @@
     animation: none;
   }
 
-  /* Gold / Purple theme */
-  #layer-vs.theme-gold_purple { background: #0D0518; }
-  #layer-vs.theme-gold_purple #vs-text {
-    color: #F5C518;
-    text-shadow: 0 0 3vw rgba(255,255,255,.5), 0 0 8vw #F5C518, 0 0 20vw #C49A0A, 0 6px 0 rgba(0,0,0,.9);
-    animation: vs-pulse-gold 1.8s ease-in-out infinite;
+  /* Nintendo 8-bit (NES) theme */
+  #layer-vs.theme-nes {
+    background: radial-gradient(ellipse at 50% 30%, #1a0a2e 0%, #0d0221 70%);
   }
-  #layer-vs.theme-gold_purple #vs-divider-line {
-    background: linear-gradient(to bottom,
-      transparent 0%,
-      rgba(245,197,24,.5) 30%,
-      rgba(245,197,24,.85) 50%,
-      rgba(245,197,24,.5) 70%,
-      transparent 100%);
+  /* Vignette */
+  #layer-vs.theme-nes::before {
+    content: '';
+    position: absolute; inset: 0; z-index: 8; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 38%, rgba(0,0,0,.5) 100%);
   }
-  @keyframes vs-pulse-gold {
-    0%,100% { text-shadow: 0 0 3vw rgba(255,255,255,.5), 0 0 8vw #F5C518, 0 0 20vw #C49A0A, 0 6px 0 rgba(0,0,0,.9); }
-    50%      { text-shadow: 0 0 5vw #fff, 0 0 14vw #F5C518, 0 0 30vw #C49A0A, 0 0 50vw rgba(245,197,24,.3), 0 6px 0 rgba(0,0,0,.9); }
-  }
-
-  /* Nintendo 8-bit theme */
-  #layer-vs.theme-nes { background: #000; }
+  /* Scanlines */
   #layer-vs.theme-nes::after {
     content: '';
-    position: absolute; inset: 0; z-index: 10; pointer-events: none;
-    background:
-      repeating-linear-gradient(0deg,
-        rgba(0,0,0,.14) 0px, rgba(0,0,0,.14) 1px,
-        transparent 1px, transparent 4px),
-      repeating-linear-gradient(90deg,
-        rgba(0,0,0,.07) 0px, rgba(0,0,0,.07) 1px,
-        transparent 1px, transparent 4px);
+    position: absolute; inset: 0; z-index: 9; pointer-events: none;
+    background: repeating-linear-gradient(rgba(0,0,0,.35) 0 1px, transparent 1px 3px);
+    opacity: .35;
   }
-  #layer-vs.theme-nes .vs-name {
-    font-family: 'Share Tech Mono', monospace;
-    text-shadow: 3px 3px 0 #000, 6px 6px 0 rgba(0,0,0,.5);
-    letter-spacing: .08em;
-  }
-  #layer-vs.theme-nes .vs-sublabel { font-family: 'Share Tech Mono', monospace; }
+  /* Suppress half color wash */
+  #layer-vs.theme-nes .vs-half::before { opacity: 0; }
+  /* VS text */
   #layer-vs.theme-nes #vs-text {
-    font-family: 'Share Tech Mono', monospace;
-    font-style: normal;
-    color: #E60012;
-    text-shadow: 4px 4px 0 #000, 8px 8px 0 #5A0000;
-    animation: vs-blink-nes 1.1s step-end infinite;
+    font-family: 'Press Start 2P', 'Share Tech Mono', monospace;
+    font-style: normal; font-size: 6vw; letter-spacing: 0;
+    color: #ff2079;
+    text-shadow: 0 0 18px #ff2079, 0 0 4px #fff;
+    animation: vs-pulse-nes 1.1s ease-in-out infinite;
   }
-  #layer-vs.theme-nes #vs-divider-line {
-    width: 3px;
-    background: linear-gradient(to bottom,
-      transparent 0%,
-      #E60012 20%,
-      #E60012 80%,
-      transparent 100%);
+  @keyframes vs-pulse-nes {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.12); }
   }
-  @keyframes vs-blink-nes {
-    0%, 65% { opacity: 1; }
-    66%, 100% { opacity: 0.55; }
+  /* No divider */
+  #layer-vs.theme-nes #vs-divider-line { display: none; }
+  /* Photo box */
+  #layer-vs.theme-nes #vs-left-media,
+  #layer-vs.theme-nes #vs-right-media {
+    width: 22vw; height: 22vw;
+    border: 4px solid #00e5ff;
+    box-shadow: 0 0 20px #00e5ff, 0 0 50px rgba(0,229,255,.25), inset 0 0 20px rgba(0,229,255,.08);
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #00e5ff, #ff2079);
+  }
+  /* Pixel grid overlay on photo */
+  #layer-vs.theme-nes #vs-left-media::after,
+  #layer-vs.theme-nes #vs-right-media::after {
+    content: ''; position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 6px, transparent 6px 12px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.12) 0 6px, transparent 6px 12px);
+    pointer-events: none; z-index: 1;
+  }
+  /* Portrait fills box */
+  #layer-vs.theme-nes .vs-portrait {
+    width: 100%; height: 100%; max-width: none; max-height: none;
+    object-fit: cover; border-radius: 0;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    filter: contrast(1.2) saturate(1.3);
+  }
+  /* Letter avatar fills box with gradient bg */
+  #layer-vs.theme-nes .vs-letter-avatar {
+    width: 100%; height: 100%;
+    font-family: 'Press Start 2P', 'Share Tech Mono', monospace;
+    font-size: 7vw; font-weight: 400;
+    color: #fff; text-shadow: none; opacity: 1; background: transparent;
+  }
+  /* Name moved to top */
+  #layer-vs.theme-nes .vs-namebar { top: 6vh; }
+  #layer-vs.theme-nes .vs-name {
+    font-family: 'Press Start 2P', 'Share Tech Mono', monospace;
+    font-size: 2.2vw; font-weight: 400; letter-spacing: 0; line-height: 1.8;
+    color: #f4f4f4;
+    text-shadow: 0 0 10px #00e5ff;
+  }
+  #layer-vs.theme-nes .vs-sublabel {
+    font-family: 'VT323', 'Share Tech Mono', monospace;
+    font-size: 3.5vw; color: #00e5ff; letter-spacing: 2px;
   }
 
   /* ── VIZ LAYERS ─────────────────────────────────────────────── */
@@ -1085,6 +1106,7 @@ function showVsCard(data) {
 
   function _applyHalf(halfEl, mediaEl, nameEl, subEl, cfg, side) {
     halfEl.style.setProperty('--vs-color', cfg.color || (side === 'left' ? '#E83A3A' : '#4A9FD4'));
+    halfEl.style.setProperty('--img-scale', cfg.image_scale || 1.0);
     nameEl.textContent = (cfg.name || cfg.label || '').toUpperCase();
     subEl.textContent  = cfg.sub || cfg.sublabel || '';
     subEl.style.display = (cfg.sub || cfg.sublabel) ? '' : 'none';
