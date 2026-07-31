@@ -289,6 +289,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <span class="header-badge" id="save-status">READY</span>
     <a href="/" class="nav-link">OPERATOR</a>
     <a href="/update" class="nav-link">UPDATER</a>
+    <a href="/static/help.html" target="_blank" class="nav-link">HELP</a>
     <a href="/admin/logout" class="nav-link">LOGOUT</a>
   </div>
 </div>
@@ -1384,19 +1385,19 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <button id="sf-cancel-edit-btn" class="btn btn-secondary" style="width:100%;display:none" onclick="sfCancelEdit()">CANCEL</button>
         </div>
       </div>
-    </div>
 
-    <!-- SAVED FLOW TEMPLATES -->
-    <div class="card" style="margin-top:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-        <div class="card-title" style="margin-bottom:0">SAVED FLOWS</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input id="sft-name" type="text" placeholder="Flow template name…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:200px;font-family:'Barlow Condensed',sans-serif;font-weight:600">
-          <button onclick="saveShowFlowTemplate()" class="btn btn-primary btn-sm">💾 SAVE CURRENT</button>
+      <!-- SAVED FLOW TEMPLATES -->
+      <div class="card" style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">SAVED FLOWS</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="sft-name" type="text" placeholder="Flow template name…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:200px;font-family:'Barlow Condensed',sans-serif;font-weight:600">
+            <button onclick="saveShowFlowTemplate()" class="btn btn-primary btn-sm">💾 SAVE CURRENT</button>
+          </div>
         </div>
-      </div>
-      <div id="sft-list">
-        <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SAVED FLOWS YET</div>
+        <div id="sft-list">
+          <div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:'Share Tech Mono',monospace">NO SAVED FLOWS YET</div>
+        </div>
       </div>
     </div>
 
