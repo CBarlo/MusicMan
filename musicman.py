@@ -613,6 +613,7 @@ def _walkup_color_anim(preset_num, color1_hex, color2_hex, cancel_event, cfg):
 
 def _send_crowd_lights(level, climax):
     """Fire-and-forget WLED + DMX updates for crowd lighting. Runs in a daemon thread."""
+    global _crowd_post_climax
     cfg          = load_config()
     light_ids    = cfg.get('crowd_lights', [])
     # None = DMX crowd tracking never configured (opt-in required, no surprise
@@ -685,7 +686,7 @@ def _send_crowd_lights(level, climax):
     # Climax behavior (scenes, SFX, video, whatever) lives in the macro itself —
     # build a "Climax" macro with the steps you want instead of configuring it here.
     if climax:
-        global _crowd_led_display, _crowd_post_climax
+        global _crowd_led_display
         _crowd_post_climax = True   # guard before macro fires so viz_hide/display events can't race
         _crowd_led_display = 0.0   # zero before anim pauses so it starts from 0 when it resumes
         _stop_music()   # stops music + playlist, but leaves SFX channel so explosion SFX can play
