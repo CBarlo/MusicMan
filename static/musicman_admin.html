@@ -2938,7 +2938,11 @@ function previewGameEntryMusic() {
   const src = assets.walkup_music_lib
     ? `/assets/music/${encodeURIComponent(assets.walkup_music_lib)}`
     : `/assets/game_entries/${selectedGameEntryId}/walkup.mp3`;
-  _startTimedPreview(src, wu.start_time ?? 0, wu.duration ?? 30, wu.fade_duration ?? 3, 'ge', wu.volume_trim ?? 100);
+  const start   = parseFloat(document.getElementById('ge-start').value)    || wu.start_time    || 0;
+  const dur     = parseFloat(document.getElementById('ge-duration').value) || wu.duration      || 30;
+  const fade    = parseFloat(document.getElementById('ge-fade').value)     || wu.fade_duration || 3;
+  const volTrim = parseInt(document.getElementById('ge-vol-trim').value)   || wu.volume_trim   || 100;
+  _startTimedPreview(src, start, dur, fade, 'ge', volTrim);
 }
 
 function previewGeIntroAnimation() {

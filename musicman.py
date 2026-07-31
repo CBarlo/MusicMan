@@ -2610,21 +2610,10 @@ def api_viz_preset_logo_delete(preset_id):
     config = cfg
     return jsonify({'ok': True})
 
-@app.route('/api/display/vs_card', methods=['POST'])
-def api_display_vs_card():
+def _fire_vs_card_by_card(card, card_id):
+    """Push VS card to display and fire its walk-up music + lighting."""
     global _walkup_fade_cancel
-    data = request.get_json() or {}
-    card_id = data.get('id', '')
-    if card_id:
-        cards = {c['id']: c for c in load_vs_cards()}
-        card  = dict(cards.get(card_id, {}))
-        if not card:
-            return jsonify({'ok': False, 'error': 'VS card not found'}), 404
-        card.update({k: v for k, v in data.items() if k != 'id' and v})
-    else:
-        card = data
-    cid  = card.get('id', card_id)
-    card = _vs_card_resolve_images(card, cid)
+    card = _vs_card_resolve_images(card, card_id)
     _ensure_display_for('display_vs_card', card)
 
     walkup       = card.get('walkup') or {}
@@ -2660,6 +2649,19 @@ def api_display_vs_card():
             threading.Thread(target=_auto_fade, daemon=True).start()
         threading.Thread(target=_play_vsc_music, daemon=True).start()
 
+@app.route('/api/display/vs_card', methods=['POST'])
+def api_display_vs_card():
+    data = request.get_json() or {}
+    card_id = data.get('id', '')
+    if card_id:
+        cards = {c['id']: c for c in load_vs_cards()}
+        card  = dict(cards.get(card_id, {}))
+        if not card:
+            return jsonify({'ok': False, 'error': 'VS card not found'}), 404
+        card.update({k: v for k, v in data.items() if k != 'id' and v})
+    else:
+        card = data
+    _fire_vs_card_by_card(card, card.get('id', card_id))
     return jsonify({'ok': True})
 
 @app.route('/api/slides')
@@ -4351,8 +4353,7 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                 cards   = {c['id']: c for c in load_vs_cards()}
                 card    = dict(cards.get(card_id, {}))
                 if card:
-                    card = _vs_card_resolve_images(card, card_id)
-                    _ensure_display_for('display_vs_card', card)
+                    _fire_vs_card_by_card(card, card_id)
                 else:
                     log.warning(f"vs_card macro action: card not found: {card_id!r}")
             log.info(f"Macro step done: {action}")
