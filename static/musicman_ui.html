@@ -1704,24 +1704,35 @@ async function loadGlUi() {
 function _renderAllGlUiConfigs() {
   const el = document.getElementById('gl-ui-config-list');
   if (!el) return;
-  let html = '';
-  let anyConfigs = false;
+  let tiles = [];
   _glUiGameTypes.forEach(gt => {
-    const configs = _glUiConfigs[gt.id] || [];
-    if (!configs.length) return;
-    anyConfigs = true;
-    html += `<div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);margin:8px 0 4px;font-weight:700">${gt.icon||''} ${gt.label.toUpperCase()}</div>`;
-    html += configs.map(c => `
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-        <span style="flex:1;font-size:12px;font-weight:700;letter-spacing:0.5px;color:var(--text)">${c.name}</span>
-        <button class="games-btn primary" onclick="glUiGoLive('${gt.id}','${c.id}')" style="font-size:11px;padding:4px 10px">GO LIVE</button>
-      </div>`).join('');
+    ((_glUiConfigs[gt.id] || [])).forEach(c => {
+      let strip = '';
+      if (gt.id === 'wheel' && c.data?.entries?.length) {
+        const dots = c.data.entries.slice(0, 10).map(name => {
+          const col = c.data.entry_colors?.[name];
+          return col ? `<div style="width:14px;height:8px;border-radius:2px;flex-shrink:0;background:${escHtml(col)}"></div>` : '';
+        }).join('');
+        if (dots) strip = `<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:6px">${dots}</div>`;
+      }
+      tiles.push(`<div class="circle-card" onclick="glUiGoLive('${escHtml(gt.id)}','${escHtml(c.id)}')" style="padding:10px 12px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:20px;line-height:1;flex-shrink:0">${escHtml(gt.icon||'🎮')}</div>
+          <div style="min-width:0;flex:1">
+            <div class="circle-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">${escHtml(c.name)}</div>
+            <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;font-weight:700">${escHtml((gt.label||'').toUpperCase())}</div>
+          </div>
+          <button class="games-btn primary" onclick="event.stopPropagation();glUiGoLive('${escHtml(gt.id)}','${escHtml(c.id)}')" style="font-size:11px;padding:5px 12px;flex-shrink:0">GO LIVE</button>
+        </div>
+        ${strip}
+      </div>`);
+    });
   });
-  if (!anyConfigs) {
+  if (!tiles.length) {
     el.innerHTML = `<div style="color:var(--text-dim);font-size:11px;letter-spacing:1.5px">NO SAVED CONFIGS — CREATE IN ADMIN › GAMES</div>`;
     return;
   }
-  el.innerHTML = html;
+  el.innerHTML = tiles.join('');
 }
 
 async function glUiGoLive(typeId, configId) {
