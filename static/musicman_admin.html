@@ -8946,7 +8946,8 @@ async function overlayInit() {
 }
 
 function overlayMarkDirty() {
-  document.getElementById('overlay-save-status').style.display = 'none';
+  const s = document.getElementById('overlay-save-status');
+  if (s) s.style.display = 'none';
 }
 
 async function overlayUpload(input) {
@@ -8980,8 +8981,7 @@ async function overlaySaveSlots() {
     await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(cfg)});
     const status = document.getElementById('overlay-save-status');
-    status.style.display = 'inline';
-    setTimeout(() => status.style.display = 'none', 2500);
+    if (status) { status.style.display = 'inline'; setTimeout(() => status.style.display = 'none', 2500); }
   } catch(e) { toast('SAVE FAILED', 'err'); }
 }
 </script>

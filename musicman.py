@@ -685,7 +685,8 @@ def _send_crowd_lights(level, climax):
     # Climax behavior (scenes, SFX, video, whatever) lives in the macro itself —
     # build a "Climax" macro with the steps you want instead of configuring it here.
     if climax:
-        global _crowd_led_display
+        global _crowd_led_display, _crowd_post_climax
+        _crowd_post_climax = True   # guard before macro fires so viz_hide/display events can't race
         _crowd_led_display = 0.0   # zero before anim pauses so it starts from 0 when it resumes
         _stop_music()   # stops music + playlist, but leaves SFX channel so explosion SFX can play
         climax_dur = cfg.get('crowd_climax_duration_ms', 2500) / 1000.0
@@ -720,11 +721,11 @@ def _send_crowd_lights(level, climax):
         def _after_climax(dur=climax_dur, rsid=revert_id, macro_map=all_macros):
             global _crowd_post_climax
             time.sleep(dur)
+            _crowd_post_climax = True   # set BEFORE revert macro so viz_hide/display_step can't race
             if rsid:
                 revert_macro = macro_map.get(rsid)
                 if revert_macro:
                     execute_macro(revert_macro)
-            _crowd_post_climax      = True   # block anim + auto-poll until operator re-engages
             _crowd_state['climax']  = False
             _crowd_state['level']   = 0
             broadcast('viz_crowd', _crowd_state)
