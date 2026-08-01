@@ -54,6 +54,7 @@ NORM_STAMP  = BASE_DIR / 'logs' / 'normalize_last_run'
 GAMES_FILE        = BASE_DIR / 'games.json'
 GAME_CONFIGS_FILE = BASE_DIR / 'game_configs.json'
 VS_CARDS_FILE     = BASE_DIR / 'vs_cards.json'
+HEAD_TO_HEAD_FILE = BASE_DIR / 'head_to_head.json'
 
 # ── LOGGING ──
 _log_file = BASE_DIR / 'logs' / 'musicman.log'
@@ -371,6 +372,8 @@ _macro_cancel        = threading.Event()  # set to cancel any in-flight macro; r
 _walkup_led_active   = False              # True while circle color animation is running
 _dmx_anim_stop = threading.Event()       # set to cancel running DMX animation loop
 _audio_session      = 0                  # increments on every play_audio call
+_h2h_multiplier     = 1                  # live score multiplier for Head to Head (not persisted)
+_h2h_flash_token    = 0                  # increments on every H2H flash; stale reverts check this before reverting
 
 # ── MASTER DIM ────────────────────────────────────────────────────────────────
 _master_dim      = 1.0   # 0.0–1.0; scales all DMX channel values at send time
@@ -1343,6 +1346,25 @@ def save_vs_cards(data: list):
         try: tmp.unlink()
         except OSError: pass
 
+def load_head_to_head() -> list:
+    try:
+        with open(HEAD_TO_HEAD_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_head_to_head(data: list):
+    tmp = HEAD_TO_HEAD_FILE.with_suffix('.tmp')
+    try:
+        with _config_lock:
+            with open(tmp, 'w') as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp, HEAD_TO_HEAD_FILE)
+    except Exception as e:
+        log.error(f"save_head_to_head: {e}")
+        try: tmp.unlink()
+        except OSError: pass
+
 def save_game_configs(data: list):
     tmp = GAME_CONFIGS_FILE.with_suffix('.tmp')
     try:
@@ -1805,6 +1827,7 @@ def fire_game_entry(entry_id):
         'animation':       assets_cfg.get('animation',       ''),
         'animation_intro': assets_cfg.get('animation_intro', ''),
         'hide_name':       walkup_cfg.get('hide_name', False),
+        'muted':           walkup_cfg.get('muted', True),
     }
 
     def play_music():
@@ -1977,7 +2000,11 @@ def _run_normalization(mode: str):
 # ── SERVE UI ──
 @app.route('/')
 def index():
-    return send_from_directory(STATIC_DIR, 'musicman_ui.html')
+    resp = send_from_directory(STATIC_DIR, 'musicman_ui.html')
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 @app.route('/admin')
 def admin():
@@ -2611,6 +2638,316 @@ def api_vs_card_asset_link(card_id, side):
     log.info(f"VS card {card_id} {side} linked from display library: {src_file}")
     return jsonify({'ok': True})
 
+# ── HEAD TO HEAD ──
+_h2h_flash_active   = 0      # count of in-flight flashes; only 0→1 captures the base scene
+_h2h_base_scene     = None   # scene to revert to once every in-flight flash has finished
+
+def _h2h_flash_and_revert(scene_id, duration_ms):
+    """Fire a scene, wait, then revert to whatever scene was showing before.
+    No macro/climax indirection — just a plain fire, sleep, revert, guarded by a
+    token so a rapid second press can't have a stale revert clobber it.
+
+    The base scene is captured ONCE per flash burst (only when going 0→1
+    in-flight), not on every press — capturing it fresh each time reads
+    `current_scene`, which the flash itself just overwrote, so back-to-back
+    presses inside the flash window would "revert" to the flash color itself
+    and get stuck there permanently."""
+    global _h2h_flash_token, _h2h_flash_active, _h2h_base_scene
+    _h2h_flash_token += 1
+    my_token = _h2h_flash_token
+    if _h2h_flash_active == 0:
+        _h2h_base_scene = current_scene
+    _h2h_flash_active += 1
+    def _run():
+        global _h2h_flash_active
+        wled_set_scene(scene_id)
+        time.sleep(max(0, duration_ms) / 1000.0)
+        _h2h_flash_active -= 1
+        # Only revert if nothing else has changed the lighting since our flash
+        # fired. If a show step, walkup, or macro fired in the meantime,
+        # current_scene will no longer be our flash color — in that case the
+        # newer scene already won and we must NOT stomp it by reverting to a
+        # now-stale "prior" scene.
+        if (_h2h_flash_token == my_token and _h2h_flash_active <= 0
+                and _h2h_base_scene and current_scene == scene_id):
+            wled_set_scene(_h2h_base_scene)
+    threading.Thread(target=_run, daemon=True).start()
+
+def _h2h_contestant_ids(game):
+    return {c['id'] for c in game.get('contestants', [])}
+
+@app.route('/api/head_to_head')
+def api_head_to_head_list():
+    return jsonify(load_head_to_head())
+
+@app.route('/api/head_to_head/<game_id>')
+def api_head_to_head_get(game_id):
+    games = load_head_to_head()
+    game  = next((g for g in games if g['id'] == game_id), None)
+    if not game:
+        return jsonify({'ok': False, 'error': 'game not found'}), 404
+    return jsonify({**game, 'contestants_resolved': _h2h_resolve_contestants(game)})
+
+@app.route('/api/head_to_head', methods=['POST'])
+def api_head_to_head_save():
+    game = request.get_json() or {}
+    if not game.get('name', '').strip():
+        return jsonify({'ok': False, 'error': 'name required'}), 400
+    contestants = game.get('contestants', [])
+    if not (2 <= len(contestants) <= 6):
+        return jsonify({'ok': False, 'error': '2-6 contestants required'}), 400
+    for i, c in enumerate(contestants):
+        if not c.get('id'):
+            c['id'] = f'c_{int(time.time()*1000)}_{i}'
+        if not c.get('name', '').strip():
+            return jsonify({'ok': False, 'error': f'contestant {i+1} needs a name'}), 400
+    games = load_head_to_head()
+    gid = game.get('id') or f'h2h_{int(time.time()*1000)}'
+    game['id'] = gid
+    idx = next((i for i, g in enumerate(games) if g['id'] == gid), None)
+    if idx is not None:
+        prior = {c['id']: c for c in games[idx].get('contestants', [])}
+        for c in contestants:
+            p = prior.get(c['id'])
+            if p and p.get('image') and not c.get('image'):
+                c['image'] = True
+        existing_scores = games[idx].get('scores', {})
+        game['scores']  = {c['id']: existing_scores.get(c['id'], 0) for c in contestants}
+        games[idx] = game
+    else:
+        game['scores'] = {c['id']: 0 for c in contestants}
+        games.append(game)
+    save_head_to_head(games)
+    return jsonify({'ok': True, 'id': gid})
+
+@app.route('/api/head_to_head/<game_id>', methods=['DELETE'])
+def api_head_to_head_delete(game_id):
+    import shutil
+    games = [g for g in load_head_to_head() if g['id'] != game_id]
+    save_head_to_head(games)
+    h2h_dir = ASSETS_DIR / 'head_to_head' / game_id
+    if h2h_dir.exists():
+        shutil.rmtree(str(h2h_dir))
+    return jsonify({'ok': True})
+
+@app.route('/api/head_to_head/<game_id>/asset/<contestant_id>')
+def api_h2h_asset(game_id, contestant_id):
+    if '..' in game_id or '..' in contestant_id:
+        return '', 400
+    h2h_dir = ASSETS_DIR / 'head_to_head' / game_id
+    for ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        f = h2h_dir / (contestant_id + ext)
+        if f.exists():
+            return send_from_directory(str(h2h_dir), f.name)
+    return '', 404
+
+@app.route('/api/head_to_head/<game_id>/asset/<contestant_id>', methods=['DELETE'])
+def api_h2h_asset_delete(game_id, contestant_id):
+    if '..' in game_id or '..' in contestant_id:
+        return jsonify({'ok': False}), 400
+    h2h_dir = ASSETS_DIR / 'head_to_head' / game_id
+    for ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        f = h2h_dir / (contestant_id + ext)
+        if f.exists():
+            f.unlink()
+    games = load_head_to_head()
+    for g in games:
+        if g['id'] == game_id:
+            for c in g.get('contestants', []):
+                if c.get('id') == contestant_id:
+                    c.pop('image', None)
+                    break
+            break
+    save_head_to_head(games)
+    return jsonify({'ok': True})
+
+@app.route('/api/head_to_head/<game_id>/asset/<contestant_id>/link', methods=['POST'])
+def api_h2h_asset_link(game_id, contestant_id):
+    """Copy a display-library image into a contestant's photo slot."""
+    import shutil as _shutil
+    if '..' in game_id or '..' in contestant_id:
+        return jsonify({'ok': False, 'error': 'invalid params'}), 400
+    data     = request.get_json()
+    src_file = (data or {}).get('src_file', '')
+    if not src_file or '..' in src_file:
+        return jsonify({'ok': False, 'error': 'missing src_file'}), 400
+    src_path = ASSETS_DIR / 'display' / src_file
+    if not src_path.exists():
+        return jsonify({'ok': False, 'error': 'source file not found'}), 404
+    ext     = src_path.suffix.lower()
+    h2h_dir = ASSETS_DIR / 'head_to_head' / game_id
+    h2h_dir.mkdir(parents=True, exist_ok=True)
+    for old_ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        old = h2h_dir / (contestant_id + old_ext)
+        if old.exists():
+            old.unlink()
+    dst_path = h2h_dir / (contestant_id + ext)
+    _shutil.copy2(src_path, dst_path)
+    games = load_head_to_head()
+    for g in games:
+        if g['id'] == game_id:
+            for c in g.get('contestants', []):
+                if c.get('id') == contestant_id:
+                    c['image'] = True
+                    break
+            break
+    save_head_to_head(games)
+    return jsonify({'ok': True})
+
+@app.route('/api/head_to_head/<game_id>/score', methods=['POST'])
+def api_head_to_head_score(game_id):
+    data = request.get_json() or {}
+    contestant_id = data.get('contestant_id', '')
+    try:
+        direction = 1 if int(data.get('direction', 1)) >= 0 else -1
+    except (TypeError, ValueError):
+        direction = 1
+    games = load_head_to_head()
+    game  = next((g for g in games if g['id'] == game_id), None)
+    if not game or contestant_id not in _h2h_contestant_ids(game):
+        return jsonify({'ok': False, 'error': 'game or contestant not found'}), 404
+    scores = game.setdefault('scores', {})
+    scores[contestant_id] = scores.get(contestant_id, 0) + direction * _h2h_multiplier
+    save_head_to_head(games)
+    broadcast('h2h_score', {'game_id': game_id, 'contestant_id': contestant_id,
+                             'score': scores[contestant_id], 'direction': direction})
+    sfx_name = game.get('correct_sfx' if direction > 0 else 'incorrect_sfx', '')
+    if sfx_name:
+        sfx_path = ASSETS_DIR / 'sfx' / sfx_name
+        if sfx_path.exists():
+            play_sfx(str(sfx_path))
+    scene_id = game.get('correct_scene' if direction > 0 else 'incorrect_scene', '')
+    if scene_id:
+        _h2h_flash_and_revert(scene_id, game.get('flash_duration_ms', 400))
+    return jsonify({'ok': True, 'score': scores[contestant_id]})
+
+@app.route('/api/head_to_head/<game_id>/set_score', methods=['POST'])
+def api_head_to_head_set_score(game_id):
+    data = request.get_json() or {}
+    contestant_id = data.get('contestant_id', '')
+    try:
+        value = int(data.get('value', 0))
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'invalid value'}), 400
+    games = load_head_to_head()
+    game  = next((g for g in games if g['id'] == game_id), None)
+    if not game or contestant_id not in _h2h_contestant_ids(game):
+        return jsonify({'ok': False, 'error': 'game or contestant not found'}), 404
+    game.setdefault('scores', {})[contestant_id] = value
+    save_head_to_head(games)
+    broadcast('h2h_score', {'game_id': game_id, 'contestant_id': contestant_id,
+                             'score': value, 'direction': 0})
+    return jsonify({'ok': True})
+
+@app.route('/api/head_to_head/<game_id>/multiplier', methods=['POST'])
+def api_head_to_head_multiplier(game_id):
+    global _h2h_multiplier
+    data = request.get_json() or {}
+    try:
+        value = int(data.get('value', 1))
+    except (TypeError, ValueError):
+        value = 1
+    _h2h_multiplier = max(1, value)
+    broadcast('h2h_multiplier', {'value': _h2h_multiplier})
+    return jsonify({'ok': True, 'value': _h2h_multiplier})
+
+@app.route('/api/head_to_head/<game_id>/reset', methods=['POST'])
+def api_head_to_head_reset(game_id):
+    games = load_head_to_head()
+    game  = next((g for g in games if g['id'] == game_id), None)
+    if not game:
+        return jsonify({'ok': False, 'error': 'game not found'}), 404
+    game['scores'] = {c['id']: 0 for c in game.get('contestants', [])}
+    save_head_to_head(games)
+    broadcast('h2h_reset', {'game_id': game_id, 'scores': game['scores']})
+    return jsonify({'ok': True})
+
+def _h2h_resolve_contestants(game):
+    """Resolve each contestant's photo (if uploaded) and current score."""
+    game_id = game.get('id', '')
+    h2h_dir = ASSETS_DIR / 'head_to_head' / game_id
+    out = []
+    for c in game.get('contestants', []):
+        cid = c.get('id', '')
+        entry = {'id': cid, 'name': c.get('name', ''), 'color': c.get('color', '#888888'),
+                 'score': game.get('scores', {}).get(cid, 0)}
+        for ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+            if (h2h_dir / (cid + ext)).exists():
+                entry['image_url'] = f'/api/head_to_head/{game_id}/asset/{cid}'
+                break
+        out.append(entry)
+    return out
+
+def _show_head_to_head(game_id):
+    """Push a saved Head to Head game's scoreboard to the display, playing its
+    configured intro Game Entry walk-up first if one is set. Returns True on success."""
+    games = load_head_to_head()
+    game  = next((g for g in games if g['id'] == game_id), None)
+    if not game:
+        return False
+    payload  = {'game_id': game_id, 'name': game.get('name', ''),
+                'contestants': _h2h_resolve_contestants(game)}
+    intro_id = game.get('intro_game_entry_id', '')
+    entries  = {e['id']: e for e in config.get('game_entries', [])}
+    entry    = entries.get(intro_id) if intro_id else None
+    if entry:
+        duration = entry.get('walkup', {}).get('duration', 30)
+        fire_game_entry(intro_id)
+        def _reveal():
+            time.sleep(duration)
+            broadcast('display_h2h', payload)
+        threading.Thread(target=_reveal, daemon=True).start()
+    else:
+        _ensure_display_for('display_h2h', payload)
+    return True
+
+@app.route('/api/head_to_head/<game_id>/show', methods=['POST'])
+def api_head_to_head_show(game_id):
+    if not _show_head_to_head(game_id):
+        return jsonify({'ok': False, 'error': 'game not found'}), 404
+    return jsonify({'ok': True})
+
+@app.route('/api/head_to_head/<game_id>/winner', methods=['POST'])
+def api_head_to_head_winner(game_id):
+    data = request.get_json() or {}
+    contestant_id = data.get('contestant_id', '')
+    games = load_head_to_head()
+    game  = next((g for g in games if g['id'] == game_id), None)
+    if not game or contestant_id not in _h2h_contestant_ids(game):
+        return jsonify({'ok': False, 'error': 'game or contestant not found'}), 404
+    resolved = {c['id']: c for c in _h2h_resolve_contestants(game)}
+    winner   = resolved.get(contestant_id, {})
+    _ensure_display_for('display_h2h_winner', {
+        'game_id': game_id, 'contestant_id': contestant_id,
+        'name':  winner.get('name', contestant_id),
+        'color': winner.get('color', '#F5A623'),
+        'image_url': winner.get('image_url'),
+    })
+    return jsonify({'ok': True})
+
+@app.route('/api/head_to_head/<game_id>/contestant/<contestant_id>', methods=['POST'])
+def api_h2h_update_contestant(game_id, contestant_id):
+    """Live rename (or recolor) a contestant from the Console, without needing Admin."""
+    data = request.get_json() or {}
+    games = load_head_to_head()
+    game  = next((g for g in games if g['id'] == game_id), None)
+    if not game:
+        return jsonify({'ok': False, 'error': 'game not found'}), 404
+    c = next((c for c in game.get('contestants', []) if c.get('id') == contestant_id), None)
+    if not c:
+        return jsonify({'ok': False, 'error': 'contestant not found'}), 404
+    if 'name' in data:
+        name = (data.get('name') or '').strip()
+        if not name:
+            return jsonify({'ok': False, 'error': 'name required'}), 400
+        c['name'] = name
+    if 'color' in data:
+        c['color'] = data['color']
+    save_head_to_head(games)
+    resolved = next((r for r in _h2h_resolve_contestants(game) if r['id'] == contestant_id), {})
+    broadcast('h2h_contestant', {'game_id': game_id, 'contestant': resolved})
+    return jsonify({'ok': True, 'contestant': resolved})
+
 @app.route('/api/viz/presets/<preset_id>/logo')
 def api_viz_preset_logo(preset_id):
     if '..' in preset_id:
@@ -2795,6 +3132,31 @@ def api_display_show():
             return jsonify({'ok': True})
     return jsonify({'ok': False, 'error': 'not found'}), 404
 
+@app.route('/api/display/file_meta')
+def api_display_file_meta():
+    """Per-file settings for the Display asset library (currently just mute state)."""
+    cfg = load_config()
+    return jsonify(cfg.get('display_file_meta', {}))
+
+@app.route('/api/admin/display/mute', methods=['POST'])
+def api_display_set_mute():
+    data = request.get_json() or {}
+    filename = data.get('file', '')
+    if not filename or '..' in filename:
+        return jsonify({'ok': False, 'error': 'invalid file'}), 400
+    cfg = load_config()
+    meta = cfg.setdefault('display_file_meta', {}).setdefault(filename, {})
+    if 'muted' in data:
+        meta['muted'] = bool(data['muted'])
+    if 'gain' in data:
+        try:
+            gain = float(data['gain'])
+        except (TypeError, ValueError):
+            return jsonify({'ok': False, 'error': 'invalid gain'}), 400
+        meta['gain'] = max(0.25, min(4.0, gain))
+    save_config(cfg)
+    return jsonify({'ok': True, 'muted': meta.get('muted', True), 'gain': meta.get('gain', 1.0)})
+
 @app.route('/api/display/show_file')
 def api_display_show_file():
     """Show an image or video from assets/display/ on the projector."""
@@ -2806,7 +3168,20 @@ def api_display_show_file():
     if ext in video_exts:
         global current_slide
         current_slide = {}
-        _ensure_display_for('display_animation', {'video': f'/assets/display/{filename}'})
+        cfg = load_config()
+        meta = cfg.get('display_file_meta', {}).get(filename, {})
+        muted = meta.get('muted', True)
+        gain_param = request.args.get('gain')
+        if gain_param is not None:
+            try:
+                gain = float(gain_param)
+            except ValueError:
+                gain = meta.get('gain', 1.0)
+        else:
+            gain = meta.get('gain', 1.0)
+        _ensure_display_for('display_animation',
+                             {'video': f'/assets/display/{filename}', 'muted': muted, 'loop': False, 'gain': gain,
+                              'auto_revert': True})
     else:
         _ensure_display_for('display_step', {'image': f'/assets/display/{filename}'})
     return jsonify({'ok': True})
@@ -4316,7 +4691,8 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                 hold = not loop and (dur == 0)
                 if file:
                     current_slide = {}
-                    payload = {'video': f'/assets/display/{file}', 'hold': hold, 'loop': loop}
+                    payload = {'video': f'/assets/display/{file}', 'hold': hold, 'loop': loop,
+                               'muted': bool(step.get('muted', True))}
                     _ensure_display_for('display_animation', payload)
                 if dur > 0 and not loop:
                     if cancel.wait(timeout=dur):
@@ -4402,6 +4778,10 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                     _fire_vs_card_by_card(card, card_id)
                 else:
                     log.warning(f"vs_card macro action: card not found: {card_id!r}")
+            elif action == 'head_to_head':
+                h2h_id = step.get('head_to_head_id', '')
+                if not _show_head_to_head(h2h_id):
+                    log.warning(f"head_to_head macro action: game not found: {h2h_id!r}")
             log.info(f"Macro step done: {action}")
         except Exception as e:
             log.error(f"Macro step error ({action}): {e}")
@@ -4597,6 +4977,17 @@ def api_upload():
             if old.exists():
                 old.unlink()
         dest = vs_dir / (asset_type + ext)
+    elif target_type == 'head_to_head' and target_id:
+        if not asset_type:
+            return jsonify({'ok': False, 'error': 'asset (contestant id) required'}), 400
+        ext = Path(f.filename).suffix.lower() or '.jpg'
+        h2h_dir = ASSETS_DIR / 'head_to_head' / target_id
+        h2h_dir.mkdir(parents=True, exist_ok=True)
+        for old_ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+            old = h2h_dir / (asset_type + old_ext)
+            if old.exists():
+                old.unlink()
+        dest = h2h_dir / (asset_type + ext)
     elif target_type == 'viz_preset' and target_id:
         ext = Path(f.filename).suffix.lower() or '.png'
         viz_dir = ASSETS_DIR / 'viz' / target_id

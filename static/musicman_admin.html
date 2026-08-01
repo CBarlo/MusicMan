@@ -306,7 +306,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="nav-item" data-tab="slides" onclick="switchTab('slides')">📋 Slides</div>
     <div class="nav-item" data-tab="vs-cards" onclick="switchTab('vs-cards')">⚔ VS Cards</div>
     <div class="nav-item" data-tab="game-entries" onclick="switchTab('game-entries')">🎯 Game Entries</div>
-    <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadTimerConfig();loadGamesLibrary()">🎮 Games</div>
+    <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadTimerConfig();loadGamesLibrary();loadGameEntries().then(loadHeadToHead)">🎮 Games</div>
     <div class="nav-divider"></div>
     <div class="sidebar-section">LIVE</div>
     <div class="nav-item" data-tab="music-viz" onclick="switchTab('music-viz')">🎛 Visualizations</div>
@@ -345,6 +345,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div class="editor-title">
                 <div class="editor-dot" id="c-color-dot"></div>
                 <span id="c-editor-title">CIRCLE</span>
+                <button class="btn btn-secondary btn-sm" onclick="collapseCircleEditor()" style="margin-left:auto" title="Collapse">✕</button>
               </div>
 
               <label>CIRCLE NAME</label>
@@ -515,6 +516,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div class="editor-title">
                 <div class="editor-dot" id="r-color-dot"></div>
                 <span id="r-editor-title">ROLE</span>
+                <button class="btn btn-secondary btn-sm" onclick="collapseRoleEditor()" style="margin-left:auto" title="Collapse">✕</button>
               </div>
 
               <label>ROLE NAME</label>
@@ -817,7 +819,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <div id="adm-slide-placeholder" class="editor-placeholder">← Select a slide to edit,<br>or click + NEW SLIDE</div>
           <div id="adm-slide-editor" style="display:none">
             <div class="editor-panel">
-              <div class="editor-title"><span id="adm-sl-editor-title">SLIDE</span></div>
+              <div class="editor-title"><span id="adm-sl-editor-title">SLIDE</span><button class="btn btn-secondary btn-sm" onclick="collapseSlideEditor()" style="margin-left:auto" title="Collapse">✕</button></div>
 
               <label>NAME</label>
               <input type="text" id="adm-slide-save-name" placeholder="Slide name…">
@@ -979,6 +981,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div class="editor-title">
                 <span id="sc-icon-display" style="font-size:20px">✦</span>
                 <span id="sc-editor-title">SCENE</span>
+                <button class="btn btn-secondary btn-sm" onclick="collapseSceneEditor()" style="margin-left:auto" title="Collapse">✕</button>
               </div>
 
               <label>SCENE NAME</label>
@@ -1063,6 +1066,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div class="editor-title">
                 <span style="font-size:20px">⚔</span>
                 <span id="vsc-editor-title">VS CARD</span>
+                <button class="btn btn-secondary btn-sm" onclick="collapseVscEditor()" style="margin-left:auto" title="Collapse">✕</button>
               </div>
 
               <label>CARD NAME</label>
@@ -1215,7 +1219,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <div id="macro-editor-placeholder" class="editor-placeholder">← Select a macro to edit</div>
           <div id="macro-editor" style="display:none">
             <div class="editor-panel">
-              <div class="editor-title"><span id="mc-editor-title">MACRO</span></div>
+              <div class="editor-title"><span id="mc-editor-title">MACRO</span><button class="btn btn-secondary btn-sm" onclick="collapseMacroEditor()" style="margin-left:auto" title="Collapse">✕</button></div>
 
               <label>MACRO NAME</label>
               <input type="text" id="mc-name" placeholder="e.g. SKIT INTRO">
@@ -1286,6 +1290,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                     <option value="game">🎮 Launch Game</option>
                     <option value="shell_game">⛺ Shell Game</option>
                     <option value="walkup_game_entry">🎲 Game Entry Walk-Up</option>
+                    <option value="head_to_head">🏆 Head to Head</option>
                   </optgroup>
                   <optgroup label="FLOW">
                     <option value="wait">⏳ Wait (seconds)</option>
@@ -1424,6 +1429,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             <div class="editor-panel">
               <div class="editor-title">
                 <span id="ge-editor-title">ENTRY</span>
+                <button class="btn btn-secondary btn-sm" onclick="collapseGameEntryEditor()" style="margin-left:auto" title="Collapse">✕</button>
               </div>
 
               <div style="display:grid;grid-template-columns:64px 1fr;gap:10px">
@@ -1489,6 +1495,10 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
                 <input type="checkbox" id="ge-hide-name" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
                 <label for="ge-hide-name" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">HIDE NAME WHEN ANIMATION PLAYS</label>
+              </div>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="ge-muted" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+                <label for="ge-muted" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">MUTE VIDEO (uncheck to play its own audio)</label>
               </div>
 
               <div class="section-divider"></div>
@@ -1568,6 +1578,9 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
 
             <!-- Right: editor -->
             <div style="flex:1;min-width:0;border-left:1px solid var(--border);padding-left:16px">
+              <div id="gl-collapse-row" style="display:none;justify-content:flex-end;margin-bottom:8px">
+                <button class="btn btn-secondary btn-sm" onclick="collapseGlEditor()" title="Collapse">✕ COLLAPSE</button>
+              </div>
               <div id="gl-editor-placeholder" class="editor-placeholder" style="margin:0">← Select a config or + NEW CONFIG</div>
               <div id="gl-editor" style="display:none">
                 <div id="gl-name-row">
@@ -1587,6 +1600,82 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           </div>
         </div>
 
+      <!-- ── HEAD TO HEAD ── -->
+      <div class="page-header" style="margin-top:32px;display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2>🏆 HEAD TO HEAD</h2>
+          <p>LIVE 2–6 CONTESTANT SCOREBOARD — OPERATOR PRESSES +/− DURING THE GAME</p>
+        </div>
+        <button class="btn btn-primary" onclick="h2hNew()">+ NEW HEAD TO HEAD</button>
+      </div>
+      <div class="split">
+        <div>
+          <div class="roles-grid" id="h2h-grid"></div>
+        </div>
+        <div>
+          <div id="h2h-editor-placeholder" class="editor-placeholder">← Select a game or + NEW HEAD TO HEAD</div>
+          <div id="h2h-editor" style="display:none">
+            <div class="editor-panel">
+              <div class="editor-title">
+                <span style="font-size:20px">🏆</span>
+                <span id="h2h-editor-title">HEAD TO HEAD</span>
+                <button class="btn btn-secondary btn-sm" onclick="collapseH2hEditor()" style="margin-left:auto" title="Collapse">✕</button>
+              </div>
+
+              <label>GAME NAME</label>
+              <input type="text" id="h2h-name" placeholder="e.g. Trivia Showdown">
+
+              <label>INTRO <span style="font-weight:400;color:var(--text-dim)">(optional — plays this Game Entry's walk-up video/music, then the scoreboard comes up)</span></label>
+              <select id="h2h-intro-entry" style="width:100%"><option value="">— none —</option></select>
+
+              <div class="section-divider"></div>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <label style="margin:0">CONTESTANTS <span style="font-weight:400;color:var(--text-dim)">(2–6)</span></label>
+                <button type="button" class="btn btn-secondary btn-sm" id="h2h-add-contestant-btn" onclick="h2hAddContestant()">+ ADD CONTESTANT</button>
+              </div>
+              <div id="h2h-contestants" style="display:flex;flex-direction:column;gap:10px;margin-top:8px"></div>
+
+              <div class="section-divider"></div>
+              <div class="card-title">CORRECT (+)</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div>
+                  <label>SFX</label>
+                  <select id="h2h-correct-sfx" style="width:100%"><option value="">— none —</option></select>
+                </div>
+                <div>
+                  <label>FLASH SCENE</label>
+                  <select id="h2h-correct-scene" style="width:100%"><option value="">— none —</option></select>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+              <div class="card-title">INCORRECT (−)</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div>
+                  <label>SFX</label>
+                  <select id="h2h-incorrect-sfx" style="width:100%"><option value="">— none —</option></select>
+                </div>
+                <div>
+                  <label>FLASH SCENE</label>
+                  <select id="h2h-incorrect-scene" style="width:100%"><option value="">— none —</option></select>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+              <label>FLASH DURATION (MS)</label>
+              <input type="number" id="h2h-flash-duration" min="100" max="3000" step="50" value="400" style="width:120px">
+              <div style="font-size:10px;color:var(--muted);margin-top:3px">How long the correct/incorrect scene holds before lights go back to whatever was showing</div>
+
+              <div class="btn-row" style="margin-top:18px">
+                <button class="btn btn-primary" onclick="saveH2H()">✓ SAVE</button>
+                <button class="btn btn-secondary" onclick="showH2HFromAdmin()">↗ GO LIVE</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteH2H()">🗑 DELETE</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="page-header" style="margin-top:32px;display:flex;align-items:flex-start;justify-content:space-between">
         <div>
           <h2>TIMER</h2>
@@ -1602,7 +1691,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <div id="timer-editor-placeholder" class="editor-placeholder">← Select a preset or + NEW PRESET</div>
           <div id="timer-editor" style="display:none">
             <div class="editor-panel">
-              <div class="editor-title"><span id="timer-editor-title">PRESET</span></div>
+              <div class="editor-title"><span id="timer-editor-title">PRESET</span><button class="btn btn-secondary btn-sm" onclick="collapseTimerEditor()" style="margin-left:auto" title="Collapse">✕</button></div>
 
               <label>PRESET NAME</label>
               <input id="t-preset-name" type="text" class="text-input" placeholder="e.g. 2 Minute Timer">
@@ -1748,7 +1837,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <div id="viz-editor-placeholder" class="editor-placeholder">← Select a preset or + NEW PRESET</div>
           <div id="viz-editor" style="display:none">
             <div class="editor-panel">
-              <div class="editor-title"><span id="viz-editor-title">PRESET</span></div>
+              <div class="editor-title"><span id="viz-editor-title">PRESET</span><button class="btn btn-secondary btn-sm" onclick="collapseVizEditor()" style="margin-left:auto" title="Collapse">✕</button></div>
 
               <label>PRESET NAME</label>
               <input type="text" id="viz-preset-name" placeholder="e.g. Campfire EQ" oninput="vizMarkDirty()">
@@ -2889,6 +2978,7 @@ function populateGameEntryEditor(id) {
   document.getElementById('ge-vol-trim').value = vt;
   document.getElementById('ge-vol-trim-val').textContent = vt + '%';
   document.getElementById('ge-hide-name').checked = wu.hide_name || false;
+  document.getElementById('ge-muted').checked = wu.muted !== false;
   document.getElementById('ge-walkup-scene').value = wu.walkup_scene || '';
   document.getElementById('ge-stage-scene').value  = wu.stage_scene  || '';
   const assets = e.assets || {};
@@ -3021,6 +3111,7 @@ async function saveGameEntry() {
       fade_duration: parseFloat(document.getElementById('ge-fade').value)     || 3,
       volume_trim:   parseInt(document.getElementById('ge-vol-trim').value)   || 100,
       hide_name:     document.getElementById('ge-hide-name').checked,
+      muted:         document.getElementById('ge-muted').checked,
       walkup_scene:  document.getElementById('ge-walkup-scene').value || null,
       stage_scene:   document.getElementById('ge-stage-scene').value  || null,
     }
@@ -3287,11 +3378,18 @@ function addDisplayItem(filename) {
     : `<img class="display-thumb-img" src="${url}" alt="${escHtml(filename)}" loading="lazy">`;
 
   const isLogo = filename === _dispLogo;
+  const muted  = (_dispFileMeta[filename] || {}).muted !== false;
+  const muteBtnHtml = isVid
+    ? `<button class="mute-btn" title="${muted ? 'Muted — click to allow its own audio' : 'Sound on — click to mute'}" style="${muted ? '' : 'color:var(--rust,#c0392b);border-color:var(--rust,#c0392b)'}">${muted ? '🔇' : '🔊'}</button>`
+    : '';
+  const gainBtnHtml = isVid ? `<button class="gain-btn" title="Set volume">🎚</button>` : '';
   card.innerHTML = `
     ${mediaHtml}
     <div class="display-thumb-name" title="${escHtml(filename)}">${escHtml(filename)}</div>
     <div class="display-thumb-actions">
       <button class="show-btn" title="Show on projector">📺</button>
+      ${muteBtnHtml}
+      ${gainBtnHtml}
       <button class="logo-btn" title="Set as default logo" style="${isLogo ? 'color:var(--amber);border-color:var(--amber-dim)' : ''}">★</button>
       <button class="rename-btn" title="Rename">✏</button>
       <button class="danger delete-btn" title="Delete">🗑</button>
@@ -3302,11 +3400,76 @@ function addDisplayItem(filename) {
     fetch('/api/display/show_file?file=' + encodeURIComponent(filename)).catch(() => {});
     toast('Showing on projector', 'ok');
   });
+  const muteBtn = card.querySelector('.mute-btn');
+  if (muteBtn) muteBtn.addEventListener('click', () => toggleDisplayMute(filename, muteBtn));
+  const gainBtn = card.querySelector('.gain-btn');
+  if (gainBtn) gainBtn.addEventListener('click', () => toggleDisplayGainPanel(card, filename));
   card.querySelector('.logo-btn').addEventListener('click', () => setDisplayLogo(filename));
   card.querySelector('.rename-btn').addEventListener('click', () => startDisplayRename(card, filename));
   card.querySelector('.delete-btn').addEventListener('click', () => deleteDisplayItem(card, filename));
 
   grid.appendChild(card);
+}
+
+async function toggleDisplayMute(filename, btn) {
+  const wasMuted = (_dispFileMeta[filename] || {}).muted !== false;
+  const nextMuted = !wasMuted;
+  try {
+    await fetch('/api/admin/display/mute', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({file: filename, muted: nextMuted})
+    });
+    _dispFileMeta[filename] = {..._dispFileMeta[filename], muted: nextMuted};
+    btn.textContent = nextMuted ? '🔇' : '🔊';
+    btn.title = nextMuted ? 'Muted — click to allow its own audio' : 'Sound on — click to mute';
+    btn.style.color = nextMuted ? '' : 'var(--rust, #c0392b)';
+    btn.style.borderColor = nextMuted ? '' : 'var(--rust, #c0392b)';
+    toast(nextMuted ? 'Muted' : 'Sound on', 'ok');
+  } catch(e) { toast('Failed to save', 'err'); }
+}
+
+function toggleDisplayGainPanel(card, filename) {
+  const existing = card.querySelector('.gain-panel');
+  if (existing) { existing.remove(); return; }
+  const savedGain = (_dispFileMeta[filename] || {}).gain;
+  const savedPct  = Math.round((typeof savedGain === 'number' ? savedGain : 1.0) * 100);
+
+  const panel = document.createElement('div');
+  panel.className = 'gain-panel';
+  panel.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:6px;padding:8px;background:var(--panel-2,rgba(0,0,0,.25));border-radius:6px';
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="range" class="gain-slider" min="50" max="250" step="5" value="${savedPct}" style="flex:1">
+      <span class="gain-val" style="min-width:44px;text-align:right;font-variant-numeric:tabular-nums">${savedPct}%</span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-secondary btn-sm gain-preview-btn" style="flex:1">▶ Preview</button>
+      <button class="btn btn-sm gain-save-btn" style="flex:1">Save</button>
+    </div>`;
+
+  const slider = panel.querySelector('.gain-slider');
+  const valLbl = panel.querySelector('.gain-val');
+  slider.addEventListener('input', () => { valLbl.textContent = slider.value + '%'; });
+
+  panel.querySelector('.gain-preview-btn').addEventListener('click', () => {
+    const gain = (parseInt(slider.value, 10) / 100).toFixed(2);
+    fetch(`/api/display/show_file?file=${encodeURIComponent(filename)}&gain=${gain}`).catch(() => {});
+    toast('Previewing at ' + slider.value + '% — not saved yet', 'ok');
+  });
+
+  panel.querySelector('.gain-save-btn').addEventListener('click', async () => {
+    const gain = parseInt(slider.value, 10) / 100;
+    try {
+      await fetch('/api/admin/display/mute', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({file: filename, gain})
+      });
+      _dispFileMeta[filename] = {..._dispFileMeta[filename], gain};
+      toast('Volume saved (' + slider.value + '%)', 'ok');
+    } catch(e) { toast('Failed to save', 'err'); }
+  });
+
+  card.appendChild(panel);
 }
 
 async function deleteDisplayItem(card, filename) {
@@ -3405,13 +3568,17 @@ function startDisplayRename(card, oldName) {
   });
 }
 
+let _dispFileMeta = {};
+
 async function loadDisplayFiles() {
   try {
-    const [files, sys, logoData] = await Promise.all([
+    const [files, sys, logoData, fileMeta] = await Promise.all([
       fetch('/api/display/list').then(r => r.json()),
       fetch('/api/system/status').then(r => r.json()).catch(() => ({})),
-      fetch('/api/admin/display-logo').then(r => r.json()).catch(() => ({logo:''}))
+      fetch('/api/admin/display-logo').then(r => r.json()).catch(() => ({logo:''})),
+      fetch('/api/display/file_meta').then(r => r.json()).catch(() => ({}))
     ]);
+    _dispFileMeta = fileMeta || {};
     _dispLogo = logoData.logo || '';
     refreshDispLogoCard();
     // Disk bar
@@ -3663,7 +3830,7 @@ const SCENE_DEFAULTS = [
 
 // ── Populate walkup lighting scene dropdowns ─────────────────────────────────
 function populateSceneSelects() {
-  const ids = ['c-walkup-scene','c-stage-scene','r-walkup-scene','r-stage-scene','ge-walkup-scene','ge-stage-scene','vsc-walkup-scene','vsc-stage-scene'];
+  const ids = ['c-walkup-scene','c-stage-scene','r-walkup-scene','r-stage-scene','ge-walkup-scene','ge-stage-scene','vsc-walkup-scene','vsc-stage-scene','h2h-correct-scene','h2h-incorrect-scene'];
   ids.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
@@ -4026,7 +4193,7 @@ const STEP_LABELS = {
   display_circle:'⬡ Circle Display', display_role:'★ Role Display',
   saved_slide:'📋 Saved Slide', slide:'📋 Custom Slide', slide_clear:'✕ Clear Slide',
   game:'🎮 Launch Game', shell_game:'⛺ Shell Game',
-  vs_card:'⚔ VS Card', viz:'🎛 Visualization', viz_hide:'✕ Stop Viz'
+  vs_card:'⚔ VS Card', viz:'🎛 Visualization', viz_hide:'✕ Stop Viz', head_to_head:'🏆 Head to Head'
 };
 
 // Cached lists for dropdowns — populated at init
@@ -4053,6 +4220,7 @@ async function loadStepLists() {
   try { slideImages  = await fetch('/api/display/images').then(r => r.json()); } catch(e) {}
   try { savedSlides   = await fetch('/api/slides').then(r => r.json()); } catch(e) {}
   try { savedVsCards  = await fetch('/api/vs_cards').then(r => r.json()); } catch(e) {}
+  try { savedHeadToHead = await fetch('/api/head_to_head').then(r => r.json()); } catch(e) {}
 }
 
 async function refreshUsbMacro(btn) {
@@ -4110,14 +4278,17 @@ function stepParamHtml(step) {
     const hold  = !loop && step.duration === 0;
     const any   = hold || loop;
     const prev  = any ? '5' : (step.duration || 5);
+    const muted = step.muted !== false;
     const durSt = `width:52px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:4px 6px;border-radius:4px;font-size:12px${any?';opacity:0.4':''}`;
     const holdSt = `font-size:10px;letter-spacing:1px;padding:2px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${hold?'var(--accent)':'var(--border2)'};background:${hold?'var(--accent)':'transparent'};color:${hold?'#000':'var(--text-dim)'}`;
     const loopSt = `font-size:10px;letter-spacing:1px;padding:2px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${loop?'var(--green,#2ecc71)':'var(--border2)'};background:${loop?'var(--green,#2ecc71)':'transparent'};color:${loop?'#000':'var(--text-dim)'}`;
+    const muteSt = `font-size:10px;letter-spacing:1px;padding:2px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${muted?'var(--border2)':'var(--rust,#c0392b)'};background:${muted?'transparent':'var(--rust,#c0392b)'};color:${muted?'var(--text-dim)':'#fff'}`;
     return `<select class="step-param" style="flex:1;min-width:0">${opts || '<option value="">— upload videos to Display tab —</option>'}</select>
       <input class="step-param-dur" type="number" value="${any?'':prev}" placeholder="${any?'∞':''}" min="0.5" step="0.5" style="${durSt}" ${any?'disabled':''}>
       <span style="font-size:11px;color:var(--text-dim);flex-shrink:0">sec</span>
       <button type="button" class="hold-btn" onclick="toggleHold(this)" data-prev="${prev}" ${hold?'data-held="1"':''} style="${holdSt}">∞ HOLD</button>
-      <button type="button" class="loop-btn" onclick="toggleLoop(this)" data-prev="${prev}" ${loop?'data-looped="1"':''} style="${loopSt}">↻ LOOP</button>`;
+      <button type="button" class="loop-btn" onclick="toggleLoop(this)" data-prev="${prev}" ${loop?'data-looped="1"':''} style="${loopSt}">↻ LOOP</button>
+      <button type="button" class="mute-btn" onclick="toggleMute(this)" data-muted="${muted?'1':'0'}" style="${muteSt}" title="Mute this video's own audio">${muted?'🔇 MUTED':'🔊 SOUND ON'}</button>`;
   }
   if (a === 'display_circle') {
     const opts = circles.map(c => `<option value="${escHtml(c.id)}" ${step.circle_id===c.id?'selected':''}>${c.number ? c.number+'. ' : ''}${escHtml(c.name)}</option>`).join('');
@@ -4244,6 +4415,12 @@ function stepParamHtml(step) {
       : '<option value="">— no VS cards saved yet —</option>';
     return `<select class="step-param">${opts}</select>`;
   }
+  if (a === 'head_to_head') {
+    const opts = savedHeadToHead.length
+      ? savedHeadToHead.map(g => `<option value="${escHtml(g.id)}" ${step.head_to_head_id===g.id?'selected':''}>${escHtml(g.name)}</option>`).join('')
+      : '<option value="">— no Head to Head games saved yet —</option>';
+    return `<select class="step-param">${opts}</select>`;
+  }
   // no-param actions
   return `<span style="flex:1;color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">—</span>`;
 }
@@ -4269,9 +4446,11 @@ function collectStepValue(row, action) {
     const dur     = row.querySelector('.step-param-dur');
     const holdBtn = row.querySelector('.hold-btn');
     const loopBtn = row.querySelector('.loop-btn');
+    const muteBtn = row.querySelector('.mute-btn');
     const isHold  = holdBtn && holdBtn.dataset.held === '1';
     const isLoop  = loopBtn && loopBtn.dataset.looped === '1';
-    return { file: val, loop: isLoop, duration: (isHold || isLoop) ? 0 : (dur ? parseFloat(dur.value)||5 : 5) };
+    const isMuted = !muteBtn || muteBtn.dataset.muted !== '0';
+    return { file: val, loop: isLoop, muted: isMuted, duration: (isHold || isLoop) ? 0 : (dur ? parseFloat(dur.value)||5 : 5) };
   }
   if (action === 'saved_slide')    return { slide_id: val };
   if (action === 'display_circle') return { circle_id: val };
@@ -4285,6 +4464,7 @@ function collectStepValue(row, action) {
   }
   if (action === 'shell_game')       return { hold: parseFloat(val) || 5 };
   if (action === 'vs_card')          return { vs_card_id: val };
+  if (action === 'head_to_head')     return { head_to_head_id: val };
   if (action === 'viz')              return { preset_id: val };
   if (action === 'viz_hide')         return {};
   if (action === 'slide') {
@@ -4373,6 +4553,23 @@ function toggleLoop(btn) {
   }
 }
 
+function toggleMute(btn) {
+  const muted = btn.dataset.muted === '1';
+  if (muted) {
+    btn.dataset.muted = '0';
+    btn.textContent = '🔊 SOUND ON';
+    btn.style.background  = 'var(--rust, #c0392b)';
+    btn.style.borderColor = 'var(--rust, #c0392b)';
+    btn.style.color       = '#fff';
+  } else {
+    btn.dataset.muted = '1';
+    btn.textContent = '🔇 MUTED';
+    btn.style.background  = 'transparent';
+    btn.style.borderColor = 'var(--border2)';
+    btn.style.color       = 'var(--text-dim)';
+  }
+}
+
 function _slideF2Placeholder(tpl) {
   if (tpl === 'big_title')  return 'Subtitle (optional)';
   if (tpl === 'bulletin')   return 'Lines — one per line';
@@ -4451,7 +4648,7 @@ function addMacroStep() {
   else if (type === 'audio_fade')    step.duration  = 3;
   else if (type === 'wait')          step.seconds   = 1;
   else if (type === 'display_image') { step.file = displayImageList[0] || ''; step.duration = 3; }
-  else if (type === 'display_anim')  { step.file = displayVideoList[0] || ''; step.duration = 5; }
+  else if (type === 'display_anim')  { step.file = displayVideoList[0] || ''; step.duration = 5; step.muted = true; }
   else if (type === 'display_circle')  step.circle_id = circles.length ? circles[0].id : '';
   else if (type === 'display_role')    step.role_id   = roles.length   ? roles[0].id   : '';
   else if (type === 'play_playlist') { step.path = ''; step.shuffle = true; }
@@ -4460,6 +4657,7 @@ function addMacroStep() {
   else if (type === 'game')          { step.game_type_id = glGameTypes.length ? glGameTypes[0].id : ''; step.game_config_id = ''; }
   else if (type === 'shell_game')    step.hold = 5;
   else if (type === 'vs_card')       step.vs_card_id = savedVsCards.length ? savedVsCards[0].id : '';
+  else if (type === 'head_to_head')  step.head_to_head_id = savedHeadToHead.length ? savedHeadToHead[0].id : '';
   m.steps = collectSteps();
   m.steps.push(step);
   renderSteps(m.steps);
@@ -4933,6 +5131,7 @@ async function admClearSlide() {
 
 let savedSlides  = [];
 let savedVsCards = [];
+let savedHeadToHead = [];
 
 // ── VS CARDS ──────────────────────────────────────────────────────────────────
 
@@ -5308,6 +5507,306 @@ async function fireVsCard() {
   } catch(e) { toast('Fire failed', 'err'); }
 }
 
+// ── HEAD TO HEAD ──────────────────────────────────────────────────────────────
+let _selectedH2hId  = null;
+let h2hEditContestants = [];   // in-memory {id,name,color,image} while editing
+const H2H_COLORS = ['#2B5FA6','#CC2222','#3CB96A','#8B44CC','#C4610A','#F5A623'];
+
+async function loadHeadToHead() {
+  try { savedHeadToHead = await fetch('/api/head_to_head').then(r => r.json()); } catch(e) { savedHeadToHead = []; }
+  renderH2HGrid();
+  const sfxOpts = '<option value="">— none —</option>' +
+    sfxList.map(f => `<option value="${escHtml(f)}">${escHtml(f.replace(/\.[^.]+$/,''))}</option>`).join('');
+  const csEl = document.getElementById('h2h-correct-sfx');
+  const isEl = document.getElementById('h2h-incorrect-sfx');
+  if (csEl) csEl.innerHTML = sfxOpts;
+  if (isEl) isEl.innerHTML = sfxOpts;
+  const introEl = document.getElementById('h2h-intro-entry');
+  if (introEl) {
+    introEl.innerHTML = '<option value="">— none —</option>' +
+      gameEntries.map(e => `<option value="${escHtml(e.id)}">${escHtml(e.name)}</option>`).join('');
+  }
+  if (_selectedH2hId) selectH2H(_selectedH2hId);
+}
+
+function renderH2HGrid() {
+  const grid = document.getElementById('h2h-grid');
+  if (!grid) return;
+  if (!savedHeadToHead.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace;padding:12px 0">NO HEAD TO HEAD GAMES YET — CLICK + NEW HEAD TO HEAD</div>';
+    return;
+  }
+  grid.innerHTML = savedHeadToHead.map(g => {
+    const sel = g.id === _selectedH2hId ? ' selected' : '';
+    const n   = (g.contestants || []).length;
+    return `<div class="circle-card${sel}" onclick="selectH2H('${g.id}')">
+      <div class="circle-card-header">
+        <div class="circle-dot" style="background:#5A4FCF;color:#fff">🏆</div>
+        <div class="circle-card-name">${escHtml(g.name)}</div>
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:4px">${n} CONTESTANT${n===1?'':'S'}</div>
+    </div>`;
+  }).join('');
+}
+
+function h2hNew() {
+  _selectedH2hId = null;
+  document.getElementById('h2h-editor-placeholder').style.display = 'none';
+  document.getElementById('h2h-editor').style.display = '';
+  document.getElementById('h2h-editor-title').textContent = 'NEW HEAD TO HEAD';
+  document.getElementById('h2h-name').value = '';
+  document.getElementById('h2h-intro-entry').value     = '';
+  document.getElementById('h2h-correct-sfx').value     = '';
+  document.getElementById('h2h-incorrect-sfx').value   = '';
+  document.getElementById('h2h-correct-scene').value   = '';
+  document.getElementById('h2h-incorrect-scene').value = '';
+  document.getElementById('h2h-flash-duration').value  = 400;
+  h2hEditContestants = [
+    { id: `c_${Date.now()}_0`, name: '', color: H2H_COLORS[0], image: false },
+    { id: `c_${Date.now()}_1`, name: '', color: H2H_COLORS[1], image: false },
+  ];
+  renderH2hContestants();
+  renderH2HGrid();
+  setTimeout(() => {
+    const f = document.getElementById('h2h-name');
+    if (f) f.focus();
+  }, 50);
+}
+
+function selectH2H(id) {
+  const g = savedHeadToHead.find(x => x.id === id);
+  if (!g) return;
+  _selectedH2hId = id;
+  renderH2HGrid();
+  document.getElementById('h2h-editor-placeholder').style.display = 'none';
+  document.getElementById('h2h-editor').style.display = '';
+  document.getElementById('h2h-editor-title').textContent = g.name || 'HEAD TO HEAD';
+  document.getElementById('h2h-name').value = g.name || '';
+  document.getElementById('h2h-intro-entry').value     = g.intro_game_entry_id || '';
+  document.getElementById('h2h-correct-sfx').value     = g.correct_sfx || '';
+  document.getElementById('h2h-incorrect-sfx').value   = g.incorrect_sfx || '';
+  document.getElementById('h2h-correct-scene').value   = g.correct_scene || '';
+  document.getElementById('h2h-incorrect-scene').value = g.incorrect_scene || '';
+  document.getElementById('h2h-flash-duration').value  = g.flash_duration_ms || 400;
+  h2hEditContestants = (g.contestants || []).map(c => ({ ...c }));
+  renderH2hContestants();
+}
+
+function renderH2hContestants() {
+  const el = document.getElementById('h2h-contestants');
+  if (!el) return;
+  el.innerHTML = h2hEditContestants.map(c => `
+    <div class="h2h-contestant-block" data-cid="${escHtml(c.id)}" style="display:flex;gap:10px;align-items:flex-start;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px">
+      <div class="asset-slot h2h-photo-slot" onclick="document.getElementById('h2h-file-${escHtml(c.id)}').click()" style="width:64px;height:64px;flex-shrink:0;cursor:pointer;padding:0;overflow:hidden">
+        <div class="slot-status" id="h2h-status-${escHtml(c.id)}"></div>
+        <input type="file" id="h2h-file-${escHtml(c.id)}" accept="image/*" style="display:none" onchange="uploadH2hImage('${escHtml(c.id)}', this.files[0])">
+        ${c.image && _selectedH2hId
+          ? `<img src="/api/head_to_head/${_selectedH2hId}/asset/${escHtml(c.id)}?t=${Date.now()}" style="width:100%;height:100%;object-fit:cover">`
+          : `<div class="asset-slot-icon">📷</div>`}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;gap:8px">
+          <input type="text" class="h2h-c-name text-input" value="${escHtml(c.name||'')}" placeholder="Contestant name" style="flex:1">
+          <input type="color" class="h2h-c-color" value="${c.color||'#2B5FA6'}" style="width:44px;padding:2px;border-radius:4px;border:1px solid var(--border);cursor:pointer">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openH2hLibraryPicker('${escHtml(c.id)}')">📚 LIBRARY</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="clearH2hImage('${escHtml(c.id)}')" style="display:${c.image ? '' : 'none'}">✕ REMOVE PHOTO</button>
+          <button type="button" class="btn btn-danger btn-sm" onclick="h2hRemoveContestant('${escHtml(c.id)}')" style="margin-left:auto">🗑 REMOVE</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  const addBtn = document.getElementById('h2h-add-contestant-btn');
+  if (addBtn) addBtn.disabled = h2hEditContestants.length >= 6;
+}
+
+function h2hCollectContestants() {
+  return [...document.querySelectorAll('.h2h-contestant-block')].map(block => {
+    const cid      = block.dataset.cid;
+    const name     = block.querySelector('.h2h-c-name').value.trim();
+    const color    = block.querySelector('.h2h-c-color').value;
+    const existing = h2hEditContestants.find(c => c.id === cid);
+    return { id: cid, name, color, image: existing ? !!existing.image : false };
+  });
+}
+
+function h2hAddContestant() {
+  h2hEditContestants = h2hCollectContestants();
+  if (h2hEditContestants.length >= 6) { toast('Max 6 contestants', 'err'); return; }
+  const idx = h2hEditContestants.length;
+  h2hEditContestants.push({ id: `c_${Date.now()}_${idx}`, name: '', color: H2H_COLORS[idx % H2H_COLORS.length], image: false });
+  renderH2hContestants();
+}
+
+function h2hRemoveContestant(cid) {
+  const current = h2hCollectContestants();
+  if (current.length <= 2) { toast('Need at least 2 contestants', 'err'); return; }
+  h2hEditContestants = current.filter(c => c.id !== cid);
+  renderH2hContestants();
+}
+
+async function uploadH2hImage(cid, file) {
+  if (!file) return;
+  if (!_selectedH2hId) {
+    const name = document.getElementById('h2h-name').value.trim();
+    if (!name) { toast('Enter a game name before uploading a photo', 'err'); return; }
+    await saveH2H();
+    if (!_selectedH2hId) return;
+  }
+  const status = document.getElementById(`h2h-status-${cid}`);
+  if (status) status.className = 'slot-status spinning';
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type', 'head_to_head');
+  fd.append('id', _selectedH2hId);
+  fd.append('asset', cid);
+  try {
+    const r = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.ok) {
+      const c = h2hEditContestants.find(x => x.id === cid);
+      if (c) c.image = true;
+      toast('Photo uploaded', 'ok');
+      renderH2hContestants();
+    } else {
+      toast(d.error || 'Upload failed', 'err');
+      if (status) status.className = 'slot-status';
+    }
+  } catch(e) { toast('Upload failed', 'err'); }
+}
+
+async function clearH2hImage(cid) {
+  if (!_selectedH2hId) return;
+  try {
+    const r = await fetch(`/api/head_to_head/${_selectedH2hId}/asset/${cid}`, { method: 'DELETE' });
+    if ((await r.json()).ok) {
+      const c = h2hEditContestants.find(x => x.id === cid);
+      if (c) c.image = false;
+      toast('Photo removed', 'ok');
+      renderH2hContestants();
+    }
+  } catch(e) { toast('Remove failed', 'err'); }
+}
+
+async function openH2hLibraryPicker(cid) {
+  h2hEditContestants = h2hCollectContestants();
+  if (!_selectedH2hId) {
+    const name = document.getElementById('h2h-name').value.trim();
+    if (!name) { toast('Enter a game name first', 'err'); return; }
+    await saveH2H();
+    if (!_selectedH2hId) return;
+  }
+  const overlay = document.getElementById('lib-picker-overlay');
+  const list    = document.getElementById('lib-picker-list');
+  const hint    = document.getElementById('lib-picker-hint');
+  hint.textContent = 'TAP AN IMAGE TO USE AS THIS CONTESTANT\'S PHOTO';
+  list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;letter-spacing:2px;padding:20px 0;text-align:center">LOADING…</div>';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:flex;flex-direction:column';
+  fetch('/api/display/list').then(r => r.json()).then(files => {
+    const imgExts  = new Set(['.jpg','.jpeg','.png','.gif','.webp','.bmp']);
+    const imgFiles = files.filter(f => imgExts.has((f.includes('.') ? f.slice(f.lastIndexOf('.')).toLowerCase() : '')));
+    if (!imgFiles.length) {
+      list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;letter-spacing:2px;padding:20px 0;text-align:center">NO IMAGES — UPLOAD IN THE LIVE → MUSIC VIZ TAB FIRST</div>';
+      return;
+    }
+    const cidJson = escHtml(JSON.stringify(cid));
+    list.innerHTML = imgFiles.map(f => {
+      const name = f.replace(/[-_]/g,' ').replace(/\.[^.]+$/,'').toUpperCase();
+      return `<button type="button" onclick="pickH2hLibraryItem(${cidJson}, ${escHtml(JSON.stringify(f))})"
+        style="display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);margin-bottom:8px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;transition:border-color .15s">
+        <img src="/assets/display/${encodeURIComponent(f)}" style="width:48px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0;background:var(--bg2)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(name)}</div>
+          <div style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(f)}</div>
+        </div>
+        <span style="font-size:20px;color:var(--text-dim);flex-shrink:0">›</span>
+      </button>`;
+    }).join('');
+  }).catch(() => {
+    list.innerHTML = '<div style="color:var(--red);font-size:12px;letter-spacing:2px;padding:20px 0;text-align:center">FAILED TO LOAD FILES</div>';
+  });
+}
+
+async function pickH2hLibraryItem(cid, filename) {
+  try {
+    const r = await fetch(`/api/head_to_head/${_selectedH2hId}/asset/${cid}/link`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ src_file: filename })
+    });
+    const d = await r.json();
+    if (!d.ok) { toast(d.error || 'Link failed', 'err'); return; }
+    const c = h2hEditContestants.find(x => x.id === cid);
+    if (c) c.image = true;
+    toast('Photo set from library', 'ok');
+    renderH2hContestants();
+    closeLibraryPicker();
+  } catch(e) { toast('Link failed', 'err'); }
+}
+
+async function saveH2H() {
+  const name = document.getElementById('h2h-name').value.trim();
+  if (!name) { toast('Name required', 'err'); return; }
+  const contestants = h2hCollectContestants();
+  if (contestants.length < 2 || contestants.length > 6) {
+    toast('Need 2–6 contestants', 'err');
+    return;
+  }
+  if (contestants.some(c => !c.name)) {
+    toast('Every contestant needs a name', 'err');
+    return;
+  }
+  const data = {
+    id: _selectedH2hId || undefined,
+    name,
+    contestants,
+    intro_game_entry_id: document.getElementById('h2h-intro-entry').value || '',
+    correct_sfx:       document.getElementById('h2h-correct-sfx').value || '',
+    incorrect_sfx:     document.getElementById('h2h-incorrect-sfx').value || '',
+    correct_scene:     document.getElementById('h2h-correct-scene').value || '',
+    incorrect_scene:   document.getElementById('h2h-incorrect-scene').value || '',
+    flash_duration_ms: parseInt(document.getElementById('h2h-flash-duration').value) || 400,
+  };
+  try {
+    const r = await fetch('/api/head_to_head', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data),
+    });
+    const j = await r.json();
+    if (j.ok) {
+      _selectedH2hId = j.id;
+      toast('Saved', 'ok');
+      await loadHeadToHead();
+      await loadStepLists(); // refreshes savedHeadToHead used by the macro editor's picker
+    } else { toast(j.error || 'Save failed', 'err'); }
+  } catch(e) { toast('Save failed', 'err'); }
+}
+
+async function deleteH2H() {
+  if (!_selectedH2hId) return;
+  if (!confirm('Delete this Head to Head game? Scores will be lost.')) return;
+  try {
+    const r = await fetch(`/api/head_to_head/${_selectedH2hId}`, { method: 'DELETE' });
+    if ((await r.json()).ok) {
+      _selectedH2hId = null;
+      document.getElementById('h2h-editor').style.display = 'none';
+      document.getElementById('h2h-editor-placeholder').style.display = '';
+      toast('Deleted', 'ok');
+      await loadHeadToHead();
+    } else { toast('Delete failed', 'err'); }
+  } catch(e) { toast('Delete failed', 'err'); }
+}
+
+async function showH2HFromAdmin() {
+  if (!_selectedH2hId) { toast('Save the game first', 'err'); return; }
+  const g = savedHeadToHead.find(x => x.id === _selectedH2hId);
+  try {
+    const r = await fetch(`/api/head_to_head/${_selectedH2hId}/show`, { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) toast((g?.name || 'Game') + ' → sent to HDMI', 'ok');
+    else      toast('Launch failed: ' + (d.error || '?'), 'err');
+  } catch(e) { toast('Launch error', 'err'); }
+}
+
 function _sfPopulateVsSelect() {
   const sel = document.getElementById('sf-vs-select');
   if (!sel) return;
@@ -5512,6 +6011,7 @@ async function glSelectType(typeId) {
       '<div style="color:var(--text-dim);font-size:11px;letter-spacing:1px;padding:4px 0">SETTINGS ONLY</div>';
     document.getElementById('gl-editor-placeholder').style.display = 'none';
     document.getElementById('gl-editor').style.display = 'block';
+    document.getElementById('gl-collapse-row').style.display = 'none';
     document.getElementById('gl-name-row').style.display = 'none';
     document.getElementById('gl-action-btns').innerHTML = `
       <button class="btn btn-primary" onclick="sgNavigate()">↗ OPEN ON DISPLAY</button>
@@ -5538,6 +6038,7 @@ async function glSelectType(typeId) {
   renderGlConfigGrid();
   document.getElementById('gl-editor-placeholder').style.display = '';
   document.getElementById('gl-editor').style.display = 'none';
+  document.getElementById('gl-collapse-row').style.display = 'none';
 }
 
 function renderGlConfigGrid() {
@@ -5580,6 +6081,7 @@ async function selectGlConfig(id) {
   if (!c) return;
   document.getElementById('gl-editor-placeholder').style.display = 'none';
   document.getElementById('gl-editor').style.display = 'block';
+  document.getElementById('gl-collapse-row').style.display = 'flex';
   document.getElementById('gl-config-name').value = c.name;
   await renderGlSchemaFields(c.data || {});
   _glUpdateSaveLabel();
@@ -5590,6 +6092,7 @@ async function glNewConfig() {
   renderGlConfigGrid();
   document.getElementById('gl-editor-placeholder').style.display = 'none';
   document.getElementById('gl-editor').style.display = 'block';
+  document.getElementById('gl-collapse-row').style.display = 'flex';
   document.getElementById('gl-config-name').value = '';
   await renderGlSchemaFields({});
   _glUpdateSaveLabel();
@@ -8021,6 +8524,76 @@ function toast(msg, type='info') {
   el.className = `toast ${type} show`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── COLLAPSE EDITOR (list+editor sections) ──────────────────────────────────
+// Every list+editor tab (Circles, Roles, Scenes, etc.) shows an editor panel
+// once you select an item, but had no way to close it again short of picking
+// a different item. These give each section a "✕" button that deselects and
+// goes back to the placeholder, re-rendering the grid so the tile's selected
+// highlight clears too.
+function _admCollapseEditor(placeholderId, editorId) {
+  const ph = document.getElementById(placeholderId);
+  const ed = document.getElementById(editorId);
+  if (ph) ph.style.display = '';
+  if (ed) ed.style.display = 'none';
+}
+
+function collapseCircleEditor() {
+  selectedCircleId = null;
+  _admCollapseEditor('circle-editor-placeholder', 'circle-editor');
+  renderCircleGrid();
+}
+function collapseRoleEditor() {
+  selectedRoleId = null;
+  _admCollapseEditor('role-editor-placeholder', 'role-editor');
+  renderRoleGrid();
+}
+function collapseSlideEditor() {
+  _admSelectedSlideId = null;
+  _admCollapseEditor('adm-slide-placeholder', 'adm-slide-editor');
+  _renderSlidesGrid();
+}
+function collapseSceneEditor() {
+  selectedSceneId = null;
+  _admCollapseEditor('scene-editor-placeholder', 'scene-editor');
+  renderSceneGrid();
+}
+function collapseVscEditor() {
+  _selectedVscId = null;
+  _admCollapseEditor('vsc-editor-placeholder', 'vsc-editor');
+  loadVsCards();
+}
+function collapseMacroEditor() {
+  selectedMacroId = null;
+  _admCollapseEditor('macro-editor-placeholder', 'macro-editor');
+  renderMacroGrid();
+}
+function collapseGameEntryEditor() {
+  selectedGameEntryId = null;
+  _admCollapseEditor('ge-editor-placeholder', 'ge-editor');
+  renderGameEntriesGrid();
+}
+function collapseGlEditor() {
+  glSelectedConfigId = '';
+  _admCollapseEditor('gl-editor-placeholder', 'gl-editor');
+  document.getElementById('gl-collapse-row').style.display = 'none';
+  renderGlConfigGrid();
+}
+function collapseH2hEditor() {
+  _selectedH2hId = null;
+  _admCollapseEditor('h2h-editor-placeholder', 'h2h-editor');
+  renderH2HGrid();
+}
+function collapseTimerEditor() {
+  _selectedTimerPreset = null;
+  _admCollapseEditor('timer-editor-placeholder', 'timer-editor');
+  renderTimerPresetGrid();
+}
+function collapseVizEditor() {
+  _vizCurrentId = null;
+  _admCollapseEditor('viz-editor-placeholder', 'viz-editor');
+  renderVizPresetGrid();
 }
 
 function setSaveStatus(text) {

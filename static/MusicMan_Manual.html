@@ -297,6 +297,7 @@
       <li><a href="#shell-game-admin">Shell Game configuration</a></li>
       <li><a href="#game-entries-admin">Game Entries configuration</a></li>
       <li><a href="#interactive-games-admin">Interactive Games Library (Prize Wheel)</a></li>
+      <li><a href="#head-to-head-admin">Head to Head configuration</a></li>
       <li><a href="#visualization-admin">Visualization — Music Viz &amp; Crowd Meter presets</a></li>
       <li><a href="#lighting-settings">Lighting settings (Pole Nodes, Fixture Profiles)</a></li>
       <li><a href="#system-admin">System tab</a></li>
@@ -316,7 +317,9 @@
       <li><a href="#skit-timer-run">The Skit Timer</a></li>
       <li><a href="#games-run">Games tab — timers, leaderboard, shell game</a></li>
       <li><a href="#game-entries-run">Game Walk-Ups — firing walk-ups from GAMES tab</a></li>
+      <li><a href="#head-to-head-run">Head to Head — live operation</a></li>
       <li><a href="#display-run">HDMI display controls</a></li>
+      <li><a href="#memes-run">MEMES tab — firing videos with sound</a></li>
       <li><a href="#slides-run">Live Slide Builder (console)</a></li>
       <li><a href="#crowd-run">Crowd Noise — live operation</a></li>
       <li><a href="#shell-game-run">Shell Game — live operation</a></li>
@@ -538,7 +541,7 @@
     <tr><td rowspan="4"><strong>SCREEN</strong></td><td><strong>📋 Slides</strong></td><td>Build and save custom text slides to push to the projector</td></tr>
     <tr><td><strong>⚔ VS Cards</strong></td><td>Street Fighter-style head-to-head matchup cards for the projector</td></tr>
     <tr><td><strong>🎯 Game Entries</strong></td><td>Named walk-up moments with their own music, video, and lighting</td></tr>
-    <tr><td><strong>🎮 Games</strong></td><td>Games Library (Prize Wheel, Shell Game configs) and the Skit Timer + presets</td></tr>
+    <tr><td><strong>🎮 Games</strong></td><td>Games Library (Prize Wheel, Shell Game configs), Head to Head scoreboard config, and the Skit Timer + presets</td></tr>
     <tr><td><strong>LIVE</strong></td><td><strong>📺 Visualizations</strong></td><td>Music Viz and Crowd Meter presets — display styles, colors, WLED/DMX lighting, climax</td></tr>
     <tr><td rowspan="3"><strong>CONTENT</strong></td><td><strong>♪ Audio</strong></td><td>Upload and manage the SFX library and Music library; audio normalization</td></tr>
     <tr><td><strong>🖼 Display</strong></td><td>Upload and manage images/videos; set the default LOGO image</td></tr>
@@ -555,6 +558,15 @@
     preset, tweak it, hit SAVE). Crowd lighting, DMX fixture tracking, and Climax configuration all
     moved into <strong>🎛 Visualization</strong> as part of the Crowd Meter preset type — see that
     section below.
+  </div>
+
+  <div class="callout callout-info">
+    <div class="callout-title">Collapsing an open editor</div>
+    Every list-and-editor section (Circles, Roles, Scenes, Macros, Slides, VS Cards, Game
+    Entries, Head to Head, Timer Presets, Visualization, Display library) shows a small
+    <kbd>✕</kbd> button in the editor panel's title bar once an item is selected. Tap it to
+    close the editor without having to pick a different item first — useful when you're done
+    editing but want the list itself to stay full-width.
   </div>
 
   <h2 id="loading-media">Step 0: Load Your Media Files First</h2>
@@ -601,6 +613,35 @@
     Files over 200 MB take a while over WiFi. For large video files, copy them
     directly via the Samba share or SFTP — much faster than the browser uploader.
   </div>
+
+  <h3>Video sound — mute &amp; volume</h3>
+  <p>
+    Every video tile in the Display library has its own <strong>🔇 / 🔊 mute button</strong>.
+    New uploads default to muted, matching how videos always behaved before this feature
+    existed — nothing changes for existing files unless you explicitly turn sound on.
+  </p>
+  <p>
+    Once a video is unmuted, tap the <strong>🎚 volume button</strong> to open its volume panel:
+  </p>
+  <ol class="steps">
+    <li>Drag the slider (50%–250%) to the level you want.</li>
+    <li>Tap <kbd>▶ Preview</kbd> — it fires the video to the projector at that level right away,
+      without saving anything, so you can judge it against the real PA.</li>
+    <li>Adjust and preview again, or open another video's panel to compare levels side by side.</li>
+    <li>Tap <kbd>Save</kbd> once you're happy. That level is now permanent for this file —
+      every future play (Display library, MEMES tab, macros) uses it automatically.</li>
+  </ol>
+  <div class="callout callout-info">
+    <div class="callout-title">There's a real ceiling</div>
+    Past roughly 150–250%, boosting further just distorts — the source audio is already near
+    its peak, so more digital gain clips rather than getting louder. If a clip still isn't loud
+    enough at max, the fix is re-exporting that clip louder, not pushing the slider further.
+  </div>
+  <p>
+    This same mute + volume setting also applies to a video used in a <strong>Show Video</strong>
+    macro step and to a <strong>Game Entry</strong>'s intro/loop clip — see those sections for
+    their own mute checkboxes.
+  </p>
 
   <h3>Walk-Up Assets (per Circle or Role)</h3>
   <table>
@@ -793,7 +834,7 @@
     <tr><td>↺ Reset Timer</td><td>Stops and resets the skit timer</td><td>None</td></tr>
     <tr><td>⚙ Load Timer Preset</td><td>Loads a saved timer preset without starting it</td><td>Preset name</td></tr>
     <tr><td>🖼 Show Image</td><td>Shows a specific image fullscreen on the HDMI</td><td>Pick from Display library</td></tr>
-    <tr><td>🎬 Show Video</td><td>Plays a video fullscreen on the HDMI (loops until cleared)</td><td>Pick video; set Hold (sec) and Loop (yes/no)</td></tr>
+    <tr><td>🎬 Show Video</td><td>Plays a video fullscreen on the HDMI (loops until cleared)</td><td>Pick video; set Hold (sec), Loop (yes/no), and Mute (on by default)</td></tr>
     <tr><td>⬡ Circle (logo only)</td><td>Shows a circle's logo on HDMI without playing music</td><td>Pick a circle</td></tr>
     <tr><td>★ Role (logo only)</td><td>Shows a role's logo on HDMI without playing music</td><td>Pick a role</td></tr>
     <tr><td>📋 Saved Slide</td><td>Pushes a named slide you previously saved in the Slides tab</td><td>Slide name</td></tr>
@@ -802,6 +843,7 @@
     <tr><td>🎲 Game Entry Walk-Up</td><td>Fires a game entry's full walk-up (music + animation + lighting), same as tapping it on the console</td><td>Pick a game entry</td></tr>
     <tr><td>🎮 Shell Game</td><td>Launches the shell game on the HDMI display</td><td>Optional theme name</td></tr>
     <tr><td>📊 Show Crowd Viz</td><td>Opens the crowd noise gauge on the HDMI</td><td>Optional preset name</td></tr>
+    <tr><td>🤺 Head to Head</td><td>Puts a saved Head to Head scoreboard live on the HDMI (plays its intro Game Entry first, if one is set)</td><td>Pick a Head to Head config</td></tr>
     <tr><td>⏳ Wait</td><td>Pauses the macro for a set time before the next step</td><td>Duration in seconds</td></tr>
   </table>
 
@@ -999,6 +1041,7 @@
     <tr><td>Walk-Up Music</td><td>Plays when the entry is fired</td></tr>
     <tr><td>Intro Clip</td><td>Optional video that plays once, before the loop animation starts</td></tr>
     <tr><td>Loop Animation</td><td>Video that loops during the walk-up</td></tr>
+    <tr><td>Mute Video</td><td>Checkbox next to Hide Name — on by default (silent). Uncheck to let the intro/loop clip's own audio play through the PA</td></tr>
     <tr><td>Start / Duration / Fade</td><td>Same timing controls as circle walk-ups</td></tr>
     <tr><td>Walk-Up Scene</td><td>Lighting scene that fires instantly when the entry is triggered</td></tr>
     <tr><td>After-Fade Scene</td><td>Lighting scene that fires once the music fades out</td></tr>
@@ -1052,6 +1095,43 @@
     <div class="callout-title">Testing before the show</div>
     Use the <kbd>↗ GO LIVE</kbd> button inside the Library editor to send the game to the HDMI
     display and test it without having to add it to the Show Flow first.
+  </div>
+
+  <h2 id="head-to-head-admin">Head to Head</h2>
+  <p>
+    <strong>Head to Head</strong> is a live scoreboard for 2–6 contestants — built from the same
+    VS Card style presentation, with score entry, a multiplier, right/wrong SFX and lighting
+    flashes, and a full-screen winner takeover. It lives in the <strong>🎮 Games</strong> tab,
+    below the Games Library.
+  </p>
+  <ol class="steps">
+    <li>In Admin, click <strong>🎮 Games</strong>, then <kbd>+ NEW HEAD TO HEAD</kbd>.</li>
+    <li>Name it (e.g. "Trivia Showdown").</li>
+    <li>Add contestants with <kbd>+ ADD CONTESTANT</kbd> — up to 6. Each one gets a name, a
+      color, and a photo (upload or pick from the shared library), the same way a VS Card side
+      is built.</li>
+    <li>Optionally pick an <strong>Intro</strong> — any existing Game Entry. It plays first when
+      the game goes live; the scoreboard reveals once the intro finishes. This is the only role
+      a Game Entry plays here — Game Entries are never the contestants themselves.</li>
+    <li>Pick a <strong>Correct Scene</strong> and <strong>Incorrect Scene</strong> — lighting
+      scenes that flash briefly (WLED + DMX) when the operator presses a contestant's + or −
+      button, then automatically revert to whatever scene was showing before the flash.</li>
+    <li>Pick optional Correct/Incorrect SFX.</li>
+    <li>Click <kbd>SAVE</kbd>.</li>
+  </ol>
+  <table>
+    <tr><th>Field</th><th>What it does</th></tr>
+    <tr><td>Contestants</td><td>2–6 entries, each with name / color / photo — entered directly, not pulled from any other list</td></tr>
+    <tr><td>Intro (Game Entry)</td><td>Optional — plays once before the scoreboard appears. Leave blank to go straight to the scoreboard</td></tr>
+    <tr><td>Correct / Incorrect Scene</td><td>Lighting scene that flashes on a score change, then reverts automatically</td></tr>
+    <tr><td>Correct / Incorrect SFX</td><td>Sound that plays alongside the flash</td></tr>
+    <tr><td>Multiplier</td><td>Global x-factor (e.g. x2, x5) applied to every +/− press — set live from the Console, not here</td></tr>
+  </table>
+  <div class="callout callout-info">
+    <div class="callout-title">Scores persist</div>
+    Once a Head to Head game is live, scores stay put across screen changes — going to a show
+    step and back doesn't reset them. Use <kbd>↺ RESET SCORES</kbd> on the Console when you
+    actually want to zero them out for a new round.
   </div>
 
   <h2 id="visualization-admin">Visualization — Music Viz &amp; Crowd Meter Presets</h2>
@@ -1318,14 +1398,24 @@
     <tr><td><span class="tab">ROLES</span></td><td>Walk-up buttons for each role (Expedition Navigator, Firestarter, etc.)</td></tr>
     <tr><td rowspan="2"><em>Audio</em></td><td><span class="tab">SFX</span></td><td>Sound effect library — one-tap triggers; plays on top of current music</td></tr>
     <tr><td><span class="tab">MUSIC</span></td><td>Music library browser</td></tr>
-    <tr><td rowspan="3"><em>Screen</em></td><td><span class="tab">SLIDES</span></td><td>Live slide builder (two-column: saved slide grid on left, builder on right) + display images</td></tr>
+    <tr><td rowspan="4"><em>Screen</em></td><td><span class="tab">SLIDES</span></td><td>Live slide builder (two-column: saved slide grid on left, builder on right) + display images</td></tr>
+    <tr><td><span class="tab">MEMES</span></td><td>One-tap video/meme firing from the Display library, with sound</td></tr>
     <tr><td><span class="tab">VS CARDS</span></td><td>VS Card list — one tap fires the card to the display</td></tr>
     <tr><td><span class="tab">VIZ</span></td><td>Music Visualizer preset picker and Crowd Control slider</td></tr>
-    <tr><td><em>Games</em></td><td><span class="tab">GAMES</span></td><td>Game walk-ups, game library, countdown timer, stopwatch, rankings, shell game, sound levels</td></tr>
+    <tr><td><em>Games</em></td><td><span class="tab">GAMES</span></td><td>Game walk-ups, game library, Head to Head scoreboards, countdown timer, stopwatch, rankings, shell game, sound levels</td></tr>
     <tr><td rowspan="3"><em>Settings</em></td><td><span class="tab">LIGHTS</span></td><td>Lighting scenes, DIM slider, pole battery status, WLED Live Tune</td></tr>
     <tr><td><span class="tab">WIFI</span></td><td>MusicMan AP info, connected devices, network scan and connect</td></tr>
     <tr><td><span class="tab">HELP</span></td><td>This manual</td></tr>
   </table>
+
+  <div class="callout callout-info">
+    <div class="callout-title">Pinned top row on iPad mini</div>
+    <span class="tab">SHOW</span>, <span class="tab">MACROS</span>, <span class="tab">CIRCLES</span>,
+    <span class="tab">ROLES</span>, <span class="tab">SFX</span>, and <span class="tab">MUSIC</span>
+    stay fixed in a top row that's always on screen, sized for easy tapping. Every other tab sits
+    in a second row underneath that scrolls sideways — so the six tabs used most stay one tap
+    away no matter where you are.
+  </div>
 
   <h2 id="show-flow-run">Running the Show Flow</h2>
   <ol class="steps">
@@ -1479,13 +1569,67 @@
     GAMES group in the step type dropdown) or as a step in a Show Flow macro.
   </p>
 
+  <h2 id="head-to-head-run">Head to Head — Live Operation</h2>
+  <p>
+    Saved Head to Head games appear as tiles in the <span class="tab">GAMES</span> tab, below
+    Game Entries.
+  </p>
+  <ol class="steps">
+    <li>Tap a tile to <strong>select</strong> it — this expands the contestant score rows
+      right there on the console, but does <em>not</em> put anything on the projector yet.</li>
+    <li>Tap <kbd>↗ GO LIVE</kbd> to select <em>and</em> push the scoreboard to the HDMI (playing
+      the intro Game Entry first, if one is set).</li>
+    <li>Each contestant row has <kbd>−</kbd> / <kbd>+</kbd> buttons. Pressing one updates the
+      score immediately, flashes the Correct/Incorrect lighting scene and SFX, and reverts the
+      lighting back to normal automatically.</li>
+    <li>Use the <strong>multiplier</strong> buttons (x1, x2, x5, etc.) to scale every subsequent
+      +/− press — it's a global toggle, not per-contestant.</li>
+    <li>Tap a contestant's name to rename them mid-game (handy for correcting a typo or swapping
+      a player without rebuilding the whole game).</li>
+    <li>You can also type a score directly instead of tapping +/− repeatedly.</li>
+    <li>Tap <kbd>🏆 DECLARE WINNER</kbd> to take the projector full-screen: the winner's name and
+      photo large, "WINNER!" above it, with lighting and sound.</li>
+    <li>Tap <kbd>↺ RESET SCORES</kbd> to zero every contestant out for a new round without
+      leaving the game or rebuilding contestants.</li>
+  </ol>
+  <div class="callout callout-tip">
+    <div class="callout-title">Scores survive screen changes</div>
+    Moving to a different show step, walk-up, or slide and coming back to Head to Head does not
+    reset anything — scores are only cleared when you explicitly hit RESET SCORES.
+  </div>
+
   <h2 id="display-run">HDMI Display Controls</h2>
-  <p>The <span class="tab">DISPLAY</span> tab controls what the audience sees on screen.</p>
+  <p>The Display images grid (in the <span class="tab">SLIDES</span> tab) controls what the audience sees on screen.</p>
   <ul>
     <li>Tap any image thumbnail to display it fullscreen on the HDMI.</li>
-    <li>Tap a video thumbnail to play it fullscreen (loops until cleared).</li>
+    <li>Tap a video thumbnail to play it fullscreen once, then the screen fades back to standby
+      automatically — it no longer loops or freezes on the last frame.</li>
+    <li>A video plays with sound only if it's been unmuted in Admin's Display library — see
+      <a href="#loading-media">Display Images and Videos</a> for the mute/volume controls.</li>
     <li>Use <kbd>CLEAR PROJECTOR</kbd> to return to standby/dark.</li>
   </ul>
+
+  <h2 id="memes-run">MEMES Tab</h2>
+  <p>
+    <span class="tab">MEMES</span> is a dedicated, video-only version of the Display grid above —
+    same files, same mute/volume settings, but filtered down to just the short clips you'd fire
+    on the fly (reaction videos, sound stingers, quick gags) so you're not hunting through
+    background images to find them.
+  </p>
+  <ol class="steps">
+    <li>Go to the <span class="tab">MEMES</span> tab.</li>
+    <li>Tap a tile — it fires immediately to the HDMI, full-screen, with whatever mute/volume
+      level was configured for that file in Admin.</li>
+    <li>Hold and drag a tile to reorder the grid — the order is remembered for next time (same
+      drag-to-reorder gesture as the SFX tab).</li>
+    <li>When the clip finishes, the display automatically fades back to standby.</li>
+  </ol>
+  <div class="callout callout-info">
+    <div class="callout-title">Volume is set in Admin, not here</div>
+    MEMES is fire-only — there's no mute or volume control on this tab itself. Set each file's
+    sound and level once in Admin → 🖼 Display (see <a href="#loading-media">Video sound — mute
+    &amp; volume</a>), and every tap here uses that saved setting.
+  </div>
 
   <h2 id="slides-run">Live Slide Builder</h2>
   <p>

@@ -103,8 +103,16 @@
   .scene-icon { font-size: 16px; }
   .dim-row { display: flex; align-items: center; gap: 8px; margin-top: 22px; }
   .right { display: flex; flex-direction: column; overflow: hidden; }
-  .page-tabs { display: flex; background: var(--bg2); border-bottom: 2px solid var(--border); padding: 0 16px; gap: 4px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
-  .page-tab { padding: 10px 14px; font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--text-dim); border-bottom: 2px solid transparent; cursor: pointer; transition: all .15s; margin-bottom: -2px; flex-shrink: 0; white-space: nowrap; }
+  /* Top row: the 6 most-used tabs, pinned, never scrolls — each shares the row
+     width equally so it can never overflow off the right edge on a narrow
+     iPad. Bottom row: everything else, scrolls horizontally like before. */
+  .page-tabs-top {
+    display: flex; background: var(--bg2); border-bottom: 2px solid var(--border);
+    padding: 0 10px; gap: 3px;
+  }
+  .page-tabs-top .page-tab { flex: 1 1 0; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; }
+  .page-tabs-bottom { display: flex; background: var(--bg2); border-bottom: 2px solid var(--border); padding: 0 16px; gap: 4px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .page-tab { padding: 15px 14px; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; color: var(--text-dim); border-bottom: 2px solid transparent; cursor: pointer; transition: all .15s; margin-bottom: -2px; flex-shrink: 0; white-space: nowrap; }
   .page-tab:hover { color: var(--text); }
   .page-tab.active { color: var(--amber); border-bottom-color: var(--amber); }
   .tab-sep { width: 1px; background: var(--border); align-self: stretch; margin: 8px 2px; flex-shrink: 0; }
@@ -283,17 +291,17 @@
     </div>
   </div>
   <div class="right">
-    <div class="page-tabs">
+    <div class="page-tabs-top">
       <div class="page-tab active" onclick="showPage('show',this)">SHOW</div>
       <div class="page-tab" onclick="showPage('macros',this)">MACROS</div>
-      <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('walkup',this)">CIRCLES</div>
       <div class="page-tab" onclick="showPage('roles',this)">ROLES</div>
-      <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('sfx',this);buildSfxGrid()">SFX</div>
       <div class="page-tab" onclick="showPage('music',this);loadMusicTracks()">MUSIC</div>
-      <div class="tab-sep"></div>
+    </div>
+    <div class="page-tabs-bottom">
       <div class="page-tab" onclick="showPage('slides',this);loadSlidesTab()">SLIDES</div>
+      <div class="page-tab" onclick="showPage('memes',this);buildMemesGrid()">MEMES</div>
       <div class="page-tab" onclick="showPage('vscards',this);loadVsCardsConsole()">VS CARDS</div>
       <div class="page-tab" onclick="showPage('viz',this);loadVizTab()">VIZ</div>
       <div class="tab-sep"></div>
@@ -392,6 +400,17 @@
         </div>
 
       </div>
+    </div>
+
+    <!-- ── MEMES TAB ── -->
+    <div class="page" id="page-memes">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">🎬 MEMES — TAP TO FIRE ON THE PROJECTOR</div>
+        <button onclick="buildMemesGrid()" style="font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">↺</button>
+      </div>
+      <button onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Projector cleared',1500)"
+        style="margin-bottom:10px;background:var(--surface);border:1px solid var(--border2);color:var(--text-dim);padding:6px 16px;border-radius:6px;font-size:11px;letter-spacing:2px;cursor:pointer;font-weight:700">&#x2715; CLEAR PROJECTOR</button>
+      <div class="sfx-grid" id="memesGrid"></div>
     </div>
 
     <!-- ── VS CARDS TAB ── -->
@@ -543,6 +562,24 @@
       <div class="games-section" id="gl-ui-section">
         <div class="section-label">📚 GAME LIBRARY</div>
         <div id="gl-ui-config-list" style="min-height:28px"></div>
+      </div>
+
+      <!-- HEAD TO HEAD -->
+      <div class="games-section">
+        <div class="section-label">🏆 HEAD TO HEAD</div>
+        <div id="h2hGameList" style="margin-bottom:8px"></div>
+        <div id="h2hContestantRows"></div>
+        <div class="games-row" id="h2hMultiplierRow" style="display:none;margin-top:8px;gap:6px">
+          <span class="games-label">MULTIPLIER</span>
+          <button class="games-btn primary h2h-mult-btn" data-mult="1" onclick="h2hSetMultiplier(1)">1x</button>
+          <button class="games-btn h2h-mult-btn" data-mult="2" onclick="h2hSetMultiplier(2)">2x</button>
+          <button class="games-btn h2h-mult-btn" data-mult="3" onclick="h2hSetMultiplier(3)">3x</button>
+          <button class="games-btn h2h-mult-btn" data-mult="5" onclick="h2hSetMultiplier(5)">5x</button>
+        </div>
+        <div class="games-row" id="h2hActionRow" style="display:none;margin-top:10px;gap:8px">
+          <button class="games-btn" onclick="h2hResetScores()" style="border-color:var(--rust,#c0392b);color:var(--rust,#c0392b)">RESET SCORES</button>
+          <button class="games-btn" onclick="h2hDeclareWinner()" style="border-color:var(--amber-dim);color:var(--amber)">🏆 DECLARE WINNER</button>
+        </div>
       </div>
 
       <!-- COUNTDOWN TIMER -->
@@ -968,6 +1005,7 @@ function loadVizTab()       { vizConsoleLoadPresets(); loadCrowdPresets(); }
 async function loadGamesOnlyTab() {
   buildGameEntriesGrid();
   loadGlUi();
+  loadHeadToHeadConsole();
   await sgUiLoadConfig();
   await sgUiLoadThemes();
   await loadCdAudioOptions();
@@ -1659,6 +1697,161 @@ async function buildGameEntriesGrid() {
   });
 }
 
+// ── HEAD TO HEAD ──────────────────────────────────────────────────────────────
+let h2hGamesCache = [];
+let h2hCurrentId  = null;
+let h2hMultiplier = 1;
+
+async function loadHeadToHeadConsole() {
+  try { h2hGamesCache = await fetch('/api/head_to_head').then(r => r.json()); } catch(e) { h2hGamesCache = []; }
+  _renderH2hGameList();
+}
+
+function _renderH2hGameList() {
+  const el = document.getElementById('h2hGameList');
+  if (!el) return;
+  if (!h2hGamesCache.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:1.5px">NO SAVED GAMES — CREATE IN ADMIN › GAMES</div>';
+    return;
+  }
+  el.innerHTML = h2hGamesCache.map(g => {
+    const n    = (g.contestants || []).length;
+    const live = g.id === h2hCurrentId;
+    return `<div class="circle-card${live ? ' selected' : ''}" onclick="h2hSelect('${escHtml(g.id)}')" style="padding:10px 12px;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:20px;line-height:1;flex-shrink:0">🏆</div>
+        <div style="min-width:0;flex:1">
+          <div class="circle-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">${escHtml(g.name)}</div>
+          <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;font-weight:700">${n} CONTESTANT${n===1?'':'S'}</div>
+        </div>
+        <button class="games-btn primary" onclick="event.stopPropagation();h2hGoLive('${escHtml(g.id)}')" style="font-size:11px;padding:5px 12px;flex-shrink:0">GO LIVE</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Row click: expand/select locally — shows contestant rows + controls, no display push
+async function h2hSelect(id) {
+  h2hCurrentId = id || null;
+  _renderH2hGameList();
+  if (!h2hCurrentId) {
+    document.getElementById('h2hContestantRows').innerHTML = '';
+    document.getElementById('h2hMultiplierRow').style.display = 'none';
+    document.getElementById('h2hActionRow').style.display = 'none';
+    return;
+  }
+  try {
+    const g = await fetch(`/api/head_to_head/${h2hCurrentId}`).then(r => r.json());
+    if (g && g.contestants_resolved) h2hRenderContestants(g.contestants_resolved);
+  } catch(e) {}
+  document.getElementById('h2hMultiplierRow').style.display = 'flex';
+  document.getElementById('h2hActionRow').style.display     = 'flex';
+}
+
+// GO LIVE button: expand (if needed) AND actually push the scoreboard to the display
+async function h2hGoLive(id) {
+  await h2hSelect(id);
+  if (!id) return;
+  h2hMultiplier = 1;
+  h2hRenderMultiplier();
+  fetch(`/api/head_to_head/${id}/multiplier`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({value: 1}),
+  }).catch(()=>{});
+  fetch(`/api/head_to_head/${id}/show`, { method: 'POST' }).catch(()=>{});
+}
+
+function h2hRenderContestants(contestants) {
+  const el = document.getElementById('h2hContestantRows');
+  if (!el) return;
+  el.innerHTML = contestants.map(c => {
+    const color = c.color || '#888888';
+    const photo = c.image_url
+      ? `<img src="${c.image_url}?t=${Date.now()}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid ${color}">`
+      : `<span style="width:28px;height:28px;border-radius:50%;background:${color}33;border:2px solid ${color};color:${color};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">${escHtml((c.name||'?').charAt(0).toUpperCase())}</span>`;
+    return `
+    <div class="games-row h2h-contestant-row" data-contestant-id="${escHtml(c.id)}" style="align-items:center;gap:8px;margin-top:6px">
+      ${photo}
+      <span class="games-label h2h-name-label" style="flex:1;text-align:left;text-transform:none">${escHtml(c.name)}</span>
+      <button class="games-btn" onclick="h2hRenameContestant('${escHtml(c.id)}','${escHtml(c.name)}')" style="width:32px" title="Rename">✏️</button>
+      <button class="games-btn" onclick="h2hScore('${escHtml(c.id)}',-1)" style="width:38px;font-size:16px">−</button>
+      <span class="h2h-score-val" data-contestant-id="${escHtml(c.id)}" style="font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--amber);min-width:40px;text-align:center">${c.score}</span>
+      <button class="games-btn" onclick="h2hScore('${escHtml(c.id)}',1)" style="width:38px;font-size:16px">+</button>
+      <button class="games-btn" onclick="h2hManualScore('${escHtml(c.id)}','${escHtml(c.name)}')" style="width:32px" title="Set exact score">✎</button>
+    </div>
+  `;
+  }).join('');
+}
+
+function h2hRenderMultiplier() {
+  document.querySelectorAll('.h2h-mult-btn').forEach(b => {
+    b.classList.toggle('primary', parseInt(b.dataset.mult) === h2hMultiplier);
+  });
+}
+
+function h2hSetMultiplier(v) {
+  if (!h2hCurrentId) return;
+  h2hMultiplier = v;
+  h2hRenderMultiplier();
+  fetch(`/api/head_to_head/${h2hCurrentId}/multiplier`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({value: v}),
+  }).catch(()=>{});
+}
+
+function h2hScore(contestantId, direction) {
+  if (!h2hCurrentId) return;
+  fetch(`/api/head_to_head/${h2hCurrentId}/score`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({contestant_id: contestantId, direction}),
+  }).catch(()=>{});
+}
+
+function h2hManualScore(contestantId, name) {
+  if (!h2hCurrentId) return;
+  const v = prompt(`Set score for ${name}:`);
+  if (v === null) return;
+  const value = parseInt(v);
+  if (isNaN(value)) { uiToast('Invalid number'); return; }
+  fetch(`/api/head_to_head/${h2hCurrentId}/set_score`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({contestant_id: contestantId, value}),
+  }).catch(()=>{});
+}
+
+function h2hRenameContestant(contestantId, currentName) {
+  if (!h2hCurrentId) return;
+  const name = prompt('Rename contestant:', currentName);
+  if (name === null) return;
+  const trimmed = name.trim();
+  if (!trimmed) { uiToast('Name cannot be blank'); return; }
+  fetch(`/api/head_to_head/${h2hCurrentId}/contestant/${contestantId}`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name: trimmed}),
+  }).catch(()=>{});
+}
+
+function h2hResetScores() {
+  if (!h2hCurrentId) return;
+  if (!confirm('Reset all scores to zero?')) return;
+  fetch(`/api/head_to_head/${h2hCurrentId}/reset`, { method: 'POST' })
+    .then(()=>uiToast('Scores reset')).catch(()=>{});
+}
+
+function h2hDeclareWinner() {
+  if (!h2hCurrentId) return;
+  const rows = document.querySelectorAll('#h2hContestantRows .h2h-contestant-row');
+  if (!rows.length) return;
+  const opts = [...rows].map(r => ({ id: r.dataset.contestantId, name: r.querySelector('.h2h-name-label').textContent }));
+  const choice = prompt('Declare winner:\n' + opts.map((o,i) => `${i+1}. ${o.name}`).join('\n') + '\n\nEnter number:');
+  if (choice === null) return;
+  const idx = parseInt(choice) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= opts.length) { uiToast('Invalid selection'); return; }
+  if (!confirm(`Declare ${opts[idx].name} the winner?`)) return;
+  fetch(`/api/head_to_head/${h2hCurrentId}/winner`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({contestant_id: opts[idx].id}),
+  }).then(()=>uiToast('Winner declared')).catch(()=>{});
+}
+
 function fireGameEntry(e) {
   fetch('/api/game-entry/fire?id=' + e.id).catch(()=>{});
   document.querySelectorAll('.walkup-btn').forEach(b => b.classList.remove('playing'));
@@ -2175,15 +2368,31 @@ function playMusicTrack(filename, btn) {
 let showStep = null;  // index of last-pressed show step
 
 let _sfgMacroCache = null;
+let _sfgFlowCache   = null;
+
+// Fetches fresh data (show flow + macros can change from Admin) and re-renders.
+// Use this for real navigation/load events, NOT for a step advance — a step
+// press only changes which index is highlighted, not the underlying data, so
+// re-fetching both lists on every single press was adding 2 round-trips per
+// tap (and fireShowStep() + the show_step WS echo each triggered a full
+// re-fetch, so a single press did FOUR fetches) — that's what was making
+// step buttons feel slow to update on the iPad's WiFi.
 async function buildShowFlowGrid() {
-  let flow = [], macros = [];
   try {
-    [flow, macros] = await Promise.all([
+    [_sfgFlowCache, _sfgMacroCache] = await Promise.all([
       fetch('/api/show_flow').then(r => r.json()),
       fetch('/api/macros').then(r => r.json())
     ]);
-    _sfgMacroCache = macros; // keep in sync for other callers
-  } catch(e) { macros = _sfgMacroCache || []; }
+  } catch(e) { /* keep whatever was cached before */ }
+  _renderShowFlowGrid();
+}
+
+// Re-renders from the cached data only — no network calls. Use this whenever
+// only `showStep` (the highlighted index) changed, e.g. after firing a step
+// or receiving the show_step WS broadcast.
+function _renderShowFlowGrid() {
+  const flow   = _sfgFlowCache  || [];
+  const macros = _sfgMacroCache || [];
   const macroMap = {};
   macros.forEach(m => { macroMap[m.id] = m; });
 
@@ -2218,6 +2427,7 @@ async function buildShowFlowGrid() {
     const hasShellGame = steps.some(s => s.action === 'shell_game');
     const hasViz       = steps.some(s => s.action === 'viz' || s.action === 'viz_hide');
     const vizScene     = (steps.find(s => s.action === 'viz') || {}).scene || 'crowd';
+    const h2hStep      = steps.find(s => s.action === 'head_to_head');
 
     const actionBtnHtml = [
       hasShellGame ? `
@@ -2233,6 +2443,13 @@ async function buildShowFlowGrid() {
                  background:${col}22;color:${col};font-size:10px;font-weight:800;
                  letter-spacing:0.5px;cursor:pointer;white-space:nowrap;line-height:1">
           📺 →
+        </button>` : '',
+      h2hStep ? `
+        <button data-inline-action="head_to_head" data-h2h-id="${escHtml(h2hStep.head_to_head_id || '')}"
+          style="flex-shrink:0;padding:5px 9px;border-radius:20px;border:1.5px solid ${col};
+                 background:${col}22;color:${col};font-size:10px;font-weight:800;
+                 letter-spacing:0.5px;cursor:pointer;white-space:nowrap;line-height:1">
+          🏆 →
         </button>` : '',
     ].join('');
 
@@ -2271,6 +2488,14 @@ async function buildShowFlowGrid() {
               document.getElementById('crowd-control-section')?.scrollIntoView({behavior:'smooth', block:'start'});
             }
           }, 150);
+        } else if (el.dataset.inlineAction === 'head_to_head') {
+          const gid = el.dataset.h2hId;
+          navToPage('games');
+          loadGamesOnlyTab();
+          setTimeout(() => {
+            if (gid) h2hGoLive(gid);
+            document.getElementById('h2hGameList')?.closest('.games-section')?.scrollIntoView({behavior:'smooth', block:'start'});
+          }, 150);
         } else {
           sfInlineAction(el.dataset.inlineAction);
         }
@@ -2293,7 +2518,7 @@ function fireShowStep(i, step, total) {
   fetch('/api/show/fire?index=' + i).catch(()=>{});
   showStep = i;
   showAlert('▶ ' + step.name, 2500);
-  buildShowFlowGrid();
+  _renderShowFlowGrid();
 }
 
 // ── ROLES GRID ─────────────────────────────────────────────────────────────
@@ -2539,6 +2764,80 @@ async function buildDisplayGrid() {
       btn.style.transform = 'scale(0.95)';
       setTimeout(() => btn.style.transform = '', 120);
     };
+    grid.appendChild(btn);
+  });
+}
+
+async function buildMemesGrid() {
+  let files = [];
+  try { files = await fetch('/api/display/list').then(r => r.json()); } catch(e) {}
+  const grid = document.getElementById('memesGrid');
+  if (!grid) return;
+  const VIDEO_EXTS = new Set(['.mp4','.webm','.mov','.ogv']);
+  let videos = files.filter(f => VIDEO_EXTS.has(f.slice(f.lastIndexOf('.')).toLowerCase()));
+  grid.innerHTML = '';
+  if (!videos.length) {
+    grid.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:8px">NO VIDEOS — UPLOAD IN ADMIN → DISPLAY TAB</div>';
+    return;
+  }
+
+  // Apply saved order — same drag-to-reorder mechanism as the SFX page
+  const savedOrder = JSON.parse(localStorage.getItem('memesOrder') || '[]');
+  if (savedOrder.length) {
+    videos = [...videos].sort((a, b) => {
+      const ai = savedOrder.indexOf(a);
+      const bi = savedOrder.indexOf(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }
+
+  let _memesDragSrc = null;
+
+  videos.forEach(f => {
+    const label = f.replace(/\.[^.]+$/, '').replace(/_/g, ' ').toUpperCase().slice(0, 14);
+    const btn = document.createElement('button');
+    btn.className = 'sfx-btn';
+    btn.dataset.filename = f;
+    btn.innerHTML = '<span class="sfx-icon">🎬</span>' + label;
+    btn.style.flexDirection = 'column';
+    btn.draggable = true;
+
+    btn.onclick = () => {
+      fetch('/api/display/show_file?file=' + encodeURIComponent(f)).catch(() => {});
+      btn.style.transform = 'scale(0.95)';
+      setTimeout(() => btn.style.transform = '', 120);
+    };
+
+    btn.addEventListener('dragstart', e => {
+      _memesDragSrc = btn;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => btn.style.opacity = '0.4', 0);
+    });
+    btn.addEventListener('dragend', () => {
+      btn.style.opacity = '';
+      document.querySelectorAll('#memesGrid .sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
+      const order = [...grid.querySelectorAll('.sfx-btn')].map(b => b.dataset.filename);
+      localStorage.setItem('memesOrder', JSON.stringify(order));
+    });
+    btn.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('#memesGrid .sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
+      if (btn !== _memesDragSrc) btn.classList.add('sfx-drag-over');
+    });
+    btn.addEventListener('drop', e => {
+      e.preventDefault();
+      if (_memesDragSrc && _memesDragSrc !== btn) {
+        const kids = [...grid.children];
+        const si = kids.indexOf(_memesDragSrc);
+        const di = kids.indexOf(btn);
+        if (si < di) grid.insertBefore(_memesDragSrc, btn.nextSibling);
+        else grid.insertBefore(_memesDragSrc, btn);
+      }
+    });
+
     grid.appendChild(btn);
   });
 }
@@ -3139,7 +3438,7 @@ function initWebSocket() {
 
       else if (event === 'show_step') {
         showStep = data.index;
-        buildShowFlowGrid();
+        _renderShowFlowGrid();
         const stepName = data.name || '';
         if (stepName) {
           _prevTrackTitle = stepName.toUpperCase();
@@ -3228,19 +3527,20 @@ function initWebSocket() {
       else if (event === 'viz_show') { vizConsoleUpdateStatus(data.scene); }
       else if (event === 'viz_hide') {
         vizConsoleUpdateStatus(null);
-        if (!_crowdClimax) {
-          _crowdSliderSet(0);
-          fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({level:0, climax:false})}).catch(()=>{});
-        }
+        // Reset the on-screen gauge only — do NOT POST to /api/crowd/level here.
+        // That POST physically re-dims the WLED crowd/pole lights, and those are
+        // the SAME physical fixtures every scene uses. Any unrelated content
+        // change (a show step, a walkup, closing viz) was silently fighting
+        // whatever lighting that content's own macro had just set — this is
+        // the "random dimming" reported after the Pledge, after H2H, etc. The
+        // crowd lights should only move when the operator explicitly drives
+        // the crowd meter or a climax fires, never as a side effect of
+        // something else appearing on screen.
+        if (!_crowdClimax) _crowdSliderSet(0);
       }
       else if (['display_walkup','display_step','display_animation','display_clear','display_standby','display_leaderboard'].includes(event)) {
         vizConsoleUpdateStatus(null);
-        if (!_crowdClimax) {   // don't reset crowd while climax macro owns the display
-          _crowdSliderSet(0);
-          fetch('/api/crowd/level', {method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({level:0, climax:false})}).catch(()=>{});
-        }
+        if (!_crowdClimax) _crowdSliderSet(0);   // gauge only — see viz_hide comment above
       }
 
       else if (event === 'viz_crowd') {
@@ -3253,6 +3553,34 @@ function initWebSocket() {
         }
         if (!_vizActiveScene) return;
         _crowdSliderSet(lv);
+      }
+
+      else if (event === 'h2h_score') {
+        if (data.game_id !== h2hCurrentId) return;
+        const el = document.querySelector(`.h2h-score-val[data-contestant-id="${data.contestant_id}"]`);
+        if (el) el.textContent = data.score;
+      }
+      else if (event === 'h2h_reset') {
+        if (data.game_id !== h2hCurrentId) return;
+        Object.keys(data.scores || {}).forEach(cid => {
+          const el = document.querySelector(`.h2h-score-val[data-contestant-id="${cid}"]`);
+          if (el) el.textContent = data.scores[cid];
+        });
+      }
+      else if (event === 'h2h_multiplier') {
+        h2hMultiplier = data.value || 1;
+        h2hRenderMultiplier();
+      }
+      else if (event === 'h2h_contestant') {
+        if (data.game_id !== h2hCurrentId) return;
+        const c = data.contestant || {};
+        const row = document.querySelector(`.h2h-contestant-row[data-contestant-id="${c.id}"]`);
+        if (row) {
+          const nameEl = row.querySelector('.h2h-name-label');
+          if (nameEl) nameEl.textContent = c.name || '';
+          const renameBtn = row.querySelector('button[onclick^="h2hRenameContestant"]');
+          if (renameBtn) renameBtn.setAttribute('onclick', `h2hRenameContestant('${c.id}','${(c.name||'').replace(/'/g,"\\'")}')`);
+        }
       }
 
     } catch(e) { console.warn('WS parse error', e); }
