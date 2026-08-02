@@ -657,28 +657,38 @@ def _handle_display(key):
         _nav(PAGE_MAIN)
 
 # ── PI DATA FETCH ────────────────────────────────────────────────────────────
-def load_pi_data():
-    try:
-        pi['show_flow'] = requests.get(f'{BASE_URL}/api/show_flow',  timeout=5).json()
-        pi['circles']   = requests.get(f'{BASE_URL}/api/circles',    timeout=5).json()
-        pi['roles']     = requests.get(f'{BASE_URL}/api/roles',      timeout=5).json()
-        pi['scenes']    = requests.get(f'{BASE_URL}/api/scenes',     timeout=5).json()
-        pi['macros']    = requests.get(f'{BASE_URL}/api/macros',     timeout=5).json()
-        raw             = requests.get(f'{BASE_URL}/api/sfx/list',   timeout=5).json()
-        pi['sfx']       = [f.rsplit('.', 1)[0] for f in raw] if raw else []
-        # Display files direct from filesystem
-        disp_dir = os.path.join(ASSETS_DIR, 'display')
-        if os.path.isdir(disp_dir):
-            pi['display'] = sorted(
-                f for f in os.listdir(disp_dir)
-                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.mp4', '.mov'))
-            )
-        print(f'Data: {len(pi["circles"])} circles, {len(pi["roles"])} roles, '
-              f'{len(pi["macros"])} macros, {len(pi["sfx"])} sfx, '
-              f'{len(pi["show_flow"])} show steps, {len(pi["display"])} display files')
-        _preload_logos()
-    except Exception as e:
-        print(f'Data load error: {e}')
+def load_pi_data(retries=4, retry_delay=2):
+    """Fetch all show data from musicman.service. Retries a few times on
+    failure — a fresh reconnect (HID or WS) can easily race a musicman.service
+    restart that's still finishing its own boot, and a single failed attempt
+    used to be permanent until the next 60s refresh cycle."""
+    for attempt in range(1, retries + 1):
+        try:
+            pi['show_flow'] = requests.get(f'{BASE_URL}/api/show_flow',  timeout=5).json()
+            pi['circles']   = requests.get(f'{BASE_URL}/api/circles',    timeout=5).json()
+            pi['roles']     = requests.get(f'{BASE_URL}/api/roles',      timeout=5).json()
+            pi['scenes']    = requests.get(f'{BASE_URL}/api/scenes',     timeout=5).json()
+            pi['macros']    = requests.get(f'{BASE_URL}/api/macros',     timeout=5).json()
+            raw             = requests.get(f'{BASE_URL}/api/sfx/list',   timeout=5).json()
+            pi['sfx']       = [f.rsplit('.', 1)[0] for f in raw] if raw else []
+            # Display files direct from filesystem
+            disp_dir = os.path.join(ASSETS_DIR, 'display')
+            if os.path.isdir(disp_dir):
+                pi['display'] = sorted(
+                    f for f in os.listdir(disp_dir)
+                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.mp4', '.mov'))
+                )
+            print(f'Data: {len(pi["circles"])} circles, {len(pi["roles"])} roles, '
+                  f'{len(pi["macros"])} macros, {len(pi["sfx"])} sfx, '
+                  f'{len(pi["show_flow"])} show steps, {len(pi["display"])} display files')
+            _preload_logos()
+            return True
+        except Exception as e:
+            print(f'Data load error (attempt {attempt}/{retries}): {e}')
+            if attempt < retries:
+                time.sleep(retry_delay)
+    print('Data load failed after all retries — will try again on next refresh/reconnect')
+    return False
 
 # ── WEBSOCKET ─────────────────────────────────────────────────────────────────
 def on_ws_message(ws_app, message):
