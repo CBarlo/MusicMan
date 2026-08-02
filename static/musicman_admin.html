@@ -3374,7 +3374,7 @@ function addDisplayItem(filename) {
   card.dataset.filename = filename;
 
   const mediaHtml = isVid
-    ? `<div class="display-thumb-icon">🎬</div>`
+    ? `<img class="display-thumb-img" src="/api/display/thumb/${encodeURIComponent(filename)}" alt="${escHtml(filename)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;display-thumb-icon&quot;>🎬</div>'">`
     : `<img class="display-thumb-img" src="${url}" alt="${escHtml(filename)}" loading="lazy">`;
 
   const isLogo = filename === _dispLogo;

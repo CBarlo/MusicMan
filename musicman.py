@@ -34,7 +34,7 @@ import pygame
 from pathlib import Path
 from mutagen.mp3  import MP3  as MutagenMP3
 from mutagen.wave import WAVE as MutagenWAV
-from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for, Response
+from flask import Flask, request, jsonify, send_from_directory, send_file, session, redirect, url_for, Response
 from flask_sock import Sock
 
 # numpy for offline FFT audio analysis
@@ -3099,6 +3099,41 @@ def api_display_list():
     files = sorted(f.name for f in d.iterdir() if f.is_file() and not f.name.startswith('.')) if d.exists() else []
     return jsonify(files)
 
+def _video_thumb_path(filename):
+    return ASSETS_DIR / 'display' / '.thumbs' / (filename + '.jpg')
+
+def _ensure_video_thumb(filename):
+    """Return a cached JPG thumbnail path for a display video, generating it via
+    ffmpeg on first request. Returns None if the source is missing or ffmpeg fails."""
+    video_path = ASSETS_DIR / 'display' / filename
+    if not video_path.exists():
+        return None
+    thumb_path = _video_thumb_path(filename)
+    if thumb_path.exists() and thumb_path.stat().st_mtime >= video_path.stat().st_mtime:
+        return thumb_path
+    thumb_path.parent.mkdir(parents=True, exist_ok=True)
+    for seek in ('00:00:01', '00:00:00.1'):
+        r = subprocess.run(
+            ['ffmpeg', '-nostdin', '-y', '-ss', seek, '-i', str(video_path),
+             '-frames:v', '1', '-vf', 'scale=320:-1', str(thumb_path)],
+            capture_output=True, text=True, timeout=15
+        )
+        if thumb_path.exists() and thumb_path.stat().st_size > 0:
+            return thumb_path
+    return None
+
+@app.route('/api/display/thumb/<path:filename>')
+def api_display_thumb(filename):
+    if '..' in filename:
+        return jsonify({'ok': False, 'error': 'invalid file'}), 400
+    thumb_path = _ensure_video_thumb(filename)
+    if not thumb_path:
+        return jsonify({'ok': False, 'error': 'thumbnail unavailable'}), 404
+    resp = send_file(thumb_path, mimetype='image/jpeg')
+    resp.cache_control.public = True
+    resp.cache_control.max_age = 3600
+    return resp
+
 @app.route('/api/admin/display-logo', methods=['GET'])
 def api_display_logo_get():
     cfg = load_config()
@@ -5921,6 +5956,8 @@ def api_file_delete():
     if not filepath.exists():
         return jsonify({'ok': False, 'error': 'File not found'}), 404
     filepath.unlink()
+    if file_type == 'display':
+        _video_thumb_path(name).unlink(missing_ok=True)
     log.info(f"Deleted {file_type} file: {name}")
     return jsonify({'ok': True})
 
@@ -5989,6 +6026,10 @@ def api_file_rename():
     if new_path.exists():
         return jsonify({'ok': False, 'error': 'A file with that name already exists'}), 409
     old_path.rename(new_path)
+    if file_type == 'display':
+        old_thumb = _video_thumb_path(old_name)
+        if old_thumb.exists():
+            old_thumb.rename(_video_thumb_path(new_name))
     log.info(f"Renamed {file_type} file: {old_name} → {new_name}")
     return jsonify({'ok': True, 'name': new_name})
 

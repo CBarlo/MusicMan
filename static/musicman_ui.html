@@ -2800,7 +2800,9 @@ async function buildMemesGrid() {
     const btn = document.createElement('button');
     btn.className = 'sfx-btn';
     btn.dataset.filename = f;
-    btn.innerHTML = '<span class="sfx-icon">🎬</span>' + label;
+    btn.innerHTML = '<img src="/api/display/thumb/' + encodeURIComponent(f) + '" '
+      + 'style="width:36px;height:22px;object-fit:cover;border-radius:3px;margin-bottom:2px" '
+      + 'onerror="this.outerHTML=\'<span class=&quot;sfx-icon&quot;>🎬</span>\'">' + label;
     btn.style.flexDirection = 'column';
     btn.draggable = true;
 
