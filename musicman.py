@@ -783,7 +783,7 @@ def _find_usb_mount_raw():
                         pass
     except OSError:
         pass
-    for path in ['/media/usb0', '/media/usb1', '/media/usb2', '/media/usb3', '/media/usb']:
+    for path in ['/media/usbstick', '/media/usb0', '/media/usb1', '/media/usb2', '/media/usb3', '/media/usb']:
         if os.path.ismount(path):
             try:
                 next(Path(path).iterdir())
