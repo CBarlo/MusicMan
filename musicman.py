@@ -365,6 +365,12 @@ _sfx_cache     = {}    # filepath → pygame.mixer.Sound (load once, reuse)
 _SFX_CACHE_MAX = 50
 _startup_id    = uuid.uuid4().hex[:8]  # changes on every service restart
 current_scene  = None   # id of last activated scene
+_scene_apply_epoch = 0  # incremented on every wled_set_scene() call; background
+                         # WLED/DMX/preset senders check this right before their
+                         # HTTP request and skip if a newer call has since started —
+                         # otherwise two overlapping scene applies (e.g. rapid H2H
+                         # flash + revert) can have their requests complete out of
+                         # order and leave a device stuck on a stale color.
 current_circle = None   # id of last activated circle walk-up
 current_slide  = {}     # live custom slide currently shown on projector
 _walkup_fade_cancel  = threading.Event()  # set to cancel the in-flight auto-fade
@@ -1380,6 +1386,9 @@ def save_game_configs(data: list):
 # ── WLED HTTP API ──
 def wled_set_scene(scene_id):
     """Apply a lighting scene to all WLED devices."""
+    global _scene_apply_epoch
+    _scene_apply_epoch += 1
+    my_epoch = _scene_apply_epoch
     scenes = {s['id']: s for s in config.get('scenes', [])}
     if scene_id not in scenes:
         log.warning(f"Scene not found: {scene_id}")
@@ -1409,6 +1418,8 @@ def wled_set_scene(scene_id):
         if color:
             r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
             payload['seg'][0]['col'] = [[r, g, b]]
+        if _scene_apply_epoch != my_epoch:
+            return  # a newer scene apply has already started — don't send a stale color
         try:
             requests.post(f"http://{ip}/json/state", json=payload, timeout=0.5)
         except Exception as e:
@@ -1487,7 +1498,7 @@ def wled_set_scene(scene_id):
                 dim_mask = _build_dim_mask(fix, fixture_types)
                 payload_raw.append({'start': fix['start'], 'channels': list(channels),
                                     'dim_mask': dim_mask})
-            if payload_raw:
+            if payload_raw and _scene_apply_epoch == my_epoch:
                 _last_scene_dmx[node_id] = payload_raw
                 scaled = [{'start': f['start'],
                            'channels': _dim_channels(f['channels'], _master_dim, f['dim_mask'])}
@@ -1510,6 +1521,8 @@ def wled_set_scene(scene_id):
         _pole_nodes = config.get('pole_nodes', [])
         def _fire_wled_preset(_nodes=_pole_nodes, _ps=wled_preset):
             for node in _nodes:
+                if _scene_apply_epoch != my_epoch:
+                    return
                 ip = node.get('ip')
                 if not ip:
                     continue
