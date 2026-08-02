@@ -7805,6 +7805,7 @@ function renderPoleNodeConfig() {
         <input type="text" placeholder="Name (e.g. Tent Pole)" value="${escHtml(node.name||'')}" class="pn-name" style="flex:1.5;font-size:11px" title="Human-readable name — used for DHCP hostname">
         <input type="text" placeholder="Lbl" value="${escHtml(node.label||'')}" class="pn-label" style="width:44px;font-family:'Share Tech Mono',monospace;font-size:11px;text-transform:uppercase" title="Short label for status dots (e.g. A, B)">
         <input type="text" placeholder="IP or hostname" value="${escHtml(node.ip||'')}" class="pn-ip" style="flex:1;font-family:'Share Tech Mono',monospace;font-size:11px">
+        <button class="btn btn-secondary btn-sm" onclick="rebootPoleNode(${ni})" title="Reboot this node's ESP32 — useful if it associated with the wrong WiFi network" style="padding:2px 8px">⟳</button>
         <button class="btn btn-danger btn-sm" onclick="removePoleNode(${ni})" style="padding:2px 8px">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -7839,6 +7840,16 @@ function addPoleNode() {
 function removePoleNode(ni) {
   _poleNodes.splice(ni, 1);
   renderPoleNodeConfig();
+}
+
+async function rebootPoleNode(ni) {
+  const node = _poleNodes[ni];
+  if (!node || !node.id) { toast('Save this node first', 'err'); return; }
+  if (!confirm(`Reboot ${node.name || node.id}? Lights on this pole will briefly go dark while it restarts.`)) return;
+  try {
+    await fetch(`/api/admin/pole_nodes/${encodeURIComponent(node.id)}/reboot`, { method: 'POST' });
+    toast(`Reboot sent to ${node.name || node.id}`, 'ok');
+  } catch(e) { toast('Failed to send reboot', 'err'); }
 }
 
 function addFixture(ni) {

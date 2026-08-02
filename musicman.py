@@ -4234,6 +4234,24 @@ def api_save_pole_nodes():
     dhcp = _sync_dhcp_reservations()
     return jsonify({'ok': True, 'dhcp': dhcp})
 
+@app.route('/api/admin/pole_nodes/<node_id>/reboot', methods=['POST'])
+def api_reboot_pole_node(node_id):
+    """Remotely reboot a pole node's ESP32 via WLED's JSON API reboot command.
+    Useful when a node has associated with the wrong WiFi network (e.g. picked
+    up a stray home-network saved credential) — a reboot re-runs its normal
+    WiFi connect sequence without needing physical access."""
+    cfg  = load_config()
+    node = next((n for n in cfg.get('pole_nodes', []) if n.get('id') == node_id), None)
+    if not node or not node.get('ip'):
+        return jsonify({'ok': False, 'error': 'node or IP not found'}), 404
+    try:
+        requests.post(f"http://{node['ip']}/json/state", json={'rb': True}, timeout=2)
+    except Exception as e:
+        # A reboot command often drops the connection before the device can
+        # reply — that's expected, not a failure.
+        log.info(f"Reboot request sent to {node_id} ({node['ip']}): {e}")
+    return jsonify({'ok': True})
+
 @app.route('/api/lights/node/<node_id>/fire_preset', methods=['POST'])
 def api_fire_node_preset(node_id):
     data   = request.get_json() or {}
