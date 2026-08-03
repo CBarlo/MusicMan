@@ -656,6 +656,19 @@ def _handle_display(key):
     elif key == 13:
         _nav(PAGE_MAIN)
 
+STATUS_FILE = Path(__file__).parent / 'logs' / 'streamdeck_status.json'
+
+def _write_status(ready):
+    """Written after every load attempt so musicman.py's health check can
+    tell whether the deck has actually connected and loaded real show data,
+    not just whether the systemd unit is still running (a hung/retrying
+    process still shows 'active' the whole time it's stuck)."""
+    try:
+        STATUS_FILE.parent.mkdir(exist_ok=True)
+        STATUS_FILE.write_text(json.dumps({'ready': ready, 'ts': time.time()}))
+    except Exception:
+        pass
+
 # ── PI DATA FETCH ────────────────────────────────────────────────────────────
 def load_pi_data(retries=4, retry_delay=2):
     """Fetch all show data from musicman.service. Retries a few times on
@@ -682,12 +695,14 @@ def load_pi_data(retries=4, retry_delay=2):
                   f'{len(pi["macros"])} macros, {len(pi["sfx"])} sfx, '
                   f'{len(pi["show_flow"])} show steps, {len(pi["display"])} display files')
             _preload_logos()
+            _write_status(True)
             return True
         except Exception as e:
             print(f'Data load error (attempt {attempt}/{retries}): {e}')
             if attempt < retries:
                 time.sleep(retry_delay)
     print('Data load failed after all retries — will try again on next refresh/reconnect')
+    _write_status(False)
     return False
 
 # ── WEBSOCKET ─────────────────────────────────────────────────────────────────

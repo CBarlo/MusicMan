@@ -5306,6 +5306,17 @@ def api_health():
     disk = psutil.disk_usage('/')
     mem  = psutil.virtual_memory()
 
+    def streamdeck_ready():
+        """Whether the deck has actually connected and loaded real show data
+        recently, not just whether the systemd unit is still running — a
+        process stuck retrying against a slow/restarting musicman.service
+        stays 'active' the whole time, which used to show as healthy."""
+        try:
+            status = json.loads((Path(__file__).parent / 'logs' / 'streamdeck_status.json').read_text())
+            return bool(status.get('ready')) and (time.time() - status.get('ts', 0)) < 90
+        except Exception:
+            return False
+
     # Service status
     def svc_ok(name):
         try:
@@ -5388,7 +5399,7 @@ def api_health():
         },
         'services': {
             'musicman':   True,
-            'streamdeck': svc_ok('streamdeck'),
+            'streamdeck': streamdeck_ready(),
             'display':    proc_ok('chromium.*kiosk'),
         },
         'audio':      {'ok': audio_ok},
