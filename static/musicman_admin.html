@@ -6235,9 +6235,13 @@ async function renderGlSchemaFields(dataObj) {
       const opts = allOpts.map(o =>
         `<option value="${escHtml(o.value)}"${o.value === cur ? ' selected' : ''}>${escHtml(o.label)}</option>`
       ).join('');
+      const usbBtn = field.source === 'music'
+        ? `<button type="button" onclick="openUsbSongPicker('${escHtml(field.key)}')" style="width:100%;margin-top:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:6px;border-radius:4px;font-size:10px;letter-spacing:1px;cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">📂 IMPORT FROM USB</button>`
+        : '';
       return `<div>
         <label class="field-label">${escHtml(field.label)}</label>
         <select id="glf-${escHtml(field.key)}" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${opts}</select>
+        ${usbBtn}
       </div>`;
     } else {
       return `<div>
@@ -9092,6 +9096,92 @@ function closeSgPicker() {
 function sgClearText(id) {
   const el = document.getElementById(id);
   if (el) { el.value = ''; sgMarkDirty(); }
+}
+
+// ── USB song picker (for schema fields with source:'music') ────────────────
+// The USB drive's actual files usually sit inside genre subfolders, which the
+// shallow /api/assets/browse scan doesn't reach — so this reuses the same
+// folder-drilldown endpoints as the Console's Music tab (/api/usb/list +
+// /api/usb/files), then imports the picked file into the real Music Library
+// via /api/usb/import so it plays back reliably even if the stick is swapped.
+async function openUsbSongPicker(fieldKey) {
+  const overlay = document.getElementById('sg-picker-overlay');
+  const list    = document.getElementById('sg-picker-list');
+  const title   = document.getElementById('sg-picker-title');
+  if (!overlay || !list) return;
+  if (title) title.textContent = 'PICK SONG FROM USB';
+  list.innerHTML = '<div style="padding:20px;color:var(--text-dim);text-align:center">Loading…</div>';
+  overlay.style.display = 'flex';
+  try {
+    const data = await fetch('/api/usb/list').then(r => r.json());
+    if (!data.mounted) {
+      list.innerHTML = '<div style="padding:20px;color:var(--text-dim);text-align:center">No USB drive found. Plug one in and try again.</div>';
+      return;
+    }
+    if (!data.items.length) {
+      list.innerHTML = '<div style="padding:20px;color:var(--text-dim);text-align:center">No audio found on this drive.</div>';
+      return;
+    }
+    list.innerHTML = data.items.map(item => `
+      <div onclick="_usbSongBrowseFolder('${escHtml(item.path)}','${escHtml(fieldKey)}')"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--bg2);margin-bottom:6px">
+        <span style="font-size:18px">📁</span>
+        <div style="flex:1;font-size:13px;font-weight:700">${escHtml(item.name)}</div>
+        <div style="font-size:10px;color:var(--text-dim)">${item.count || ''} TRACKS</div>
+      </div>`).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="padding:20px;color:#e05050;text-align:center">Failed to load USB drive.</div>';
+  }
+}
+
+async function _usbSongBrowseFolder(path, fieldKey) {
+  const list = document.getElementById('sg-picker-list');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:20px;color:var(--text-dim);text-align:center">Loading tracks…</div>';
+  try {
+    const data = await fetch('/api/usb/files?path=' + encodeURIComponent(path)).then(r => r.json());
+    if (!data.ok || !data.files.length) {
+      list.innerHTML = '<button onclick="openUsbSongPicker(\'' + fieldKey.replace(/'/g,"\\'") + '\')" style="margin-bottom:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer">&larr; BACK TO FOLDERS</button>' +
+        '<div style="padding:20px;color:var(--text-dim);text-align:center">No audio files found here.</div>';
+      return;
+    }
+    list.innerHTML = `<button onclick="openUsbSongPicker('${escHtml(fieldKey)}')" style="margin-bottom:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer">&larr; BACK TO FOLDERS</button>` +
+      data.files.map(f => `
+        <div onclick="_usbSongImport('${escHtml(f.path)}','${escHtml(fieldKey)}', this)"
+          style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--bg2);margin-bottom:5px">
+          <span style="font-size:14px">🎵</span>
+          <div style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name)}</div>
+          <div style="font-size:9px;color:var(--text-dim);flex-shrink:0">${f.size_mb ? f.size_mb + 'MB' : ''}</div>
+        </div>`).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="padding:20px;color:#e05050;text-align:center">Failed to load tracks.</div>';
+  }
+}
+
+async function _usbSongImport(usbPath, fieldKey, el) {
+  if (el) el.style.opacity = '0.5';
+  try {
+    const r = await fetch('/api/usb/import', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ src: usbPath, dest: 'music' }),
+    });
+    const d = await r.json();
+    if (!d.ok) { toast(d.error || 'Import failed', 'err'); if (el) el.style.opacity = ''; return; }
+    const sel = document.getElementById(`glf-${fieldKey}`);
+    if (sel) {
+      if (![...sel.options].some(o => o.value === d.name)) {
+        const opt = document.createElement('option');
+        opt.value = d.name; opt.textContent = d.name;
+        sel.appendChild(opt);
+      }
+      sel.value = d.name;
+      _glScheduleAutoSave();
+    }
+    toast('IMPORTED: ' + d.name, 'ok');
+    closeSgPicker();
+  } catch(e) {
+    toast('Import error', 'err');
+  }
 }
 
 // ── Themes / Variations ──────────────────────────────────────────────────────
