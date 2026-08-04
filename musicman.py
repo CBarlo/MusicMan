@@ -1564,10 +1564,12 @@ def wled_set_scene(scene_id):
             scaled = [{'start': f['start'],
                        'channels': _dim_channels(f['channels'], _master_dim, f['dim_mask'])}
                       for f in payload_raw]
+            hostname = node['ip']
             try:
-                requests.post(f"http://{node['ip']}/dmx",
+                requests.post(f"http://{_resolve_ip_once(hostname)}/dmx",
                               json={'fixtures': scaled}, timeout=2)
             except Exception as e:
+                _invalidate_ip(hostname)
                 log.warning(f"Pole node {node_id} DMX error: {e}")
 
     dmx_block = scene.get('dmx', {})
@@ -4725,10 +4727,12 @@ def api_pole_dmx_test():
         payload.append({'start': fix['start'], 'channels': channels})
     if not payload:
         return jsonify({'ok': False, 'error': 'No valid fixtures'})
+    hostname = node['ip']
     try:
-        r = requests.post(f"http://{node['ip']}/dmx", json={'fixtures': payload}, timeout=2)
+        r = requests.post(f"http://{_resolve_ip_once(hostname)}/dmx", json={'fixtures': payload}, timeout=2)
         return jsonify({'ok': r.status_code == 200})
     except Exception as e:
+        _invalidate_ip(hostname)
         return jsonify({'ok': False, 'error': str(e)})
 
 # ── FIXTURE PROFILES ──
