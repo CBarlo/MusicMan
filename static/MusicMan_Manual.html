@@ -1081,7 +1081,7 @@
     <tr><th>Game Type</th><th>What it does</th></tr>
     <tr><td><strong>Prize Wheel</strong></td><td>A randomized spin wheel shown fullscreen on HDMI. Segments show names or prizes; the wheel spins and lands on a random winner.</td></tr>
     <tr><td><strong>Shell Game</strong></td><td>Three shuffling tents hiding a hidden item — same game as configured in the Shell Game section, but saved as a named Library config.</td></tr>
-    <tr><td><strong>Musical Chairs</strong></td><td>Pick a song and play it; music stops on cue. Round counter and PLAYING/FREEZE status shown fullscreen on HDMI.</td></tr>
+    <tr><td><strong>Musical Chairs</strong></td><td>Pick a song and play it; music stops on cue. Nothing from the game itself shows on HDMI — an optional Intro Game Entry, or a built-in headline/text/image, is what the audience actually sees.</td></tr>
   </table>
 
   <h3>Creating a game configuration</h3>
@@ -1110,7 +1110,8 @@
     <tr><th>Setting</th><th>What it does</th></tr>
     <tr><td>Song</td><td>Picked from the Music Library, or tap <kbd>📂 IMPORT FROM USB</kbd> below the dropdown to browse and pull in a track from a plugged-in USB stick (including inside genre subfolders) — it's copied into the library and selected automatically.</td></tr>
     <tr><td>Skip Intro (sec)</td><td>Trims this many seconds off the start of the song the first time it plays, so the game jumps straight past a slow instrumental intro into the hook. Only applies to the cold start of a fresh game — resumed rounds continue from wherever they were paused, not from this offset again.</td></tr>
-    <tr><td>Intro Game Entry</td><td>Optional. Fires once, the first time <kbd>▶ START</kbd> is tapped after a <kbd>↺ RESET GAME</kbd> — plays that Game Entry's walk-up video, which settles into whatever end state it's configured for (hold last frame, loop, or logo) and stays up while rounds run. Doesn't refire on later rounds.</td></tr>
+    <tr><td>Intro Game Entry</td><td>Optional. Fires once, the first time <kbd>▶ START</kbd> is tapped after a <kbd>↺ RESET GAME</kbd> — plays that Game Entry's walk-up video, which settles into its own end state (hold last frame, loop, or logo). Takes priority over the Screen fields below if both are set. Doesn't refire on later rounds.</td></tr>
+    <tr><td>Screen Headline / Text / Image</td><td>Used only when no Intro Game Entry is set — no separate Slide or Game Entry to build first. Fill in a headline, body text, an image (picked from the Display Library), or any combination, and it's pushed to HDMI on the first <kbd>▶ START</kbd> and stays up for the rest of the game. Leave everything blank (both this and Intro Game Entry) and nothing is shown for the game at all — HDMI stays on whatever it was already showing.</td></tr>
     <tr><td>Auto-stop music</td><td>On (default): the Pi cuts the music itself at a random moment. Off: the operator taps STOP whenever they choose — no randomness needed.</td></tr>
     <tr><td>Min / Max Stop Delay</td><td>The random window auto-stop picks from, in seconds. Only used when auto-stop is on.</td></tr>
     <tr><td>Start Lighting Scene</td><td>Optional lighting scene that fires every time <kbd>▶ START</kbd> is tapped — a pulsing or chase effect works well to signal "go."</td></tr>
@@ -1820,23 +1821,24 @@
   <h2 id="musical-chairs-run">Musical Chairs — Live Operation</h2>
   <p>
     Launch a saved Musical Chairs config from the Show Flow (Game step) or from
-    <span class="tab">GAMES</span> → Games Library, same as Prize Wheel. If the config has an
-    <strong>Intro Game Entry</strong> set, its walk-up video plays fullscreen on the first
-    <kbd>START</kbd> and settles into its own end state for the rest of the game — that's the
-    whole "screen" for the game, nothing further is pushed to HDMI. Without an intro entry, the
-    HDMI instead shows a simple round counter and PLAYING / FREEZE status. The operator controls
-    appear below it on the console either way.
+    <span class="tab">GAMES</span> → Games Library, same as Prize Wheel. What shows on HDMI is
+    whichever of these the config has set, checked in this order: an <strong>Intro Game
+    Entry</strong> (plays fullscreen and settles into its own end state), a built-in
+    <strong>Screen</strong> headline/text/image, or — if neither is set — nothing; HDMI just stays
+    on whatever it was already showing. Either way it fires once, on the first
+    <kbd>START</kbd>, and stays up for the rest of the game with no further HDMI changes. The
+    operator controls appear on the console regardless.
   </p>
   <table>
     <tr><th>Control</th><th>What it does</th></tr>
     <tr><td>Song dropdown</td><td>Pre-filled from the config's saved song — pick a different one from the Music Library any time before tapping START, including mid-game (switching songs starts the new one from the top, same as after a reset)</td></tr>
-    <tr><td><kbd>▶ START</kbd></td><td>Plays the song and advances the round counter by one. First tap of a fresh game also fires the Intro Game Entry (if set) and applies Skip Intro; later taps resume the same song from where it was paused. If auto-stop is on, the Pi will cut the music itself at a random moment within the configured window.</td></tr>
+    <tr><td><kbd>▶ START</kbd></td><td>Plays the song and advances the round counter by one. First tap of a fresh game also fires the Intro Game Entry or Screen (whichever is set) and applies Skip Intro; later taps resume the same song from where it was paused. If auto-stop is on, the Pi will cut the music itself at a random moment within the configured window.</td></tr>
     <tr><td><kbd>⏹ STOP</kbd></td><td>Pauses the music in place — not a restart — and fires the stop cue (SFX/scene, if configured). Works at any point, auto-stop on or off, and cancels a pending auto-stop.</td></tr>
-    <tr><td><kbd>↺ RESET GAME</kbd></td><td>Stops the music for real and zeroes the round counter — use this to start a fresh game. The next START after a reset plays the song from the top again (Skip Intro and the Intro Game Entry re-apply).</td></tr>
+    <tr><td><kbd>↺ RESET GAME</kbd></td><td>Stops the music for real and zeroes the round counter — use this to start a fresh game. The next START after a reset plays the song from the top again (Skip Intro and the Intro Game Entry/Screen re-apply).</td></tr>
   </table>
   <p>
     Chairs, eliminating players, and declaring a winner are all handled physically — MusicMan
-    only runs the music, the lighting cues, and (optionally) the intro video. To run another
+    only runs the music, the lighting cues, and (optionally) the intro/screen Game Entry. To run another
     round, just tap <kbd>START</kbd> again; the round counter advances and the song picks up
     right where it left off.
   </p>

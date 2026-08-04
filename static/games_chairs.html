@@ -101,19 +101,11 @@
 
   .footer-hint { margin-top:16px; font-size:10px; letter-spacing:1px; color:var(--text-dim); text-align:center; }
 
-  /* ── DISPLAY MODE ── */
-  .display-mode .admin        { display:none !important; }
-  .display-mode .footer-hint  { display:none; }
-  .display-mode .stage        { justify-content:center; height:100vh; }
-  .display-mode .brand-row    { max-width:900px; margin-bottom:0; }
-  .display-mode .brand-badge  { width:56px; height:56px; font-size:28px; }
-  .display-mode .brand-name   { font-size:30px; }
-  .display-mode .round-badge  { font-size:22px; margin-top:36px; }
-  .display-mode .round-num    { font-size:150px; margin-bottom:34px; }
-  .display-mode .status-badge { max-width:820px; padding:56px 40px; border-radius:28px; border-width:3px; }
-  .display-mode .status-icon  { font-size:90px; margin-bottom:14px; }
-  .display-mode .status-label { font-size:56px; letter-spacing:4px; }
-  .display-mode .status-sub   { font-size:18px; margin-top:12px; }
+  /* ── DISPLAY MODE ──
+     Nothing from this page is ever meant to reach the HDMI — the Intro Game
+     Entry (configured per game) handles what shows there, or nothing at all.
+     This iframe just stays blank until that fires. */
+  .display-mode .stage { display:none !important; }
 </style>
 </head>
 <body>
@@ -224,7 +216,8 @@ function renderSettings() {
   } else {
     bits.push('Auto-stop <b>off</b> (manual only)');
   }
-  if (_cfgData.intro_entry)  bits.push('Intro <b>set</b>');
+  if (_cfgData.intro_entry) bits.push('Intro Game Entry <b>set</b>');
+  else if (_cfgData.fallback_headline || _cfgData.fallback_text || _cfgData.fallback_image) bits.push('Screen <b>set</b>');
   if (_cfgData.start_scene)  bits.push('Start scene <b>set</b>');
   if (_cfgData.stop_sfx)     bits.push('Stop SFX <b>set</b>');
   if (_cfgData.stop_scene)   bits.push('Stop scene <b>set</b>');

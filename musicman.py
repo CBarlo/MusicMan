@@ -1303,7 +1303,10 @@ GAME_TYPES = {
         'schema': [
             {'key': 'song',              'type': 'select', 'label': 'Song',                  'source': 'music'},
             {'key': 'song_start_offset', 'type': 'number', 'label': 'Skip Intro (sec)',       'default': 0},
-            {'key': 'intro_entry',       'type': 'select', 'label': 'Intro Game Entry',       'source': 'game_entries'},
+            {'key': 'intro_entry',       'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
+            {'key': 'fallback_headline', 'type': 'text',   'label': 'Screen Headline (used if no Game Entry above)'},
+            {'key': 'fallback_text',     'type': 'text',   'label': 'Screen Text'},
+            {'key': 'fallback_image',    'type': 'select', 'label': 'Screen Image',           'source': 'display_images'},
             {'key': 'auto_stop',    'type': 'bool',   'label': 'Auto-stop music (random timing)', 'default': True},
             {'key': 'min_interval', 'type': 'number', 'label': 'Min Stop Delay (sec)',        'default': 15},
             {'key': 'max_interval', 'type': 'number', 'label': 'Max Stop Delay (sec)',        'default': 45},
@@ -3137,18 +3140,24 @@ def api_slides_delete(sid):
     save_config(cfg)
     return jsonify({'ok': True})
 
-@app.route('/api/slides/<sid>/push')
-def api_slides_push(sid):
+def fire_slide(sid):
+    """Push a saved slide to the display. Returns True if the slide was found."""
     global current_slide
     cfg = load_config()
     slide = next((s for s in cfg.get('slides', []) if s['id'] == sid), None)
     if not slide:
-        return jsonify({'ok': False, 'error': 'not found'}), 404
+        return False
     slide_data = dict(slide)
     if slide_data.get('template') == 'qr' and slide_data.get('qr_url'):
         slide_data['qr_data_url'] = _make_qr_data_url(slide_data['qr_url'])
     current_slide = slide_data
     _ensure_display_for('display_slide', slide_data)
+    return True
+
+@app.route('/api/slides/<sid>/push')
+def api_slides_push(sid):
+    if not fire_slide(sid):
+        return jsonify({'ok': False, 'error': 'not found'}), 404
     return jsonify({'ok': True})
 
 @app.route('/api/display/images')
@@ -4012,6 +4021,19 @@ def _chairs_play_cue_file(filename):
             return
     log.warning(f"Musical Chairs stop cue file not found: {filename}")
 
+def _chairs_fire_fallback_screen(cfg_data):
+    """Push the config's own headline/text/image straight to the display — no
+    separate Slide or Game Entry to create and pick, it's just built in."""
+    global current_slide
+    slide_data = {
+        'template': 'spotlight',
+        'headline': cfg_data.get('fallback_headline', ''),
+        'subtitle': cfg_data.get('fallback_text', ''),
+        'image':    ('display/' + cfg_data['fallback_image']) if cfg_data.get('fallback_image') else '',
+    }
+    current_slide = slide_data
+    _ensure_display_for('display_slide', slide_data)
+
 def _chairs_do_stop(cfg_data):
     """Pause (not stop) so the next START resumes from the same position instead
     of restarting the song — real musical chairs doesn't rewind between rounds."""
@@ -4081,8 +4103,11 @@ def api_games_chairs_start():
 
     broadcast('chairs_state', chairs_state)
 
-    if is_first_round and cfg_data.get('intro_entry'):
-        threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
+    if is_first_round:
+        if cfg_data.get('intro_entry'):
+            threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
+        elif cfg_data.get('fallback_headline') or cfg_data.get('fallback_text') or cfg_data.get('fallback_image'):
+            threading.Thread(target=_chairs_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
 
     scene_id = cfg_data.get('start_scene')
     if scene_id:

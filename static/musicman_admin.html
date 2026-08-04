@@ -6207,6 +6207,14 @@ async function renderGlSchemaFields(dataObj) {
           {value:'', label:'— none —'},
           ...gameEntries.map(e => ({value: e.id, label: e.name})),
         ];
+      } else if (field.source === 'display_images') {
+        const imgExts = new Set(['.jpg','.jpeg','.png','.gif','.webp','.bmp']);
+        const files = await fetch('/api/display/list').then(r=>r.json()).catch(()=>[]);
+        const images = files.filter(f => imgExts.has(f.slice(f.lastIndexOf('.')).toLowerCase()));
+        srcCache['display_images'] = [
+          {value:'', label:'— none —'},
+          ...images.map(f => ({value: f, label: f})),
+        ];
       }
     } catch(e) { srcCache[field.source] = [{value:'',label:'— load error —'}]; }
   }
