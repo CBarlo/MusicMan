@@ -1108,12 +1108,23 @@
   </p>
   <table>
     <tr><th>Setting</th><th>What it does</th></tr>
-    <tr><td>Song</td><td>Picked from the Music Library. If the song is on a USB stick, import it into the library first — see <a href="#music-run">Playing Music from the Library</a>.</td></tr>
+    <tr><td>Song</td><td>Picked from the Music Library, or tap <kbd>📂 IMPORT FROM USB</kbd> below the dropdown to browse and pull in a track from a plugged-in USB stick (including inside genre subfolders) — it's copied into the library and selected automatically.</td></tr>
+    <tr><td>Skip Intro (sec)</td><td>Trims this many seconds off the start of the song the first time it plays, so the game jumps straight past a slow instrumental intro into the hook. Only applies to the cold start of a fresh game — resumed rounds continue from wherever they were paused, not from this offset again.</td></tr>
+    <tr><td>Intro Game Entry</td><td>Optional. Fires once, the first time <kbd>▶ START</kbd> is tapped after a <kbd>↺ RESET GAME</kbd> — plays that Game Entry's walk-up video, which settles into whatever end state it's configured for (hold last frame, loop, or logo) and stays up while rounds run. Doesn't refire on later rounds.</td></tr>
     <tr><td>Auto-stop music</td><td>On (default): the Pi cuts the music itself at a random moment. Off: the operator taps STOP whenever they choose — no randomness needed.</td></tr>
     <tr><td>Min / Max Stop Delay</td><td>The random window auto-stop picks from, in seconds. Only used when auto-stop is on.</td></tr>
+    <tr><td>Start Lighting Scene</td><td>Optional lighting scene that fires every time <kbd>▶ START</kbd> is tapped — a pulsing or chase effect works well to signal "go."</td></tr>
     <tr><td>Stop Cue Sound</td><td>Optional SFX (or second music file) that fires the instant the music stops — a buzzer or horn works well.</td></tr>
-    <tr><td>Stop Cue Lighting Scene</td><td>Optional lighting scene that fires the instant the music stops — a flash or blackout works well.</td></tr>
+    <tr><td>Stop Cue Lighting Scene</td><td>Optional lighting scene that fires the instant the music stops — bringing all the lights up full works well so players can see the chairs.</td></tr>
   </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">The song doesn't restart between rounds</div>
+    <kbd>⏹ STOP</kbd> pauses the song exactly where it is — it doesn't rewind. The next
+    <kbd>▶ START</kbd> resumes from that same spot, just like a real DJ riding the fader, so the
+    song plays through naturally across a whole game instead of restarting from the top every
+    round. Only <kbd>↺ RESET GAME</kbd> (or picking a different song) starts it over from the
+    beginning — that's also when Skip Intro and the Intro Game Entry apply again.
+  </div>
   <div class="callout callout-tip">
     <div class="callout-title">Manual stop always works</div>
     Even with auto-stop on, the operator's <kbd>⏹ STOP</kbd> button is live the whole time the
@@ -1809,21 +1820,25 @@
   <h2 id="musical-chairs-run">Musical Chairs — Live Operation</h2>
   <p>
     Launch a saved Musical Chairs config from the Show Flow (Game step) or from
-    <span class="tab">GAMES</span> → Games Library, same as Prize Wheel. The HDMI display shows
-    a round counter and a live PLAYING / FREEZE status; the operator controls appear below it
-    on the console.
+    <span class="tab">GAMES</span> → Games Library, same as Prize Wheel. If the config has an
+    <strong>Intro Game Entry</strong> set, its walk-up video plays fullscreen on the first
+    <kbd>START</kbd> and settles into its own end state for the rest of the game — that's the
+    whole "screen" for the game, nothing further is pushed to HDMI. Without an intro entry, the
+    HDMI instead shows a simple round counter and PLAYING / FREEZE status. The operator controls
+    appear below it on the console either way.
   </p>
   <table>
     <tr><th>Control</th><th>What it does</th></tr>
-    <tr><td>Song dropdown</td><td>Pre-filled from the config's saved song — pick a different one from the Music Library any time before tapping START, including mid-game</td></tr>
-    <tr><td><kbd>▶ START</kbd></td><td>Plays the song and advances the round counter by one. If auto-stop is on, the Pi will cut the music itself at a random moment within the configured window.</td></tr>
-    <tr><td><kbd>⏹ STOP</kbd></td><td>Cuts the music immediately and fires the stop cue (SFX/scene, if configured) — works at any point, auto-stop on or off, and cancels a pending auto-stop</td></tr>
-    <tr><td><kbd>↺ RESET GAME</kbd></td><td>Stops the music and zeroes the round counter — use this to start a fresh game</td></tr>
+    <tr><td>Song dropdown</td><td>Pre-filled from the config's saved song — pick a different one from the Music Library any time before tapping START, including mid-game (switching songs starts the new one from the top, same as after a reset)</td></tr>
+    <tr><td><kbd>▶ START</kbd></td><td>Plays the song and advances the round counter by one. First tap of a fresh game also fires the Intro Game Entry (if set) and applies Skip Intro; later taps resume the same song from where it was paused. If auto-stop is on, the Pi will cut the music itself at a random moment within the configured window.</td></tr>
+    <tr><td><kbd>⏹ STOP</kbd></td><td>Pauses the music in place — not a restart — and fires the stop cue (SFX/scene, if configured). Works at any point, auto-stop on or off, and cancels a pending auto-stop.</td></tr>
+    <tr><td><kbd>↺ RESET GAME</kbd></td><td>Stops the music for real and zeroes the round counter — use this to start a fresh game. The next START after a reset plays the song from the top again (Skip Intro and the Intro Game Entry re-apply).</td></tr>
   </table>
   <p>
     Chairs, eliminating players, and declaring a winner are all handled physically — MusicMan
-    only runs the music and the stop cue. To run another round, just tap <kbd>START</kbd> again;
-    the round counter advances automatically.
+    only runs the music, the lighting cues, and (optionally) the intro video. To run another
+    round, just tap <kbd>START</kbd> again; the round counter advances and the song picks up
+    right where it left off.
   </p>
 
   <h2 id="usb-run">USB Playlist Tab</h2>

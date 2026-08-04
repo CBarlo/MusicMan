@@ -390,8 +390,11 @@ chairs_state = {
     'song':        '',
     'song_label':  '',
 }
-_chairs_lock       = threading.Lock()
-_chairs_stop_token = 0   # incremented on every stop/reset; a pending auto-stop checks this before firing
+_chairs_lock          = threading.Lock()
+_chairs_stop_token    = 0    # incremented on every stop/reset; a pending auto-stop checks this before firing
+_chairs_audio_session = -1   # _audio_session value from the last (re)load of the chairs song; if it no
+                              # longer matches _audio_session, something else has taken over the shared
+                              # music channel and the next START must reload instead of resume
 
 # ── MASTER DIM ────────────────────────────────────────────────────────────────
 _master_dim      = 1.0   # 0.0–1.0; scales all DMX channel values at send time
@@ -1298,10 +1301,13 @@ GAME_TYPES = {
         'controller_route': '/games/chairs',
         'display_route': '/games/chairs/display',
         'schema': [
-            {'key': 'song',         'type': 'select', 'label': 'Song',                       'source': 'music'},
+            {'key': 'song',              'type': 'select', 'label': 'Song',                  'source': 'music'},
+            {'key': 'song_start_offset', 'type': 'number', 'label': 'Skip Intro (sec)',       'default': 0},
+            {'key': 'intro_entry',       'type': 'select', 'label': 'Intro Game Entry',       'source': 'game_entries'},
             {'key': 'auto_stop',    'type': 'bool',   'label': 'Auto-stop music (random timing)', 'default': True},
             {'key': 'min_interval', 'type': 'number', 'label': 'Min Stop Delay (sec)',        'default': 15},
             {'key': 'max_interval', 'type': 'number', 'label': 'Max Stop Delay (sec)',        'default': 45},
+            {'key': 'start_scene',  'type': 'select', 'label': 'Start Lighting Scene',        'source': 'scenes'},
             {'key': 'stop_sfx',     'type': 'select', 'label': 'Stop Cue Sound',              'source': 'audio'},
             {'key': 'stop_scene',   'type': 'select', 'label': 'Stop Cue Lighting Scene',     'source': 'scenes'},
         ],
@@ -4007,8 +4013,15 @@ def _chairs_play_cue_file(filename):
     log.warning(f"Musical Chairs stop cue file not found: {filename}")
 
 def _chairs_do_stop(cfg_data):
+    """Pause (not stop) so the next START resumes from the same position instead
+    of restarting the song — real musical chairs doesn't rewind between rounds."""
     global chairs_state
-    stop_audio()
+    try:
+        pygame.mixer.music.pause()
+        audio_state['paused'] = True
+        broadcast('audio_state', audio_state)
+    except Exception as e:
+        log.warning(f"Musical Chairs pause error: {e}")
     with _chairs_lock:
         chairs_state['playing'] = False
     broadcast('chairs_state', chairs_state)
@@ -4026,7 +4039,7 @@ def api_games_chairs_state():
 
 @app.route('/api/games/chairs/start', methods=['POST'])
 def api_games_chairs_start():
-    global chairs_state, _chairs_stop_token
+    global chairs_state, _chairs_stop_token, _chairs_audio_session
     data          = request.json or {}
     config_id     = data.get('config_id', '')
     cfg_data, name = _chairs_config_data(config_id)
@@ -4036,6 +4049,13 @@ def api_games_chairs_start():
     fp = (ASSETS_DIR / 'music' / song).resolve()
     if not fp.is_relative_to((ASSETS_DIR / 'music').resolve()) or not fp.exists():
         return jsonify({'ok': False, 'error': 'Song file not found'}), 404
+
+    is_first_round = chairs_state['round'] == 0
+    # Only resume in place if it's the same song, mid-game, and nothing else has
+    # touched the shared music channel (walkup, macro, console) since we paused it.
+    resume = (not is_first_round
+              and chairs_state.get('song') == song
+              and _audio_session == _chairs_audio_session)
 
     with _chairs_lock:
         _chairs_stop_token += 1
@@ -4047,8 +4067,27 @@ def api_games_chairs_start():
         chairs_state['song']         = song
         chairs_state['song_label']   = Path(song).stem
 
-    threading.Thread(target=play_audio, args=(str(fp),), kwargs={'loops': -1}, daemon=True).start()
+    if resume:
+        pygame.mixer.music.unpause()
+        audio_state['paused'] = False
+        broadcast('audio_state', audio_state)
+    else:
+        start_pos = float(cfg_data.get('song_start_offset', 0) or 0)
+        def _play():
+            global _chairs_audio_session
+            play_audio(str(fp), loops=-1, start_pos=start_pos, crossfade_ms=0)
+            _chairs_audio_session = _audio_session
+        threading.Thread(target=_play, daemon=True).start()
+
     broadcast('chairs_state', chairs_state)
+
+    if is_first_round and cfg_data.get('intro_entry'):
+        threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
+
+    scene_id = cfg_data.get('start_scene')
+    if scene_id:
+        try: wled_set_scene(scene_id)
+        except Exception as e: log.error(f"Musical Chairs start scene: {e}")
 
     if cfg_data.get('auto_stop', True):
         lo = float(cfg_data.get('min_interval', 15) or 15)
@@ -4079,10 +4118,11 @@ def api_games_chairs_stop():
 
 @app.route('/api/games/chairs/reset', methods=['POST'])
 def api_games_chairs_reset():
-    global chairs_state, _chairs_stop_token
+    global chairs_state, _chairs_stop_token, _chairs_audio_session
     with _chairs_lock:
         _chairs_stop_token += 1
     stop_audio()
+    _chairs_audio_session = -1
     chairs_state = {'round': 0, 'playing': False, 'config_id': '', 'config_name': '', 'song': '', 'song_label': ''}
     broadcast('chairs_state', chairs_state)
     return jsonify({'ok': True})

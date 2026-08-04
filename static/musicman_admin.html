@@ -6201,6 +6201,12 @@ async function renderGlSchemaFields(dataObj) {
           {value:'', label:'— select a song —'},
           ...music.map(f => ({value: f, label: f})),
         ];
+      } else if (field.source === 'game_entries') {
+        if (!gameEntries.length) await loadGameEntries().catch(() => {});
+        srcCache['game_entries'] = [
+          {value:'', label:'— none —'},
+          ...gameEntries.map(e => ({value: e.id, label: e.name})),
+        ];
       }
     } catch(e) { srcCache[field.source] = [{value:'',label:'— load error —'}]; }
   }
