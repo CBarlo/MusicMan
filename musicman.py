@@ -1409,6 +1409,30 @@ def save_game_configs(data: list):
         except OSError: pass
 
 # ── WLED HTTP API ──
+_ip_resolve_cache = {}    # hostname -> (ip, resolved_at)
+_IP_RESOLVE_TTL   = 300   # 5 min — pole node addresses don't change mid-show
+
+def _resolve_ip_once(hostname):
+    """Resolve a hostname (e.g. an mDNS pole-a.local address) to a literal
+    IP, cached briefly. Anything that fires requests in a tight loop (the
+    DMX animation step timer) should call this once up front rather than
+    let requests.post() re-resolve the hostname on every single call —
+    a slow/flaky mDNS lookup then costs its latency once per loop instead
+    of once per request. Falls back to the original hostname if resolution
+    fails, so callers behave the same as passing the hostname straight
+    through to requests.post()."""
+    if not hostname:
+        return hostname
+    cached = _ip_resolve_cache.get(hostname)
+    if cached and time.time() - cached[1] < _IP_RESOLVE_TTL:
+        return cached[0]
+    try:
+        ip = socket.gethostbyname(hostname)
+    except Exception:
+        return hostname
+    _ip_resolve_cache[hostname] = (ip, time.time())
+    return ip
+
 def wled_set_scene(scene_id):
     """Apply a lighting scene to all WLED devices."""
     global _scene_apply_epoch
@@ -1602,6 +1626,20 @@ def wled_set_scene(scene_id):
             _dmx_anim_active = True
             STEP_S  = 0.04  # 40 ms per step (~25 Hz)
             n_steps = max(1, round(_tv / STEP_S))
+
+            # Pole node addresses are mDNS hostnames (pole-a.local, pole-b.local),
+            # and requests.post() re-resolves the hostname fresh on every single
+            # call — with this loop firing up to ~25 requests/sec/node, any node
+            # whose mDNS resolution is slow pays that cost on every request, not
+            # once. That's what "doesn't even animate" was: one pole's resolution
+            # was consistently taking ~8s per lookup (confirmed live — that
+            # pole's requests took ~8s exact, over and over, while the other
+            # pole stayed near-instant the whole time), so the per-node
+            # in-flight guard correctly kept it from piling up, but it also
+            # meant that pole got an update roughly once every 8 seconds instead
+            # of ~12/sec. Resolving each node's hostname to a literal IP once,
+            # up front, means every request in the loop skips DNS entirely.
+            _nodes = {nid: {**n, 'ip': _resolve_ip_once(n.get('ip', ''))} for nid, n in _nodes.items()}
 
             # Tracks which nodes currently have a DMX POST in flight. Without
             # this, a node that takes even slightly longer than one 40ms step
