@@ -6395,7 +6395,8 @@ async function _renderGlShellGameEditor(container) {
       <div class="card-title" style="margin-bottom:0">SAVED VARIATIONS</div>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="sg-theme-name" type="text" placeholder="Variation name…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:160px;font-family:'Barlow Condensed',sans-serif;font-weight:600">
-        <button onclick="sgSaveTheme()" class="btn btn-primary btn-sm">💾 SAVE CURRENT</button>
+        <button onclick="sgSaveTheme()" class="btn btn-primary btn-sm">💾 SAVE AS NEW</button>
+        <button id="sg-theme-update-btn" onclick="sgUpdateTheme()" class="btn btn-secondary btn-sm" style="display:none;border-color:var(--amber-dim);color:var(--amber)">↑ UPDATE LOADED</button>
         <button onclick="sgLoadThemes()" class="btn btn-secondary btn-sm">↺</button>
       </div>
     </div>
@@ -9221,7 +9222,7 @@ async function sgLoadThemes() {
           <div style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name}</div>
           <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;font-family:'Share Tech Mono',monospace">${new Date(t.created * 1000).toLocaleDateString()}</div>
         </div>
-        <button onclick="sgLoadTheme('${t.id}')" style="padding:5px 10px;border-radius:5px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">▶ LOAD</button>
+        <button onclick="sgLoadTheme('${t.id}','${(t.name||'').replace(/'/g,"\\'")}')" style="padding:5px 10px;border-radius:5px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">▶ LOAD</button>
         <button onclick="sgDeleteTheme('${t.id}')" style="padding:5px 10px;border-radius:5px;border:1px solid var(--border2);background:var(--surface);color:var(--text-dim);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">🗑</button>
       </div>`).join('');
   } catch {
@@ -9247,21 +9248,52 @@ async function sgSaveTheme() {
   } catch { toast('SAVE FAILED', 'err'); }
 }
 
-async function sgLoadTheme(id) {
+let _sgLoadedThemeId   = null;
+let _sgLoadedThemeName = '';
+
+async function sgLoadTheme(id, name) {
   try {
     const r = await fetch(`/api/shell-game/themes/${id}/load`, { method: 'POST' });
     const d = await r.json();
     if (d.ok) {
       toast('VARIATION LOADED', 'ok');
+      _sgLoadedThemeId   = id;
+      _sgLoadedThemeName = name || '';
+      const updateBtn = document.getElementById('sg-theme-update-btn');
+      if (updateBtn) {
+        updateBtn.style.display = '';
+        updateBtn.title = `Overwrite "${_sgLoadedThemeName}" with the current settings`;
+      }
       sgLoadConfig();
     } else { toast('LOAD FAILED', 'err'); }
   } catch { toast('LOAD FAILED', 'err'); }
+}
+
+async function sgUpdateTheme() {
+  if (!_sgLoadedThemeId) return;
+  if (!confirm(`Overwrite "${_sgLoadedThemeName}" with the current settings?`)) return;
+  try {
+    const r = await fetch('/api/shell-game/themes', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id: _sgLoadedThemeId, name: _sgLoadedThemeName })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('VARIATION UPDATED', 'ok');
+      sgLoadThemes();
+    } else { toast('UPDATE FAILED', 'err'); }
+  } catch { toast('UPDATE FAILED', 'err'); }
 }
 
 async function sgDeleteTheme(id) {
   try {
     await fetch(`/api/shell-game/themes/${id}`, { method: 'DELETE' });
     toast('DELETED', 'info');
+    if (id === _sgLoadedThemeId) {
+      _sgLoadedThemeId = null;
+      const updateBtn = document.getElementById('sg-theme-update-btn');
+      if (updateBtn) updateBtn.style.display = 'none';
+    }
     sgLoadThemes();
   } catch { toast('DELETE FAILED', 'err'); }
 }

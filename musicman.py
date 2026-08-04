@@ -2129,11 +2129,38 @@ def shell_game_session():
     superseded it and it stays silent instead of firing a duplicate cheer."""
     return jsonify({'session': _sg_session})
 
+def _sg_claim_once(session, slot):
+    """True the first time (session, slot) is claimed, False every time after.
+    Client-side staleness checks (session comparisons) only catch a NEWER run
+    superseding an OLDER one — they do nothing when several instances are all
+    reacting to the exact same shell_game_start broadcast at the same moment
+    (a stray tab, a second device, a zombie iframe), since every one of them
+    legitimately has the SAME session number and none of them looks stale to
+    itself. Only the server sees every request, so only the server can
+    guarantee a given session's start/shuffle/reveal cue plays exactly once —
+    first request to claim it wins, everything else is a silent no-op."""
+    global _sg_fired
+    if session is None:
+        return True  # no session provided (e.g. an old cached client) — always allow
+    key = (session, slot)
+    with _sg_fired_lock:
+        if key in _sg_fired:
+            return False
+        # Keep the set small — only the current and immediately prior session
+        # can still have in-flight requests; anything older is long done.
+        _sg_fired = {k: v for k, v in _sg_fired.items() if k[0] >= session - 1}
+        _sg_fired[key] = True
+        return True
+
 @app.route('/api/shell-game/audio/sfx', methods=['POST'])
 def shell_game_audio_sfx():
-    slot = request.json.get('slot') if request.json else None
+    data    = request.json or {}
+    slot    = data.get('slot')
+    session = data.get('session')
     if slot not in _SG_AUDIO_SLOTS:
         return jsonify({'ok': False}), 400
+    if not _sg_claim_once(session, slot):
+        return jsonify({'ok': True, 'skipped': 'already fired for this session'})
     sg_dir = ASSETS_DIR / 'shell_game'
     fname, _ = _sg_find_file(sg_dir, slot)
     if not fname:
@@ -2144,6 +2171,10 @@ def shell_game_audio_sfx():
 @app.route('/api/shell-game/audio/music', methods=['POST'])
 def shell_game_audio_music():
     global _sg_fade_token
+    data    = request.json or {}
+    session = data.get('session')
+    if not _sg_claim_once(session, 'shuffle_music'):
+        return jsonify({'ok': True, 'skipped': 'already fired for this session'})
     _sg_fade_token += 1  # cancel any inflight fade thread
     sg_dir = ASSETS_DIR / 'shell_game'
     fname, _ = _sg_find_file(sg_dir, 'shuffle_music')
@@ -2155,6 +2186,8 @@ def shell_game_audio_music():
 
 _sg_fade_token = 0  # incremented by play/stop to cancel stale fade threads
 _sg_session    = 0  # incremented on every start/reset — see /api/shell-game/session
+_sg_fired      = {}  # {(session, slot): True} — see _sg_claim_once
+_sg_fired_lock = threading.Lock()
 
 @app.route('/api/shell-game/audio/stop', methods=['POST'])
 def shell_game_audio_stop():
@@ -2424,14 +2457,26 @@ def shell_game_themes_list():
 
 @app.route('/api/shell-game/themes', methods=['POST'])
 def shell_game_themes_save():
-    """Snapshot current active config + assets into a new named theme."""
+    """Snapshot current active config + assets into a named theme. Pass the
+    id of an existing theme to overwrite it in place instead of creating a
+    new one — same slot in the list, same id, just refreshed."""
     import json, shutil, time
-    data = request.get_json(silent=True) or {}
-    name = (data.get('name') or '').strip()
-    if not name:
+    data      = request.get_json(silent=True) or {}
+    name      = (data.get('name') or '').strip()
+    overwrite_id = (data.get('id') or '').strip()
+    existing_dir = ASSETS_DIR / 'shell_game' / 'themes' / overwrite_id if overwrite_id else None
+    is_overwrite = bool(existing_dir and (existing_dir / 'meta.json').exists())
+    if not name and not is_overwrite:
         return jsonify({'ok': False, 'error': 'Name required'}), 400
-    theme_id  = str(int(time.time() * 1000))
+    theme_id  = overwrite_id if is_overwrite else str(int(time.time() * 1000))
     theme_dir = ASSETS_DIR / 'shell_game' / 'themes' / theme_id
+    prior_meta = json.loads((theme_dir / 'meta.json').read_text()) if is_overwrite else {}
+    if is_overwrite:
+        # Wipe old assets first so a slot that's since been cleared doesn't
+        # leave a stale file behind under the refreshed theme.
+        for f in theme_dir.iterdir():
+            if f.name != 'meta.json':
+                f.unlink()
     theme_dir.mkdir(parents=True, exist_ok=True)
     sg_dir    = ASSETS_DIR / 'shell_game'
     cfg       = load_config()
@@ -2443,8 +2488,8 @@ def shell_game_themes_save():
             shutil.copy2(sg_dir / fname, theme_dir / fname)
     meta = {
         'id':        theme_id,
-        'name':      name,
-        'created':   int(time.time()),
+        'name':      name or prior_meta.get('name', ''),
+        'created':   prior_meta.get('created', int(time.time())),
         'hold':      sg_cfg.get('hold', 5),
         'title':     sg_cfg.get('title'),
         'watch_msg': sg_cfg.get('watch_msg'),
@@ -2453,7 +2498,7 @@ def shell_game_themes_save():
         'guess_sub': sg_cfg.get('guess_sub'),
     }
     (theme_dir / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2))
-    return jsonify({'ok': True, 'id': theme_id})
+    return jsonify({'ok': True, 'id': theme_id, 'overwrote': is_overwrite})
 
 @app.route('/api/shell-game/themes/<theme_id>/asset/<slot>', methods=['GET'])
 def shell_game_theme_asset(theme_id, slot):

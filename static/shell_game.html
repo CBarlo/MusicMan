@@ -168,8 +168,8 @@ const numEls = [0,1,2].map(i => document.getElementById('num'+i));
 
 // ── AUDIO (server-side via pygame) ───────────────────────────────
 function setupAudio() { /* files resolved server-side */ }
-function _playSfx(slot)   { fetch('/api/shell-game/audio/sfx',   { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({slot}) }).catch(()=>{}); }
-function _playMusic()     { fetch('/api/shell-game/audio/music',  { method:'POST' }).catch(()=>{}); }
+function _playSfx(slot, session)   { fetch('/api/shell-game/audio/sfx',   { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({slot, session}) }).catch(()=>{}); }
+function _playMusic(session)       { fetch('/api/shell-game/audio/music', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session}) }).catch(()=>{}); }
 function _stopMusic()     { fetch('/api/shell-game/audio/stop',   { method:'POST' }).catch(()=>{}); }
 
 // ── STATE ────────────────────────────────────────────────────────
@@ -249,22 +249,15 @@ async function runGame() {
   const mySession = ++_gameSession;
   const ok = () => _gameSession === mySession;
   // Server-authoritative session (separate from _gameSession above, which only
-  // protects against staleness *within this document*). Guards against a
-  // completely separate shell_game.html instance — a stray browser tab, a
-  // different device's Admin/Console preview, a hidden iframe that slipped
-  // past the mm_game_hidden signal — also running this exact timeline. A
-  // stale instance must not touch the ONE shared audio channel at all, not
-  // just skip the reveal — firing its own start sound or shuffle music
-  // mid-timeline would hijack playback away from the real instance and sound
-  // like the wrong song is playing. Checked fresh before each audio cue,
-  // since a game that was current when it began can still get superseded
-  // partway through its ~15-20s timeline.
+  // protects against staleness *within this document*). Passed on every audio
+  // call below so the SERVER can dedupe — client-side "is this stale"
+  // comparisons can't catch several instances (a stray tab, a different
+  // device, a zombie iframe) all reacting to the exact same shell_game_start
+  // broadcast at once, since none of them looks stale to itself when they all
+  // share the identical session number. Only the server sees every request,
+  // so only the server can guarantee each session's cues play exactly once —
+  // see _sg_claim_once() in musicman.py.
   const sgSessionPromise = fetch('/api/shell-game/session').then(r => r.json()).then(d => d.session).catch(() => null);
-  const sgSessionStillCurrent = async (baseline) => {
-    if (baseline === null) return true;
-    try { return (await fetch('/api/shell-game/session').then(r => r.json()).then(d => d.session)) === baseline; }
-    catch(e) { return true; }
-  };
   msg('');
 
   rockTent = Math.floor(Math.random() * 3);
@@ -275,7 +268,7 @@ async function runGame() {
   // Phase 1 — tents rise + start sound
   const sgSession = await sgSessionPromise;
   if (!ok()) return;
-  if (await sgSessionStillCurrent(sgSession)) _playSfx('start_sfx');
+  _playSfx('start_sfx', sgSession);
   tentEls.forEach((_,i)=>{
     tentEls[i].style.transition='left .8s ease-in-out, transform .9s cubic-bezier(.4,0,.2,1)';
     lift(i, true);
@@ -299,8 +292,8 @@ async function runGame() {
   await sleep(300); if (!ok()) return;
 
   // Phase 4 — shuffle (slow → fast) + music
-  if (await sgSessionStillCurrent(sgSession)) _playMusic();
   if (!ok()) return;
+  _playMusic(sgSession);
   const pairs = [[0,1],[1,2],[0,2]]; let last=-1;
   for (let i=0;i<SHUFFLE_COUNT;i++) {
     if (!ok()) return;
@@ -325,9 +318,8 @@ async function runGame() {
   await sleep(holdSecs*1000); if (!ok()) return;
 
   // Phase 6 — reveal.
-  const sgStillCurrent = await sgSessionStillCurrent(sgSession);
   if (!ok()) return;
-  if (sgStillCurrent) _playSfx('reveal_sfx');
+  _playSfx('reveal_sfx', sgSession);
   numEls.forEach(el => el.style.opacity='0');
   cdEl.style.display='none';
   msg('');
