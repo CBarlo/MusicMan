@@ -2108,13 +2108,26 @@ def shell_game():
 
 @app.route('/api/shell-game/start', methods=['POST'])
 def shell_game_start():
-    broadcast('shell_game_start', {})
-    return jsonify({'ok': True})
+    global _sg_session
+    _sg_session += 1
+    broadcast('shell_game_start', {'session': _sg_session})
+    return jsonify({'ok': True, 'session': _sg_session})
 
 @app.route('/api/shell-game/reset', methods=['POST'])
 def shell_game_reset():
+    global _sg_session
+    _sg_session += 1
     broadcast('shell_game_reset', {})
     return jsonify({'ok': True})
+
+@app.route('/api/shell-game/session')
+def shell_game_session():
+    """Server-authoritative session number. A shell_game.html instance
+    (possibly one of several — a hidden backgrounded iframe, a stray browser
+    tab, a different device) checks this right before firing the reveal SFX;
+    if it's no longer the session that started it, a newer game has already
+    superseded it and it stays silent instead of firing a duplicate cheer."""
+    return jsonify({'session': _sg_session})
 
 @app.route('/api/shell-game/audio/sfx', methods=['POST'])
 def shell_game_audio_sfx():
@@ -2141,6 +2154,7 @@ def shell_game_audio_music():
     return jsonify({'ok': True})
 
 _sg_fade_token = 0  # incremented by play/stop to cancel stale fade threads
+_sg_session    = 0  # incremented on every start/reset — see /api/shell-game/session
 
 @app.route('/api/shell-game/audio/stop', methods=['POST'])
 def shell_game_audio_stop():

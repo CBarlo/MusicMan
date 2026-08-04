@@ -248,6 +248,14 @@ async function runGame() {
   gameRunning = true;
   const mySession = ++_gameSession;
   const ok = () => _gameSession === mySession;
+  // Server-authoritative session (separate from _gameSession above, which only
+  // protects against staleness *within this document*). Guards against a
+  // completely separate shell_game.html instance — a stray browser tab, a
+  // different device's Admin/Console preview, a hidden iframe that slipped
+  // past the mm_game_hidden signal — also running this exact timeline and
+  // reaching the reveal at nearly the same moment, which is what a duplicate
+  // reveal SFX actually was: two independent documents, not one buggy loop.
+  const startSgSessionPromise = fetch('/api/shell-game/session').then(r => r.json()).then(d => d.session).catch(() => null);
   msg('');
 
   rockTent = Math.floor(Math.random() * 3);
@@ -304,8 +312,19 @@ async function runGame() {
   cdBar.style.width='0%';
   await sleep(holdSecs*1000); if (!ok()) return;
 
-  // Phase 6 — reveal (only one instance can ever reach here per session)
-  _playSfx('reveal_sfx');
+  // Phase 6 — reveal. Re-check the server session right before the SFX fires —
+  // if a newer game started anywhere (any tab, any device) since this one
+  // began, skip the sound so only the current, real instance's cheer plays.
+  const startSgSession = await startSgSessionPromise;
+  let sgStillCurrent = true;
+  if (startSgSession !== null) {
+    try {
+      const curSgSession = await fetch('/api/shell-game/session').then(r => r.json()).then(d => d.session);
+      sgStillCurrent = (curSgSession === startSgSession);
+    } catch(e) {}
+  }
+  if (!ok()) return;
+  if (sgStillCurrent) _playSfx('reveal_sfx');
   numEls.forEach(el => el.style.opacity='0');
   cdEl.style.display='none';
   msg('');
