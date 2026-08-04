@@ -3982,32 +3982,43 @@ def api_delete_game_config(config_id):
     save_game_configs(new)
     return jsonify({'ok': True})
 
-@app.route('/api/games/launch', methods=['POST'])
-def api_games_launch():
-    data         = request.json or {}
-    game_type_id = data.get('game_type_id', '')
-    config_id    = data.get('config_id', '')
-    gt           = GAME_TYPES.get(game_type_id)
-    if not gt:
-        return jsonify({'ok': False, 'error': 'unknown game_type_id'}), 400
-    ctrl_base = gt.get('controller_route', f'/games/{game_type_id}')
-    ctrl_url  = ctrl_base + (f'?config={config_id}' if config_id else '')
+def _launch_game(game_type_id, config_id=''):
+    """Launch a game type's HDMI presence and return (controller_url, display_url).
+    Shared by the Games Library GO LIVE button, a Show Flow game step, and a macro
+    game step — all three used to carry their own copy of this and only one of
+    them was getting fixed at a time.
+
+    Most game types (Prize Wheel, Shell Game) show their own dedicated iframe on
+    HDMI, navigated to via display_route. Musical Chairs is different: nothing
+    from games_chairs.html is ever meant to reach HDMI, so it's special-cased to
+    fire the config's Intro Game Entry or built-in Screen fields directly instead
+    — whichever is set stays up for the whole game, and display_url comes back
+    empty so callers don't also navigate the iframe there."""
+    gt = GAME_TYPES.get(game_type_id, {})
+    ctrl_url = gt.get('controller_route', f'/games/{game_type_id}') + (f'?config={config_id}' if config_id else '')
 
     if game_type_id == 'musical_chairs':
-        # No HDMI iframe for this one — GO LIVE fires the Intro Game Entry or the
-        # built-in Screen fields (whichever is set) straight away, so whatever the
-        # audience sees is already up before the operator ever taps START.
         cfg_data, _ = _chairs_config_data(config_id)
         if cfg_data.get('intro_entry'):
             threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
         elif cfg_data.get('fallback_headline') or cfg_data.get('fallback_text') or cfg_data.get('fallback_image'):
             threading.Thread(target=_chairs_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
-        return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': ''})
+        return ctrl_url, ''
 
     disp_base = gt.get('display_route', f'/games/{game_type_id}')
     disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
     # display.html shows games in an iframe — kiosk stays on /display, _display_url unchanged
     broadcast('display_navigate', {'url': disp_url})
+    return ctrl_url, disp_url
+
+@app.route('/api/games/launch', methods=['POST'])
+def api_games_launch():
+    data         = request.json or {}
+    game_type_id = data.get('game_type_id', '')
+    config_id    = data.get('config_id', '')
+    if game_type_id not in GAME_TYPES:
+        return jsonify({'ok': False, 'error': 'unknown game_type_id'}), 400
+    ctrl_url, disp_url = _launch_game(game_type_id, config_id)
     return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': disp_url})
 
 # ── MUSICAL CHAIRS ──
@@ -4820,8 +4831,7 @@ def api_show_fire():
         game_config_id = entry.get('game_config_id', '')
         gt             = GAME_TYPES.get(game_type_id, {})
         step_name      = entry.get('name') or gt.get('label', 'Game')
-        ctrl_url       = gt.get('controller_route', f'/games/{game_type_id}')
-        disp_url       = gt.get('display_route',    f'/games/{game_type_id}/display')
+        ctrl_url, disp_url = _launch_game(game_type_id, game_config_id)
         broadcast('show_step', {'index': idx, 'name': step_name, 'desc': step_desc, 'type': 'game'})
         broadcast('launch_game', {
             'game_type_id':   game_type_id,
@@ -4830,7 +4840,6 @@ def api_show_fire():
             'display_url':    disp_url,
             'name':           step_name,
         })
-        _ensure_display_for('display_navigate', {'url': disp_url})
     elif step_type == 'vs_card':
         card_id   = entry.get('vs_card_id', '')
         cards     = {c['id']: c for c in load_vs_cards()}
@@ -5053,11 +5062,7 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                 game_type_id   = step.get('game_type_id', '')
                 game_config_id = step.get('game_config_id', '')
                 gt             = GAME_TYPES.get(game_type_id, {})
-                ctrl_url       = gt.get('controller_route', f'/games/{game_type_id}')
-                disp_url       = gt.get('display_route',    f'/games/{game_type_id}')
-                if game_config_id:
-                    ctrl_url += f'?config={game_config_id}'
-                    disp_url += ('&' if '?' in disp_url else '?') + f'config={game_config_id}'
+                ctrl_url, disp_url = _launch_game(game_type_id, game_config_id)
                 broadcast('launch_game', {
                     'game_type_id':   game_type_id,
                     'game_config_id': game_config_id,
@@ -5065,7 +5070,6 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                     'display_url':    disp_url,
                     'name':           gt.get('label', 'Game'),
                 })
-                _ensure_display_for('display_navigate', {'url': disp_url + ('&' if '?' in disp_url else '?') + 'display=1'})
             elif action == 'shell_game':
                 hold = step.get('hold', 5)
                 url = f'/shell-game?hold={hold}'
