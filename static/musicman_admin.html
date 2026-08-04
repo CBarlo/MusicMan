@@ -1023,7 +1023,12 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">fires on all pole nodes — save presets in WLED UI at the node address</div>
 
               <div class="section-divider"></div>
-              <div class="card-title">DMX FIXTURES</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div class="card-title" style="margin-bottom:0">DMX FIXTURES</div>
+                <label style="display:flex;align-items:center;gap:4px;font-size:10px;letter-spacing:1px;cursor:pointer;margin-left:auto">
+                  <input type="checkbox" id="sc-dmx-match" onchange="toggleDmxPolesMatch(this.checked)"> OTHER POLES FOLLOW FIRST POLE
+                </label>
+              </div>
               <div id="sc-dmx-container"><div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;padding:8px 0">NO POLE NODES CONFIGURED — ADD IN SYSTEM TAB</div></div>
 
               <div class="section-divider"></div>
@@ -3922,6 +3927,8 @@ async function populateSceneEditor(id) {
   renderPoles(s.poles || {});
   if (!_poleNodes.length || !Object.keys(_fixtureTypes).length) await loadPoleNodes();
   renderSceneDmx(s.dmx || null);
+  const _matchCb = document.getElementById('sc-dmx-match');
+  if (_matchCb) { _matchCb.checked = !!s.dmx_poles_match; toggleDmxPolesMatch(_matchCb.checked); }
   renderSceneDmxAnimation(s.dmx_animation || null);
 }
 
@@ -4082,6 +4089,7 @@ async function saveScene() {
     zones: collectZones(),
     poles: collectPoles(),
     dmx:   collectSceneDmx(),
+    dmx_poles_match: document.getElementById('sc-dmx-match')?.checked || false,
     wled_preset:      (!isNaN(wledPreset) && wledPreset > 0) ? wledPreset : undefined,
     wled_preset_name: wledPresetName || undefined,
     dmx_animation:  collectSceneDmxAnimation(),
@@ -8267,10 +8275,10 @@ function renderSceneDmx(dmxData) {
     return;
   }
   const saved = dmxData || {};
-  c.innerHTML = _poleNodes.map(node => {
+  c.innerHTML = _poleNodes.map((node, ni) => {
     if (!node.fixtures || !node.fixtures.length) return '';
     const nodeVals = saved[node.id] || {};
-    return `<div style="margin-bottom:14px">
+    return `<div style="margin-bottom:14px" data-pole-role="${ni === 0 ? 'leader' : 'follower'}">
       <div style="font-size:10px;letter-spacing:2px;color:var(--amber);font-weight:700;margin-bottom:6px">
         ${escHtml(node.name||node.id)}
         ${node.ip ? `<a href="/wled/${escHtml(node.id)}/" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:9px;font-weight:400;text-decoration:none;margin-left:8px">↗ WLED UI</a>` : ''}
@@ -8399,9 +8407,21 @@ function applyLookToFrame(sel) {
   toast(`Applied "${look.name}"`, 'ok');
 }
 
+function toggleDmxPolesMatch(matched) {
+  document.querySelectorAll('#sc-dmx-container [data-pole-role="follower"]').forEach(el => {
+    el.style.display = matched ? 'none' : '';
+  });
+}
+
 function collectSceneDmx() {
+  const matched = document.getElementById('sc-dmx-match')?.checked;
   const dmx = {};
   document.querySelectorAll('#sc-dmx-container [data-dmx-node]').forEach(row => {
+    // When poles are matched, only the leader (first pole)'s values are
+    // saved — the backend computes every other node's fixtures from the
+    // leader's at fire time, so a follower's (hidden, stale) row values
+    // are never collected here.
+    if (matched && row.closest('[data-pole-role="follower"]')) return;
     const nodeId = row.dataset.dmxNode;
     const fixId  = row.dataset.dmxFix;
     const unaffected = row.querySelector('.dmx-unaffected').checked;

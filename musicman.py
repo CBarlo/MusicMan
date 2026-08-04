@@ -1509,8 +1509,20 @@ def wled_set_scene(scene_id):
 
     dmx_block = scene.get('dmx', {})
     if dmx_block:
-        _nodes_by_id  = {n['id']: n for n in config.get('pole_nodes', [])}
-        _fixture_types = config.get('fixture_types', {})
+        _all_pole_nodes = config.get('pole_nodes', [])
+        _nodes_by_id    = {n['id']: n for n in _all_pole_nodes}
+        _fixture_types  = config.get('fixture_types', {})
+        # "Pole B follows Pole A": scene stores only the leader (first pole
+        # node)'s values; every other node's fixtures are computed here from
+        # the leader's, matched by fixture id — not saved/duplicated, so
+        # editing the leader's look later automatically carries through on
+        # the next fire with no re-sync step needed.
+        if scene.get('dmx_poles_match') and _all_pole_nodes:
+            leader_id = _all_pole_nodes[0]['id']
+            leader_vals = dmx_block.get(leader_id, {})
+            dmx_block = {leader_id: leader_vals}
+            for node in _all_pole_nodes[1:]:
+                dmx_block[node['id']] = dict(leader_vals)
         for node_id, fixtures_vals in dmx_block.items():
             node = _nodes_by_id.get(node_id)
             if not node or not node.get('ip'):
