@@ -1603,12 +1603,29 @@ def wled_set_scene(scene_id):
             STEP_S  = 0.04  # 40 ms per step (~25 Hz)
             n_steps = max(1, round(_tv / STEP_S))
 
-            def _send_one(node, payload):
+            # Tracks which nodes currently have a DMX POST in flight. Without
+            # this, a node that takes even slightly longer than one 40ms step
+            # to respond (very plausible over WiFi) accumulates a growing
+            # backlog of overlapping requests — and since HTTP responses can
+            # land out of order, a newer request can be overtaken by an
+            # older, now-stale one completing later, applying a stale frame
+            # after a newer one. That's what "wonky after a couple of
+            # cycles" was: the backlog needs a few seconds to build up
+            # before it's visible, then it only gets worse. A real-time loop
+            # like this should drop a step for a busy node rather than queue
+            # it — the next step 40ms later supersedes it anyway.
+            _inflight      = set()
+            _inflight_lock = threading.Lock()
+
+            def _send_one(node, payload, node_id):
                 try:
                     requests.post(f"http://{node['ip']}/dmx",
                                   json={'fixtures': payload}, timeout=2)
                 except Exception:
                     pass
+                finally:
+                    with _inflight_lock:
+                        _inflight.discard(node_id)
 
             def _send(frame):
                 # Fire each node in its own thread — this loop runs at ~25Hz,
@@ -1622,6 +1639,10 @@ def wled_set_scene(scene_id):
                     node = _nodes.get(node_id)
                     if not node or not node.get('ip'):
                         continue
+                    with _inflight_lock:
+                        if node_id in _inflight:
+                            continue  # previous send to this node still in flight — drop this step
+                        _inflight.add(node_id)
                     fix_map = {f['id']: f for f in node.get('fixtures', [])}
                     payload = []
                     for fix_id, channels in fix_vals.items():
@@ -1631,7 +1652,10 @@ def wled_set_scene(scene_id):
                             payload.append({'start': fix['start'],
                                             'channels': _dim_channels(channels, _master_dim, mask)})
                     if payload:
-                        threading.Thread(target=_send_one, args=(node, payload), daemon=True).start()
+                        threading.Thread(target=_send_one, args=(node, payload, node_id), daemon=True).start()
+                    else:
+                        with _inflight_lock:
+                            _inflight.discard(node_id)
 
             def _interp(fa, fb, t):
                 result = {}
