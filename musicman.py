@@ -446,30 +446,32 @@ _wled_last_preset: dict = {}   # ip → last preset number fired
 
 def _wled_post(ip, payload):
     try:
-        requests.post(f'http://{ip}/json/state', json=payload, timeout=0.4)
+        requests.post(f'http://{_resolve_ip_once(ip)}/json/state', json=payload, timeout=0.4)
     except Exception:
-        pass
+        _invalidate_ip(ip)
 
 def _wled_fire_preset(ip, preset_num):
     """Fire a WLED preset by number and remember it for segment restore.
     Sends twice with a short gap to survive concurrent crowd animation traffic."""
     _wled_last_preset[ip] = preset_num
+    resolved = _resolve_ip_once(ip)
     try:
-        requests.post(f'http://{ip}/json', json={'ps': preset_num}, timeout=0.5)
+        requests.post(f'http://{resolved}/json', json={'ps': preset_num}, timeout=0.5)
     except Exception:
-        pass
+        _invalidate_ip(ip)
     time.sleep(0.08)
     try:
-        requests.post(f'http://{ip}/json', json={'ps': preset_num}, timeout=0.5)
+        requests.post(f'http://{resolved}/json', json={'ps': preset_num}, timeout=0.5)
     except Exception:
-        pass
+        _invalidate_ip(ip)
 
 def _fetch_wled_led_count(ip):
     """Return total LED count from WLED /json/info, or None on failure."""
     try:
-        r = requests.get(f'http://{ip}/json/info', timeout=3)
+        r = requests.get(f'http://{_resolve_ip_once(ip)}/json/info', timeout=3)
         return r.json().get('leds', {}).get('count')
     except Exception:
+        _invalidate_ip(ip)
         return None
 
 def _countdown_led_devices(countdown_cfg):
@@ -551,15 +553,19 @@ def _fire_crowd_strip_leds(fraction, cfg):
         ip = ip_map.get(lid)
         if ip:
             try:
-                _wled_udp_sock.sendto(packet, (ip, 19446))
+                # UDP sendto() resolves a hostname just like requests.post()
+                # would — this loop runs at 8Hz whenever crowd_climb_mode is
+                # on, so an unresolved hostname here would mean this thread
+                # blocks on mDNS up to 8x/sec instead of once.
+                _wled_udp_sock.sendto(packet, (_resolve_ip_once(ip), 19446))
             except Exception:
-                pass
+                _invalidate_ip(ip)
 
 def _dmx_post(ip, fixtures):
     try:
-        requests.post(f'http://{ip}/dmx', json={'fixtures': fixtures}, timeout=0.4)
+        requests.post(f'http://{_resolve_ip_once(ip)}/dmx', json={'fixtures': fixtures}, timeout=0.4)
     except Exception:
-        pass
+        _invalidate_ip(ip)
 
 def _build_dim_mask(fix, fixture_types):
     """True per channel = dimmable (no presets). False = control channel (MODE, EFFECT…)."""
@@ -609,9 +615,10 @@ def _walkup_color_anim(preset_num, color1_hex, color2_hex, cancel_event, cfg):
                 c1 = [int(round(x)) for x in _hex_to_rgb(color1_hex or '#FF0000')]
                 c2 = [int(round(x)) for x in _hex_to_rgb(color2_hex or '#0000FF')]
                 try:
-                    state = requests.get(f'http://{ip}/json/state', timeout=1.5).json()
+                    state = requests.get(f'http://{_resolve_ip_once(ip)}/json/state', timeout=1.5).json()
                     existing = {s['id']: s for s in state.get('seg', [])}
                 except Exception:
+                    _invalidate_ip(ip)
                     existing = {}
                 segments = []
                 for i in range(num_strips):
@@ -1409,34 +1416,65 @@ def save_game_configs(data: list):
         except OSError: pass
 
 # ── WLED HTTP API ──
-_ip_resolve_cache = {}    # hostname -> (ip, resolved_at)
-_IP_RESOLVE_TTL   = 60    # a pole reconnecting to the AP after a power blip or
-                           # a wlan1-watchdog AP restart can come back with a
-                           # different DHCP lease even with a reservation
-                           # configured — this bounds how long a stale IP can
-                           # survive on its own, see _invalidate_ip() for the
-                           # faster path (a failed send invalidates immediately
-                           # rather than waiting out the TTL)
+_ip_resolve_cache    = {}    # hostname -> (ip, resolved_at)
+_ip_resolve_lock     = threading.Lock()
+_ip_resolve_inflight = set()  # hostnames currently being refreshed in the background
+_IP_RESOLVE_TTL      = 60    # a pole reconnecting to the AP after a power blip or
+                              # a wlan1-watchdog AP restart can come back with a
+                              # different DHCP lease even with a reservation
+                              # configured — this bounds how long a stale IP can
+                              # survive on its own, see _invalidate_ip() for the
+                              # faster path (a failed send invalidates immediately
+                              # rather than waiting out the TTL)
+
+def _do_resolve_ip(hostname):
+    try:
+        ip = socket.gethostbyname(hostname)
+        with _ip_resolve_lock:
+            _ip_resolve_cache[hostname] = (ip, time.time())
+    except Exception:
+        pass
+    finally:
+        with _ip_resolve_lock:
+            _ip_resolve_inflight.discard(hostname)
 
 def _resolve_ip_once(hostname):
     """Resolve a hostname (e.g. an mDNS pole-a.local address) to a literal
-    IP, cached briefly. Anything that fires requests in a tight loop (the
-    DMX animation step timer) should call this once up front rather than
-    let requests.post() re-resolve the hostname on every single call —
-    a slow/flaky mDNS lookup then costs its latency once per loop instead
-    of once per request. Falls back to the original hostname if resolution
-    fails, so callers behave the same as passing the hostname straight
-    through to requests.post()."""
+    IP. mDNS lookups on this network have measured up to ~8s under real
+    field conditions (confirmed live, on both poles at different times) —
+    requests' timeout= parameter does NOT bound this, since DNS/mDNS
+    resolution happens before the socket-level timeout even starts. Every
+    caller that talks to a pole node or WLED device — not just the DMX
+    animation loop — used to eat that cost on every single call.
+
+    This is now non-blocking for every caller except the very first one
+    for a given hostname in the process's lifetime: a cached value (even
+    if past its TTL) is returned immediately, with a background thread
+    kicked off to refresh it. Only a hostname with NO cache entry at all
+    blocks the caller — see _prewarm_ip_cache(), which resolves every
+    known pole/WLED hostname once at startup so that cold-blocking case
+    never happens on a live show. Falls back to the original hostname if
+    resolution fails, so callers behave the same as passing the hostname
+    straight through to requests.post()."""
     if not hostname:
         return hostname
     cached = _ip_resolve_cache.get(hostname)
-    if cached and time.time() - cached[1] < _IP_RESOLVE_TTL:
-        return cached[0]
+    if cached:
+        ip, resolved_at = cached
+        if time.time() - resolved_at >= _IP_RESOLVE_TTL:
+            with _ip_resolve_lock:
+                if hostname not in _ip_resolve_inflight:
+                    _ip_resolve_inflight.add(hostname)
+                    threading.Thread(target=_do_resolve_ip, args=(hostname,), daemon=True).start()
+        return ip
+    # Nothing cached yet — nothing to hand back while refreshing in the
+    # background, so this one call has to block on the lookup.
     try:
         ip = socket.gethostbyname(hostname)
     except Exception:
         return hostname
-    _ip_resolve_cache[hostname] = (ip, time.time())
+    with _ip_resolve_lock:
+        _ip_resolve_cache[hostname] = (ip, time.time())
     return ip
 
 def _invalidate_ip(hostname):
@@ -1446,6 +1484,23 @@ def _invalidate_ip(hostname):
     reconnects with a new DHCP lease should recover in roughly one failed
     send, not up to a minute later."""
     _ip_resolve_cache.pop(hostname, None)
+
+def _prewarm_ip_cache():
+    """Resolve every configured pole-node/WLED hostname once, up front, in
+    the background — so the one truly-blocking case in _resolve_ip_once()
+    (a hostname with no cache entry yet) happens at process startup rather
+    than mid-show on whatever request/animation/poll loop happens to touch
+    that hostname first."""
+    cfg = load_config()
+    hosts = set()
+    for n in cfg.get('pole_nodes', []):
+        if n.get('ip'):
+            hosts.add(n['ip'])
+    for d in cfg.get('wled_devices', []):
+        if d.get('ip'):
+            hosts.add(d['ip'])
+    for h in hosts:
+        threading.Thread(target=_do_resolve_ip, args=(h,), daemon=True).start()
 
 def wled_set_scene(scene_id):
     """Apply a lighting scene to all WLED devices."""
@@ -1484,8 +1539,9 @@ def wled_set_scene(scene_id):
         if _scene_apply_epoch != my_epoch:
             return  # a newer scene apply has already started — don't send a stale color
         try:
-            requests.post(f"http://{ip}/json/state", json=payload, timeout=0.5)
+            requests.post(f"http://{_resolve_ip_once(ip)}/json/state", json=payload, timeout=0.5)
         except Exception as e:
+            _invalidate_ip(ip)
             log.warning(f"WLED {device_id} unreachable: {e}")
     threads = []
     for zone_key, zone_cfg in zones.items():
@@ -1656,12 +1712,19 @@ def wled_set_scene(scene_id):
             # of ~12/sec.
             #
             # _resolve_ip_once() is called on every send below rather than once
-            # up front — it's cache-backed (_IP_RESOLVE_TTL) so that's cheap in
-            # the common case, but it means a scene left animating for a long
-            # time (not just a fresh fire) still picks up a pole reconnecting
-            # with a new DHCP lease after a power blip or an AP restart, and a
-            # failed send invalidates the cache immediately (see _invalidate_ip
-            # below) so recovery doesn't wait out the TTL.
+            # up front, so a scene left animating for a long time (not just a
+            # fresh fire) still picks up a pole reconnecting with a new DHCP
+            # lease after a power blip or an AP restart, and a failed send
+            # invalidates the cache immediately (see _invalidate_ip below) so
+            # recovery doesn't wait out the TTL. This call happens on the main
+            # loop thread (not inside _send_one's background thread), which
+            # used to mean an expired cache entry blocked the ENTIRE step loop
+            # for as long as the mDNS lookup took (measured up to 8s live) —
+            # this was the actual cause of "doesn't even animate" turning into
+            # periodic full-animation freezes later on. _resolve_ip_once() is
+            # now non-blocking for any hostname that's ever been resolved
+            # before (it hands back the cached value and refreshes in the
+            # background), so this call can no longer stall the loop.
 
             # Tracks which nodes currently have a DMX POST in flight. Without
             # this, a node that takes even slightly longer than one 40ms step
@@ -1771,8 +1834,9 @@ def wled_set_color(device_id, color, brightness=75, seg_id=0):
                  'fx': 0, 'col': [[r, g, b]]}]
     }
     try:
-        requests.post(f"http://{ip}/json/state", json=payload, timeout=0.5)
+        requests.post(f"http://{_resolve_ip_once(ip)}/json/state", json=payload, timeout=0.5)
     except Exception as e:
+        _invalidate_ip(ip)
         log.warning(f"WLED {device_id} unreachable: {e}")
 
 # ── KILL LIGHTS ──
@@ -1783,9 +1847,10 @@ def kill_lights():
     headers = {'Content-Type': 'application/json'}
     def _wled_off(ip):
         try:
-            requests.post(f'http://{ip}/json/state', data=off_payload,
+            requests.post(f'http://{_resolve_ip_once(ip)}/json/state', data=off_payload,
                           headers=headers, timeout=0.8)
         except Exception as e:
+            _invalidate_ip(ip)
             log.warning(f"WLED {ip} kill unreachable: {e}")
     def _dmx_off(ip):
         fixtures = [
@@ -1793,8 +1858,9 @@ def kill_lights():
             {'start': 7,  'channels': [0] * 8},
         ]
         try:
-            requests.post(f'http://{ip}/dmx', json={'fixtures': fixtures}, timeout=0.8)
+            requests.post(f'http://{_resolve_ip_once(ip)}/dmx', json={'fixtures': fixtures}, timeout=0.8)
         except Exception as e:
+            _invalidate_ip(ip)
             log.warning(f"Pole node {ip} kill unreachable: {e}")
     threads = []
     for d in cfg.get('wled_devices', []):
@@ -4469,9 +4535,10 @@ def api_lights_brightness():
     def _apply():
         for t in wled_targets:
             try:
-                requests.post(f"http://{t['ip']}/json/state",
+                requests.post(f"http://{_resolve_ip_once(t['ip'])}/json/state",
                               json={'bri': bri}, timeout=0.5)
             except Exception as e:
+                _invalidate_ip(t['ip'])
                 log.warning(f"Brightness {t['id']}: {e}")
         # Re-apply last scene DMX with new scale (skip if animation is driving DMX)
         if _last_scene_dmx and not _dmx_anim_active:
@@ -4484,22 +4551,25 @@ def api_lights_brightness():
                            'channels': _dim_channels(f['channels'], _master_dim, f.get('dim_mask'))}
                           for f in fixtures]
                 try:
-                    requests.post(f"http://{node['ip']}/dmx",
+                    requests.post(f"http://{_resolve_ip_once(node['ip'])}/dmx",
                                   json={'fixtures': scaled}, timeout=0.5)
                 except Exception as e:
+                    _invalidate_ip(node['ip'])
                     log.warning(f"DMX dim {node_id}: {e}")
     threading.Thread(target=_apply, daemon=True).start()
     return jsonify({'ok': True, 'brightness': v})
 
 
 def _wled_ip_for_device(device_id):
+    """Returns a resolved literal IP (not the raw mDNS hostname) — every
+    caller of this helper gets cache-backed resolution for free."""
     cfg = load_config()
     for d in cfg.get('wled_devices', []):
         if d['id'] == device_id and d.get('ip'):
-            return d['ip']
+            return _resolve_ip_once(d['ip'])
     for n in cfg.get('pole_nodes', []):
         if n['id'] == device_id and n.get('ip'):
-            return n['ip']
+            return _resolve_ip_once(n['ip'])
     return None
 
 
@@ -4645,7 +4715,7 @@ def api_reboot_pole_node(node_id):
     if not node or not node.get('ip'):
         return jsonify({'ok': False, 'error': 'node or IP not found'}), 404
     try:
-        requests.post(f"http://{node['ip']}/json/state", json={'rb': True}, timeout=2)
+        requests.post(f"http://{_resolve_ip_once(node['ip'])}/json/state", json={'rb': True}, timeout=2)
     except Exception as e:
         # A reboot command often drops the connection before the device can
         # reply — that's expected, not a failure.
@@ -4671,12 +4741,14 @@ def api_sync_pole_presets():
     if not dst or not dst.get('ip'):
         return jsonify({'ok': False, 'error': f'target node {dst_id} not found'}), 404
     try:
-        r = requests.get(f"http://{src['ip']}/presets.json", timeout=5)
+        r = requests.get(f"http://{_resolve_ip_once(src['ip'])}/presets.json", timeout=5)
         r.raise_for_status()
         files = {'data': ('presets.json', r.content, 'application/json')}
-        r2 = requests.post(f"http://{dst['ip']}/upload", files=files, timeout=10)
+        r2 = requests.post(f"http://{_resolve_ip_once(dst['ip'])}/upload", files=files, timeout=10)
         r2.raise_for_status()
     except Exception as e:
+        _invalidate_ip(src['ip'])
+        _invalidate_ip(dst['ip'])
         return jsonify({'ok': False, 'error': str(e)}), 500
     log.info(f"Synced presets {src_id} -> {dst_id} ({len(r.content)} bytes)")
     return jsonify({'ok': True, 'bytes': len(r.content)})
@@ -4704,9 +4776,10 @@ def api_wled_presets(node_id):
     if not node or not node.get('ip'):
         return jsonify({'error': 'Node not found'}), 404
     try:
-        r = requests.get(f"http://{node['ip']}/presets.json", timeout=3)
+        r = requests.get(f"http://{_resolve_ip_once(node['ip'])}/presets.json", timeout=3)
         return (r.content, r.status_code, {'Content-Type': 'application/json'})
     except Exception as e:
+        _invalidate_ip(node['ip'])
         return jsonify({'error': str(e)}), 502
 
 @app.route('/api/admin/pole_dmx_test', methods=['POST'])
@@ -7045,7 +7118,7 @@ def _start_sound_poll():
                     continue
                 gain = max(0.0, float(node.get('mic_gain', 1.0)))
                 try:
-                    r = requests.get(f'http://{ip}/json/si', timeout=1.0)
+                    r = requests.get(f'http://{_resolve_ip_once(ip)}/json/si', timeout=1.0)
                     if r.ok:
                         d = r.json()
                         raw   = float(d.get('info', {}).get('u', {}).get('mm_sampleAvg', 0))
@@ -7053,6 +7126,7 @@ def _start_sound_poll():
                     else:
                         level = 0
                 except Exception:
+                    _invalidate_ip(ip)
                     level = -1   # -1 = unreachable
 
                 if level >= 0:
@@ -7071,7 +7145,9 @@ def _start_sound_poll():
                 avg = int(total / count)
                 _crowd_state['level'] = avg
                 broadcast('viz_crowd', _crowd_state)
-            time.sleep(2.0)
+            time.sleep(5.0)  # secondary feature (crowd meter input) — deliberately
+                              # infrequent so it can't compete with the lighting
+                              # paths for pole node attention/traffic
         _sound_poll_on = False
     threading.Thread(target=_loop, daemon=True, name='sound-poll').start()
 
@@ -7489,6 +7565,7 @@ def wled_proxy(node_id, path):
 # ════════════════════════════════════════════
 # STARTUP — runs under both gunicorn (import) and direct execution
 # ════════════════════════════════════════════
+_prewarm_ip_cache()
 start_timer_thread()
 start_countdown_thread()
 _start_sound_poll()
