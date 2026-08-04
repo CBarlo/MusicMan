@@ -1954,6 +1954,15 @@ async function sgUiLoadVariant() {
   if (!id) return;
   try {
     await fetch(`/api/shell-game/themes/${id}/load`, { method:'POST' });
+    // Loading a variant can change the configured hold time server-side —
+    // refresh the field to match instead of leaving it showing whatever was
+    // there before. sgHold() (shell_game.html) prefers the URL's hold= param
+    // over the server config, and that param is built from this field's
+    // current value, so a stale display here isn't just misleading — it
+    // silently overrides the variant's own setting on the next START.
+    await sgUiLoadConfig();
+    const saveBtn = document.getElementById('sg-ui-save-btn');
+    if (saveBtn) saveBtn.style.display = 'none';
     showAlert('✓ VARIATION LOADED', 1500);
   } catch {}
 }
