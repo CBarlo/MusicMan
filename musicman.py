@@ -1410,7 +1410,13 @@ def save_game_configs(data: list):
 
 # ── WLED HTTP API ──
 _ip_resolve_cache = {}    # hostname -> (ip, resolved_at)
-_IP_RESOLVE_TTL   = 300   # 5 min — pole node addresses don't change mid-show
+_IP_RESOLVE_TTL   = 60    # a pole reconnecting to the AP after a power blip or
+                           # a wlan1-watchdog AP restart can come back with a
+                           # different DHCP lease even with a reservation
+                           # configured — this bounds how long a stale IP can
+                           # survive on its own, see _invalidate_ip() for the
+                           # faster path (a failed send invalidates immediately
+                           # rather than waiting out the TTL)
 
 def _resolve_ip_once(hostname):
     """Resolve a hostname (e.g. an mDNS pole-a.local address) to a literal
@@ -1432,6 +1438,14 @@ def _resolve_ip_once(hostname):
         return hostname
     _ip_resolve_cache[hostname] = (ip, time.time())
     return ip
+
+def _invalidate_ip(hostname):
+    """Drop a cached resolution so the next _resolve_ip_once() call for this
+    hostname does a fresh lookup instead of waiting out the TTL. Call this
+    when a request to the cached IP fails — a stale IP after a pole
+    reconnects with a new DHCP lease should recover in roughly one failed
+    send, not up to a minute later."""
+    _ip_resolve_cache.pop(hostname, None)
 
 def wled_set_scene(scene_id):
     """Apply a lighting scene to all WLED devices."""
@@ -1637,9 +1651,15 @@ def wled_set_scene(scene_id):
             # pole stayed near-instant the whole time), so the per-node
             # in-flight guard correctly kept it from piling up, but it also
             # meant that pole got an update roughly once every 8 seconds instead
-            # of ~12/sec. Resolving each node's hostname to a literal IP once,
-            # up front, means every request in the loop skips DNS entirely.
-            _nodes = {nid: {**n, 'ip': _resolve_ip_once(n.get('ip', ''))} for nid, n in _nodes.items()}
+            # of ~12/sec.
+            #
+            # _resolve_ip_once() is called on every send below rather than once
+            # up front — it's cache-backed (_IP_RESOLVE_TTL) so that's cheap in
+            # the common case, but it means a scene left animating for a long
+            # time (not just a fresh fire) still picks up a pole reconnecting
+            # with a new DHCP lease after a power blip or an AP restart, and a
+            # failed send invalidates the cache immediately (see _invalidate_ip
+            # below) so recovery doesn't wait out the TTL.
 
             # Tracks which nodes currently have a DMX POST in flight. Without
             # this, a node that takes even slightly longer than one 40ms step
@@ -1655,12 +1675,12 @@ def wled_set_scene(scene_id):
             _inflight      = set()
             _inflight_lock = threading.Lock()
 
-            def _send_one(node, payload, node_id):
+            def _send_one(node, payload, node_id, hostname):
                 try:
                     requests.post(f"http://{node['ip']}/dmx",
                                   json={'fixtures': payload}, timeout=2)
                 except Exception:
-                    pass
+                    _invalidate_ip(hostname)
                 finally:
                     with _inflight_lock:
                         _inflight.discard(node_id)
@@ -1681,6 +1701,8 @@ def wled_set_scene(scene_id):
                         if node_id in _inflight:
                             continue  # previous send to this node still in flight — drop this step
                         _inflight.add(node_id)
+                    hostname = node['ip']
+                    node = {**node, 'ip': _resolve_ip_once(hostname)}
                     fix_map = {f['id']: f for f in node.get('fixtures', [])}
                     payload = []
                     for fix_id, channels in fix_vals.items():
@@ -1690,7 +1712,7 @@ def wled_set_scene(scene_id):
                             payload.append({'start': fix['start'],
                                             'channels': _dim_channels(channels, _master_dim, mask)})
                     if payload:
-                        threading.Thread(target=_send_one, args=(node, payload, node_id), daemon=True).start()
+                        threading.Thread(target=_send_one, args=(node, payload, node_id, hostname), daemon=True).start()
                     else:
                         with _inflight_lock:
                             _inflight.discard(node_id)
