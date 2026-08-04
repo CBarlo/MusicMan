@@ -3990,10 +3990,22 @@ def api_games_launch():
     gt           = GAME_TYPES.get(game_type_id)
     if not gt:
         return jsonify({'ok': False, 'error': 'unknown game_type_id'}), 400
-    disp_base = gt.get('display_route', f'/games/{game_type_id}')
     ctrl_base = gt.get('controller_route', f'/games/{game_type_id}')
-    disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
     ctrl_url  = ctrl_base + (f'?config={config_id}' if config_id else '')
+
+    if game_type_id == 'musical_chairs':
+        # No HDMI iframe for this one — GO LIVE fires the Intro Game Entry or the
+        # built-in Screen fields (whichever is set) straight away, so whatever the
+        # audience sees is already up before the operator ever taps START.
+        cfg_data, _ = _chairs_config_data(config_id)
+        if cfg_data.get('intro_entry'):
+            threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
+        elif cfg_data.get('fallback_headline') or cfg_data.get('fallback_text') or cfg_data.get('fallback_image'):
+            threading.Thread(target=_chairs_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
+        return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': ''})
+
+    disp_base = gt.get('display_route', f'/games/{game_type_id}')
+    disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
     # display.html shows games in an iframe — kiosk stays on /display, _display_url unchanged
     broadcast('display_navigate', {'url': disp_url})
     return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': disp_url})
@@ -4103,11 +4115,8 @@ def api_games_chairs_start():
 
     broadcast('chairs_state', chairs_state)
 
-    if is_first_round:
-        if cfg_data.get('intro_entry'):
-            threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
-        elif cfg_data.get('fallback_headline') or cfg_data.get('fallback_text') or cfg_data.get('fallback_image'):
-            threading.Thread(target=_chairs_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
+    # Intro Game Entry / Screen fields fire once at GO LIVE (see /api/games/launch),
+    # not here — the audience-facing screen shouldn't wait on the operator hitting START.
 
     scene_id = cfg_data.get('start_scene')
     if scene_id:

@@ -216,8 +216,8 @@ function renderSettings() {
   } else {
     bits.push('Auto-stop <b>off</b> (manual only)');
   }
-  if (_cfgData.intro_entry) bits.push('Intro Game Entry <b>set</b>');
-  else if (_cfgData.fallback_headline || _cfgData.fallback_text || _cfgData.fallback_image) bits.push('Screen <b>set</b>');
+  if (_cfgData.intro_entry) bits.push('Intro Game Entry <b>fired on GO LIVE</b>');
+  else if (_cfgData.fallback_headline || _cfgData.fallback_text || _cfgData.fallback_image) bits.push('Screen <b>fired on GO LIVE</b>');
   if (_cfgData.start_scene)  bits.push('Start scene <b>set</b>');
   if (_cfgData.stop_sfx)     bits.push('Stop SFX <b>set</b>');
   if (_cfgData.stop_scene)   bits.push('Stop scene <b>set</b>');
