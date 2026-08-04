@@ -1018,9 +1018,13 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                 <select id="sc-wled-preset-sel" style="font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;flex:1;min-width:140px">
                   <option value="">— none —</option>
                 </select>
-                <button onclick="pollWledPresets(this)" class="btn btn-secondary btn-sm" style="font-size:9px;padding:2px 8px" title="Fetch preset names from pole node">↺ POLL</button>
+                <button onclick="pollWledPresets(this, 'sc-wled-preset-sel')" class="btn btn-secondary btn-sm" style="font-size:9px;padding:2px 8px" title="Fetch preset names from pole node">↺ POLL</button>
               </div>
-              <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px">fires on all pole nodes — save presets in WLED UI at the node address</div>
+              <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-bottom:2px">fires on the first pole node — every other pole matches it, unless overridden below</div>
+              <label style="display:flex;align-items:center;gap:4px;font-size:10px;letter-spacing:1px;cursor:pointer;margin-bottom:6px">
+                <input type="checkbox" id="sc-wled-preset-differ" onchange="toggleWledPresetOverrides(this.checked)"> OTHER POLES USE A DIFFERENT PRESET
+              </label>
+              <div id="sc-wled-preset-overrides" style="display:none;margin-bottom:6px"></div>
 
               <div class="section-divider"></div>
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -3929,6 +3933,13 @@ async function populateSceneEditor(id) {
   renderSceneDmx(s.dmx || null);
   const _matchCb = document.getElementById('sc-dmx-match');
   if (_matchCb) { _matchCb.checked = !!s.dmx_poles_match; toggleDmxPolesMatch(_matchCb.checked); }
+  const _differCb = document.getElementById('sc-wled-preset-differ');
+  if (_differCb) {
+    const byNode = s.wled_preset_by_node || {};
+    _differCb.checked = !!Object.keys(byNode).length;
+    renderWledPresetOverrides(byNode);
+    toggleWledPresetOverrides(_differCb.checked);
+  }
   renderSceneDmxAnimation(s.dmx_animation || null);
 }
 
@@ -3952,8 +3963,42 @@ async function renderPoles(poles) {
   }).join('');
 }
 
-async function pollWledPresets(btn) {
-  const node = _poleNodes.find(n => n.ip);
+function toggleWledPresetOverrides(differ) {
+  const c = document.getElementById('sc-wled-preset-overrides');
+  c.style.display = differ ? '' : 'none';
+  if (differ && !c.children.length) renderWledPresetOverrides({});
+}
+
+function renderWledPresetOverrides(byNode) {
+  const c = document.getElementById('sc-wled-preset-overrides');
+  const followers = _poleNodes.slice(1);
+  c.innerHTML = followers.map(node => {
+    const selId = `sc-wled-preset-sel-${node.id}`;
+    const val   = byNode[node.id];
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+      <div style="font-size:9px;letter-spacing:1px;color:var(--text-dim);width:70px;flex-shrink:0">${escHtml(node.name||node.id).toUpperCase()}</div>
+      <select id="${selId}" style="font-size:11px;font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;flex:1;min-width:140px">
+        <option value="">— none —</option>
+        ${val ? `<option value="${val}" selected data-stub="1">#${val}  (poll to refresh)</option>` : ''}
+      </select>
+      <button onclick="pollWledPresets(this, '${selId}', '${escHtml(node.id)}')" class="btn btn-secondary btn-sm" style="font-size:9px;padding:2px 8px" title="Fetch preset names from this node">↺ POLL</button>
+    </div>`;
+  }).join('');
+}
+
+function collectWledPresetOverrides() {
+  if (!document.getElementById('sc-wled-preset-differ')?.checked) return undefined;
+  const out = {};
+  _poleNodes.slice(1).forEach(node => {
+    const sel = document.getElementById(`sc-wled-preset-sel-${node.id}`);
+    if (sel && sel.value) out[node.id] = parseInt(sel.value);
+  });
+  return Object.keys(out).length ? out : undefined;
+}
+
+async function pollWledPresets(btn, selId, nodeId) {
+  selId = selId || 'sc-wled-preset-sel';
+  const node = nodeId ? _poleNodes.find(n => n.id === nodeId) : _poleNodes.find(n => n.ip);
   if (!node) { toast('No pole nodes configured', 'err'); return; }
   const orig = btn.textContent;
   btn.textContent = '⟳'; btn.disabled = true;
@@ -3961,7 +4006,7 @@ async function pollWledPresets(btn) {
     const r = await fetch(`/api/admin/wled_presets/${encodeURIComponent(node.id)}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
-    const sel = document.getElementById('sc-wled-preset-sel');
+    const sel = document.getElementById(selId);
     const prevVal = sel.value;
     sel.innerHTML = '<option value="">— none —</option>';
     let count = 0;
@@ -4092,6 +4137,7 @@ async function saveScene() {
     dmx_poles_match: document.getElementById('sc-dmx-match')?.checked || false,
     wled_preset:      (!isNaN(wledPreset) && wledPreset > 0) ? wledPreset : undefined,
     wled_preset_name: wledPresetName || undefined,
+    wled_preset_by_node: collectWledPresetOverrides(),
     dmx_animation:  collectSceneDmxAnimation(),
   };
   // If id changed, remove old entry

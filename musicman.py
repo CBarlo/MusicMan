@@ -1540,7 +1540,8 @@ def wled_set_scene(scene_id):
     # per node so they all receive the command at essentially the same
     # moment, instead of node 2 waiting for node 1's HTTP call to finish.
     wled_preset = scene.get('wled_preset')
-    if wled_preset is not None:
+    wled_preset_by_node = scene.get('wled_preset_by_node') or {}
+    if wled_preset is not None or wled_preset_by_node:
         _pole_nodes = config.get('pole_nodes', [])
         def _fire_one(ip, ps):
             if _scene_apply_epoch != my_epoch:
@@ -1550,7 +1551,12 @@ def wled_set_scene(scene_id):
             ip = node.get('ip')
             if not ip:
                 continue
-            threading.Thread(target=_fire_one, args=(ip, wled_preset), daemon=True).start()
+            # A per-node override wins if this scene has one for this node;
+            # otherwise every node falls back to the shared preset.
+            ps = wled_preset_by_node.get(node['id'], wled_preset)
+            if ps is None:
+                continue
+            threading.Thread(target=_fire_one, args=(ip, ps), daemon=True).start()
 
     # Start DMX animation loop if scene defines one
     dmx_anim = scene.get('dmx_animation')
