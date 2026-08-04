@@ -8985,17 +8985,20 @@ async function sgSaveConfig() {
 async function sgNavigate() {
   const hold = sgHold();
   try {
+    await sgSaveConfig();
     await fetch('/api/display/navigate', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ url: `/shell-game?hold=${hold}` }) });
     toast('DISPLAY → SHELL GAME', 'ok');
   } catch { toast('COULD NOT REACH SERVER', 'err'); }
 }
+// Matches Console's sgUiStart() — fires the start signal to whatever's already
+// on the display. Used to also force a fresh reload+3s-guess wait every press,
+// which raced against the Pi's actual load time (tents starting mid-transition
+// instead of settled in the lobby) and left old game-frame iframes/websockets
+// piling up in the background every time START was pressed. Tap OPEN ON
+// DISPLAY first to load the lobby, then START.
 async function sgStart() {
   try {
-    await sgSaveConfig();
-    await fetch('/api/display/navigate', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ url: `/shell-game?hold=${sgHold()}` }) });
-    await new Promise(r => setTimeout(r, 3000));
     await fetch('/api/shell-game/start', { method: 'POST' });
     toast('GAME STARTED', 'ok');
   } catch { toast('COULD NOT REACH SERVER', 'err'); }

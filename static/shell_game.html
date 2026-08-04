@@ -252,10 +252,19 @@ async function runGame() {
   // protects against staleness *within this document*). Guards against a
   // completely separate shell_game.html instance — a stray browser tab, a
   // different device's Admin/Console preview, a hidden iframe that slipped
-  // past the mm_game_hidden signal — also running this exact timeline and
-  // reaching the reveal at nearly the same moment, which is what a duplicate
-  // reveal SFX actually was: two independent documents, not one buggy loop.
-  const startSgSessionPromise = fetch('/api/shell-game/session').then(r => r.json()).then(d => d.session).catch(() => null);
+  // past the mm_game_hidden signal — also running this exact timeline. A
+  // stale instance must not touch the ONE shared audio channel at all, not
+  // just skip the reveal — firing its own start sound or shuffle music
+  // mid-timeline would hijack playback away from the real instance and sound
+  // like the wrong song is playing. Checked fresh before each audio cue,
+  // since a game that was current when it began can still get superseded
+  // partway through its ~15-20s timeline.
+  const sgSessionPromise = fetch('/api/shell-game/session').then(r => r.json()).then(d => d.session).catch(() => null);
+  const sgSessionStillCurrent = async (baseline) => {
+    if (baseline === null) return true;
+    try { return (await fetch('/api/shell-game/session').then(r => r.json()).then(d => d.session)) === baseline; }
+    catch(e) { return true; }
+  };
   msg('');
 
   rockTent = Math.floor(Math.random() * 3);
@@ -264,7 +273,9 @@ async function runGame() {
   rock.getBoundingClientRect();
 
   // Phase 1 — tents rise + start sound
-  _playSfx('start_sfx');
+  const sgSession = await sgSessionPromise;
+  if (!ok()) return;
+  if (await sgSessionStillCurrent(sgSession)) _playSfx('start_sfx');
   tentEls.forEach((_,i)=>{
     tentEls[i].style.transition='left .8s ease-in-out, transform .9s cubic-bezier(.4,0,.2,1)';
     lift(i, true);
@@ -288,7 +299,8 @@ async function runGame() {
   await sleep(300); if (!ok()) return;
 
   // Phase 4 — shuffle (slow → fast) + music
-  _playMusic();
+  if (await sgSessionStillCurrent(sgSession)) _playMusic();
+  if (!ok()) return;
   const pairs = [[0,1],[1,2],[0,2]]; let last=-1;
   for (let i=0;i<SHUFFLE_COUNT;i++) {
     if (!ok()) return;
@@ -312,17 +324,8 @@ async function runGame() {
   cdBar.style.width='0%';
   await sleep(holdSecs*1000); if (!ok()) return;
 
-  // Phase 6 — reveal. Re-check the server session right before the SFX fires —
-  // if a newer game started anywhere (any tab, any device) since this one
-  // began, skip the sound so only the current, real instance's cheer plays.
-  const startSgSession = await startSgSessionPromise;
-  let sgStillCurrent = true;
-  if (startSgSession !== null) {
-    try {
-      const curSgSession = await fetch('/api/shell-game/session').then(r => r.json()).then(d => d.session);
-      sgStillCurrent = (curSgSession === startSgSession);
-    } catch(e) {}
-  }
+  // Phase 6 — reveal.
+  const sgStillCurrent = await sgSessionStillCurrent(sgSession);
   if (!ok()) return;
   if (sgStillCurrent) _playSfx('reveal_sfx');
   numEls.forEach(el => el.style.opacity='0');
