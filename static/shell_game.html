@@ -210,6 +210,18 @@ function doSwap(sA, sB, dur) {
 // ── SESSION GUARD — prevents concurrent runGame() after reset+start ──
 let _gameSession = 0;
 
+// display.html keeps this iframe's document alive for ~10s after hiding it
+// (avoids a Pi 4B GC stall — see its hideGameFrame() comment), so a game
+// already mid-timeline when the operator navigates away would otherwise keep
+// running unseen and still fire its SFX a few seconds later. Bumping
+// _gameSession here invalidates every in-flight ok() checkpoint in runGame().
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'mm_game_hidden') {
+    _gameSession++;
+    gameRunning = false;
+  }
+});
+
 // ── LOBBY ────────────────────────────────────────────────────────
 function showLobby() {
   _stopMusic();

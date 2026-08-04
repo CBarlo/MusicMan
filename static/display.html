@@ -1195,6 +1195,13 @@ function showGameFrame(url) {
 }
 function hideGameFrame() {
   if (_gameFrame.style.display === 'none') return;
+  // The iframe's document stays alive for the next 10s (src isn't cleared —
+  // see the GC-stall comment above), so anything with an in-flight timeline
+  // (Shell Game's reveal, a Musical Chairs round) needs to know it's been
+  // backgrounded or it'll finish that timeline unseen and still fire its
+  // audio/SFX — e.g. a stray reveal cheer a few seconds after the operator
+  // already navigated away.
+  try { _gameFrame.contentWindow.postMessage({ type: 'mm_game_hidden' }, '*'); } catch(e) {}
   _gameFrame.style.display = 'none';
   clearTimeout(_gameFrameClearTimer);
   _gameFrameClearTimer = setTimeout(() => { _gameFrame.src = ''; }, 10000);
