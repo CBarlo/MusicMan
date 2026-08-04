@@ -1515,19 +1515,21 @@ def wled_set_scene(scene_id):
     _dmx_anim_stop.set()
     _dmx_anim_stop = threading.Event()
 
-    # Fire WLED preset on all pole nodes if scene specifies one
+    # Fire WLED preset on all pole nodes if scene specifies one — one thread
+    # per node so they all receive the command at essentially the same
+    # moment, instead of node 2 waiting for node 1's HTTP call to finish.
     wled_preset = scene.get('wled_preset')
     if wled_preset is not None:
         _pole_nodes = config.get('pole_nodes', [])
-        def _fire_wled_preset(_nodes=_pole_nodes, _ps=wled_preset):
-            for node in _nodes:
-                if _scene_apply_epoch != my_epoch:
-                    return
-                ip = node.get('ip')
-                if not ip:
-                    continue
-                _wled_fire_preset(ip, _ps)
-        threading.Thread(target=_fire_wled_preset, daemon=True).start()
+        def _fire_one(ip, ps):
+            if _scene_apply_epoch != my_epoch:
+                return
+            _wled_fire_preset(ip, ps)
+        for node in _pole_nodes:
+            ip = node.get('ip')
+            if not ip:
+                continue
+            threading.Thread(target=_fire_one, args=(ip, wled_preset), daemon=True).start()
 
     # Start DMX animation loop if scene defines one
     dmx_anim = scene.get('dmx_animation')
@@ -4251,6 +4253,35 @@ def api_reboot_pole_node(node_id):
         # reply — that's expected, not a failure.
         log.info(f"Reboot request sent to {node_id} ({node['ip']}): {e}")
     return jsonify({'ok': True})
+
+@app.route('/api/admin/pole_nodes/sync_presets', methods=['POST'])
+def api_sync_pole_presets():
+    """Copy one pole node's saved WLED presets onto another. WLED presets are
+    stored locally per-device — they are NOT covered by WLED's realtime UDP
+    sync (that only mirrors live state, never the underlying saved preset
+    definitions) — so a node built after the others needs this to actually
+    match what scenes expect when they recall a preset by number."""
+    data   = request.get_json() or {}
+    src_id = data.get('from', 'pole_a')
+    dst_id = data.get('to', 'pole_b')
+    cfg    = load_config()
+    nodes  = {n['id']: n for n in cfg.get('pole_nodes', [])}
+    src    = nodes.get(src_id)
+    dst    = nodes.get(dst_id)
+    if not src or not src.get('ip'):
+        return jsonify({'ok': False, 'error': f'source node {src_id} not found'}), 404
+    if not dst or not dst.get('ip'):
+        return jsonify({'ok': False, 'error': f'target node {dst_id} not found'}), 404
+    try:
+        r = requests.get(f"http://{src['ip']}/presets.json", timeout=5)
+        r.raise_for_status()
+        files = {'data': ('presets.json', r.content, 'application/json')}
+        r2 = requests.post(f"http://{dst['ip']}/upload", files=files, timeout=10)
+        r2.raise_for_status()
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    log.info(f"Synced presets {src_id} -> {dst_id} ({len(r.content)} bytes)")
+    return jsonify({'ok': True, 'bytes': len(r.content)})
 
 @app.route('/api/lights/node/<node_id>/fire_preset', methods=['POST'])
 def api_fire_node_preset(node_id):

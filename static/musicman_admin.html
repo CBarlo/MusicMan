@@ -903,6 +903,14 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             <button class="btn btn-secondary btn-sm" onclick="addPoleNode()">+ ADD NODE</button>
             <button class="btn btn-primary btn-sm" onclick="savePoleNodes()">✓ SAVE NODES</button>
           </div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;line-height:1.5">
+              WLED presets are saved per-device, not shared automatically — scenes that recall a
+              numbered preset need it to actually exist on every pole. Push Pole A's saved presets
+              onto Pole B any time A's presets change.
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="syncPolePresets()">⇄ SYNC PRESETS — POLE A → POLE B</button>
+          </div>
         </div>
       </div>
 
@@ -7840,6 +7848,19 @@ function addPoleNode() {
 function removePoleNode(ni) {
   _poleNodes.splice(ni, 1);
   renderPoleNodeConfig();
+}
+
+async function syncPolePresets() {
+  if (!confirm('Copy Pole A\'s saved WLED presets onto Pole B? This overwrites whatever presets Pole B currently has.')) return;
+  try {
+    const res  = await fetch('/api/admin/pole_nodes/sync_presets', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({from: 'pole_a', to: 'pole_b'})
+    });
+    const data = await res.json();
+    if (data.ok) toast(`Synced presets (${data.bytes} bytes)`, 'ok');
+    else toast(data.error || 'Sync failed', 'err');
+  } catch(e) { toast('Sync failed', 'err'); }
 }
 
 async function rebootPoleNode(ni) {
