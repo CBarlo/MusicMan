@@ -3920,7 +3920,7 @@ async function populateSceneEditor(id) {
   }
   renderZones(s.zones || {});
   renderPoles(s.poles || {});
-  if (!_poleNodes.length) await loadPoleNodes();
+  if (!_poleNodes.length || !Object.keys(_fixtureTypes).length) await loadPoleNodes();
   renderSceneDmx(s.dmx || null);
   renderSceneDmxAnimation(s.dmx_animation || null);
 }

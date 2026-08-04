@@ -1475,40 +1475,49 @@ def wled_set_scene(scene_id):
                     log.warning(f'Scene pole light [{pole_label}]: {err}')
     threading.Thread(target=_apply_pole_lights, daemon=True).start()
 
-    # Apply DMX fixture values to pole nodes
-    def _apply_dmx():
+    # Apply DMX fixture values to pole nodes — one thread per node so a
+    # slower/weaker connection on one pole doesn't delay another (nodes were
+    # previously sent sequentially in a single thread, and a tight 0.5s
+    # timeout on a marginal WiFi link could abort mid-transfer, leaving the
+    # ESP32 parsing a truncated JSON payload — manifesting as random-looking
+    # colors on whichever node has a weaker connection). 2s matches the
+    # timeout already used by Admin's manual per-fixture test fire, which
+    # has never shown this problem.
+    def _apply_dmx_node(node_id, fixtures_vals, node, fixture_types):
         global _last_scene_dmx
-        dmx_block = scene.get('dmx', {})
-        if not dmx_block:
-            return
-        nodes         = {n['id']: n for n in config.get('pole_nodes', [])}
-        fixture_types = config.get('fixture_types', {})
+        fixture_defs = {f['id']: f for f in node.get('fixtures', [])}
+        payload_raw = []
+        for fix_id, channels in fixtures_vals.items():
+            if not channels:
+                continue
+            fix = fixture_defs.get(fix_id)
+            if not fix:
+                continue
+            dim_mask = _build_dim_mask(fix, fixture_types)
+            payload_raw.append({'start': fix['start'], 'channels': list(channels),
+                                'dim_mask': dim_mask})
+        if payload_raw and _scene_apply_epoch == my_epoch:
+            _last_scene_dmx[node_id] = payload_raw
+            scaled = [{'start': f['start'],
+                       'channels': _dim_channels(f['channels'], _master_dim, f['dim_mask'])}
+                      for f in payload_raw]
+            try:
+                requests.post(f"http://{node['ip']}/dmx",
+                              json={'fixtures': scaled}, timeout=2)
+            except Exception as e:
+                log.warning(f"Pole node {node_id} DMX error: {e}")
+
+    dmx_block = scene.get('dmx', {})
+    if dmx_block:
+        _nodes_by_id  = {n['id']: n for n in config.get('pole_nodes', [])}
+        _fixture_types = config.get('fixture_types', {})
         for node_id, fixtures_vals in dmx_block.items():
-            node = nodes.get(node_id)
+            node = _nodes_by_id.get(node_id)
             if not node or not node.get('ip'):
                 continue
-            fixture_defs = {f['id']: f for f in node.get('fixtures', [])}
-            payload_raw = []
-            for fix_id, channels in fixtures_vals.items():
-                if not channels:
-                    continue
-                fix = fixture_defs.get(fix_id)
-                if not fix:
-                    continue
-                dim_mask = _build_dim_mask(fix, fixture_types)
-                payload_raw.append({'start': fix['start'], 'channels': list(channels),
-                                    'dim_mask': dim_mask})
-            if payload_raw and _scene_apply_epoch == my_epoch:
-                _last_scene_dmx[node_id] = payload_raw
-                scaled = [{'start': f['start'],
-                           'channels': _dim_channels(f['channels'], _master_dim, f['dim_mask'])}
-                          for f in payload_raw]
-                try:
-                    requests.post(f"http://{node['ip']}/dmx",
-                                  json={'fixtures': scaled}, timeout=0.5)
-                except Exception as e:
-                    log.warning(f"Pole node {node_id} DMX error: {e}")
-    threading.Thread(target=_apply_dmx, daemon=True).start()
+            threading.Thread(target=_apply_dmx_node,
+                              args=(node_id, fixtures_vals, node, _fixture_types),
+                              daemon=True).start()
 
     # Cancel any running DMX animation, then start a new one if this scene defines one
     global _dmx_anim_stop
@@ -1546,7 +1555,21 @@ def wled_set_scene(scene_id):
             STEP_S  = 0.04  # 40 ms per step (~25 Hz)
             n_steps = max(1, round(_tv / STEP_S))
 
+            def _send_one(node, payload):
+                try:
+                    requests.post(f"http://{node['ip']}/dmx",
+                                  json={'fixtures': payload}, timeout=2)
+                except Exception:
+                    pass
+
             def _send(frame):
+                # Fire each node in its own thread — this loop runs at ~25Hz,
+                # and blocking on a slow/marginal node's HTTP response here
+                # would stall the whole animation's timing, backing up steps
+                # and then bursting them out once the slow request finally
+                # returns (looks exactly like fast strobing on the affected
+                # node). Firing and moving on keeps the step timer accurate
+                # regardless of how any one node's connection is behaving.
                 for node_id, fix_vals in frame.items():
                     node = _nodes.get(node_id)
                     if not node or not node.get('ip'):
@@ -1560,11 +1583,7 @@ def wled_set_scene(scene_id):
                             payload.append({'start': fix['start'],
                                             'channels': _dim_channels(channels, _master_dim, mask)})
                     if payload:
-                        try:
-                            requests.post(f"http://{node['ip']}/dmx",
-                                          json={'fixtures': payload}, timeout=0.5)
-                        except Exception:
-                            pass
+                        threading.Thread(target=_send_one, args=(node, payload), daemon=True).start()
 
             def _interp(fa, fb, t):
                 result = {}
