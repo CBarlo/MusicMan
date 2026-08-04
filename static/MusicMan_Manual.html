@@ -324,6 +324,7 @@
       <li><a href="#crowd-run">Crowd Noise — live operation</a></li>
       <li><a href="#shell-game-run">Shell Game — live operation</a></li>
       <li><a href="#prize-wheel-run">Prize Wheel — live operation</a></li>
+      <li><a href="#musical-chairs-run">Musical Chairs — live operation</a></li>
       <li><a href="#usb-run">USB Playlist tab</a></li>
       <li><a href="#streamdeck-run">Stream Deck</a></li>
       <li><a href="#kill-all">Emergency stop (Kill All)</a></li>
@@ -541,7 +542,7 @@
     <tr><td rowspan="4"><strong>SCREEN</strong></td><td><strong>📋 Slides</strong></td><td>Build and save custom text slides to push to the projector</td></tr>
     <tr><td><strong>⚔ VS Cards</strong></td><td>Street Fighter-style head-to-head matchup cards for the projector</td></tr>
     <tr><td><strong>🎯 Game Entries</strong></td><td>Named walk-up moments with their own music, video, and lighting</td></tr>
-    <tr><td><strong>🎮 Games</strong></td><td>Games Library (Prize Wheel, Shell Game configs), Head to Head scoreboard config, and the Skit Timer + presets</td></tr>
+    <tr><td><strong>🎮 Games</strong></td><td>Games Library (Prize Wheel, Shell Game, Musical Chairs configs), Head to Head scoreboard config, and the Skit Timer + presets</td></tr>
     <tr><td><strong>LIVE</strong></td><td><strong>📺 Visualizations</strong></td><td>Music Viz and Crowd Meter presets — display styles, colors, WLED/DMX lighting, climax</td></tr>
     <tr><td rowspan="3"><strong>CONTENT</strong></td><td><strong>♪ Audio</strong></td><td>Upload and manage the SFX library and Music library; audio normalization</td></tr>
     <tr><td><strong>🖼 Display</strong></td><td>Upload and manage images/videos; set the default LOGO image</td></tr>
@@ -1069,9 +1070,9 @@
   <h2 id="interactive-games-admin">Interactive Games Library</h2>
   <p>
     The <strong>Games Library</strong> lets you build named configurations for interactive audience
-    games — currently Prize Wheel and Shell Game. Each configuration stores all the game's
-    settings (segments, sounds, images) under a name, so you can have multiple themed versions
-    ready to go (e.g., "Week 1 Prizes," "Finale Round").
+    games — currently Prize Wheel, Shell Game, and Musical Chairs. Each configuration stores all
+    the game's settings (segments, sounds, images) under a name, so you can have multiple themed
+    versions ready to go (e.g., "Week 1 Prizes," "Finale Round").
   </p>
   <p>Configure in Admin → <strong>🎮 Games</strong>, under the <strong>GAMES LIBRARY</strong> section at the top of the tab.</p>
 
@@ -1080,13 +1081,14 @@
     <tr><th>Game Type</th><th>What it does</th></tr>
     <tr><td><strong>Prize Wheel</strong></td><td>A randomized spin wheel shown fullscreen on HDMI. Segments show names or prizes; the wheel spins and lands on a random winner.</td></tr>
     <tr><td><strong>Shell Game</strong></td><td>Three shuffling tents hiding a hidden item — same game as configured in the Shell Game section, but saved as a named Library config.</td></tr>
+    <tr><td><strong>Musical Chairs</strong></td><td>Pick a song and play it; music stops on cue. Round counter and PLAYING/FREEZE status shown fullscreen on HDMI.</td></tr>
   </table>
 
   <h3>Creating a game configuration</h3>
   <ol class="steps">
     <li>In the Library tab, choose a Game Type from the dropdown and click <kbd>+ NEW CONFIG</kbd>.</li>
     <li>Give it a name (e.g., "Relay Race Prizes").</li>
-    <li>Fill in the game's settings — for Prize Wheel: add segment names and colors; for Shell Game: set timing and audio.</li>
+    <li>Fill in the game's settings — for Prize Wheel: add segment names and colors; for Shell Game: set timing and audio; for Musical Chairs: pick a song and stop behavior (see below).</li>
     <li>Click <kbd>SAVE</kbd>. The config appears in the Library list.</li>
   </ol>
 
@@ -1098,6 +1100,26 @@
     <tr><td>Result Sound</td><td>Audio that plays when the wheel lands</td></tr>
     <tr><td>Background Image</td><td>Optional image shown behind the wheel on the HDMI display</td></tr>
   </table>
+
+  <h3>Musical Chairs settings</h3>
+  <p>
+    No contestant tracking — this is a music controller for the classic game. Chairs, elimination,
+    and the winner are all handled physically; MusicMan just runs the music.
+  </p>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Song</td><td>Picked from the Music Library. If the song is on a USB stick, import it into the library first — see <a href="#music-run">Playing Music from the Library</a>.</td></tr>
+    <tr><td>Auto-stop music</td><td>On (default): the Pi cuts the music itself at a random moment. Off: the operator taps STOP whenever they choose — no randomness needed.</td></tr>
+    <tr><td>Min / Max Stop Delay</td><td>The random window auto-stop picks from, in seconds. Only used when auto-stop is on.</td></tr>
+    <tr><td>Stop Cue Sound</td><td>Optional SFX (or second music file) that fires the instant the music stops — a buzzer or horn works well.</td></tr>
+    <tr><td>Stop Cue Lighting Scene</td><td>Optional lighting scene that fires the instant the music stops — a flash or blackout works well.</td></tr>
+  </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">Manual stop always works</div>
+    Even with auto-stop on, the operator's <kbd>⏹ STOP</kbd> button is live the whole time the
+    music is playing — it cancels the pending auto-stop and cuts the music immediately. Use
+    auto-stop for hands-free rounds, or ignore it and run every round manually.
+  </div>
 
   <h3>Launching from Show Flow</h3>
   <p>
@@ -1469,7 +1491,7 @@
 
   <div class="callout callout-info">
     <div class="callout-title">Game steps are self-contained</div>
-    If a show flow step is a <strong>Game</strong> step (Prize Wheel, Shell Game), tapping it
+    If a show flow step is a <strong>Game</strong> step (Prize Wheel, Shell Game, Musical Chairs), tapping it
     automatically navigates the HDMI display to that game and launches it. No separate
     "Open on Display" tap is needed — the whole sequence is one button press.
   </div>
@@ -1783,6 +1805,26 @@
     If you want to spin multiple times in a row, just tap <kbd>RESET</kbd> after each result
     and spin again — no need to re-launch the game.
   </div>
+
+  <h2 id="musical-chairs-run">Musical Chairs — Live Operation</h2>
+  <p>
+    Launch a saved Musical Chairs config from the Show Flow (Game step) or from
+    <span class="tab">GAMES</span> → Games Library, same as Prize Wheel. The HDMI display shows
+    a round counter and a live PLAYING / FREEZE status; the operator controls appear below it
+    on the console.
+  </p>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Song dropdown</td><td>Pre-filled from the config's saved song — pick a different one from the Music Library any time before tapping START, including mid-game</td></tr>
+    <tr><td><kbd>▶ START</kbd></td><td>Plays the song and advances the round counter by one. If auto-stop is on, the Pi will cut the music itself at a random moment within the configured window.</td></tr>
+    <tr><td><kbd>⏹ STOP</kbd></td><td>Cuts the music immediately and fires the stop cue (SFX/scene, if configured) — works at any point, auto-stop on or off, and cancels a pending auto-stop</td></tr>
+    <tr><td><kbd>↺ RESET GAME</kbd></td><td>Stops the music and zeroes the round counter — use this to start a fresh game</td></tr>
+  </table>
+  <p>
+    Chairs, eliminating players, and declaring a winner are all handled physically — MusicMan
+    only runs the music and the stop cue. To run another round, just tap <kbd>START</kbd> again;
+    the round counter advances automatically.
+  </p>
 
   <h2 id="usb-run">USB Playlist Tab</h2>
   <p>

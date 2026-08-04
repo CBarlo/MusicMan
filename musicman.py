@@ -19,6 +19,7 @@ import io
 import re
 import base64
 import uuid
+import random
 import yaml
 import json
 import time
@@ -380,6 +381,17 @@ _dmx_anim_stop = threading.Event()       # set to cancel running DMX animation l
 _audio_session      = 0                  # increments on every play_audio call
 _h2h_multiplier     = 1                  # live score multiplier for Head to Head (not persisted)
 _h2h_flash_token    = 0                  # increments on every H2H flash; stale reverts check this before reverting
+
+chairs_state = {
+    'round':       0,
+    'playing':     False,
+    'config_id':   '',
+    'config_name': '',
+    'song':        '',
+    'song_label':  '',
+}
+_chairs_lock       = threading.Lock()
+_chairs_stop_token = 0   # incremented on every stop/reset; a pending auto-stop checks this before firing
 
 # ── MASTER DIM ────────────────────────────────────────────────────────────────
 _master_dim      = 1.0   # 0.0–1.0; scales all DMX channel values at send time
@@ -1286,8 +1298,12 @@ GAME_TYPES = {
         'controller_route': '/games/chairs',
         'display_route': '/games/chairs/display',
         'schema': [
-            {'key': 'min_interval', 'type': 'number', 'label': 'Min Stop Delay (sec)', 'default': 15},
-            {'key': 'max_interval', 'type': 'number', 'label': 'Max Stop Delay (sec)', 'default': 45},
+            {'key': 'song',         'type': 'select', 'label': 'Song',                       'source': 'music'},
+            {'key': 'auto_stop',    'type': 'bool',   'label': 'Auto-stop music (random timing)', 'default': True},
+            {'key': 'min_interval', 'type': 'number', 'label': 'Min Stop Delay (sec)',        'default': 15},
+            {'key': 'max_interval', 'type': 'number', 'label': 'Max Stop Delay (sec)',        'default': 45},
+            {'key': 'stop_sfx',     'type': 'select', 'label': 'Stop Cue Sound',              'source': 'audio'},
+            {'key': 'stop_scene',   'type': 'select', 'label': 'Stop Cue Lighting Scene',     'source': 'scenes'},
         ],
     },
     'trivia': {
@@ -3966,6 +3982,110 @@ def api_games_launch():
     # display.html shows games in an iframe — kiosk stays on /display, _display_url unchanged
     broadcast('display_navigate', {'url': disp_url})
     return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': disp_url})
+
+# ── MUSICAL CHAIRS ──
+@app.route('/games/chairs')
+@app.route('/games/chairs/display')
+def games_chairs():
+    return send_from_directory(STATIC_DIR, 'games_chairs.html')
+
+def _chairs_config_data(config_id):
+    if not config_id:
+        return {}, ''
+    match = next((c for c in load_game_configs() if c['id'] == config_id), None)
+    if not match:
+        return {}, ''
+    return (match.get('data') or {}), match.get('name', '')
+
+def _chairs_play_cue_file(filename):
+    """stop_sfx values come from the merged sfx+music picker — check both dirs."""
+    for sub in ('sfx', 'music'):
+        fp = ASSETS_DIR / sub / filename
+        if fp.exists():
+            play_sfx(str(fp))
+            return
+    log.warning(f"Musical Chairs stop cue file not found: {filename}")
+
+def _chairs_do_stop(cfg_data):
+    global chairs_state
+    stop_audio()
+    with _chairs_lock:
+        chairs_state['playing'] = False
+    broadcast('chairs_state', chairs_state)
+    scene_id = (cfg_data or {}).get('stop_scene')
+    if scene_id:
+        try: wled_set_scene(scene_id)
+        except Exception as e: log.error(f"Musical Chairs stop scene: {e}")
+    sfx_name = (cfg_data or {}).get('stop_sfx')
+    if sfx_name:
+        _chairs_play_cue_file(sfx_name)
+
+@app.route('/api/games/chairs/state')
+def api_games_chairs_state():
+    return jsonify(chairs_state)
+
+@app.route('/api/games/chairs/start', methods=['POST'])
+def api_games_chairs_start():
+    global chairs_state, _chairs_stop_token
+    data          = request.json or {}
+    config_id     = data.get('config_id', '')
+    cfg_data, name = _chairs_config_data(config_id)
+    song = data.get('song') or cfg_data.get('song', '')
+    if not song:
+        return jsonify({'ok': False, 'error': 'No song selected'}), 400
+    fp = (ASSETS_DIR / 'music' / song).resolve()
+    if not fp.is_relative_to((ASSETS_DIR / 'music').resolve()) or not fp.exists():
+        return jsonify({'ok': False, 'error': 'Song file not found'}), 404
+
+    with _chairs_lock:
+        _chairs_stop_token += 1
+        my_token = _chairs_stop_token
+        chairs_state['round']       += 1
+        chairs_state['playing']      = True
+        chairs_state['config_id']    = config_id
+        chairs_state['config_name']  = name
+        chairs_state['song']         = song
+        chairs_state['song_label']   = Path(song).stem
+
+    threading.Thread(target=play_audio, args=(str(fp),), kwargs={'loops': -1}, daemon=True).start()
+    broadcast('chairs_state', chairs_state)
+
+    if cfg_data.get('auto_stop', True):
+        lo = float(cfg_data.get('min_interval', 15) or 15)
+        hi = float(cfg_data.get('max_interval', 45) or 45)
+        if hi < lo:
+            lo, hi = hi, lo
+        delay = random.uniform(lo, hi)
+        def _auto_stop():
+            time.sleep(delay)
+            with _chairs_lock:
+                if _chairs_stop_token != my_token:
+                    return
+            _chairs_do_stop(cfg_data)
+        threading.Thread(target=_auto_stop, daemon=True).start()
+
+    return jsonify({'ok': True, 'round': chairs_state['round']})
+
+@app.route('/api/games/chairs/stop', methods=['POST'])
+def api_games_chairs_stop():
+    global _chairs_stop_token
+    data      = request.json or {}
+    config_id = data.get('config_id') or chairs_state.get('config_id')
+    cfg_data, _ = _chairs_config_data(config_id)
+    with _chairs_lock:
+        _chairs_stop_token += 1  # cancels any pending auto-stop for this round
+    _chairs_do_stop(cfg_data)
+    return jsonify({'ok': True})
+
+@app.route('/api/games/chairs/reset', methods=['POST'])
+def api_games_chairs_reset():
+    global chairs_state, _chairs_stop_token
+    with _chairs_lock:
+        _chairs_stop_token += 1
+    stop_audio()
+    chairs_state = {'round': 0, 'playing': False, 'config_id': '', 'config_name': '', 'song': '', 'song_label': ''}
+    broadcast('chairs_state', chairs_state)
+    return jsonify({'ok': True})
 
 _wheel_fade_token = 0
 

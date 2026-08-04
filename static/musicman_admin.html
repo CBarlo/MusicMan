@@ -6195,6 +6195,12 @@ async function renderGlSchemaFields(dataObj) {
           ...sfx.map(f   => ({value: f, label: '🔊 ' + f})),
           ...music.map(f => ({value: f, label: '🎵 ' + f})),
         ];
+      } else if (field.source === 'music') {
+        const music = await fetch('/api/music/list').then(r=>r.json()).catch(()=>[]);
+        srcCache['music'] = [
+          {value:'', label:'— select a song —'},
+          ...music.map(f => ({value: f, label: f})),
+        ];
       }
     } catch(e) { srcCache[field.source] = [{value:'',label:'— load error —'}]; }
   }
