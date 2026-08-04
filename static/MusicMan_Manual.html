@@ -751,12 +751,31 @@
     <tr><td>Description</td><td>Short note for the operator</td></tr>
     <tr><td>Lighting Zones</td><td>One row per WLED device. Each row: Device ID, Effect number, Color, Brightness. Zone IDs must match your WLED device IDs.</td></tr>
     <tr><td>Pole Lights</td><td>Simple flashlight mode per pole: off, low, high, or strobe</td></tr>
-    <tr><td>WLED Preset</td><td>Fires a saved WLED preset number on all pole nodes when the scene activates. Click <kbd>↺ POLL</kbd> to fetch named presets from a live node.</td></tr>
-    <tr><td>DMX Fixtures</td><td>Static or animated channel values for pole node DMX fixtures (pinspot and wash bar). See below.</td></tr>
+    <tr><td>WLED Preset</td><td>Fires a saved WLED preset number on all pole nodes when the scene activates. Click <kbd>↺ POLL</kbd> to fetch named presets from a live node. On a multi-pole rig, check <strong>OTHER POLES USE A DIFFERENT PRESET</strong> to give each additional pole its own preset dropdown.</td></tr>
+    <tr><td>DMX Fixtures</td><td>Static or animated channel values for pole node DMX fixtures (pinspot and wash bar). See below. On a multi-pole rig, check <strong>OTHER POLES FOLLOW FIRST POLE</strong> to mirror Pole A's look to every other pole automatically.</td></tr>
   </table>
   <ol class="steps" start="4">
     <li>Click <kbd>+ ADD ZONE</kbd> to add a WLED device zone. Click <kbd>SAVE SCENE</kbd> when done.</li>
   </ol>
+
+  <h3>Multi-Pole Scenes — match or diverge</h3>
+  <p>
+    If you have more than one pole node, both the DMX Fixtures and WLED Preset sections of the
+    scene editor default to <strong>shared</strong>: whatever you set for the first pole node in
+    your list (Pole A) fires the same way on every other pole. Two checkboxes let you change that
+    per scene, per section:
+  </p>
+  <table>
+    <tr><th>Checkbox</th><th>Where</th><th>Off (default)</th><th>On</th></tr>
+    <tr><td><strong>OTHER POLES FOLLOW FIRST POLE</strong></td><td>DMX Fixtures section</td><td>Every pole's DMX channel rows are editable and saved independently — set each pole separately.</td><td>Only Pole A's DMX rows show. Every other pole is computed live at fire time from Pole A's values — nothing to configure, and nothing gets out of sync because there's nothing stored per-follower to go stale.</td></tr>
+    <tr><td><strong>OTHER POLES USE A DIFFERENT PRESET</strong></td><td>WLED Preset section</td><td>One shared preset dropdown fires the same preset number to every pole.</td><td>A dropdown + <kbd>↺ POLL</kbd> button appears for each additional pole node, so each pole can recall a genuinely different WLED preset from the same scene.</td></tr>
+  </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">Same pattern, opposite defaults — on purpose</div>
+    DMX defaults to "set each pole separately" because fixtures usually differ per pole (different
+    angle, different look). WLED presets default to "shared" because most scenes want both poles'
+    strips doing the same thing. Flip either one independently for scenes that need it.
+  </div>
 
   <h3>DMX Fixtures — static values</h3>
   <p>
@@ -1236,7 +1255,7 @@
     <li>Enter a unique <strong>ID</strong> (e.g., <span class="mono">pole_a</span>), a <strong>Name</strong>, and the node's <strong>IP or hostname</strong> (e.g., <span class="mono">pole-a.local</span>).</li>
     <li>Click <kbd>+ FIXTURE</kbd> to add each DMX fixture on that pole. Set the fixture's <strong>Fixture Type</strong>, <strong>Name</strong>, <strong>DMX start channel</strong>, and <strong>channel count</strong>.</li>
     <li>Click <kbd>✓ SAVE NODES</kbd>.</li>
-    <li>Click <kbd>↗ WLED UI</kbd> to open that node's WLED web interface directly.</li>
+    <li>Click <kbd>↗ WLED UI</kbd> to open that node's WLED web interface directly, or <kbd>↻ REBOOT</kbd> to power-cycle a node's firmware remotely if it's misbehaving — no need to walk out and unplug it.</li>
   </ol>
   <table>
     <tr><th>Fixture field</th><th>What it does</th></tr>
@@ -1311,6 +1330,24 @@
     <div class="callout-title">DMX is not synced</div>
     WLED sync only covers the LED strip. DMX fixture commands (pinspot and wash bar) are
     sent to each pole independently by the Pi. Both poles always receive their own DMX command.
+  </div>
+
+  <h3>Sync Presets (Pole A → Pole B)</h3>
+  <p>
+    WLED presets (the numbered slots you fire from a scene's <strong>WLED Preset</strong> field)
+    are stored as a file on each pole's own flash storage — they are <em>not</em> covered by the
+    realtime WLED sync above, which only mirrors the resulting live state after a preset already
+    resolved on the sender. If you build or change presets on Pole A, Pole B has no way to know
+    about them until you push them over.
+  </p>
+  <ol class="steps">
+    <li>In Admin → Lighting → Pole Nodes, click <kbd>⇄ SYNC PRESETS — POLE A → POLE B</kbd>.</li>
+    <li>Confirm the prompt. The Pi fetches Pole A's full preset file and uploads it to Pole B.</li>
+  </ol>
+  <div class="callout callout-tip">
+    <div class="callout-title">When to run this</div>
+    Any time you add, rename, or edit a WLED preset on Pole A. It's one-directional (A → B) and
+    overwrites Pole B's preset storage completely, so build/finalize presets on Pole A first.
   </div>
 
   <h2 id="system-admin">System Tab</h2>

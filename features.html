@@ -389,6 +389,10 @@
         <div class="feat-name">DMX Animation</div>
         <div class="feat-desc">Per-scene looping DMX keyframe animations. Frames interpolate smoothly; interval and transition configurable in Admin.</div>
       </div>
+      <div class="feat purple">
+        <div class="feat-name">Multi-Pole Scenes</div>
+        <div class="feat-desc">Scene editor toggles for multi-pole rigs: "Other Poles Follow First Pole" mirrors Pole A's DMX look to every other pole automatically, or "Other Poles Use a Different Preset" lets each pole recall its own WLED preset from the same scene.</div>
+      </div>
     </div>
   </div>
 
@@ -592,6 +596,10 @@
         <div class="feat-desc">Real-time status dots for: musicman service, display page, audio, iPad/remote connected, pole nodes, WLED devices.</div>
       </div>
       <div class="feat rose">
+        <div class="feat-name">Self-Healing Connectivity</div>
+        <div class="feat-desc">Background watchdogs check the MusicMan AP radio and the USB music stick every 20 seconds and recover them automatically — reconnecting/restarting the AP if the WiFi adapter drops offline (e.g. after being moved to a different port), and re-mounting the USB stick if it's present but not mounted. No manual intervention needed on site.</div>
+      </div>
+      <div class="feat rose">
         <div class="feat-name">Battery Monitor</div>
         <div class="feat-desc">BLE connection to Solix C300 units per pole. Reads charge %, AC/DC state. Controls AC outlet, DC outlet, and flashlight mode per unit.</div>
       </div>
@@ -644,7 +652,7 @@
       </div>
       <div class="feat purple">
         <div class="feat-name">Lighting Hardware</div>
-        <div class="feat-desc">Register WLED devices, pole nodes (ESP32+MAX485), fixture types, and fixture definitions. Test DMX channels live. Sync DHCP. View WLED presets per node.</div>
+        <div class="feat-desc">Register WLED devices, pole nodes (ESP32+MAX485), fixture types, and fixture definitions. Test DMX channels live. Sync DHCP. View WLED presets per node. Reboot any pole node remotely, and one-tap sync WLED preset storage from Pole A to every other pole (presets live on each device's flash and aren't covered by WLED's realtime sync).</div>
       </div>
       <div class="feat purple">
         <div class="feat-name">Audio Library</div>

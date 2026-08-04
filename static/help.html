@@ -584,6 +584,8 @@
         <li><strong>WLED IP</strong> — IP address of the WLED controller on the network</li>
         <li><strong>Pole Nodes</strong> — ESP32-based pole controllers, each with its own IP and DMX config</li>
         <li><strong>DMX Channels</strong> — pin-spot and wash fixture channel maps per pole</li>
+        <li><strong>↻ REBOOT</strong> — power-cycles a pole node's firmware remotely if it's acting up</li>
+        <li><strong>⇄ SYNC PRESETS</strong> — copies Pole A's saved WLED presets onto every other pole. WLED presets live on each device's own flash and aren't covered by the realtime strip sync, so run this after building/editing presets on Pole A</li>
       </ul>
     </section>
 
@@ -596,6 +598,7 @@
         <li>Click a scene on the left to edit it, or <strong>+ ADD SCENE</strong> for a new one.</li>
         <li>Scenes can target WLED effects, a solid color, pole DMX states, or a combination.</li>
         <li>Use descriptive names: "Campfire", "Blue Wash", "Strobe Poles", etc.</li>
+        <li>Multi-pole rigs: check <strong>OTHER POLES FOLLOW FIRST POLE</strong> in DMX Fixtures to mirror Pole A's look everywhere, or check <strong>OTHER POLES USE A DIFFERENT PRESET</strong> in WLED Preset to let each pole recall its own preset instead of a shared one.</li>
       </ul>
     </section>
 

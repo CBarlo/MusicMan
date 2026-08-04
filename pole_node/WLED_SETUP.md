@@ -38,8 +38,22 @@ Set segment 0 to mirror (reversed clone of itself) if strips face opposite direc
 - `usermods_list.cpp`: `UsermodManager::add(new MusicManUsermod());` (already done)
 - `/dmx` route registered in usermod's own `setup()` — no wled_server.cpp edit needed
 - Usermod ID: 100 (clear of all WLED built-ins up to 54)
-- Status LEDs on GPIO4 not yet implemented (NeoPixelBus build compatibility issue)
-- Sound-reactive usermod: built in but disabled; enable via WLED UI if mic is connected
+- Status LEDs (3 × on GPIO4, `MM_STATUS_PIN`/`MM_STATUS_COUNT` in the usermod) show link/DMX/Pi-alive state
+- Sound-reactive usermod (AudioReactive): built in, digital I2S mic on GPIO 25/26/27 (`digitalmic.pin` in `cfg.json` — data/clock/word-select). Enable via WLED UI → Sound Settings if a mic is connected.
+
+## Config Backups
+
+`wled_cfg_pole_a.json` / `wled_cfg_pole_b.json` / `wled_presets_reference.json` in this folder
+are point-in-time exports of each pole's live WLED config and preset storage (fetched via
+`GET /cfg.json` and `GET /presets.json`), kept as a rebuild/restore reference and to make config
+drift between poles easy to diff. They're not live-synced — re-export after any config change
+you want preserved. WLED redacts WiFi passwords in these exports (only `pskl`, the password
+length, is included), so they're safe to commit.
+
+To restore onto a fresh or reflashed node: `POST` the cfg file's contents to `/json/cfg`, and
+upload the presets file via `POST /upload` (multipart, field `data`, filename `presets.json`),
+then reboot the node. The Admin → Lighting → Pole Nodes page has a **⇄ SYNC PRESETS** button
+that does the presets half of this automatically, pole-to-pole, over the network.
 
 ## Flash Instructions
 

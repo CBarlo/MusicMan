@@ -1,0 +1,8171 @@
+{
+  "0": {},
+  "1": {
+    "on": true,
+    "bri": 128,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 1,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 1,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 1,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 1,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 1,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Blink Green",
+    "ql": "S"
+  },
+  "2": {
+    "on": true,
+    "bri": 128,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "All On White"
+  },
+  "3": {
+    "on": true,
+    "bri": 255,
+    "transition": 7,
+    "mainseg": 4,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 61,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            0,
+            17
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            255
+          ]
+        ],
+        "fx": 84,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 58,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            255
+          ]
+        ],
+        "fx": 84,
+        "sx": 128,
+        "ix": 145,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 57,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            255
+          ]
+        ],
+        "fx": 84,
+        "sx": 128,
+        "ix": 157,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Flag"
+  },
+  "4": {
+    "on": true,
+    "bri": 235,
+    "transition": 7,
+    "mainseg": 3,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            255
+          ]
+        ],
+        "fx": 37,
+        "sx": 226,
+        "ix": 128,
+        "pal": 2,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 54,
+        "sx": 210,
+        "ix": 101,
+        "pal": 2,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            255
+          ]
+        ],
+        "fx": 37,
+        "sx": 226,
+        "ix": 128,
+        "pal": 2,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 54,
+        "sx": 210,
+        "ix": 101,
+        "pal": 2,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            255
+          ]
+        ],
+        "fx": 37,
+        "sx": 226,
+        "ix": 128,
+        "pal": 2,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Mighty Creek"
+  },
+  "5": {
+    "on": true,
+    "bri": 128,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": false,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": false,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": false,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": false,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": false,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "All off"
+  },
+  "17": {
+    "on": true,
+    "bri": 189,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 38,
+        "sx": 20,
+        "ix": 255,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 38,
+        "sx": 20,
+        "ix": 255,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 38,
+        "sx": 20,
+        "ix": 255,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 38,
+        "sx": 20,
+        "ix": 255,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 38,
+        "sx": 20,
+        "ix": 255,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Vikings"
+  },
+  "7": {
+    "on": true,
+    "bri": 128,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "All on"
+  },
+  "8": {
+    "on": true,
+    "bri": 187,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            172,
+            56,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 66,
+        "sx": 20,
+        "ix": 255,
+        "pal": 35,
+        "c1": 128,
+        "c2": 128,
+        "c3": 8,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 1,
+        "start": 61,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            172,
+            56,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 66,
+        "sx": 20,
+        "ix": 255,
+        "pal": 35,
+        "c1": 128,
+        "c2": 128,
+        "c3": 8,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            172,
+            56,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 66,
+        "sx": 20,
+        "ix": 255,
+        "pal": 35,
+        "c1": 128,
+        "c2": 128,
+        "c3": 8,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            0,
+            55
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 66,
+        "sx": 64,
+        "ix": 160,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            0,
+            81
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 66,
+        "sx": 64,
+        "ix": 160,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Fire"
+  },
+  "9": {
+    "on": true,
+    "bri": 255,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 61,
+        "stop": 119,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": false,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": false,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": false,
+        "frz": false,
+        "bri": 1,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Stage"
+  },
+  "10": {
+    "on": true,
+    "bri": 189,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 135,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 135,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 135,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 135,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 135,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Log Keepers"
+  },
+  "11": {
+    "on": true,
+    "bri": 187,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 76,
+        "ix": 31,
+        "pal": 61,
+        "c1": 142,
+        "c2": 73,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 76,
+        "ix": 31,
+        "pal": 61,
+        "c1": 142,
+        "c2": 73,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 76,
+        "ix": 31,
+        "pal": 61,
+        "c1": 142,
+        "c2": 73,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 76,
+        "ix": 31,
+        "pal": 61,
+        "c1": 142,
+        "c2": 73,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 76,
+        "ix": 31,
+        "pal": 61,
+        "c1": 142,
+        "c2": 73,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Music Men DJ"
+  },
+  "12": {
+    "on": true,
+    "bri": 128,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            8,
+            255,
+            0
+          ]
+        ],
+        "fx": 21,
+        "sx": 215,
+        "ix": 201,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            8,
+            255,
+            0
+          ]
+        ],
+        "fx": 21,
+        "sx": 215,
+        "ix": 201,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            8,
+            255,
+            0
+          ]
+        ],
+        "fx": 21,
+        "sx": 215,
+        "ix": 201,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            8,
+            255,
+            0
+          ]
+        ],
+        "fx": 21,
+        "sx": 215,
+        "ix": 201,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            8,
+            255,
+            0
+          ]
+        ],
+        "fx": 21,
+        "sx": 215,
+        "ix": 201,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Tony Pepperoni"
+  },
+  "13": {
+    "on": true,
+    "bri": 189,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 52,
+        "sx": 128,
+        "ix": 128,
+        "pal": 50,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 52,
+        "sx": 128,
+        "ix": 128,
+        "pal": 50,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 52,
+        "sx": 128,
+        "ix": 128,
+        "pal": 50,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 52,
+        "sx": 128,
+        "ix": 128,
+        "pal": 50,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 52,
+        "sx": 128,
+        "ix": 128,
+        "pal": 50,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Running Dual GB"
+  },
+  "14": {
+    "on": true,
+    "bri": 255,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 52,
+        "ix": 176,
+        "pal": 37,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": true,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 52,
+        "ix": 176,
+        "pal": 37,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": true,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 52,
+        "ix": 176,
+        "pal": 37,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": true,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 52,
+        "ix": 176,
+        "pal": 37,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": true,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            232,
+            236,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 52,
+        "ix": 176,
+        "pal": 37,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": true,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Cheer Directors"
+  },
+  "15": {
+    "on": true,
+    "bri": 235,
+    "transition": 7,
+    "mainseg": 3,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 54,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 54,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 54,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 54,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 297,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            200,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 54,
+        "sx": 128,
+        "ix": 128,
+        "pal": 5,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Germany"
+  },
+  "22": {
+    "on": true,
+    "bri": 254,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 26,
+        "sx": 245,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 26,
+        "sx": 245,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 26,
+        "sx": 245,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 26,
+        "sx": 245,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            21,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 26,
+        "sx": 245,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Strobe Rainbow"
+  },
+  "16": {
+    "on": true,
+    "bri": 235,
+    "transition": 7,
+    "mainseg": 3,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 96,
+        "sx": 9,
+        "ix": 87,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 96,
+        "sx": 9,
+        "ix": 87,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 96,
+        "sx": 9,
+        "ix": 87,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 96,
+        "sx": 9,
+        "ix": 87,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            0,
+            0
+          ]
+        ],
+        "fx": 96,
+        "sx": 9,
+        "ix": 87,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Rain"
+  },
+  "18": {
+    "on": true,
+    "bri": 255,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 100,
+        "sx": 168,
+        "ix": 217,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 100,
+        "sx": 168,
+        "ix": 217,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 100,
+        "sx": 168,
+        "ix": 217,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 100,
+        "sx": 168,
+        "ix": 217,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 100,
+        "sx": 168,
+        "ix": 217,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 1
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Heartbeat"
+  },
+  "19": {
+    "on": true,
+    "bri": 189,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 128,
+        "ix": 128,
+        "pal": 12,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 128,
+        "ix": 128,
+        "pal": 12,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 128,
+        "ix": 128,
+        "pal": 12,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 128,
+        "ix": 128,
+        "pal": 12,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 67,
+        "sx": 128,
+        "ix": 128,
+        "pal": 12,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Rainbow Bands"
+  },
+  "20": {
+    "on": true,
+    "bri": 189,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            38,
+            0,
+            255
+          ]
+        ],
+        "fx": 138,
+        "sx": 128,
+        "ix": 232,
+        "pal": 11,
+        "c1": 48,
+        "c2": 184,
+        "c3": 7,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 3
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            38,
+            0,
+            255
+          ]
+        ],
+        "fx": 138,
+        "sx": 128,
+        "ix": 232,
+        "pal": 11,
+        "c1": 48,
+        "c2": 184,
+        "c3": 7,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 3
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            38,
+            0,
+            255
+          ]
+        ],
+        "fx": 138,
+        "sx": 128,
+        "ix": 232,
+        "pal": 11,
+        "c1": 48,
+        "c2": 184,
+        "c3": 7,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 3
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            38,
+            0,
+            255
+          ]
+        ],
+        "fx": 138,
+        "sx": 128,
+        "ix": 232,
+        "pal": 11,
+        "c1": 48,
+        "c2": 184,
+        "c3": 7,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 3
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            38,
+            0,
+            255
+          ]
+        ],
+        "fx": 138,
+        "sx": 128,
+        "ix": 232,
+        "pal": 11,
+        "c1": 48,
+        "c2": 184,
+        "c3": 7,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 3
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Frequency Sound"
+  },
+  "21": {
+    "on": true,
+    "bri": 189,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            64,
+            255
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 137,
+        "sx": 99,
+        "ix": 254,
+        "pal": 11,
+        "c1": 91,
+        "c2": 196,
+        "c3": 8,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 2
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            64,
+            255
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 137,
+        "sx": 99,
+        "ix": 254,
+        "pal": 11,
+        "c1": 91,
+        "c2": 196,
+        "c3": 8,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 2
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            64,
+            255
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 137,
+        "sx": 99,
+        "ix": 254,
+        "pal": 11,
+        "c1": 91,
+        "c2": 196,
+        "c3": 8,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 2
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            64,
+            255
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 137,
+        "sx": 99,
+        "ix": 254,
+        "pal": 11,
+        "c1": 91,
+        "c2": 196,
+        "c3": 8,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 2
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            64,
+            0
+          ],
+          [
+            0,
+            64,
+            255
+          ],
+          [
+            255,
+            72,
+            0
+          ]
+        ],
+        "fx": 137,
+        "sx": 99,
+        "ix": 254,
+        "pal": 11,
+        "c1": 91,
+        "c2": 196,
+        "c3": 8,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 2
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Frequency Wave"
+  },
+  "6": {
+    "on": true,
+    "bri": 187,
+    "transition": 7,
+    "mainseg": 4,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 209,
+        "ix": 59,
+        "pal": 3,
+        "c1": 112,
+        "c2": 0,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 209,
+        "ix": 59,
+        "pal": 3,
+        "c1": 112,
+        "c2": 0,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 198,
+        "ix": 59,
+        "pal": 3,
+        "c1": 112,
+        "c2": 0,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 203,
+        "ix": 59,
+        "pal": 3,
+        "c1": 112,
+        "c2": 0,
+        "c3": 16,
+        "sel": false,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 144,
+        "sx": 201,
+        "ix": 50,
+        "pal": 3,
+        "c1": 112,
+        "c2": 38,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Sound DJ"
+  },
+  "23": {
+    "on": true,
+    "bri": 187,
+    "transition": 7,
+    "mainseg": 4,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 145,
+        "sx": 120,
+        "ix": 59,
+        "pal": 46,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 145,
+        "sx": 120,
+        "ix": 59,
+        "pal": 46,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 145,
+        "sx": 120,
+        "ix": 59,
+        "pal": 46,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 238,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 145,
+        "sx": 120,
+        "ix": 59,
+        "pal": 46,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 238,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 145,
+        "sx": 120,
+        "ix": 59,
+        "pal": 46,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": true,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Noisemove"
+  },
+  "24": {
+    "on": true,
+    "bri": 255,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 131,
+        "sx": 128,
+        "ix": 64,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 1,
+        "m12": 2
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 131,
+        "sx": 128,
+        "ix": 64,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 1,
+        "m12": 2
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 131,
+        "sx": 128,
+        "ix": 64,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 1,
+        "m12": 2
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 131,
+        "sx": 128,
+        "ix": 64,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 1,
+        "m12": 2
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            0,
+            0,
+            255
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 131,
+        "sx": 128,
+        "ix": 64,
+        "pal": 3,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 1,
+        "m12": 2
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Blue Fall"
+  },
+  "25": {
+    "on": true,
+    "bri": 255,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            8,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            8,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            8,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            8,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            8,
+            255,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Green"
+  },
+  "26": {
+    "on": true,
+    "bri": 255,
+    "transition": 7,
+    "mainseg": 0,
+    "seg": [
+      {
+        "id": 0,
+        "start": 0,
+        "stop": 60,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 1",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 1,
+        "start": 60,
+        "stop": 120,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Stage 2",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 2,
+        "start": 120,
+        "stop": 180,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience L",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 3,
+        "start": 180,
+        "stop": 240,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience C",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "id": 4,
+        "start": 240,
+        "stop": 300,
+        "grp": 1,
+        "spc": 0,
+        "of": 0,
+        "on": true,
+        "frz": false,
+        "bri": 255,
+        "cct": 127,
+        "set": 0,
+        "n": "Audience R",
+        "col": [
+          [
+            255,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "c1": 128,
+        "c2": 128,
+        "c3": 16,
+        "sel": true,
+        "rev": false,
+        "mi": false,
+        "o1": false,
+        "o2": false,
+        "o3": false,
+        "si": 0,
+        "m12": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      },
+      {
+        "stop": 0
+      }
+    ],
+    "n": "Red"
+  }
+}
