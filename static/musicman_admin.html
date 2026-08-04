@@ -8194,10 +8194,15 @@ function _buildFrameEditorHtml(frameData) {
           ? [...vals, ...Array(Math.max(0, chDefs.length - vals.length)).fill(0)]
           : chDefs.map(() => 0);
         const looks     = _fixtureTypes[fix.type]?.looks || [];
+        // Detect which look matches this frame's stored channel values so it
+        // shows pre-selected on edit — same as the static DMX Fixtures editor.
+        const matchIdx = !looks.length || !vals ? -1 : looks.findIndex(lk =>
+          lk.channels.length >= chVals.length && chVals.every((v, i) => lk.channels[i] === v)
+        );
         const lookSel   = looks.length ? `<select class="aframe-look-sel" onchange="applyLookToFrame(this)"
             style="font-size:9px;font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:3px">
-            <option value="">look…</option>
-            ${looks.map((lk,li)=>`<option value="${li}">${escHtml(lk.name)}</option>`).join('')}
+            ${matchIdx < 0 ? '<option value="">look…</option>' : ''}
+            ${looks.map((lk,li)=>`<option value="${li}"${li===matchIdx?' selected':''}>${escHtml(lk.name)}</option>`).join('')}
           </select>` : '';
         return `<div style="margin-bottom:5px" data-aframe-node="${escHtml(node.id)}" data-aframe-fix="${escHtml(fix.id)}" data-aframe-fix-type="${escHtml(fix.type||'')}">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
@@ -8474,7 +8479,10 @@ function applyLookToFrame(sel) {
     }
     el.value = v;
   });
-  sel.value = '';
+  // Leave the dropdown showing the look that was just applied — matches the
+  // static (non-animated) DMX Fixtures editor, which never resets its own
+  // look-select back to blank either. Previously reset to '' here, so the
+  // dropdown never reflected what was actually applied to the frame.
   toast(`Applied "${look.name}"`, 'ok');
 }
 

@@ -1589,7 +1589,12 @@ def wled_set_scene(scene_id):
         transition_s = (dmx_anim.get('interval_ms') or 400) / 1000.0
         frames       = dmx_anim['frames']
         nodes_map    = {n['id']: n for n in config.get('pole_nodes', [])}
-        fixture_types_snap = {ft['id']: ft for ft in config.get('fixture_types', [])}
+        # fixture_types is stored as a dict keyed by type name (see the
+        # working usage a few lines up, config.get('fixture_types', {})) —
+        # this was iterating it as if it were a list, which yields its
+        # string keys, not the type dicts, and crashed every time a scene
+        # with a DMX animation fired.
+        fixture_types_snap = dict(config.get('fixture_types', {}))
         stop_ev      = _dmx_anim_stop
         def _run_dmx_anim(_frames=frames, _nodes=nodes_map, _stop=stop_ev, _tv=transition_s,
                           _fixture_types=fixture_types_snap):
