@@ -1832,6 +1832,7 @@
   <table>
     <tr><th>Control</th><th>What it does</th></tr>
     <tr><td>Song dropdown</td><td>Pre-filled from the config's saved song — pick a different one from the Music Library any time before tapping START, including mid-game (switching songs starts the new one from the top, same as after a reset)</td></tr>
+    <tr><td>Skip Intro (sec)</td><td>Pre-filled from the config's saved trim, but editable right here — picking a different song usually means a different intro length, so this doesn't just blindly reuse the original song's trim value. Only applies on the next cold start (a new game, or after switching songs); has no effect on a resumed round.</td></tr>
     <tr><td><kbd>▶ START</kbd></td><td>Plays the song and advances the round counter by one. First tap of a fresh game applies Skip Intro; later taps resume the same song from where it was paused. If auto-stop is on, the Pi will cut the music itself at a random moment within the configured window.</td></tr>
     <tr><td><kbd>⏹ STOP</kbd></td><td>Pauses the music in place — not a restart — and fires the stop cue (SFX/scene, if configured). Works at any point, auto-stop on or off, and cancels a pending auto-stop.</td></tr>
     <tr><td><kbd>↺ RESET GAME</kbd></td><td>Stops the music for real and zeroes the round counter — use this to start a fresh game. The next START after a reset plays the song from the top again (Skip Intro re-applies). Doesn't touch the screen — that only re-fires on the next <kbd>↗ GO LIVE</kbd>.</td></tr>

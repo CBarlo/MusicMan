@@ -4120,7 +4120,11 @@ def api_games_chairs_start():
         audio_state['paused'] = False
         broadcast('audio_state', audio_state)
     else:
-        start_pos = float(cfg_data.get('song_start_offset', 0) or 0)
+        # An operator-picked song (via the Console dropdown) needs its own trim,
+        # not whatever offset was tuned for the config's original song — so an
+        # explicit override always wins, even 0 (no trim), over the config default.
+        offset_override = data.get('song_start_offset')
+        start_pos = float(offset_override) if offset_override is not None else float(cfg_data.get('song_start_offset', 0) or 0)
         def _play():
             global _chairs_audio_session
             play_audio(str(fp), loops=-1, start_pos=start_pos, crossfade_ms=0)

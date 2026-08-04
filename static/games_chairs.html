@@ -133,6 +133,10 @@
     <label class="field-label" for="songSelect">Song</label>
     <select id="songSelect" class="mm-select"><option value="">— select a song —</option></select>
 
+    <label class="field-label" for="skipIntroInput">Skip Intro (sec)</label>
+    <input type="number" id="skipIntroInput" class="mm-select" min="0" step="1" value="0"
+      style="-moz-appearance:textfield">
+
     <div class="settings-row" id="settingsRow"></div>
 
     <div class="btn-row">
@@ -221,18 +225,18 @@ function renderSettings() {
   if (_cfgData.start_scene)  bits.push('Start scene <b>set</b>');
   if (_cfgData.stop_sfx)     bits.push('Stop SFX <b>set</b>');
   if (_cfgData.stop_scene)   bits.push('Stop scene <b>set</b>');
-  if (_cfgData.song_start_offset) bits.push(`Skips first <b>${_cfgData.song_start_offset}s</b>`);
   row.innerHTML = bits.map(b => `<span>${b}</span>`).join('<span>&middot;</span>');
 }
 
 async function chairsStart() {
   const song = document.getElementById('songSelect').value;
   if (!song) { alert('Pick a song first'); return; }
+  const skipIntro = parseFloat(document.getElementById('skipIntroInput').value) || 0;
   document.getElementById('startBtn').disabled = true;
   try {
     const r = await fetch('/api/games/chairs/start', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ config_id: _configId, song }),
+      body: JSON.stringify({ config_id: _configId, song, song_start_offset: skipIntro }),
     });
     const d = await r.json();
     if (!d.ok) { alert(d.error || 'Could not start'); document.getElementById('startBtn').disabled = false; }
@@ -269,6 +273,7 @@ async function chairsReset() {
         document.getElementById('configName').textContent = cfg.name;
         document.title = 'MM Chairs — ' + cfg.name;
         renderSettings();
+        document.getElementById('skipIntroInput').value = _cfgData.song_start_offset || 0;
         await loadSongs(_cfgData.song || '');
       } else {
         await loadSongs();
