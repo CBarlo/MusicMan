@@ -4072,8 +4072,11 @@ def _chairs_do_stop(cfg_data):
     broadcast('chairs_state', chairs_state)
     scene_id = (cfg_data or {}).get('stop_scene')
     if scene_id:
-        try: wled_set_scene(scene_id)
-        except Exception as e: log.error(f"Musical Chairs stop scene: {e}")
+        # Threaded like every other scene-fire call site (e.g. /api/lights/scene) —
+        # wled_set_scene() blocks its caller for up to ~0.6s waiting on WLED HTTP
+        # responses, and with gunicorn running a single worker, calling it inline
+        # here stalled the STOP request (and the whole app) for that whole window.
+        threading.Thread(target=wled_set_scene, args=(scene_id,), daemon=True).start()
     sfx_name = (cfg_data or {}).get('stop_sfx')
     if sfx_name:
         _chairs_play_cue_file(sfx_name)
@@ -4131,8 +4134,7 @@ def api_games_chairs_start():
 
     scene_id = cfg_data.get('start_scene')
     if scene_id:
-        try: wled_set_scene(scene_id)
-        except Exception as e: log.error(f"Musical Chairs start scene: {e}")
+        threading.Thread(target=wled_set_scene, args=(scene_id,), daemon=True).start()
 
     if cfg_data.get('auto_stop', True):
         lo = float(cfg_data.get('min_interval', 15) or 15)
