@@ -534,30 +534,30 @@
 <circle cx="390" cy="305" r="4.5" fill="#141e14" stroke="#2a3a2a" stroke-width="1"/>
 <circle cx="410" cy="305" r="4.5" fill="#141e14" stroke="#2a3a2a" stroke-width="1"/>
 <circle cx="430" cy="305" r="4.5" fill="#141e14" stroke="#2a3a2a" stroke-width="1"/>
-<circle cx="450" cy="305" r="4.5" fill="#1a3a1a" stroke="#ff8800" stroke-width="1"/>
-<text x="450" y="318" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ff8800">G22</text>
+<circle cx="450" cy="305" r="4.5" fill="#141e14" stroke="#2a3a2a" stroke-width="1"/>
 <circle cx="470" cy="305" r="4.5" fill="#141e14" stroke="#2a3a2a" stroke-width="1"/>
 <circle cx="490" cy="305" r="4.5" fill="#1a3a1a" stroke="#4488ff" stroke-width="1"/>
 <text x="490" y="318" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#4488ff">GND</text>
-<rect x="286" y="321" width="208" height="68" rx="4" fill="#0d0d20" stroke="#5a4aaa" stroke-width="2"/>
-<text x="390" y="355" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#9988cc">ANMBEST  MAX485</text>
-<circle cx="492" cy="335" r="4" fill="#666666" stroke="#666666" stroke-width="1"/>
-<text x="500" y="338" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#666666">RO</text>
-<circle cx="492" cy="353" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<text x="500" y="356" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#bb55ff">RE</text>
-<circle cx="492" cy="371" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<text x="500" y="374" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#bb55ff">DE</text>
-<circle cx="492" cy="389" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<text x="500" y="392" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#bb55ff">DI</text>
-<circle cx="492" cy="409" r="4" fill="#ff4422" stroke="#ff4422" stroke-width="1"/>
-<text x="500" y="412" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#ff4422">VCC</text>
-<circle cx="492" cy="427" r="4" fill="#4488ff" stroke="#4488ff" stroke-width="1"/>
-<text x="500" y="430" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#4488ff">GND</text>
-<rect x="266" y="331" width="18" height="50" rx="2" fill="#1a2a0a" stroke="#4a6a3a" stroke-width="1"/>
-<circle cx="275" cy="347" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<text x="262" y="350" text-anchor="end" font-family="monospace" font-size="8" font-weight="normal" fill="#bb55ff">A</text>
-<circle cx="275" cy="371" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<text x="262" y="374" text-anchor="end" font-family="monospace" font-size="8" font-weight="normal" fill="#bb55ff">B</text>
+<rect x="140" y="108" width="80" height="88" rx="4" fill="#0d0d20" stroke="#5a4aaa" stroke-width="2"/>
+<text x="180" y="118" text-anchor="middle" font-family="monospace" font-size="7" font-weight="bold" fill="#9988cc">MAX485</text>
+<text x="180" y="204" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#5a5a70">beside ESP, A/B toward antenna end</text>
+<circle cx="220" cy="122" r="4" fill="#666666" stroke="#666666" stroke-width="1"/>
+<text x="227" y="125" text-anchor="start" font-family="monospace" font-size="7" font-weight="normal" fill="#666666">RO</text>
+<circle cx="220" cy="136" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
+<text x="227" y="139" text-anchor="start" font-family="monospace" font-size="7" font-weight="normal" fill="#bb55ff">RE</text>
+<circle cx="220" cy="150" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
+<text x="227" y="153" text-anchor="start" font-family="monospace" font-size="7" font-weight="normal" fill="#bb55ff">DE</text>
+<circle cx="220" cy="164" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
+<text x="227" y="167" text-anchor="start" font-family="monospace" font-size="7" font-weight="normal" fill="#bb55ff">DI</text>
+<circle cx="220" cy="178" r="4" fill="#ff4422" stroke="#ff4422" stroke-width="1"/>
+<text x="227" y="181" text-anchor="start" font-family="monospace" font-size="7" font-weight="normal" fill="#ff4422">VCC</text>
+<circle cx="220" cy="192" r="4" fill="#4488ff" stroke="#4488ff" stroke-width="1"/>
+<text x="227" y="195" text-anchor="start" font-family="monospace" font-size="7" font-weight="normal" fill="#4488ff">GND</text>
+<rect x="130" y="122" width="10" height="52" rx="2" fill="#1a2a0a" stroke="#4a6a3a" stroke-width="1"/>
+<circle cx="132" cy="132" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
+<text x="126" y="129" text-anchor="end" font-family="monospace" font-size="8" font-weight="normal" fill="#bb55ff">A</text>
+<circle cx="132" cy="164" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
+<text x="126" y="167" text-anchor="end" font-family="monospace" font-size="8" font-weight="normal" fill="#bb55ff">B</text>
 <rect x="146" y="321" width="128" height="88" rx="4" fill="#0d200d" stroke="#3a8a3a" stroke-width="2"/>
 <path d="M205,321 A 5 5 0 0 1 215,321" fill="#0d200d" stroke="#2a6a2a" stroke-width="1"/>
 <text x="210" y="362" text-anchor="middle" font-family="monospace" font-size="8" font-weight="bold" fill="#6add6a">74AHCT125</text>
@@ -608,21 +608,17 @@
 <rect x="552" y="159" width="58" height="28" rx="3" fill="#0a0a2a" stroke="#224488" stroke-width="1.5"/>
 <text x="581" y="173" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#4488ff">GND</text>
 <circle cx="551" cy="169" r="5" fill="#4488ff" stroke="#4488ff" stroke-width="1"/>
-<rect x="552" y="217" width="58" height="34" rx="3" fill="#1a1200" stroke="#885500" stroke-width="1.5"/>
-<text x="581" y="229" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#ff8800">SW1</text>
-<text x="581" y="239" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#666666">override btn</text>
-<circle cx="551" cy="229" r="5" fill="#ff8800" stroke="#ff8800" stroke-width="1"/>
-<text x="120" y="320" text-anchor="middle" font-family="monospace" font-size="8" font-weight="normal" fill="#ffcc00">── MIC LEADS ──</text>
-<circle cx="110" cy="365" r="6" fill="#1a1a06" stroke="#ff4422" stroke-width="1.5"/>
-<text x="110" y="368" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ff4422">3V3</text>
-<circle cx="110" cy="385" r="6" fill="#1a1a06" stroke="#4488ff" stroke-width="1.5"/>
-<text x="110" y="388" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#4488ff">GND</text>
-<circle cx="90" cy="345" r="6" fill="#1a1a06" stroke="#ffcc00" stroke-width="1.5"/>
-<text x="90" y="348" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ffcc00">WS</text>
-<circle cx="90" cy="365" r="6" fill="#1a1a06" stroke="#ffcc00" stroke-width="1.5"/>
-<text x="90" y="368" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ffcc00">SCK</text>
-<circle cx="90" cy="385" r="6" fill="#1a1a06" stroke="#ffcc00" stroke-width="1.5"/>
-<text x="90" y="388" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ffcc00">SD</text>
+<text x="66" y="320" text-anchor="middle" font-family="monospace" font-size="8" font-weight="normal" fill="#ffcc00">── MIC ──</text>
+<circle cx="74" cy="365" r="6" fill="#1a1a06" stroke="#ff4422" stroke-width="1.5"/>
+<text x="74" y="368" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ff4422">3V3</text>
+<circle cx="74" cy="385" r="6" fill="#1a1a06" stroke="#4488ff" stroke-width="1.5"/>
+<text x="74" y="388" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#4488ff">GND</text>
+<circle cx="58" cy="345" r="6" fill="#1a1a06" stroke="#ffcc00" stroke-width="1.5"/>
+<text x="58" y="348" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ffcc00">WS</text>
+<circle cx="58" cy="365" r="6" fill="#1a1a06" stroke="#ffcc00" stroke-width="1.5"/>
+<text x="58" y="368" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ffcc00">SCK</text>
+<circle cx="58" cy="385" r="6" fill="#1a1a06" stroke="#ffcc00" stroke-width="1.5"/>
+<text x="58" y="388" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ffcc00">SD</text>
 <polyline points="551,129 130,129 130,65" fill="none" stroke="#ff4422" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="130" cy="65" r="3" fill="#ff4422" stroke="#ff4422" stroke-width="1"/>
 <polyline points="551,169 130,169 130,405" fill="none" stroke="#4488ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
@@ -631,8 +627,8 @@
 <circle cx="490" cy="65" r="3" fill="#ff4422" stroke="#ff4422" stroke-width="1"/>
 <polyline points="390,105 390,65" fill="none" stroke="#4488ff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="390" cy="65" r="3" fill="#4488ff" stroke="#4488ff" stroke-width="1"/>
-<polyline points="130,105 130,93 110,93 110,365" fill="none" stroke="#ff4422" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="3,2"/>
-<circle cx="110" cy="365" r="3" fill="#ff4422" stroke="#ff4422" stroke-width="1"/>
+<polyline points="130,105 130,93 74,93 74,365" fill="none" stroke="#ff4422" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="3,2"/>
+<circle cx="74" cy="365" r="3" fill="#ff4422" stroke="#ff4422" stroke-width="1"/>
 <polyline points="210,305 210,329 274,348" fill="none" stroke="#33dd55" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="210" cy="305" r="4" fill="#33dd55" stroke="#33dd55" stroke-width="1"/>
 <circle cx="274" cy="348" r="4" fill="#33dd55" stroke="#33dd55" stroke-width="1"/>
@@ -653,38 +649,31 @@
 <circle cx="146" cy="331" r="4" fill="#ff4422" stroke="#ff4422" stroke-width="1"/>
 <polyline points="146,399 128,399 128,65" fill="none" stroke="#ff4422" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="3,2"/>
 <polyline points="146,348 120,348 120,65" fill="none" stroke="#ff4422" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="3,2"/>
-<polyline points="270,305 270,323 492,353" fill="none" stroke="#bb55ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-<polyline points="492,353 492,371" fill="none" stroke="#bb55ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="270,305 270,313 228,313 228,136 220,136" fill="none" stroke="#bb55ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="220,136 220,150" fill="none" stroke="#bb55ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="270" cy="305" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<circle cx="492" cy="353" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<circle cx="492" cy="371" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<text x="300" y="321" text-anchor="start" font-family="monospace" font-size="7" font-weight="normal" fill="#bb55ff">DE+RE tied</text>
-<polyline points="290,305 290,337 492,389" fill="none" stroke="#bb55ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="228" y="308" text-anchor="start" font-family="monospace" font-size="7" font-weight="normal" fill="#bb55ff">DE+RE tied</text>
+<polyline points="290,305 290,321 234,321 234,164 220,164" fill="none" stroke="#bb55ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="290" cy="305" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<circle cx="492" cy="389" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<polyline points="492,409 514,409 514,65" fill="none" stroke="#ff4422" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-<polyline points="492,427 522,427 522,405" fill="none" stroke="#4488ff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-<polyline points="275,347 46,347 46,209" fill="none" stroke="#bb55ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-<polyline points="275,371 38,371 38,209" fill="none" stroke="#bb55ff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-<circle cx="275" cy="347" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<circle cx="275" cy="371" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
+<polyline points="220,178 240,178 240,65" fill="none" stroke="#ff4422" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="220,192 246,192 246,405" fill="none" stroke="#4488ff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="132,132 46,132 46,209" fill="none" stroke="#bb55ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="132,164 38,164 38,209" fill="none" stroke="#bb55ff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="38" cy="209" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
 <circle cx="46" cy="209" r="4" fill="#bb55ff" stroke="#bb55ff" stroke-width="1"/>
-<polyline points="450,305 450,319 551,319 551,229" fill="none" stroke="#ff8800" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-<circle cx="450" cy="305" r="4" fill="#ff8800" stroke="#ff8800" stroke-width="1"/>
-<circle cx="551" cy="229" r="4" fill="#ff8800" stroke="#ff8800" stroke-width="1"/>
 <polyline points="610,229 148,229 148,405" fill="none" stroke="#4488ff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="148" cy="405" r="3" fill="#4488ff" stroke="#4488ff" stroke-width="1"/>
 <text x="370" y="89" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ffcc00">G25=WS</text>
 <text x="390" y="81" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ffcc00">G26=SCK</text>
 <text x="410" y="73" text-anchor="middle" font-family="monospace" font-size="7" font-weight="normal" fill="#ffcc00">G27=SD</text>
-<polyline points="370,105 370,92 90,92 90,345" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-<polyline points="390,105 390,83 90,83 90,365" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-<polyline points="410,105 410,74 90,74 90,385" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="370,105 370,92 58,92 58,345" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="390,105 390,83 58,83 58,365" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="410,105 410,74 58,74 58,385" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
 <circle cx="370" cy="105" r="4" fill="#ffcc00" stroke="#ffcc00" stroke-width="1"/>
 <circle cx="390" cy="105" r="4" fill="#ffcc00" stroke="#ffcc00" stroke-width="1"/>
 <circle cx="410" cy="105" r="4" fill="#ffcc00" stroke="#ffcc00" stroke-width="1"/>
-<polyline points="110,405 110,385" fill="none" stroke="#4488ff" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="3,2"/>
-<circle cx="110" cy="385" r="3" fill="#4488ff" stroke="#4488ff" stroke-width="1"/>
+<polyline points="74,405 74,385" fill="none" stroke="#4488ff" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="3,2"/>
+<circle cx="74" cy="385" r="3" fill="#4488ff" stroke="#4488ff" stroke-width="1"/>
 <text x="582" y="285" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#dddddd">LEGEND</text>
 <rect x="552" y="294" width="18" height="4" rx="2" fill="#ff4422"/>
 <text x="574" y="299" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#666666">5V / VCC</text>
@@ -698,6 +687,4 @@
 <text x="574" y="351" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#666666">DMX (GPIO16/17→MAX485→A/B)</text>
 <rect x="552" y="359" width="18" height="4" rx="2" fill="#ffcc00"/>
 <text x="574" y="364" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#666666">I²S Mic leads</text>
-<rect x="552" y="372" width="18" height="4" rx="2" fill="#ff8800"/>
-<text x="574" y="377" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#666666">Override button (GPIO22)</text>
 </svg>
