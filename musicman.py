@@ -1691,9 +1691,10 @@ def wled_set_scene(scene_id):
         # string keys, not the type dicts, and crashed every time a scene
         # with a DMX animation fired.
         fixture_types_snap = dict(config.get('fixture_types', {}))
+        loop_count   = max(0, int(dmx_anim.get('loops') or 0))
         stop_ev      = _dmx_anim_stop
         def _run_dmx_anim(_frames=frames, _nodes=nodes_map, _stop=stop_ev, _tv=transition_s,
-                          _fixture_types=fixture_types_snap):
+                          _fixture_types=fixture_types_snap, _loops=loop_count):
             global _dmx_anim_active
             _dmx_anim_active = True
             STEP_S  = 0.04  # 40 ms per step (~25 Hz)
@@ -1795,6 +1796,14 @@ def wled_set_scene(scene_id):
                         ]
                 return result
 
+            # loops=0 (or unset) means "forever, until a new scene fires" — the
+            # long-standing behavior. A finite loop count stops the loop on its
+            # own once it's played through the whole frame sequence that many
+            # times (one loop = one transition through every frame), holding on
+            # the last frame reached rather than waiting on a new scene to cut
+            # it off.
+            max_transitions = (_loops * len(_frames)) if _loops else None
+
             try:
                 if len(_frames) == 1:
                     _send(_frames[0])
@@ -1802,7 +1811,10 @@ def wled_set_scene(scene_id):
                     return
 
                 fi = 0
+                transitions_done = 0
                 while not _stop.is_set():
+                    if max_transitions is not None and transitions_done >= max_transitions:
+                        break
                     fa = _frames[fi % len(_frames)]
                     fb = _frames[(fi + 1) % len(_frames)]
                     for step in range(n_steps):
@@ -1811,6 +1823,13 @@ def wled_set_scene(scene_id):
                         _send(_interp(fa, fb, step / n_steps))
                         _stop.wait(STEP_S)
                     fi += 1
+                    transitions_done += 1
+                if max_transitions is not None and not _stop.is_set():
+                    # The loop's last step is an interpolation just short of
+                    # the landing frame (step/n_steps never quite reaches 1.0)
+                    # — send the exact frame once more so a finite-loop
+                    # animation holds on a clean value, not a near-miss.
+                    _send(_frames[fi % len(_frames)])
             finally:
                 _dmx_anim_active = False
 

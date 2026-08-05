@@ -1048,6 +1048,11 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   <input type="number" id="sc-anim-interval" value="400" min="50" max="10000" style="width:74px;font-size:11px;font-family:'Share Tech Mono',monospace">
                   <span style="font-size:10px;color:var(--text-dim)">ms between frames</span>
                 </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+                  <label style="font-size:10px;letter-spacing:1px;color:var(--text-dim)">LOOPS</label>
+                  <input type="number" id="sc-anim-loops" value="0" min="0" max="999" style="width:74px;font-size:11px;font-family:'Share Tech Mono',monospace">
+                  <span style="font-size:10px;color:var(--text-dim)">0 = loop forever until a new scene fires. 1 = play through once and hold.</span>
+                </div>
                 <div id="sc-anim-frames"></div>
                 <button class="btn btn-secondary btn-sm" onclick="addAnimFrame()" style="margin-top:4px;font-size:10px">+ ADD FRAME</button>
               </div>
@@ -8266,6 +8271,7 @@ function renderSceneDmxAnimation(animData) {
   cb.checked            = true;
   wrapper.style.display = 'block';
   document.getElementById('sc-anim-interval').value = animData.interval_ms || 400;
+  document.getElementById('sc-anim-loops').value = animData.loops || 0;
   const framesDiv = document.getElementById('sc-anim-frames');
   framesDiv.innerHTML = '';
   animData.frames.forEach((fdata, idx) => {
@@ -8286,6 +8292,7 @@ function collectSceneDmxAnimation() {
   const cb = document.getElementById('sc-dmx-animate');
   if (!cb || !cb.checked) return undefined;
   const interval = parseInt(document.getElementById('sc-anim-interval').value) || 400;
+  const loops    = Math.max(0, parseInt(document.getElementById('sc-anim-loops').value) || 0);
   const frames   = [];
   document.querySelectorAll('#sc-anim-frames [data-anim-frame]').forEach(frameDiv => {
     const frameObj = {};
@@ -8298,7 +8305,7 @@ function collectSceneDmxAnimation() {
     });
     if (Object.keys(frameObj).length) frames.push(frameObj);
   });
-  return frames.length ? {interval_ms: interval, frames} : undefined;
+  return frames.length ? {interval_ms: interval, loops, frames} : undefined;
 }
 
 // ── SCENE DMX ───────────────────────────────────────────────────────────────
