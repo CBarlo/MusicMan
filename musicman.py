@@ -7415,7 +7415,14 @@ def api_crowd_level():
     _crowd_state['level']  = level
     _crowd_state['climax'] = climax
     broadcast('viz_crowd', _crowd_state)
-    threading.Thread(target=_send_crowd_lights, args=(level, climax), daemon=True).start()
+    # The crowd gauge/bug still update on any device watching (harmless), but
+    # the slider driving the physical lights only makes sense while the crowd
+    # viz is actually up on the display — an accidental bump of the slider
+    # (or a stale/forgotten drag) shouldn't dim/re-light the show's fixtures
+    # when nobody's looking at the meter. Climax is a deliberate, separate
+    # operator action (its own button) and always fires regardless.
+    if climax or _viz_scene == 'crowd':
+        threading.Thread(target=_send_crowd_lights, args=(level, climax), daemon=True).start()
     return jsonify({'ok': True})
 
 
