@@ -1621,12 +1621,27 @@ def wled_set_scene(scene_id):
                        'channels': _dim_channels(f['channels'], _master_dim, f['dim_mask'])}
                       for f in payload_raw]
             hostname = node['ip']
-            try:
-                requests.post(f"http://{_resolve_ip_once(hostname)}/dmx",
-                              json={'fixtures': scaled}, timeout=2)
-            except Exception as e:
-                _invalidate_ip(hostname)
-                log.warning(f"Pole node {node_id} DMX error: {e}")
+            def _post():
+                try:
+                    requests.post(f"http://{_resolve_ip_once(hostname)}/dmx",
+                                  json={'fixtures': scaled}, timeout=2)
+                except Exception as e:
+                    _invalidate_ip(hostname)
+                    log.warning(f"Pole node {node_id} DMX error: {e}")
+            _post()
+            # A DMX animation loop cancelled by this same scene-apply can have
+            # one last frame already dispatched to its own background thread
+            # a few ms before the stop event was set — that request is still
+            # in flight over WiFi and its response can land after this one,
+            # silently overwriting these values with a stale animated color
+            # (confirmed live: a walkup's trailing frame landed ~10ms after
+            # the Stage scene's correct wash value and clobbered it). Resend
+            # once more after any such straggler has had time to land, same
+            # pattern _wled_fire_preset already uses for the same reason.
+            # Skipped if a newer scene has since superseded this one.
+            time.sleep(0.25)
+            if _scene_apply_epoch == my_epoch:
+                _post()
 
     dmx_block = scene.get('dmx', {})
     if dmx_block:
