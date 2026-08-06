@@ -4288,6 +4288,7 @@ async function loadStepLists() {
   try { savedSlides   = await fetch('/api/slides').then(r => r.json()); } catch(e) {}
   try { savedVsCards  = await fetch('/api/vs_cards').then(r => r.json()); } catch(e) {}
   try { savedHeadToHead = await fetch('/api/head_to_head').then(r => r.json()); } catch(e) {}
+  try { _vizPresets     = await fetch('/api/viz/presets').then(r => r.json()); } catch(e) {}
 }
 
 async function refreshUsbMacro(btn) {
