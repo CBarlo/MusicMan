@@ -8392,7 +8392,7 @@ function renderSceneDmx(dmxData) {
           const opts = def.opts.map(([oval, olbl]) => `<option value="${oval}"${oval===v?' selected':''}>${olbl}</option>`).join('');
           return `<div class="dmx-ch-col wide">
             <div class="dmx-ch-lbl">${escHtml(def.name)}${def.hint?` <span style="opacity:.5">(${def.hint})</span>`:''}</div>
-            <select class="dmx-ch dmx-ch-select">${customOpt}${opts}</select>
+            <select class="dmx-ch dmx-ch-select" data-ch-index="${ci}">${customOpt}${opts}</select>
           </div>`;
         }).filter(Boolean);
 
@@ -8406,7 +8406,7 @@ function renderSceneDmx(dmxData) {
             <div class="dmx-ch-bar-wrap" onmousedown="dmxBarDrag(event,this)">
               <div class="dmx-ch-bar-fill" style="height:${pct}%;background:${col}"></div>
             </div>
-            <input type="number" value="${v}" min="0" max="255" class="dmx-ch dmx-ch-num" oninput="dmxBarSync(this)">
+            <input type="number" value="${v}" min="0" max="255" class="dmx-ch dmx-ch-num" data-ch-index="${ci}" oninput="dmxBarSync(this)">
           </div>`;
         }).filter(Boolean);
 
@@ -8444,10 +8444,16 @@ function applyLookToScene(sel) {
   const typeName = row.dataset.dmxFixType;
   const look     = _fixtureTypes[typeName]?.looks?.[li];
   if (!look) return;
-  const inputs = [...row.querySelectorAll('.dmx-ch')];
+  // Channels render grouped by kind (dropdowns first, then number fields) for
+  // layout, not in true channel order — so each element carries its real
+  // position in data-ch-index. Look up by that, never by array/DOM position,
+  // or a look's values land on the wrong channels for any fixture whose
+  // dropdown and number channels are interleaved.
+  const byIndex = {};
+  row.querySelectorAll('.dmx-ch').forEach(el => { byIndex[el.dataset.chIndex] = el; });
   look.channels.forEach((v, i) => {
-    if (!inputs[i]) return;
-    const el = inputs[i];
+    const el = byIndex[i];
+    if (!el) return;
     if (el.tagName === 'SELECT') {
       if (![...el.options].some(o => parseInt(o.value) === v)) {
         const opt = document.createElement('option');
@@ -8512,7 +8518,17 @@ function collectSceneDmx() {
     const fixId  = row.dataset.dmxFix;
     const unaffected = row.querySelector('.dmx-unaffected').checked;
     if (unaffected) return;
-    const channels = [...row.querySelectorAll('.dmx-ch')].map(i => Math.min(255, Math.max(0, parseInt(i.value)||0)));
+    // Build by true channel index (data-ch-index), not DOM/visual order —
+    // dropdown-kind and number-kind channels render in separate groups, so
+    // reading them out in DOM order silently transposes any fixture whose
+    // channels interleave the two kinds. See applyLookToScene for the write side.
+    const els = [...row.querySelectorAll('.dmx-ch')];
+    const channels = [];
+    els.forEach(el => {
+      const idx = parseInt(el.dataset.chIndex);
+      channels[idx] = Math.min(255, Math.max(0, parseInt(el.value) || 0));
+    });
+    for (let i = 0; i < channels.length; i++) if (channels[i] === undefined) channels[i] = 0;
     if (!dmx[nodeId]) dmx[nodeId] = {};
     dmx[nodeId][fixId] = channels;
   });
