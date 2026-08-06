@@ -682,7 +682,7 @@
 <rect x="552" y="320" width="18" height="4" rx="2" fill="#33dd55"/>
 <text x="574" y="325" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#666666">Strip DATA (GPIO2→74HC→out)</text>
 <rect x="552" y="333" width="18" height="4" rx="2" fill="#00ccbb"/>
-<text x="574" y="338" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#666666">Status LED DATA (GPIO4→74HC→out)</text>
+<text x="574" y="338" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#666666">Status LED DATA (GPIO4→direct, no level shift)</text>
 <rect x="552" y="346" width="18" height="4" rx="2" fill="#bb55ff"/>
 <text x="574" y="351" text-anchor="start" font-family="monospace" font-size="8" font-weight="normal" fill="#666666">DMX (GPIO16/17→MAX485→A/B)</text>
 <rect x="552" y="359" width="18" height="4" rx="2" fill="#ffcc00"/>
