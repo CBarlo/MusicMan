@@ -1288,6 +1288,7 @@ GAME_TYPES = {
             {'key': 'entries',       'type': 'list',   'label': 'Entries (one per line)', 'placeholder': 'One name per line'},
             {'key': 'spin_duration', 'type': 'number', 'label': 'Spin Time (sec)',         'default': 6},
             {'key': 'auto_remove',   'type': 'bool',   'label': 'Remove winner at next spin', 'default': True},
+            {'key': 'intro_entry',   'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
         ],
     },
     'feud': {
@@ -4257,6 +4258,31 @@ def _launch_game(game_type_id, config_id=''):
 
     disp_base = gt.get('display_route', f'/games/{game_type_id}')
     disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
+
+    match       = next((c for c in load_game_configs() if c['id'] == config_id), None) if config_id else None
+    intro_entry = (match.get('data') or {}).get('intro_entry') if match else None
+    if intro_entry:
+        # Load the game's iframe hidden and fire the intro walkup over it —
+        # by the time the walkup's own duration elapses, the iframe (and for
+        # the Wheel specifically, its already-running idle spin) has had that
+        # whole window to finish loading, so the reveal shows something
+        # already alive instead of a cold, static first frame.
+        broadcast('display_preload_game', {'url': disp_url})
+        # fire_game_entry() only does synchronous setup (including resetting
+        # _walkup_fade_cancel to a fresh Event) before handing its real work
+        # off to its own background threads, so it's safe to call directly
+        # here and immediately capture that fresh event afterward.
+        fire_game_entry(intro_entry)
+        cancel_ev = _walkup_fade_cancel
+        entry = next((e for e in config.get('game_entries', []) if e['id'] == intro_entry), None)
+        duration = ((entry or {}).get('walkup') or {}).get('duration', 30)
+        def _reveal_after_intro(delay=duration, url=disp_url, ev=cancel_ev):
+            if ev.wait(timeout=delay):
+                return  # a newer walkup/game-entry took over before this timer ran out
+            broadcast('display_reveal_game', {'url': url})
+        threading.Thread(target=_reveal_after_intro, daemon=True).start()
+        return ctrl_url, disp_url
+
     # display.html shows games in an iframe — kiosk stays on /display, _display_url unchanged
     broadcast('display_navigate', {'url': disp_url})
     return ctrl_url, disp_url

@@ -1206,6 +1206,20 @@ function hideGameFrame() {
   clearTimeout(_gameFrameClearTimer);
   _gameFrameClearTimer = setTimeout(() => { _gameFrame.src = ''; }, 10000);
 }
+// Loads a game's iframe kept hidden — used when a game entry's intro walkup
+// is covering the screen, so the game (e.g. the Wheel, already idly
+// spinning on load) has the whole walkup duration to load before
+// revealGameFrame() cuts over to it, instead of a cold first frame.
+function preloadGameFrame(url) {
+  clearTimeout(_gameFrameClearTimer);
+  const sep = url.includes('?') ? '&' : '?';
+  _gameFrame.src = url + sep + '_v=' + Date.now();
+  _gameFrame.style.display = 'none';
+}
+function revealGameFrame() {
+  clearTimeout(_gameFrameClearTimer);
+  _gameFrame.style.display = 'block';
+}
 
 function blackout() {
   hideChronoOverlay();
@@ -1607,6 +1621,11 @@ function connectWS() {
           hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner();
           showGameFrame(data.url);
         }
+      }
+      else if (msg.event === 'display_preload_game') { preloadGameFrame(data.url); }
+      else if (msg.event === 'display_reveal_game')  {
+        hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner();
+        revealGameFrame();
       }
       else if (msg.event === 'timer_show')        { showChronoOverlay('countdown', {seconds: data.seconds || 0}, 'skit'); }
       else if (msg.event === 'timer_warning')     { showChronoOverlay('countdown', {seconds: data.seconds_remaining || 0}, 'skit'); }
