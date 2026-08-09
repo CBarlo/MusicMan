@@ -548,9 +548,17 @@
         <div class="feat-name">USB Stream Deck on the Pi</div>
         <div class="feat-desc">Hardware Stream Deck connected via USB directly to the Pi, running as a dedicated service. Stays live via WebSocket — buttons light up, dim, and show state changes as the show runs. Auto-reconnects on USB drop.</div>
       </div>
+      <div class="feat green wide">
+        <div class="feat-name">Console-Mirroring Page Structure</div>
+        <div class="feat-desc">MAIN (transport, timer, volume, nav) plus a MENU directory page, mirroring the Console's own tab layout as closely as a 15-key grid allows: Show, Circles, Roles, SFX, Macros, and Lights sit as direct MAIN buttons; Music, Slides, VS Cards, Viz, Games, and Display sit one tap away through MENU.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Uncapped Pagination</div>
+        <div class="feat-desc">A generic paginated-list engine backs every list page (Show, SFX, Macros, Scenes, Music, Slides, VS Cards, Viz, Display, Games). Page count is computed from the live item count, so a growing library — or a show that runs past 24 steps — never silently drops items off the deck again.</div>
+      </div>
       <div class="feat green">
         <div class="feat-name">Show Flow Keys</div>
-        <div class="feat-desc">Each show step gets its own key: numbered, named, active (bright border), done (dimmed + checkmark). Fire any step by pressing it. Overflow to a second page if the show exceeds 12 steps.</div>
+        <div class="feat-desc">Each show step gets its own key: numbered, named, active (bright border), done (dimmed + checkmark). Fire any step by pressing it, in or out of order. Pages forward with ◂ PAGE / PAGE ▸ for shows of any length.</div>
       </div>
       <div class="feat green">
         <div class="feat-name">Walk-Up & Role Buttons</div>
@@ -558,19 +566,27 @@
       </div>
       <div class="feat green">
         <div class="feat-name">Audio Transport</div>
-        <div class="feat-desc">Stop, pause/resume, fade out. Music and SFX volume up/down — key face shows current percentage in real time.</div>
-      </div>
-      <div class="feat green">
-        <div class="feat-name">Live Timer Key</div>
-        <div class="feat-desc">Timer key displays MM:SS countdown updating every second. Shows "PAUSED" state in grey, "RESET" when idle. Available on Main and both Show pages simultaneously.</div>
+        <div class="feat-desc">Stop, pause/resume, fade out. Music and SFX volume up/down — key face shows current percentage in real time. Timer start/pause/reset with a live MM:SS countdown on the key face, all on MAIN.</div>
       </div>
       <div class="feat green">
         <div class="feat-name">SFX & Macro Pages</div>
-        <div class="feat-desc">Dedicated pages for sound effects (up to 13) and macros (up to 13). One press fires. Color-coded by type.</div>
+        <div class="feat-desc">Paginated pages for every sound effect and macro in the library — no more truncation past the first 13. One press fires. Color-coded by position.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Lighting Scenes Page</div>
+        <div class="feat-desc">Every saved lighting scene, one tap to fire — the deck's answer to the Console's scene grid, paginated for a full library.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Music, Slides, VS Cards & Viz Pages</div>
+        <div class="feat-desc">Play any track from the music library, push any saved slide or VS card to the projector, or activate any saved visualization preset — all directly from the deck via MENU.</div>
       </div>
       <div class="feat green">
         <div class="feat-name">Display Page</div>
-        <div class="feat-desc">Blackout, standby, and up to 10 display files (images/video) directly pushable from the deck. No Console needed.</div>
+        <div class="feat-desc">Blackout and standby pinned as fixed controls on every page, plus the full paginated display library (images/video) pushable directly from the deck. No Console needed.</div>
+      </div>
+      <div class="feat green wide">
+        <div class="feat-name">Games — Contextual Live Controls</div>
+        <div class="feat-desc">The Games page tracks whichever game was most recently launched (from GO LIVE, a show step, or a macro) and swaps to that game's real controls instead of a static config list: SPIN for Prize Wheel, START/STOP for Musical Chairs, REVEAL/NEXT/CORRECT/INCORRECT for Trivia, START/RESET for Shell Game. No live game yet, or a type with no deck controller — falls back to the GO LIVE config picker.</div>
       </div>
       <div class="feat green">
         <div class="feat-name">Auto-Reconnect</div>

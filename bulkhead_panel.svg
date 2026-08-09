@@ -1,0 +1,68 @@
+<svg viewBox="0 0 900 620" width="2700" height="1860" xmlns="http://www.w3.org/2000/svg">
+<rect width="900" height="620" fill="#1a1a1a"/>
+
+<text x="450" y="24" text-anchor="middle" font-family="monospace" font-size="14" font-weight="bold" fill="#ccc">5 · BULKHEAD PANEL — ×1</text>
+<text x="450" y="39" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#666">scale 3px/mm · mounts over ONE rectangular opening cut in the case wall — easier than 4 precise round holes in the shell</text>
+
+<!-- print bed 240x240mm -> 720x720 at 3px/mm — too tall for this sheet, so show bed width only as a reference bar since panel is short -->
+<text x="450" y="58" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#555">panel: 200 × 70 × 5mm — well inside the 240×240mm bed footprint</text>
+
+<!-- panel outline: 200x70mm -> 600x210px, centered -->
+<rect x="150" y="120" width="600" height="210" fill="#181818" stroke="#666" stroke-width="1.5" rx="4"/>
+<text x="450" y="112" text-anchor="middle" font-family="monospace" font-size="7" fill="#555">flush-mount flange border for screws + gasket to the case opening</text>
+
+<!-- AC OUTLET: 50x50mm flange, center at panel-local (35,35) -> canvas (150+35*3, 120+35*3) = (255,225) -->
+<rect x="180" y="150" width="150" height="150" fill="none" stroke="#3d1c1c" stroke-width="1" stroke-dasharray="3,2"/>
+<rect x="205" y="175" width="100" height="100" fill="#3d1c1c" stroke="#cc6666" stroke-width="1.5" rx="3"/>
+<circle cx="215" cy="185" r="3" fill="none" stroke="#ee8888" stroke-width="1"/>
+<circle cx="295" cy="185" r="3" fill="none" stroke="#ee8888" stroke-width="1"/>
+<circle cx="215" cy="265" r="3" fill="none" stroke="#ee8888" stroke-width="1"/>
+<circle cx="295" cy="265" r="3" fill="none" stroke="#ee8888" stroke-width="1"/>
+<circle cx="255" cy="225" r="18" fill="#1a0e0e" stroke="#ee8888" stroke-width="1"/>
+<text x="255" y="345" text-anchor="middle" font-family="monospace" font-size="8.5" font-weight="bold" fill="#ee8888">AC OUTLET</text>
+<text x="255" y="358" text-anchor="middle" font-family="monospace" font-size="7" fill="#cc8888">50×50mm flange · 4× 4mm screw</text>
+<text x="255" y="370" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#996666">⚠ hole spacing + body cutout</text>
+<text x="255" y="381" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#996666">estimated — verify against part</text>
+
+<!-- WiFi: standard RP-SMA bulkhead, hex ~12mm, hole 9.5mm, center at (81,35) -> (150+243,120+105)=(393,225) -->
+<circle cx="393" cy="225" r="18" fill="none" stroke="#4caa4c" stroke-width="1" stroke-dasharray="3,2"/>
+<circle cx="393" cy="225" r="14.25" fill="#1c3d1c" stroke="#88ee88" stroke-width="1.5"/>
+<circle cx="393" cy="225" r="6" fill="#0e1e0e" stroke="#88ee88" stroke-width="1"/>
+<text x="393" y="345" text-anchor="middle" font-family="monospace" font-size="8.5" font-weight="bold" fill="#88ee88">WiFi ANTENNA</text>
+<text x="393" y="358" text-anchor="middle" font-family="monospace" font-size="7" fill="#66bb66">⌀9.5mm hole (RP-SMA std)</text>
+<text x="393" y="369" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#557755">⚠ standard, not page-confirmed</text>
+
+<!-- Combo port: 40mm bezel, 37mm cutout, center at (122,35) -> (150+366,225)=(516,225) -->
+<circle cx="516" cy="225" r="60" fill="none" stroke="#40a0ff" stroke-width="1" stroke-dasharray="3,2"/>
+<circle cx="516" cy="225" r="60" fill="#1a2a5a" stroke="#70aaee" stroke-width="1.5"/>
+<circle cx="516" cy="225" r="55.5" fill="#0e1830" stroke="#70aaee" stroke-width="1"/>
+<text x="516" y="345" text-anchor="middle" font-family="monospace" font-size="8.5" font-weight="bold" fill="#70aaee">COMBO PORT</text>
+<text x="516" y="358" text-anchor="middle" font-family="monospace" font-size="7" fill="#5088cc">⌀37mm cutout / ⌀40mm bezel</text>
+<text x="516" y="369" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#4a76b0">needs 53mm clear depth behind panel</text>
+
+<!-- Audio: 24.7mm bezel, 18.5mm cutout, center at (169.35,35) -> (150+508,225)=(658,225) -->
+<circle cx="658" cy="225" r="37" fill="none" stroke="#cc9966" stroke-width="1" stroke-dasharray="3,2"/>
+<circle cx="658" cy="225" r="37" fill="#3d2a1c" stroke="#eebb88" stroke-width="1.5"/>
+<circle cx="658" cy="225" r="27.75" fill="#1e150e" stroke="#eebb88" stroke-width="1"/>
+<text x="658" y="345" text-anchor="middle" font-family="monospace" font-size="8.5" font-weight="bold" fill="#eebb88">3.5mm AUDIO</text>
+<text x="658" y="358" text-anchor="middle" font-family="monospace" font-size="7" fill="#cc9966">⌀18.5mm cutout / ⌀24.7mm bezel</text>
+<text x="658" y="369" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#997744">panel ≤20mm thick here — 5mm is fine</text>
+
+<!-- 4 corner mounting holes on the panel flange for screwing to the case opening -->
+<circle cx="170" cy="130" r="3" fill="none" stroke="#888" stroke-width="1"/>
+<circle cx="730" cy="130" r="3" fill="none" stroke="#888" stroke-width="1"/>
+<circle cx="170" cy="320" r="3" fill="none" stroke="#888" stroke-width="1"/>
+<circle cx="730" cy="320" r="3" fill="none" stroke="#888" stroke-width="1"/>
+
+<!-- Notes -->
+<rect x="150" y="440" width="600" height="150" fill="#111" rx="3" opacity="0.6"/>
+<text x="165" y="460" font-family="monospace" font-size="9" fill="#999" font-weight="bold">NOTES</text>
+<text x="165" y="478" font-family="monospace" font-size="7.5" fill="#aaa">• AC outlet is grouped at the LEFT end, away from the 3 low-voltage connectors — keeps mains wiring physically</text>
+<text x="165" y="490" font-family="monospace" font-size="7.5" fill="#aaa">  separated from signal wiring inside the case. Not something you specified — just good practice.</text>
+<text x="165" y="507" font-family="monospace" font-size="7.5" fill="#aaa">• AC outlet screw-hole spacing and body-cutout diameter are estimated (dashed reference box) — the listing only</text>
+<text x="165" y="519" font-family="monospace" font-size="7.5" fill="#aaa">  gives the 50×50mm flange + 4mm screw size. Measure the actual part before cutting this hole.</text>
+<text x="165" y="536" font-family="monospace" font-size="7.5" fill="#aaa">• WiFi hole uses the standard RP-SMA bulkhead size (⌀9.5mm) — not confirmed against this specific listing's page.</text>
+<text x="165" y="553" font-family="monospace" font-size="7.5" fill="#aaa">• Seal the panel-to-case seam with silicone or a foam gasket — the connectors are individually waterproof-rated,</text>
+<text x="165" y="565" font-family="monospace" font-size="7.5" fill="#aaa">  but the new panel joint itself isn't unless you seal it.</text>
+<text x="165" y="582" font-family="monospace" font-size="7.5" fill="#aaa">• Cut ONE rectangular opening in the case wall sized to this panel's flange — far more forgiving than 4 round holes.</text>
+</svg>

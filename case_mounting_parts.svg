@@ -1,0 +1,97 @@
+<svg viewBox="0 0 830 1010" width="2490" height="3030" xmlns="http://www.w3.org/2000/svg">
+<rect width="830" height="1010" fill="#1a1a1a"/>
+
+<text x="415" y="24" text-anchor="middle" font-family="monospace" font-size="14" font-weight="bold" fill="#ccc">Nanuk 933 — Printable Mounting Parts</text>
+<text x="415" y="39" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#666">scale 1.5px/mm · each cell = 240×240mm print bed boundary (dashed) · base mount to bare case floor via VHB tape</text>
+
+<!-- ══════════ CELL 1: Pi MOUNT PLATE (top-left) ══════════ -->
+<text x="40" y="65" font-family="monospace" font-size="10" font-weight="bold" fill="#f0b429">1 · Pi MOUNT PLATE  ×1</text>
+<rect x="40" y="70" width="360" height="360" fill="#101010" stroke="#555" stroke-width="1.2" stroke-dasharray="5,3"/>
+<text x="220" y="86" text-anchor="middle" font-family="monospace" font-size="7" fill="#555">240mm print bed</text>
+
+<!-- plate: 100x70mm -> 150x105px, centered -->
+<rect x="145" y="197.5" width="150" height="105" fill="#204020" stroke="#66cc66" stroke-width="1.2" rx="4"/>
+<text x="220" y="230" text-anchor="middle" font-family="monospace" font-size="8.5" font-weight="bold" fill="#88ee88">100 × 70 × 4mm plate</text>
+<text x="220" y="243" text-anchor="middle" font-family="monospace" font-size="7" fill="#66bb66">flat solid underside — VHB to floor</text>
+
+<!-- 4 M2.5 boss holes at 58x49mm pattern, centered on plate, scale 1.5px/mm -->
+<!-- plate center = 220,250 ; holes offset ±29mm x, ±24.5mm y -> ±43.5px, ±36.75px -->
+<circle cx="176.5" cy="213.25" r="4" fill="none" stroke="#aaffaa" stroke-width="1.2"/>
+<circle cx="263.5" cy="213.25" r="4" fill="none" stroke="#aaffaa" stroke-width="1.2"/>
+<circle cx="176.5" cy="286.75" r="4" fill="none" stroke="#aaffaa" stroke-width="1.2"/>
+<circle cx="263.5" cy="286.75" r="4" fill="none" stroke="#aaffaa" stroke-width="1.2"/>
+<text x="220" y="266" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#77aa77">4× M2.5 heat-set insert</text>
+<text x="220" y="277" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#77aa77">58×49mm pattern (official RPi4)</text>
+<text x="220" y="323" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#666">USB/LAN edge overhangs — orient to your cable run</text>
+
+<!-- ══════════ CELL 2: BATTERY TRAY (top-right) ══════════ -->
+<text x="430" y="65" font-family="monospace" font-size="10" font-weight="bold" fill="#f0b429">2 · Pi BATTERY TRAY  ×1</text>
+<rect x="430" y="70" width="360" height="360" fill="#101010" stroke="#555" stroke-width="1.2" stroke-dasharray="5,3"/>
+<text x="610" y="86" text-anchor="middle" font-family="monospace" font-size="7" fill="#555">240mm print bed</text>
+
+<!-- tray exterior: 150x80mm -> 225x120px, centered -->
+<rect x="497.5" y="190" width="225" height="120" fill="#2a1a4a" stroke="#7a5add" stroke-width="1.2" rx="4"/>
+<!-- interior cavity for the battery: battery 146x76mm -> 219x114, wall 3mm->4.5px -->
+<rect x="502" y="194.5" width="216" height="111" fill="#1a1030" stroke="#7a5add" stroke-width="0.75"/>
+<text x="610" y="220" text-anchor="middle" font-family="monospace" font-size="8.5" font-weight="bold" fill="#bb99ff">open cradle, 3mm walls</text>
+<text x="610" y="233" text-anchor="middle" font-family="monospace" font-size="7" fill="#9977cc">holds 146×76×32mm bank</text>
+<text x="610" y="246" text-anchor="middle" font-family="monospace" font-size="7" fill="#9977cc">wall height 10mm (partial — strap secures top)</text>
+
+<!-- 2 strap slots -->
+<rect x="530" y="285" width="22" height="8" fill="#0a0a0a" stroke="#9977cc" stroke-width="1"/>
+<rect x="668" y="285" width="22" height="8" fill="#0a0a0a" stroke="#9977cc" stroke-width="1"/>
+<text x="610" y="330" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#77669a">2× 22×8mm strap slots — cam/ladder-lock strap over top</text>
+<text x="610" y="343" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#666">flat solid underside — VHB to floor</text>
+
+<!-- ══════════ CELL 3: POLE NODE END-CLAMP (bottom-left) ══════════ -->
+<text x="40" y="440" font-family="monospace" font-size="10" font-weight="bold" fill="#f0b429">3 · POLE NODE END-CLAMP  ×4</text>
+<text x="40" y="452" font-family="monospace" font-size="7" fill="#888">(2 per node — box is 267mm long, over bed size, so end clamps + strap instead of a full tray)</text>
+<rect x="40" y="460" width="360" height="360" fill="#101010" stroke="#555" stroke-width="1.2" stroke-dasharray="5,3"/>
+<text x="220" y="476" text-anchor="middle" font-family="monospace" font-size="7" fill="#555">240mm print bed</text>
+
+<!-- top view: U-channel footprint 95x76mm -> 142.5x114px -->
+<rect x="148.75" y="583" width="142.5" height="114" fill="#1c3d1c" stroke="#4caa4c" stroke-width="1.2" rx="4"/>
+<rect x="163.75" y="598" width="112.5" height="84" fill="#0e1e0e" stroke="#4caa4c" stroke-width="0.75"/>
+<text x="220" y="645" text-anchor="middle" font-family="monospace" font-size="7.5" font-weight="bold" fill="#88ee88">top view</text>
+<text x="220" y="710" text-anchor="middle" font-family="monospace" font-size="7" fill="#66bb66">U-channel, 95×76mm footprint, 3mm wall</text>
+<text x="220" y="723" text-anchor="middle" font-family="monospace" font-size="7" fill="#66bb66">cradles pole node's 88.9×69.9mm cross-section</text>
+
+<!-- side view inset: return wall length along pole node axis, 30mm -> 45px -->
+<rect x="500" y="583" width="45" height="90" fill="#1c3d1c" stroke="#4caa4c" stroke-width="1.2" rx="3"/>
+<rect x="500" y="583" width="10" height="90" fill="#0e1e0e" stroke="#4caa4c" stroke-width="0.75"/>
+<text x="522" y="577" text-anchor="middle" font-family="monospace" font-size="7.5" font-weight="bold" fill="#88ee88">side view</text>
+<text x="580" y="605" font-family="monospace" font-size="6.5" fill="#66bb66">30mm return length</text>
+<text x="580" y="617" font-family="monospace" font-size="6.5" fill="#66bb66">(slides over each end</text>
+<text x="580" y="629" font-family="monospace" font-size="6.5" fill="#66bb66">of the pole node box)</text>
+<text x="580" y="649" font-family="monospace" font-size="6.5" fill="#888">2× strap-loop tabs molded</text>
+<text x="580" y="661" font-family="monospace" font-size="6.5" fill="#888">into top edge — strap runs</text>
+<text x="580" y="673" font-family="monospace" font-size="6.5" fill="#888">clamp-to-clamp over the box</text>
+<text x="220" y="795" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#666">flat outer face — VHB to floor; independent per clamp</text>
+
+<!-- ══════════ CELL 4: STREAM DECK TRAY (bottom-right) ══════════ -->
+<text x="430" y="440" font-family="monospace" font-size="10" font-weight="bold" fill="#f0b429">4 · STREAM DECK TRAVEL TRAY  ×1</text>
+<text x="430" y="452" font-family="monospace" font-size="7" fill="#888">lid layer — not mounted, lift-out only</text>
+<rect x="430" y="460" width="360" height="360" fill="#101010" stroke="#555" stroke-width="1.2" stroke-dasharray="5,3"/>
+<text x="610" y="476" text-anchor="middle" font-family="monospace" font-size="7" fill="#555">240mm print bed</text>
+
+<!-- tray exterior: 131x93mm -> 196.5x139.5px -->
+<rect x="511.75" y="570" width="196.5" height="139.5" fill="#1a2a5a" stroke="#4a5aaa" stroke-width="1.2" rx="4"/>
+<rect x="516" y="574" width="188" height="131.5" fill="#0e1830" stroke="#4a5aaa" stroke-width="0.75"/>
+<!-- thumb notch -->
+<path d="M 585 570 Q 610 555 635 570" fill="#1a2a5a" stroke="#4a5aaa" stroke-width="1.2"/>
+<text x="610" y="630" text-anchor="middle" font-family="monospace" font-size="8.5" font-weight="bold" fill="#8898ee">lipped tray, 3mm wall</text>
+<text x="610" y="644" text-anchor="middle" font-family="monospace" font-size="7" fill="#6878cc">interior 124.65×86.55mm</text>
+<text x="610" y="657" text-anchor="middle" font-family="monospace" font-size="7" fill="#6878cc">~2mm clearance around deck</text>
+<text x="610" y="729" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#5566aa">wall height 8mm (deck is 32mm tall — easy lift, thumb notch cut)</text>
+
+<!-- Legend / notes -->
+<rect x="40" y="850" width="750" height="140" fill="#111" rx="3" opacity="0.6"/>
+<text x="55" y="870" font-family="monospace" font-size="9" fill="#999" font-weight="bold">NOTES</text>
+<text x="55" y="888" font-family="monospace" font-size="7.5" fill="#aaa">• All base-layer parts mount to the bare case floor via VHB tape (e.g. 3M VHB 4941) on a flat solid underside — no drilling into the shell.</text>
+<text x="55" y="902" font-family="monospace" font-size="7.5" fill="#aaa">• Heat-set threaded inserts (not self-tap) recommended anywhere a screw gets removed/reinserted repeatedly — the Pi mount is the only part with screws here.</text>
+<text x="55" y="916" font-family="monospace" font-size="7.5" fill="#aaa">• Pole node end-clamps: print ×4 (one part, four copies) — 2 clamp one node's ends, 2 clamp the other's. A ladder-lock or cam strap runs clamp-to-clamp over each box.</text>
+<text x="55" y="930" font-family="monospace" font-size="7.5" fill="#aaa">• Battery bank strap slots assume a ~20mm-wide strap — tell me the actual strap width if you have one picked already and I'll resize.</text>
+<text x="55" y="944" font-family="monospace" font-size="7.5" fill="#aaa">• Bulkhead panel (5th part) still pending your connector model numbers — cutouts need to match real hardware, not an estimate.</text>
+<text x="55" y="958" font-family="monospace" font-size="7.5" fill="#aaa">• All 4 parts here comfortably clear the 240×240mm bed — nothing needs splitting or multi-part joinery.</text>
+<text x="55" y="972" font-family="monospace" font-size="7.5" fill="#aaa">• iPad mini gets no dedicated part yet (dims unconfirmed) — it sits loose in the lid layer's cable zone for now.</text>
+</svg>

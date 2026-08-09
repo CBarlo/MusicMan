@@ -16,6 +16,7 @@ Main Flask application. Handles:
 import os
 import sys
 import io
+import csv
 import re
 import base64
 import uuid
@@ -44,6 +45,13 @@ try:
     _HAS_NUMPY = True
 except ImportError:
     _HAS_NUMPY = False
+
+# openpyxl for AG Trivia .xlsx question bank import
+try:
+    import openpyxl as _openpyxl
+    _HAS_OPENPYXL = True
+except ImportError:
+    _HAS_OPENPYXL = False
 
 # ── PATHS ──
 BASE_DIR     = Path(__file__).parent
@@ -1327,10 +1335,16 @@ GAME_TYPES = {
         'label': 'AG Trivia',
         'icon': '❓',
         'controller_route': '/games/trivia',
-        'display_route': '/games/trivia/display',
+        'display_route': '/games/trivia',
+        # Real editor is bespoke (_renderGlTriviaEditor in musicman_admin.html) — this schema
+        # is documentation-only, same relationship Wheel has to its own schema entry.
         'schema': [
-            {'key': 'question_bank', 'type': 'text',   'label': 'Question Bank File', 'placeholder': 'e.g. ag_2025.json'},
-            {'key': 'timer_secs',    'type': 'number', 'label': 'Time per Question (sec)', 'default': 20},
+            {'key': 'intro_entry',     'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
+            {'key': 'correct_scene',   'type': 'select', 'label': 'Correct Answer Scene',   'source': 'scenes'},
+            {'key': 'incorrect_scene', 'type': 'select', 'label': 'Incorrect Answer Scene', 'source': 'scenes'},
+            {'key': 'correct_sfx',     'type': 'select', 'label': 'Correct Answer SFX (optional)',   'source': 'audio'},
+            {'key': 'incorrect_sfx',   'type': 'select', 'label': 'Incorrect Answer SFX (optional)', 'source': 'audio'},
+            {'key': 'questions',       'type': 'list',   'label': 'Questions'},
         ],
     },
     'baby_photo': {
@@ -1345,6 +1359,15 @@ GAME_TYPES = {
         ],
     },
 }
+
+# What's currently live, for anything (e.g. the Stream Deck) that wants to show
+# contextual controls for whatever game is up rather than a generic config list.
+# Set by _launch_game()'s single choke point (GO LIVE / show flow / macro step)
+# and by the Shell Game start route, which bypasses _launch_game() entirely
+# since it's a singleton with no config_id. No "cleared on stop" concept —
+# just reflects "most recently launched," the only source of truth that
+# exists anywhere else in the app either.
+_current_live_game = {'game_type_id': None, 'config_id': None}
 
 def load_game_configs() -> list:
     try:
@@ -2055,8 +2078,10 @@ def fire_walkup(circle_id=None, role_id=None, show_flow_idx=None):
     log.info(f"Walk-up fired: {item.get('name')}")
 
 
-def fire_game_entry(entry_id):
-    """Fire a game entry sequence (music + display + lighting), like fire_walkup but no circle/role specifics."""
+def fire_game_entry(entry_id, reveal_url=None):
+    """Fire a game entry sequence (music + display + lighting), like fire_walkup but no circle/role specifics.
+    reveal_url: when set, the display client reveals the preloaded game at this URL the instant
+    the intro video's own onended fires — exact sync to real playback, no blind duration guess."""
     cfg = config
     items = [e for e in cfg.get('game_entries', []) if e['id'] == entry_id]
     item  = items[0] if items else None
@@ -2097,6 +2122,7 @@ def fire_game_entry(entry_id):
         'animation_intro': assets_cfg.get('animation_intro', ''),
         'hide_name':       walkup_cfg.get('hide_name', False),
         'muted':           walkup_cfg.get('muted', True),
+        'reveal_game_url': reveal_url,
     }
 
     def play_music():
@@ -2300,8 +2326,9 @@ def shell_game():
 
 @app.route('/api/shell-game/start', methods=['POST'])
 def shell_game_start():
-    global _sg_session
+    global _sg_session, _current_live_game
     _sg_session += 1
+    _current_live_game = {'game_type_id': 'shell_game', 'config_id': ''}
     broadcast('shell_game_start', {'session': _sg_session})
     return jsonify({'ok': True, 'session': _sg_session})
 
@@ -4248,6 +4275,22 @@ def _launch_game(game_type_id, config_id=''):
     gt = GAME_TYPES.get(game_type_id, {})
     ctrl_url = gt.get('controller_route', f'/games/{game_type_id}') + (f'?config={config_id}' if config_id else '')
 
+    global _current_live_game
+    _current_live_game = {'game_type_id': game_type_id, 'config_id': config_id}
+
+    if game_type_id == 'trivia' and config_id:
+        # Every GO LIVE starts a fresh session at question 1 — a mid-session HDMI
+        # reload still resyncs correctly via /api/games/trivia/state, not this reset.
+        fresh = _trivia_default_state()
+        trivia_data, _ = _trivia_config_data(config_id)
+        if trivia_data.get('shuffle'):
+            questions = trivia_data.get('questions', [])
+            order = list(range(len(questions)))
+            random.shuffle(order)
+            fresh['order'] = order
+        with _trivia_state_lock:
+            _trivia_state[config_id] = fresh
+
     if game_type_id == 'musical_chairs':
         cfg_data, _ = _chairs_config_data(config_id)
         if cfg_data.get('intro_entry'):
@@ -4262,25 +4305,48 @@ def _launch_game(game_type_id, config_id=''):
     match       = next((c for c in load_game_configs() if c['id'] == config_id), None) if config_id else None
     intro_entry = (match.get('data') or {}).get('intro_entry') if match else None
     if intro_entry:
-        # Load the game's iframe hidden and fire the intro walkup over it —
-        # by the time the walkup's own duration elapses, the iframe (and for
-        # the Wheel specifically, its already-running idle spin) has had that
-        # whole window to finish loading, so the reveal shows something
-        # already alive instead of a cold, static first frame.
-        broadcast('display_preload_game', {'url': disp_url})
         # fire_game_entry() only does synchronous setup (including resetting
         # _walkup_fade_cancel to a fresh Event) before handing its real work
         # off to its own background threads, so it's safe to call directly
         # here and immediately capture that fresh event afterward.
-        fire_game_entry(intro_entry)
+        #
+        # A blind server-side timer anchored to the configured walkup
+        # duration can't actually stay in sync with the video: a cold mp4
+        # start on a Pi 4B (no warm-preload path exists for a Console-fired
+        # game entry, unlike show-flow walkups chained via next_preload) has
+        # real, variable network+decode latency, so the video was visibly
+        # late to start and then got cut off by a reveal timer that didn't
+        # know that. Real fix: pass reveal_url through to fire_game_entry(),
+        # which hands it to the display client in the walkup payload — the
+        # client reveals the wheel on the video's own onended, so it's exact
+        # regardless of how long the video actually took to get going.
+        # The duration-based timer below still runs (for games that auto-reveal),
+        # but only as a fallback for the case onended never fires (autoplay
+        # blocked, decode error, or a looping animation intro with no natural
+        # "ended" event).
+        #
+        # Trivia is different: the operator wants the game parked on the intro
+        # video's last frame (it freezes there naturally — no loop, nothing
+        # hides it) until they explicitly press START GAME in the controller
+        # (POST /api/games/trivia/start). Everything else keeps auto-revealing
+        # the instant the video ends, matching Wheel's "reveal already alive"
+        # design this was originally built for.
+        auto_reveal = game_type_id != 'trivia'
+        fire_game_entry(intro_entry, reveal_url=(disp_url if auto_reveal else None))
         cancel_ev = _walkup_fade_cancel
         entry = next((e for e in config.get('game_entries', []) if e['id'] == intro_entry), None)
         duration = ((entry or {}).get('walkup') or {}).get('duration', 30)
-        def _reveal_after_intro(delay=duration, url=disp_url, ev=cancel_ev):
-            if ev.wait(timeout=delay):
-                return  # a newer walkup/game-entry took over before this timer ran out
-            broadcast('display_reveal_game', {'url': url})
-        threading.Thread(target=_reveal_after_intro, daemon=True).start()
+        def _preload_staggered(ev=cancel_ev, url=disp_url):
+            if ev.wait(timeout=2):
+                return
+            broadcast('display_preload_game', {'url': url})
+        threading.Thread(target=_preload_staggered, daemon=True).start()
+        if auto_reveal:
+            def _reveal_after_intro_fallback(delay=duration + 8, url=disp_url, ev=cancel_ev):
+                if ev.wait(timeout=delay):
+                    return  # a newer walkup/game-entry took over before this timer ran out
+                broadcast('display_reveal_game', {'url': url})
+            threading.Thread(target=_reveal_after_intro_fallback, daemon=True).start()
         return ctrl_url, disp_url
 
     # display.html shows games in an iframe — kiosk stays on /display, _display_url unchanged
@@ -4296,6 +4362,10 @@ def api_games_launch():
         return jsonify({'ok': False, 'error': 'unknown game_type_id'}), 400
     ctrl_url, disp_url = _launch_game(game_type_id, config_id)
     return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': disp_url})
+
+@app.route('/api/games/current')
+def api_games_current():
+    return jsonify(_current_live_game)
 
 # ── MUSICAL CHAIRS ──
 @app.route('/games/chairs')
@@ -4571,6 +4641,202 @@ def api_games_wheel_spin():
         'spin_duration': spin_ms,
     })
     return jsonify({'ok': True})
+
+# ── AG TRIVIA ──
+@app.route('/games/trivia')
+def games_trivia():
+    return send_from_directory(STATIC_DIR, 'games_trivia.html')
+
+def _trivia_config_data(config_id):
+    if not config_id:
+        return {}, ''
+    match = next((c for c in load_game_configs() if c['id'] == config_id), None)
+    if not match:
+        return {}, ''
+    return (match.get('data') or {}), match.get('name', '')
+
+_trivia_state = {}         # config_id -> {'index': int, 'revealed': bool, 'timer_end': float|None}
+_trivia_state_lock = threading.Lock()
+
+def _trivia_default_state():
+    return {'index': 0, 'revealed': False, 'timer_end': None, 'log': [], 'show_score': False, 'order': None}
+
+def _trivia_real_index(st, question_count):
+    """Map a state's play-order position to the actual index into questions[]."""
+    order = st.get('order')
+    if order and len(order) == question_count and 0 <= st['index'] < len(order):
+        return order[st['index']]
+    return st['index']
+
+def _trivia_get_state(config_id, question_count):
+    with _trivia_state_lock:
+        st = _trivia_state.setdefault(config_id, _trivia_default_state())
+        # Clamp defensively — a saved question list can shrink after a state already exists.
+        if question_count:
+            st['index'] = max(0, min(st['index'], question_count - 1))
+        # A shuffle order that no longer matches the question count (list was
+        # edited after this session's shuffle) can't be trusted — fall back
+        # to sequential rather than risk an out-of-range/mismatched lookup.
+        if st.get('order') and len(st['order']) != question_count:
+            st['order'] = None
+        return dict(st)
+
+@app.route('/api/games/trivia/state')
+def api_games_trivia_state():
+    config_id = request.args.get('config_id', '')
+    data, _   = _trivia_config_data(config_id)
+    questions = data.get('questions', [])
+    st = _trivia_get_state(config_id, len(questions))
+    return jsonify({'index': st['index'], 'revealed': st['revealed'], 'timer_end': st['timer_end'],
+                     'log': st['log'], 'order': st['order'], 'show_score': st['show_score'], 'count': len(questions)})
+
+@app.route('/api/games/trivia/start', methods=['POST'])
+def api_games_trivia_start():
+    """Operator-pressed START GAME — reveals the trivia iframe over the intro
+    video's frozen last frame. Harmless / idempotent if the game was already
+    revealed (e.g. no intro entry was configured, so it was visible already)."""
+    body      = request.json or {}
+    config_id = body.get('config_id', '')
+    disp_url  = '/games/trivia?display=1' + (f'&config={config_id}' if config_id else '')
+    broadcast('display_reveal_game', {'url': disp_url})
+    return jsonify({'ok': True})
+
+@app.route('/api/games/trivia/action', methods=['POST'])
+def api_games_trivia_action():
+    body      = request.json or {}
+    config_id = body.get('config_id', '')
+    action    = body.get('action', '')
+    data, _   = _trivia_config_data(config_id)
+    questions = data.get('questions', [])
+
+    if action in ('correct', 'incorrect'):
+        scene = data.get('correct_scene' if action == 'correct' else 'incorrect_scene')
+        sfx   = data.get('correct_sfx'   if action == 'correct' else 'incorrect_sfx')
+        if scene:
+            # Same flash-then-revert helper Head to Head uses for its own
+            # correct/incorrect scenes — fires the scene, then reverts to
+            # whatever was showing before, instead of leaving it stuck.
+            # 1500ms, not H2H's 400ms default — 400 was too quick to register
+            # as a deliberate cue rather than a flicker.
+            _h2h_flash_and_revert(scene, 1500)
+        if sfx:
+            threading.Thread(target=_chairs_play_cue_file, args=(sfx,), daemon=True).start()
+        # Log this mark against the current question — this is the session's
+        # own running tally, independent of any linked Head to Head game (used
+        # for standalone runs where there's no team scoreboard to keep score).
+        with _trivia_state_lock:
+            st = _trivia_state.setdefault(config_id, _trivia_default_state())
+            real_idx = _trivia_real_index(st, len(questions))
+            q = questions[real_idx] if questions and real_idx < len(questions) else None
+            st['log'].append({'index': st['index'], 'question': (q or {}).get('question', ''),
+                               'correct': action == 'correct'})
+            new_state = dict(st)
+        payload = {'config_id': config_id, 'index': new_state['index'], 'revealed': new_state['revealed'],
+                   'timer_end': new_state['timer_end'], 'log': new_state['log'], 'order': new_state['order'],
+                   'show_score': new_state['show_score'], 'count': len(questions)}
+        broadcast('trivia_state', payload)
+        return jsonify({'ok': True, **payload})
+
+    with _trivia_state_lock:
+        st = _trivia_state.setdefault(config_id, _trivia_default_state())
+        if action == 'reveal':
+            st['revealed']  = True
+            st['timer_end'] = None   # guessing window is over once the answer shows
+        elif action == 'next':
+            if questions:
+                st['index'] = min(st['index'] + 1, len(questions) - 1)
+            st['revealed']   = False
+            st['timer_end']  = None   # new question — timer must be started again if wanted
+            st['show_score'] = False  # moving on implies going back to Q&A view
+        elif action == 'prev':
+            st['index'] = max(st['index'] - 1, 0)
+            st['revealed']   = False
+            st['timer_end']  = None
+            st['show_score'] = False
+        elif action == 'start_timer':
+            secs = data.get('guess_timer_secs', 0) or 0
+            if secs > 0:
+                st['timer_end'] = time.time() + secs
+        elif action == 'clear_timer':
+            st['timer_end'] = None
+        elif action == 'show_score':
+            st['show_score'] = True
+        elif action == 'hide_score':
+            st['show_score'] = False
+        elif action == 'clear_log':
+            st['log'] = []
+        elif action == 'toggle_log':
+            # Operator fixes a mis-tap in the running log — flip that one
+            # entry's correct/incorrect instead of having to clear and redo
+            # the whole tally.
+            li = body.get('log_index')
+            if isinstance(li, int) and 0 <= li < len(st['log']):
+                st['log'][li]['correct'] = not st['log'][li]['correct']
+        new_state = dict(st)
+
+    payload = {'config_id': config_id, 'index': new_state['index'], 'revealed': new_state['revealed'],
+               'timer_end': new_state['timer_end'], 'log': new_state['log'], 'order': new_state['order'],
+               'show_score': new_state['show_score'], 'count': len(questions)}
+    broadcast('trivia_state', payload)
+    return jsonify({'ok': True, **payload})
+
+@app.route('/api/games/trivia/import', methods=['POST'])
+def api_games_trivia_import():
+    """Parse an uploaded CSV or .xlsx question bank. Returns rows only — the
+    client merges them into the config's own questions list and saves through
+    the normal /api/game_configs PUT, so there's a single save path."""
+    if 'file' not in request.files:
+        return jsonify({'ok': False, 'error': 'No file'}), 400
+    f    = request.files['file']
+    name = (f.filename or '').lower()
+    rows = []
+    try:
+        if name.endswith('.xlsx'):
+            if not _HAS_OPENPYXL:
+                return jsonify({'ok': False, 'error': 'openpyxl not installed on the Pi — run: pip install openpyxl'}), 500
+            wb = _openpyxl.load_workbook(f.stream, read_only=True, data_only=True)
+            ws = wb.active
+            for row in ws.iter_rows(values_only=True):
+                if row and any(c is not None for c in row):
+                    rows.append([('' if c is None else str(c)) for c in row])
+        else:
+            text = f.read().decode('utf-8-sig', errors='replace')
+            for row in csv.reader(io.StringIO(text)):
+                if row and any(c.strip() for c in row):
+                    rows.append(row)
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'Could not parse file: {e}'}), 400
+
+    if not rows:
+        return jsonify({'ok': True, 'questions': []})
+
+    # First row is a header if it doesn't look like actual Q/A content — match
+    # question/answer/category case-insensitively; otherwise assume columns
+    # 1/2/3 = question/answer/category and treat row 1 as data, not a header.
+    header = [c.strip().lower() for c in rows[0]]
+    col_map = {}
+    for i, h in enumerate(header):
+        if h in ('question', 'q'):
+            col_map['question'] = i
+        elif h in ('answer', 'a'):
+            col_map['answer'] = i
+        elif h in ('category', 'cat'):
+            col_map['category'] = i
+    data_rows = rows[1:] if col_map else rows
+    if not col_map:
+        col_map = {'question': 0, 'answer': 1, 'category': 2}
+
+    questions = []
+    for row in data_rows:
+        def _cell(key):
+            i = col_map.get(key)
+            return row[i].strip() if i is not None and i < len(row) and row[i] else ''
+        q, a = _cell('question'), _cell('answer')
+        if not q and not a:
+            continue
+        questions.append({'id': f'q_{uuid.uuid4().hex[:10]}', 'question': q, 'answer': a, 'category': _cell('category')})
+
+    return jsonify({'ok': True, 'questions': questions})
 
 # ── LIGHTING ──
 @app.route('/api/lights/scene', methods=['GET', 'POST'])
@@ -5736,6 +6002,28 @@ def api_asset_clear():
     log.info(f"Cleared asset {asset_type} from {target_type} {target_id}")
     return jsonify({'ok': True})
 
+@app.route('/api/admin/macro/clear_display_image', methods=['POST'])
+def api_macro_clear_display_image():
+    """A macro's display_image is a flat field on the macro itself (not the
+    assets{} dict api_asset_clear handles), set directly by the upload routes
+    — same shape needs its own clear."""
+    data = request.get_json(force=True)
+    macro_id = data.get('id')
+    if not macro_id:
+        return jsonify({'ok': False, 'error': 'Missing id'})
+    cfg = load_config()
+    macro = next((m for m in cfg.get('macros', []) if m['id'] == macro_id), None)
+    if not macro:
+        return jsonify({'ok': False, 'error': 'Not found'})
+    macro.pop('display_image', None)
+    save_config(cfg)
+    macro_dir = ASSETS_DIR / 'macros' / macro_id
+    if macro_dir.exists():
+        for f in macro_dir.glob('display_image.*'):
+            f.unlink()
+    log.info(f"Cleared display_image from macro {macro_id}")
+    return jsonify({'ok': True})
+
 # ── ADMIN — GENERATE ANIMATION ──
 
 @app.route('/api/admin/upload_display', methods=['POST'])
@@ -6026,6 +6314,38 @@ def api_usb_list():
     except Exception:
         pass
     return jsonify({'mounted': mount, 'items': items, 'disk': disk})
+
+@app.route('/api/usb/eject', methods=['POST'])
+def api_usb_eject():
+    """Cleanly unmount the USB drive so it's safe to physically pull —
+    the alternative (yanking it live) risks filesystem corruption if
+    anything was still writing (playlist scan, audio normalizer)."""
+    global _playlist_advance_id, _usb_mount_cache
+    mount = _find_usb_mount()
+    if not mount:
+        return jsonify({'ok': False, 'error': 'No USB drive mounted'}), 404
+    # Stop playback so pygame isn't holding a file handle open on the drive.
+    _playlist_advance_id += 1
+    playlist_state['active']     = False
+    playlist_state['track_name'] = ''
+    broadcast('playlist_state', playlist_state)
+    stop_audio()
+    try:
+        os.sync()
+        r = subprocess.run(['sudo', '/usr/bin/umount', mount], capture_output=True, text=True, timeout=10)
+        if r.returncode != 0:
+            err = r.stderr.strip() or 'unmount failed'
+            log.warning(f"USB eject failed for {mount}: {err}")
+            busy = 'busy' in err.lower()
+            return jsonify({'ok': False, 'error': ('Drive busy — still in use' if busy else err)}), 409
+    except subprocess.TimeoutExpired:
+        return jsonify({'ok': False, 'error': 'Unmount timed out'}), 504
+    except Exception as e:
+        log.error(f"USB eject error: {e}")
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    _usb_mount_cache = (None, time.monotonic())  # reflect "no drive" immediately, don't wait for TTL
+    log.info(f"USB drive ejected: {mount}")
+    return jsonify({'ok': True})
 
 _USB_IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'}
 _USB_VIDEO_EXTS = {'.mp4', '.mov', '.webm', '.avi', '.mkv', '.m4v'}

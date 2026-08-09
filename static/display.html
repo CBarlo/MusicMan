@@ -1041,7 +1041,10 @@ function showWalkup(data) {
     const alreadyReady = (vid.src === location.origin + introBase || vid.src === introBase) && vid.readyState >= 2;
     vid.loop    = false;
     vid.onerror = () => { vid.style.display = 'none'; _startMainAnim(); };
-    vid.onended = () => { vid.onended = null; _startMainAnim(); };
+    // reveal_game_url: this walkup is a game's intro (e.g. the Wheel, preloaded
+    // hidden behind it) — reveal it the instant this video actually finishes,
+    // not on a blind timer guessing when that'll be.
+    vid.onended = () => { vid.onended = null; _startMainAnim(); if (data.reveal_game_url) revealGameFrame(); };
     if (alreadyReady) {
       try { vid.currentTime = 0; } catch(e) {}
       vid.style.display = 'block';
@@ -1187,13 +1190,22 @@ function hideSlide() {
 // the src clear by 10s so GC happens when the browser is idle, not mid-walkup.
 const _gameFrame = document.getElementById('game-frame');
 let _gameFrameClearTimer = null;
+// True while a game is preloading hidden behind an intro walkup (see
+// preloadGameFrame below). The walkup's own display_walkup broadcast would
+// otherwise hit hideGameFrame() and both hide AND, 10s later, clear the src
+// of the game we're actively preloading — wiping it out before the reveal
+// ever gets a chance to show it.
+let _gamePreloading = false;
 function showGameFrame(url) {
   clearTimeout(_gameFrameClearTimer);
+  _gamePreloading = false;
   const sep = url.includes('?') ? '&' : '?';
   _gameFrame.src = url + sep + '_v=' + Date.now();
   _gameFrame.style.display = 'block';
+  _gameFrame.style.visibility = 'visible';
 }
 function hideGameFrame() {
+  _gamePreloading = false;
   if (_gameFrame.style.display === 'none') return;
   // The iframe's document stays alive for the next 10s (src isn't cleared —
   // see the GC-stall comment above), so anything with an in-flight timeline
@@ -1203,6 +1215,7 @@ function hideGameFrame() {
   // already navigated away.
   try { _gameFrame.contentWindow.postMessage({ type: 'mm_game_hidden' }, '*'); } catch(e) {}
   _gameFrame.style.display = 'none';
+  _gameFrame.style.visibility = 'visible';
   clearTimeout(_gameFrameClearTimer);
   _gameFrameClearTimer = setTimeout(() => { _gameFrame.src = ''; }, 10000);
 }
@@ -1210,15 +1223,24 @@ function hideGameFrame() {
 // is covering the screen, so the game (e.g. the Wheel, already idly
 // spinning on load) has the whole walkup duration to load before
 // revealGameFrame() cuts over to it, instead of a cold first frame.
+// Uses visibility:hidden, NOT display:none — a display:none iframe has a
+// zero-size layout box (canvas sizing inside it reads 0) and browsers pause
+// its rAF loop, so nothing lays out correctly and the "already spinning"
+// goal silently fails. visibility:hidden keeps real layout + rendering
+// running while staying invisible on screen.
 function preloadGameFrame(url) {
   clearTimeout(_gameFrameClearTimer);
+  _gamePreloading = true;
   const sep = url.includes('?') ? '&' : '?';
+  _gameFrame.style.display = 'block';
+  _gameFrame.style.visibility = 'hidden';
   _gameFrame.src = url + sep + '_v=' + Date.now();
-  _gameFrame.style.display = 'none';
 }
 function revealGameFrame() {
   clearTimeout(_gameFrameClearTimer);
+  _gamePreloading = false;
   _gameFrame.style.display = 'block';
+  _gameFrame.style.visibility = 'visible';
 }
 
 function blackout() {
@@ -1598,7 +1620,7 @@ function connectWS() {
 
       if      (msg.event === 'preload_assets')    { preloadAssets(data.urls); }
       else if (msg.event === 'walkup_preload')    { preloadWalkupVideo(data); }
-      else if (msg.event === 'display_walkup')    { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showWalkup(data); }
+      else if (msg.event === 'display_walkup')    { if (!_gamePreloading) hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showWalkup(data); }
       else if (msg.event === 'display_step')      { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showStep(data); }
       else if (msg.event === 'display_animation') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showTitleVideo(data); }
       else if (msg.event === 'display_clear')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); blackout(); }

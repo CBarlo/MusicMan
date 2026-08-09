@@ -533,6 +533,7 @@
             <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">USB PLAYLIST</div>
             <div style="display:flex;gap:6px">
               <button id="pl-shuffle-btn" onclick="togglePlShuffle()" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber);font-weight:700;font-family:'Barlow Condensed',sans-serif">🔀 SHUFFLE: ON</button>
+              <button id="usb-eject-btn" onclick="ejectUsb()" style="display:none;font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--rust,#c0392b);background:var(--surface);color:var(--rust,#c0392b);font-weight:700;font-family:'Barlow Condensed',sans-serif">⏏ EJECT</button>
               <button onclick="refreshUsbList()" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-weight:700;font-family:'Barlow Condensed',sans-serif">↺ SCAN</button>
             </div>
           </div>
@@ -1095,6 +1096,7 @@ function togglePlShuffle() {
 async function refreshUsbList() {
   const label = document.getElementById('usb-label');
   const items = document.getElementById('usb-items');
+  const ejectBtn = document.getElementById('usb-eject-btn');
   if (label) label.textContent = 'SCANNING…';
   if (items) items.innerHTML = '';
   try {
@@ -1102,8 +1104,10 @@ async function refreshUsbList() {
     if (!data.mounted) {
       if (label) label.textContent = 'NO USB DRIVE FOUND';
       if (items) items.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:16px 0;text-align:center">Plug in a USB drive and tap SCAN</div>';
+      if (ejectBtn) ejectBtn.style.display = 'none';
       return;
     }
+    if (ejectBtn) ejectBtn.style.display = '';
     if (label) label.textContent = 'USB: ' + data.mounted;
     if (!data.items.length) {
       if (items) items.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:16px 0;text-align:center">No audio files found on drive</div>';
@@ -1151,6 +1155,25 @@ async function refreshUsbList() {
 function startPlaylist(path) {
   fetch('/api/playlist/play?path=' + encodeURIComponent(path) + '&shuffle=' + (_plShuffle ? '1' : '0')).catch(() => {});
   showAlert('▶ PLAYLIST STARTED', 1500);
+}
+
+async function ejectUsb() {
+  const btn = document.getElementById('usb-eject-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏏ EJECTING…'; }
+  try {
+    const r = await fetch('/api/usb/eject', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      showAlert('✓ SAFE TO REMOVE', 2000);
+      refreshUsbList();
+    } else {
+      showAlert(d.error || 'Eject failed', 2500);
+    }
+  } catch(e) {
+    showAlert('Eject error', 2500);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⏏ EJECT'; }
+  }
 }
 
 function usbToggleBrowse(path, btn, panel, row) {
@@ -1903,7 +1926,7 @@ function _renderAllGlUiConfigs() {
         }).join('');
         if (dots) strip = `<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:6px">${dots}</div>`;
       }
-      tiles.push(`<div class="circle-card" onclick="glUiGoLive('${escHtml(gt.id)}','${escHtml(c.id)}')" style="padding:10px 12px;margin-bottom:6px">
+      tiles.push(`<div class="circle-card" onclick="glUiJoinControls('${escHtml(gt.id)}','${escHtml(c.id)}')" style="padding:10px 12px;margin-bottom:6px" title="Open controls for this game without restarting it">
         <div style="display:flex;align-items:center;gap:10px">
           <div style="font-size:20px;line-height:1;flex-shrink:0">${escHtml(gt.icon||'🎮')}</div>
           <div style="min-width:0;flex:1">
@@ -1936,6 +1959,20 @@ async function glUiGoLive(typeId, configId) {
   } catch(e) {
     showAlert('Launch error', 2000);
   }
+}
+
+// Opens a game's controller WITHOUT calling /api/games/launch — GO LIVE is the
+// only thing that (re)starts a session (fires the intro, resets question
+// position/log/shuffle order). This is for a second device joining a game
+// someone else already put live — e.g. one operator running the show from a
+// laptop while another reads questions from the iPad — so tapping into the
+// same config here doesn't yank it back to question 1 out from under them.
+// The controller syncs to whatever's currently live on its own (same
+// mechanism that already recovers an HDMI reload mid-game).
+function glUiJoinControls(typeId, configId) {
+  const gt = _glUiGameTypes.find(g => g.id === typeId);
+  const route = (gt && gt.controller_route) || `/games/${typeId}`;
+  showGameOverlay(route + '?config=' + encodeURIComponent(configId));
 }
 
 // ─ Countdown (cd*) ─

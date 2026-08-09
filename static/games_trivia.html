@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MM — AG Trivia</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+  :root {
+    --charcoal-deep: #0c0e10;
+    --charcoal-mid:  #171a1e;
+    --amber:     #f0a929;
+    --amber-hi:  #ffce6b;
+    --sage:      #4f7a5c;
+    --rust:      #c0392b;
+    --cream:     #f2ece0;
+    --ink:       #14100a;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body { min-height:100%; background:var(--charcoal-deep); font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; color:var(--cream); }
+
+  /* ── STAGE ── */
+  .stage {
+    display:flex; flex-direction:column; align-items:center;
+    padding:28px 24px 18px; min-height:40vh;
+    background: radial-gradient(ellipse at 50% -10%, #2a2210 0%, transparent 55%),
+                linear-gradient(180deg, var(--charcoal-mid) 0%, var(--charcoal-deep) 70%);
+  }
+  .brand-row { display:flex; align-items:center; justify-content:space-between; width:100%; max-width:900px; margin-bottom:18px; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand-badge {
+    width:40px; height:40px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--amber-hi), var(--amber) 55%, #b8860b 100%);
+    display:flex; align-items:center; justify-content:center; font-size:18px;
+    box-shadow:0 0 0 3px var(--charcoal-deep), 0 0 0 4px var(--amber);
+  }
+  .brand-name { font-size:22px; font-weight:800; color:var(--amber-hi); letter-spacing:1px; line-height:1; }
+  .brand-sub  { font-size:11px; letter-spacing:3px; color:var(--cream); opacity:0.6; font-weight:500; text-transform:uppercase; }
+  .q-tag {
+    font-size:13px; letter-spacing:3px; text-transform:uppercase;
+    color:var(--cream); opacity:0.7; border:1px solid rgba(242,236,224,0.25);
+    padding:6px 14px; border-radius:999px; white-space:nowrap;
+  }
+
+  .qa-area { width:100%; max-width:900px; display:flex; flex-direction:column; gap:16px; align-items:center; }
+  .question-card {
+    width:100%; background:linear-gradient(180deg, #20241c, #171a1e);
+    border:1px solid rgba(240,169,41,0.3); border-radius:14px;
+    padding:32px 36px; text-align:center;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.4);
+    transition:padding .35s ease;
+  }
+  .question-label { font-size:11px; letter-spacing:3px; color:var(--amber-hi); text-transform:uppercase; font-weight:700; margin-bottom:10px; transition:font-size .35s ease; }
+  .question-text { font-size:38px; font-weight:800; line-height:1.15; color:var(--cream); text-wrap:balance; transition:font-size .35s ease; }
+
+  .answer-card {
+    width:100%; background:linear-gradient(180deg, #1c3324, #171a1e);
+    border:1px solid rgba(79,122,92,0.5); border-radius:14px;
+    padding:22px 36px; text-align:center;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.4);
+    opacity:0; transform:translateY(8px) scale(0.98); transition:all 0.35s cubic-bezier(.2,.9,.25,1);
+    max-height:0; overflow:hidden; padding-top:0; padding-bottom:0;
+  }
+  .answer-card.show { opacity:1; transform:none; max-height:400px; padding-top:22px; padding-bottom:22px; }
+  .answer-label { font-size:11px; letter-spacing:3px; color:#7fd99a; text-transform:uppercase; font-weight:700; margin-bottom:8px; transition:font-size .35s ease; }
+  .answer-text { font-size:30px; font-weight:700; line-height:1.15; color:#c8ecd2; text-wrap:balance; transition:font-size .35s ease; }
+
+  /* On reveal, the question steps back and the answer becomes the focal
+     point — also frees up vertical room so a long question + its answer
+     don't overflow the screen together. */
+  .qa-area.revealed .question-card  { padding:14px 20px; }
+  .qa-area.revealed .question-label { font-size:9px; }
+  .qa-area.revealed .question-text  { font-size:18px; }
+  .qa-area.revealed .answer-text    { font-size:38px; }
+  .display-mode .qa-area.revealed .question-card  { padding:1.8vh 3vw; }
+  .display-mode .qa-area.revealed .question-label { font-size:1vw; }
+  .display-mode .qa-area.revealed .question-text  { font-size:2.8vw; }
+  .display-mode .qa-area.revealed .answer-text    { font-size:7.5vw; }
+
+  .footer-hint { margin-top:8px; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(242,236,224,0.4); }
+
+  /* ── TEAM SCOREBOARD (optional Head to Head link) ── */
+  .scoreboard-strip { width:100%; max-width:900px; display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .score-pill {
+    flex:1; min-width:120px; display:flex; align-items:center; gap:10px;
+    background:rgba(255,255,255,0.04); border:2px solid var(--pill-color,rgba(255,255,255,0.15));
+    border-radius:12px; padding:10px 14px;
+  }
+  .score-pill-photo { width:30px; height:30px; border-radius:50%; object-fit:cover; border:2px solid var(--pill-color,#888); flex-shrink:0; }
+  .score-pill-initial {
+    width:30px; height:30px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:800; color:var(--pill-color,#888); background:color-mix(in srgb, var(--pill-color,#888) 20%, transparent);
+    border:2px solid var(--pill-color,#888);
+  }
+  .score-pill-name { flex:1; font-size:14px; font-weight:700; letter-spacing:0.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .score-pill-val { font-family:'Share Tech Mono',monospace; font-size:22px; font-weight:700; color:var(--pill-color,var(--amber-hi)); }
+  .display-mode .scoreboard-strip { max-width:100%; margin-bottom:4vh; gap:1.2vw; }
+  .display-mode .score-pill { padding:1.4vh 1.6vw; border-radius:14px; }
+  .display-mode .score-pill-photo, .display-mode .score-pill-initial { width:3.2vw; height:3.2vw; }
+  .display-mode .score-pill-initial { font-size:1.4vw; }
+  .display-mode .score-pill-name { font-size:1.5vw; }
+  .display-mode .score-pill-val { font-size:2.4vw; }
+
+  /* ── GUESS TIMER (optional) — matches display.html's own chrono overlay:
+     dark backdrop pill pinned to the bottom of the screen, big number,
+     small uppercase label, color shifts amber → orange → red as it runs out. ── */
+  .timer-row { width:100%; display:flex; justify-content:center; margin-bottom:16px; }
+  .timer-inner { text-align:center; }
+  .timer-badge {
+    font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; font-weight:900; font-size:40px;
+    line-height:0.85; letter-spacing:0.04em; color:#F5A623; text-shadow:0 0 20px currentColor;
+    transition:color .3s ease;
+  }
+  .timer-label { font-size:10px; letter-spacing:0.4em; color:rgba(255,255,255,0.5); margin-top:4px; font-weight:600; }
+  .display-mode .timer-row {
+    position:fixed; inset:0; margin:0; z-index:50;
+    align-items:flex-end; justify-content:center; padding-bottom:5vh; pointer-events:none;
+  }
+  .display-mode .timer-inner { background:rgba(0,0,0,0.72); border-radius:16px; padding:2vw 5vw 1.5vw; backdrop-filter:blur(6px); }
+  .display-mode .timer-badge { font-size:16vw; text-shadow:0 0 5vw currentColor; }
+  .display-mode .timer-label { font-size:1.8vw; letter-spacing:0.4em; margin-top:0.5vw; }
+
+  /* ── SCORE CARD (standalone tally, no Head to Head linked) ──
+     Fills the remaining stage height and centers its content — a small fixed-
+     padding box left the score adrift in a lot of empty space, especially on
+     the HDMI where the question card usually sits pinned to the top. ── */
+  .score-card {
+    width:100%; max-width:900px; flex:1; min-height:200px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(180deg, #20241c, #171a1e);
+    border:1px solid rgba(240,169,41,0.3); border-radius:14px;
+    text-align:center;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .score-card-label { font-size:14px; letter-spacing:6px; color:var(--amber-hi); text-transform:uppercase; font-weight:700; margin-bottom:16px; }
+  .score-card-val { font-family:'Share Tech Mono',monospace; font-size:88px; font-weight:800; color:var(--cream); line-height:1; }
+  .display-mode .score-card { max-width:100%; border-radius:24px; }
+  .display-mode .score-card-label { font-size:2vw; letter-spacing:0.6vw; margin-bottom:2vh; }
+  .display-mode .score-card-val   { font-size:18vw; }
+
+  /* ── SESSION LOG (operator-only, standalone tally) ── */
+  .session-log { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+  .session-log-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .session-log-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:rgba(242,236,224,0.5); font-weight:700; }
+  .session-log-tally { font-family:'Share Tech Mono',monospace; font-size:16px; color:var(--amber-hi); font-weight:700; }
+  .session-log-list { max-height:160px; overflow-y:auto; margin-bottom:10px; }
+  .session-log-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:13px; }
+  .session-log-row:last-child { border-bottom:none; }
+  .session-log-row .mark { flex-shrink:0; font-weight:800; cursor:pointer; padding:2px 4px; border-radius:4px; }
+  .session-log-row .mark:hover { background:rgba(255,255,255,0.08); }
+  .session-log-row .mark.yes { color:#3ecf6a; }
+  .session-log-row .mark.no  { color:var(--rust); }
+  .session-log-row .q { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(242,236,224,0.8); }
+  .session-log-empty { font-size:12px; color:rgba(242,236,224,0.4); padding:4px 0; }
+  .session-log-actions { display:flex; gap:8px; }
+
+  /* ── DISPLAY MODE ── */
+  .display-mode .admin       { display:none !important; }
+  .display-mode .footer-hint { display:none; }
+  .display-mode .stage       { min-height:100vh; padding:5vh 8vw 6vh; justify-content:flex-start; }
+  .display-mode .brand-row   { max-width:100%; margin-bottom:5vh; }
+  .display-mode .brand-name  { font-size:32px; }
+  .display-mode .qa-area     { max-width:100%; gap:4vh; }
+  .display-mode .question-card { padding:5vh 6vw; border-radius:20px; }
+  .display-mode .question-label{ font-size:16px; }
+  .display-mode .question-text { font-size:7vw; }
+  .display-mode .answer-card   { padding-left:6vw; padding-right:6vw; border-radius:20px; }
+  .display-mode .answer-card.show { max-height:60vh; }
+  .display-mode .answer-label { font-size:14px; }
+  .display-mode .answer-text  { font-size:5.2vw; }
+
+  /* ── OPERATOR PANEL ── */
+  .admin { background:#111318; border-top:3px solid var(--amber); padding:20px 24px 44px; }
+  .admin-inner { max-width:900px; margin:0 auto; }
+  .admin-title { font-size:15px; font-weight:700; letter-spacing:2px; color:var(--amber-hi); text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#3ecf6a; box-shadow:0 0 8px #3ecf6a; }
+
+  .config-bar { display:flex; align-items:center; gap:10px; margin-bottom:16px; padding:10px 14px; background:rgba(240,169,41,0.06); border:1px solid rgba(240,169,41,0.2); border-radius:8px; font-size:13px; color:var(--cream); }
+  .config-bar strong { color:var(--amber-hi); }
+
+  .op-qa { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+  .op-q-label { font-size:10px; letter-spacing:2px; color:rgba(242,236,224,0.5); text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .op-question { font-size:19px; font-weight:700; margin-bottom:10px; line-height:1.3; }
+  .op-answer-row { display:flex; align-items:baseline; gap:8px; }
+  .op-answer-tag { font-size:10px; letter-spacing:2px; color:#7fd99a; text-transform:uppercase; font-weight:700; flex-shrink:0; }
+  .op-answer { font-size:15px; font-weight:600; color:#c8ecd2; }
+
+  .admin-actions { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+  .op-btn { font-family:'Barlow Condensed',Arial,sans-serif; font-weight:700; font-size:13px; letter-spacing:1px; text-transform:uppercase; padding:12px 20px; border-radius:8px; cursor:pointer; border:none; }
+  .op-btn.reveal { background:var(--amber); color:var(--ink); font-size:15px; padding:13px 26px; flex:1; min-width:180px; }
+  .op-btn.reveal:disabled { opacity:0.4; cursor:not-allowed; }
+  .op-btn.nav { background:rgba(255,255,255,0.06); color:var(--cream); border:1px solid rgba(255,255,255,0.15); }
+  .op-btn.nav:disabled { opacity:0.35; cursor:not-allowed; }
+  .op-btn.correct { background:rgba(63,207,106,0.15); color:#3ecf6a; border:1px solid rgba(63,207,106,0.4); }
+  .op-btn.incorrect { background:rgba(220,38,38,0.15); color:var(--rust); border:1px solid rgba(220,38,38,0.4); }
+  .op-btn.flash { filter:brightness(1.6); }
+  .op-btn:active { transform:translateY(1px); }
+
+  .op-btn.nav.active { background:var(--amber); color:var(--ink); border-color:var(--amber); }
+  .h2h-row { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .h2h-row:last-child { border-bottom:none; }
+  .h2h-row-photo { width:28px; height:28px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+  .h2h-row-initial { width:28px; height:28px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; }
+  .h2h-row-name { flex:1; font-size:14px; font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .h2h-row button { font-family:'Barlow Condensed',Arial,sans-serif; font-weight:700; border-radius:6px; cursor:pointer; background:rgba(255,255,255,0.06); color:var(--cream); border:1px solid rgba(255,255,255,0.15); }
+  .h2h-row .h2h-pm { width:34px; height:34px; font-size:16px; flex-shrink:0; }
+  .h2h-row .h2h-set { width:30px; height:30px; font-size:12px; flex-shrink:0; }
+  .h2h-row-score { font-family:'Share Tech Mono',monospace; font-size:19px; color:var(--amber-hi); min-width:36px; text-align:center; flex-shrink:0; }
+</style>
+</head>
+<body>
+
+<!-- ── TRIVIA DISPLAY ── -->
+<div class="stage">
+  <div class="brand-row">
+    <div class="brand">
+      <div class="brand-badge">❓</div>
+      <div><div class="brand-name">AG Trivia</div><div class="brand-sub">Adventure Guides</div></div>
+    </div>
+    <div class="q-tag" id="qCounterTag">Loading…</div>
+  </div>
+
+  <div class="scoreboard-strip" id="scoreboardStrip" style="display:none"></div>
+
+  <div class="timer-row" id="timerRow" style="display:none">
+    <div class="timer-inner">
+      <div class="timer-badge" id="timerBadge">0</div>
+      <div class="timer-label">REMAINING</div>
+    </div>
+  </div>
+
+  <div class="qa-area" id="qaArea">
+    <div class="question-card">
+      <div class="question-label">Question</div>
+      <div class="question-text" id="questionText">—</div>
+    </div>
+    <div class="answer-card" id="answerCard">
+      <div class="answer-label">Answer</div>
+      <div class="answer-text" id="answerText">—</div>
+    </div>
+  </div>
+
+  <div class="score-card" id="scoreCard" style="display:none">
+    <div class="score-card-label">Score</div>
+    <div class="score-card-val" id="scoreCardVal">0 / 0</div>
+  </div>
+
+  <div class="footer-hint">AG Trivia — operator controls below</div>
+</div>
+
+<!-- ── OPERATOR PANEL ── -->
+<div class="admin">
+  <div class="admin-inner">
+    <div class="admin-title"><span class="dot"></span> AG Trivia — Operator</div>
+
+    <div class="config-bar" id="configBar" style="display:none">
+      Config: <strong id="configName">—</strong>
+    </div>
+
+    <div class="admin-actions" id="startRow" style="display:none">
+      <button class="op-btn reveal" id="startBtn" onclick="triviaStartGame()" style="background:#3ecf6a">▶ Start Game</button>
+    </div>
+
+    <div class="op-qa">
+      <div class="op-q-label">QUESTION <span id="opIndex">1</span> OF <span id="opCount">0</span></div>
+      <div class="op-question" id="opQuestionText">—</div>
+      <div class="op-answer-row">
+        <span class="op-answer-tag">Answer</span>
+        <span class="op-answer" id="opAnswerText">—</span>
+      </div>
+    </div>
+
+    <div class="admin-actions" id="timerBtnRow" style="display:none">
+      <button class="op-btn nav" id="timerStartBtn" onclick="triviaAction('start_timer')" style="flex:1">⏱ Start Timer</button>
+      <button class="op-btn nav" id="timerStopBtn" onclick="triviaAction('clear_timer')">⏹ Stop</button>
+    </div>
+
+    <div class="admin-actions">
+      <button class="op-btn reveal" id="revealBtn" onclick="triviaAction('reveal')">👁 Reveal Answer</button>
+    </div>
+    <div class="admin-actions">
+      <button class="op-btn nav" id="prevBtn" onclick="triviaAction('prev')">◂ Prev</button>
+      <button class="op-btn nav" id="nextBtn" onclick="triviaAction('next')" style="flex:1">Next Question ▸</button>
+    </div>
+    <div class="admin-actions" id="ciSimple">
+      <button class="op-btn correct" onclick="triviaMark('correct')">✓ Correct</button>
+      <button class="op-btn incorrect" onclick="triviaMark('incorrect')">✕ Incorrect</button>
+    </div>
+
+    <div class="session-log" id="sessionLog" style="display:none">
+      <div class="session-log-hdr">
+        <span class="session-log-title">Session Log</span>
+        <span class="session-log-tally" id="sessionLogTally">0 / 0</span>
+      </div>
+      <div class="session-log-list" id="sessionLogList"><div class="session-log-empty">No questions marked yet</div></div>
+      <div class="session-log-actions">
+        <button class="op-btn nav" style="flex:1" onclick="triviaToggleScore()" id="showScoreBtn">📺 Show Score On Screen</button>
+        <button class="op-btn nav" onclick="triviaClearLog()" title="Clear the log and tally">↺ Clear</button>
+      </div>
+    </div>
+
+    <div id="h2hScoring" style="display:none">
+      <div class="admin-actions" style="align-items:center">
+        <span style="font-size:11px;letter-spacing:2px;color:rgba(242,236,224,0.5);text-transform:uppercase;font-weight:700">Multiplier</span>
+        <button class="op-btn nav h2h-mult-btn" data-mult="1" onclick="h2hSetMultiplier(1)">1x</button>
+        <button class="op-btn nav h2h-mult-btn" data-mult="2" onclick="h2hSetMultiplier(2)">2x</button>
+        <button class="op-btn nav h2h-mult-btn" data-mult="3" onclick="h2hSetMultiplier(3)">3x</button>
+        <button class="op-btn nav h2h-mult-btn" data-mult="5" onclick="h2hSetMultiplier(5)">5x</button>
+      </div>
+      <div id="h2hRows" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:6px 14px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let questions   = [];
+let curIndex    = 0;
+let curRevealed = false;
+let questionOrder = null;   // null = sequential; else array mapping play-position -> real question index
+
+function currentQuestion() {
+  if (!questions.length) return null;
+  const real = (questionOrder && questionOrder.length === questions.length) ? questionOrder[curIndex] : curIndex;
+  return questions[real] || null;
+}
+let _configId   = null;
+let _isDisplay  = false;
+
+// Optional Head to Head team scoreboard link
+let h2hGameId      = '';
+let h2hContestants = [];   // [{id, name, color, score, image_url}]
+let h2hMultiplier  = 1;
+
+// Optional guess timer
+let guessTimerSecs = 0;      // 0 = disabled, from config
+let _timerInterval = null;
+
+// Standalone session log (used when no Head to Head game is linked)
+let sessionLog = [];   // [{index, question, correct}]
+let showScore  = false;
+
+function escHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── WEBSOCKET ──
+let _ws = null;
+function connectWS() {
+  _ws = new WebSocket('ws://' + location.host + '/ws');
+  _ws.onopen  = () => { _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); };
+  _ws.onclose = () => setTimeout(connectWS, 3000);
+  _ws.onerror = () => _ws.close();
+  _ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.event === 'trivia_state' && (!msg.data.config_id || msg.data.config_id === _configId)) {
+        applyState(msg.data.index, msg.data.revealed, msg.data.timer_end, msg.data.log, msg.data.show_score, msg.data.order);
+      } else if (h2hGameId && msg.event === 'h2h_score' && msg.data.game_id === h2hGameId) {
+        const c = h2hContestants.find(x => x.id === msg.data.contestant_id);
+        if (c) { c.score = msg.data.score; renderScoreboard(); renderH2hRows(); }
+      } else if (h2hGameId && msg.event === 'h2h_multiplier') {
+        h2hMultiplier = msg.data.value || 1;
+        h2hRenderMultiplier();
+      } else if (h2hGameId && msg.event === 'h2h_reset' && msg.data.game_id === h2hGameId) {
+        h2hContestants.forEach(c => { c.score = (msg.data.scores || {})[c.id] ?? 0; });
+        renderScoreboard(); renderH2hRows();
+      }
+    } catch(e) {}
+  };
+}
+connectWS();
+
+// ── RENDER ──
+function applyState(index, revealed, timerEnd, log, showScoreFlag, order) {
+  curIndex = index || 0;
+  curRevealed = !!revealed;
+  if (order !== undefined) questionOrder = order || null;
+  const q = currentQuestion();
+  applyTimer(timerEnd || null);
+  if (Array.isArray(log)) sessionLog = log;
+  showScore = !!showScoreFlag;
+  renderSessionLog();
+  renderScoreCard();
+
+  document.getElementById('qCounterTag').textContent = questions.length
+    ? `Q ${curIndex + 1} of ${questions.length}` : 'No questions';
+  document.getElementById('questionText').textContent = q ? q.question : 'No questions loaded';
+  document.getElementById('opQuestionText').textContent = q ? q.question : 'No questions loaded';
+  document.getElementById('opAnswerText').textContent = q ? q.answer : '—';
+  document.getElementById('opIndex').textContent = questions.length ? (curIndex + 1) : 0;
+  document.getElementById('opCount').textContent = questions.length;
+
+  const answerCard = document.getElementById('answerCard');
+  const answerText = document.getElementById('answerText');
+  const qaAreaEl    = document.getElementById('qaArea');
+  if (curRevealed && q) {
+    answerText.textContent = q.answer;
+    answerCard.classList.add('show');
+    if (qaAreaEl) qaAreaEl.classList.add('revealed');
+  } else {
+    answerCard.classList.remove('show');
+    if (qaAreaEl) qaAreaEl.classList.remove('revealed');
+  }
+
+  const revealBtn = document.getElementById('revealBtn');
+  const prevBtn   = document.getElementById('prevBtn');
+  const nextBtn   = document.getElementById('nextBtn');
+  if (revealBtn) revealBtn.disabled = !q || curRevealed;
+  if (prevBtn)   prevBtn.disabled   = curIndex <= 0;
+  if (nextBtn)   nextBtn.disabled   = !questions.length || curIndex >= questions.length - 1;
+
+  const timerBtn = document.getElementById('timerStartBtn');
+  if (timerBtn) timerBtn.disabled = !q || curRevealed;
+}
+
+// ── SESSION LOG + SCORE CARD (standalone tally, no Head to Head linked) ──
+function renderSessionLog() {
+  const listEl  = document.getElementById('sessionLogList');
+  const tallyEl = document.getElementById('sessionLogTally');
+  if (!listEl || !tallyEl) return;
+  const correctCount = sessionLog.filter(e => e.correct).length;
+  tallyEl.textContent = `${correctCount} / ${sessionLog.length}`;
+  if (!sessionLog.length) {
+    listEl.innerHTML = '<div class="session-log-empty">No questions marked yet</div>';
+    return;
+  }
+  listEl.innerHTML = sessionLog.map((e, i) => `
+    <div class="session-log-row">
+      <span class="mark ${e.correct ? 'yes' : 'no'}" onclick="triviaToggleLogEntry(${i})" title="Tap to fix a mis-tap">${e.correct ? '✓' : '✕'}</span>
+      <span class="q">${escHtml(e.question || `Question ${(e.index ?? 0) + 1}`)}</span>
+    </div>`).join('');
+  listEl.scrollTop = listEl.scrollHeight;
+}
+
+function renderScoreCard() {
+  const qaArea    = document.getElementById('qaArea');
+  const scoreCard = document.getElementById('scoreCard');
+  const scoreVal  = document.getElementById('scoreCardVal');
+  const showBtn   = document.getElementById('showScoreBtn');
+  const correctCount = sessionLog.filter(e => e.correct).length;
+  if (scoreVal) scoreVal.textContent = `${correctCount} / ${sessionLog.length}`;
+  if (qaArea)    qaArea.style.display    = showScore ? 'none' : 'flex';
+  if (scoreCard) scoreCard.style.display = showScore ? 'flex' : 'none';
+  if (showBtn)   showBtn.textContent = showScore ? '📋 Back To Questions' : '📺 Show Score On Screen';
+}
+
+function triviaToggleScore() {
+  triviaAction(showScore ? 'hide_score' : 'show_score');
+}
+
+function triviaClearLog() {
+  if (!confirm('Clear the session log and reset the tally to 0/0?')) return;
+  triviaAction('clear_log');
+}
+
+// ── GUESS TIMER (optional) ──
+function applyTimer(endEpoch) {
+  clearInterval(_timerInterval);
+  _timerInterval = null;
+  const row = document.getElementById('timerRow');
+  const badge = document.getElementById('timerBadge');
+  const stopBtn = document.getElementById('timerStopBtn');
+  if (!endEpoch) {
+    if (row) row.style.display = 'none';
+    if (stopBtn) stopBtn.disabled = true;
+    return;
+  }
+  if (stopBtn) stopBtn.disabled = false;
+
+  const tick = () => {
+    const remaining = Math.max(0, Math.ceil(endEpoch - Date.now() / 1000));
+    badge.textContent = remaining;
+    // Same three-tier color ramp as display.html's own countdown overlay.
+    badge.style.color = remaining <= 5 ? '#FF3333' : remaining <= 10 ? '#FF8800' : '#F5A623';
+    if (remaining <= 0) clearInterval(_timerInterval);
+  };
+  if (row) row.style.display = 'flex';
+  tick();
+  _timerInterval = setInterval(tick, 250);
+}
+
+// ── TEAM SCOREBOARD (optional Head to Head link) ──
+function renderScoreboard() {
+  const el = document.getElementById('scoreboardStrip');
+  if (!el) return;
+  if (!h2hContestants.length) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = h2hContestants.map(c => {
+    const color = c.color || '#888888';
+    const photo = c.image_url
+      ? `<img class="score-pill-photo" src="${c.image_url}?t=${Date.now()}" style="--pill-color:${color}">`
+      : `<span class="score-pill-initial" style="--pill-color:${color}">${escHtml((c.name||'?').charAt(0).toUpperCase())}</span>`;
+    return `<div class="score-pill" style="--pill-color:${color}">${photo}<span class="score-pill-name">${escHtml(c.name)}</span><span class="score-pill-val" style="--pill-color:${color}">${c.score}</span></div>`;
+  }).join('');
+}
+
+function renderH2hRows() {
+  const el = document.getElementById('h2hRows');
+  if (!el) return;
+  el.innerHTML = h2hContestants.map(c => {
+    const color = c.color || '#888888';
+    const photo = c.image_url
+      ? `<img class="h2h-row-photo" src="${c.image_url}?t=${Date.now()}" style="border:2px solid ${color}">`
+      : `<span class="h2h-row-initial" style="color:${color};background:${color}33;border:2px solid ${color}">${escHtml((c.name||'?').charAt(0).toUpperCase())}</span>`;
+    return `<div class="h2h-row">
+      ${photo}
+      <span class="h2h-row-name">${escHtml(c.name)}</span>
+      <button class="h2h-pm" onclick="h2hScore('${escHtml(c.id)}',-1)">−</button>
+      <span class="h2h-row-score">${c.score}</span>
+      <button class="h2h-pm" onclick="h2hScore('${escHtml(c.id)}',1)">+</button>
+      <button class="h2h-set" onclick="h2hManualScore('${escHtml(c.id)}','${escHtml(c.name)}')" title="Set exact score">✎</button>
+    </div>`;
+  }).join('');
+}
+
+function h2hRenderMultiplier() {
+  document.querySelectorAll('.h2h-mult-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.mult) === h2hMultiplier);
+  });
+}
+
+function h2hSetMultiplier(v) {
+  if (!h2hGameId) return;
+  h2hMultiplier = v;
+  h2hRenderMultiplier();
+  fetch(`/api/head_to_head/${h2hGameId}/multiplier`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({value: v}),
+  }).catch(() => {});
+}
+
+function h2hScore(contestantId, direction) {
+  if (!h2hGameId) return;
+  fetch(`/api/head_to_head/${h2hGameId}/score`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({contestant_id: contestantId, direction}),
+  }).catch(() => {});
+}
+
+function h2hManualScore(contestantId, name) {
+  if (!h2hGameId) return;
+  const v = prompt(`Set score for ${name}:`);
+  if (v === null) return;
+  const value = parseInt(v);
+  if (isNaN(value)) return;
+  fetch(`/api/head_to_head/${h2hGameId}/set_score`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({contestant_id: contestantId, value}),
+  }).catch(() => {});
+}
+
+// ── OPERATOR ACTIONS ──
+async function triviaStartGame() {
+  try {
+    await fetch('/api/games/trivia/start', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ config_id: _configId }),
+    });
+  } catch(e) {}
+  const row = document.getElementById('startRow');
+  if (row) row.style.display = 'none';
+}
+
+async function triviaAction(action, extra) {
+  try {
+    const r = await fetch('/api/games/trivia/action', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ config_id: _configId, action, ...(extra || {}) }),
+    });
+    const d = await r.json();
+    if (d.ok) applyState(d.index, d.revealed, d.timer_end, d.log, d.show_score, d.order);
+  } catch(e) {}
+}
+
+function triviaToggleLogEntry(i) {
+  triviaAction('toggle_log', { log_index: i });
+}
+
+async function triviaMark(action) {
+  const btnClass = action === 'correct' ? '.op-btn.correct' : '.op-btn.incorrect';
+  const btn = document.querySelector(btnClass);
+  if (btn) { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 300); }
+  try {
+    const r = await fetch('/api/games/trivia/action', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ config_id: _configId, action }),
+    });
+    const d = await r.json();
+    if (d.ok) { sessionLog = d.log || sessionLog; renderSessionLog(); renderScoreCard(); }
+  } catch(e) {}
+}
+
+// ── INIT ──
+(async function init() {
+  const params = new URLSearchParams(location.search);
+  _isDisplay = params.get('display') === '1';
+  if (_isDisplay) document.body.classList.add('display-mode');
+
+  const configId = params.get('config');
+  if (configId) {
+    _configId = configId;
+    try {
+      const cfg = await fetch(`/api/game_configs/${configId}`).then(r => r.json());
+      if (cfg && cfg.id) {
+        questions = Array.isArray((cfg.data || {}).questions) ? cfg.data.questions : [];
+        h2hGameId = (cfg.data || {}).h2h_game_id || '';
+        guessTimerSecs = parseInt((cfg.data || {}).guess_timer_secs) || 0;
+        // Only show Start Game when there's an intro entry — that's the only
+        // case where the trivia iframe is preloaded hidden behind a video
+        // waiting to be revealed. No intro entry means it's already visible.
+        const startRow = document.getElementById('startRow');
+        if (startRow) startRow.style.display = (cfg.data || {}).intro_entry ? 'flex' : 'none';
+        const timerBtnRow = document.getElementById('timerBtnRow');
+        if (timerBtnRow) timerBtnRow.style.display = guessTimerSecs > 0 ? 'flex' : 'none';
+        document.getElementById('configBar').style.display = '';
+        document.getElementById('configName').textContent  = cfg.name;
+        document.title = 'MM Trivia — ' + cfg.name;
+      }
+    } catch(e) { console.error('Config load failed', e); }
+  }
+
+  if (h2hGameId) {
+    try {
+      const g = await fetch(`/api/head_to_head/${h2hGameId}`).then(r => r.json());
+      if (g && g.contestants_resolved) {
+        h2hContestants = g.contestants_resolved;
+        document.getElementById('ciSimple').style.display = 'none';
+        document.getElementById('h2hScoring').style.display = 'block';
+        h2hRenderMultiplier();
+        renderScoreboard();
+        renderH2hRows();
+      }
+    } catch(e) { console.error('Head to Head load failed', e); }
+  } else {
+    // No team scoreboard linked — offer the standalone running log + tally instead.
+    const sessionLogEl = document.getElementById('sessionLog');
+    if (sessionLogEl) sessionLogEl.style.display = 'block';
+  }
+
+  // Sync to the real current position — covers an HDMI reload mid-game.
+  let index = 0, revealed = false, timerEnd = null, log = [], showScoreFlag = false, order = null;
+  try {
+    const st = await fetch(`/api/games/trivia/state?config_id=${encodeURIComponent(_configId || '')}`).then(r => r.json());
+    index = st.index || 0;
+    revealed = !!st.revealed;
+    timerEnd = st.timer_end || null;
+    log = Array.isArray(st.log) ? st.log : [];
+    showScoreFlag = !!st.show_score;
+    order = st.order || null;
+  } catch(e) {}
+
+  applyState(index, revealed, timerEnd, log, showScoreFlag, order);
+})();
+</script>
+
+</body>
+</html>

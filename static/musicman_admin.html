@@ -1266,6 +1266,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                     <input type="file" id="mc-display-image-file" accept="image/*" style="display:none" onchange="uploadMacroDisplayImage()">
                   </label>
                   <button onclick="openUsbPicker('image','macro','display_image')" class="btn btn-secondary btn-sm">💾 USB</button>
+                  <button id="mc-display-image-clear" onclick="clearMacroDisplayImage()" class="btn btn-danger btn-sm" style="display:none">✕ CLEAR</button>
                   <span id="mc-display-image-status" style="font-size:11px;color:var(--text-dim)"></span>
                 </div>
               </div>
@@ -4235,16 +4236,19 @@ function populateMacroEditor(id) {
   document.getElementById('mc-id').value   = m.id   || '';
   document.getElementById('mc-desc').value = m.desc || '';
   // Show existing display image preview if any
-  const prev = document.getElementById('mc-display-image-preview');
-  const stat = document.getElementById('mc-display-image-status');
+  const prev  = document.getElementById('mc-display-image-preview');
+  const stat  = document.getElementById('mc-display-image-status');
+  const clear = document.getElementById('mc-display-image-clear');
   if (m.display_image) {
     prev.src = `/assets/macros/${m.id}/${m.display_image}?t=${Date.now()}`;
     prev.style.display = 'block';
     stat.textContent = m.display_image;
+    if (clear) clear.style.display = '';
   } else {
     prev.style.display = 'none';
     prev.src = '';
     stat.textContent = '';
+    if (clear) clear.style.display = 'none';
   }
   _mcEditorIndex = macros.findIndex(x => x.id === id);
   renderSteps(m.steps || []);
@@ -4793,9 +4797,31 @@ async function uploadMacroDisplayImage() {
       const prev = document.getElementById('mc-display-image-preview');
       prev.src = `/assets/macros/${id}/${j.filename}?t=${Date.now()}`;
       prev.style.display = 'block';
+      const clear = document.getElementById('mc-display-image-clear');
+      if (clear) clear.style.display = '';
       toast('Display image uploaded', 'ok');
     } else { stat.textContent = 'Upload failed'; toast('Upload failed', 'err'); }
   } catch(e) { stat.textContent = 'Upload failed'; toast('Upload failed', 'err'); }
+}
+
+async function clearMacroDisplayImage() {
+  const id = document.getElementById('mc-id').value.trim();
+  if (!id) return;
+  try {
+    const r = await fetch('/api/admin/macro/clear_display_image', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id}),
+    });
+    const j = await r.json();
+    if (j.ok) {
+      const m = macros.find(x => x.id === id);
+      if (m) delete m.display_image;
+      document.getElementById('mc-display-image-preview').style.display = 'none';
+      document.getElementById('mc-display-image-preview').src = '';
+      document.getElementById('mc-display-image-status').textContent = '';
+      document.getElementById('mc-display-image-clear').style.display = 'none';
+      toast('Display image cleared', 'ok');
+    } else { toast(j.error || 'Clear failed', 'err'); }
+  } catch(e) { toast('Clear failed', 'err'); }
 }
 
 async function saveMacro() {
@@ -4962,8 +4988,10 @@ async function usbPickerSelect(visibleIdx) {
     } else if (ctx.type === 'macro') {
       const prev = document.getElementById('mc-display-image-preview');
       const stat = document.getElementById('mc-display-image-status');
+      const clear = document.getElementById('mc-display-image-clear');
       if (prev) { prev.src = '/assets/macros/' + ctx.id + '/' + d.filename + '?t=' + Date.now(); prev.style.display = 'block'; }
       if (stat) stat.textContent = d.filename;
+      if (clear) clear.style.display = '';
     }
   } catch(e) { toast('Import error', 'err'); }
 }
@@ -6030,6 +6058,7 @@ let glConfigs          = {};   // { game_type_id: [...configs] }
 let glSelectedType     = '';
 let glSelectedConfigId = '';
 let _glWheelEntries    = [];   // [{name, color}] for the wheel editor
+let _glTriviaQuestions = [];   // [{id, question, answer, category}] for the trivia editor
 let _glAutoSaveTimer   = null;
 
 function _glScheduleAutoSave() {
@@ -6056,7 +6085,11 @@ async function loadGamesLibrary() {
 function renderGlTypeTabs() {
   const el = document.getElementById('gl-type-tabs');
   if (!el) return;
-  el.innerHTML = glGameTypes.map(g => `
+  const allBtn = `<button id="gl-tab-__all__"
+            onclick="glSelectType('__all__')"
+            class="btn btn-sm"
+            style="padding:5px 10px;font-size:11px;letter-spacing:1px">ALL</button>`;
+  el.innerHTML = allBtn + glGameTypes.map(g => `
     <button id="gl-tab-${g.id}"
             onclick="glSelectType('${escHtml(g.id)}')"
             class="btn btn-sm"
@@ -6067,11 +6100,32 @@ function renderGlTypeTabs() {
 async function glSelectType(typeId) {
   glSelectedType     = typeId;
   glSelectedConfigId = '';
-  glGameTypes.forEach(g => {
-    const btn = document.getElementById(`gl-tab-${g.id}`);
-    if (btn) btn.className = g.id === typeId ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  const highlightIds = ['__all__', ...glGameTypes.map(g => g.id)];
+  highlightIds.forEach(id => {
+    const btn = document.getElementById(`gl-tab-${id}`);
+    if (btn) btn.className = id === typeId ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
     if (btn) btn.style.cssText = 'padding:5px 10px;font-size:11px;letter-spacing:1px';
   });
+
+  if (typeId === '__all__') {
+    // Every saved config across every game type, in one list — mainly so a
+    // config saved under the wrong tab (e.g. named for one game but created
+    // while a different type's tab was active) is easy to spot and fix.
+    document.getElementById('gl-name-row').style.display = '';
+    document.getElementById('gl-action-btns').innerHTML = `
+      <button class="btn btn-primary" onclick="glSaveSelectedConfig()">✓ SAVE</button>
+      <button class="btn btn-secondary" onclick="glGoLive(glSelectedConfigId)">↗ GO LIVE</button>
+      <button class="btn btn-secondary" onclick="glDupeSelectedConfig()">DUPE</button>
+      <button class="btn btn-danger" onclick="glDeleteSelectedConfig()">✕ DELETE</button>`;
+    try {
+      glConfigs['__all__'] = await fetch('/api/game_configs').then(r => r.json());
+    } catch(e) { glConfigs['__all__'] = []; }
+    renderGlConfigGrid();
+    document.getElementById('gl-editor-placeholder').style.display = '';
+    document.getElementById('gl-editor').style.display = 'none';
+    document.getElementById('gl-collapse-row').style.display = 'none';
+    return;
+  }
 
   if (typeId === 'shell_game') {
     // Singleton — no config grid, open editor directly with shell game settings
@@ -6143,10 +6197,18 @@ function renderGlConfigGrid() {
 }
 
 async function selectGlConfig(id) {
+  let c = (glConfigs[glSelectedType] || []).find(x => x.id === id);
+  if (!c) return;
+  if (glSelectedType === '__all__' && c.game_type_id) {
+    // Jump into the config's real type tab so the right bespoke editor (and
+    // correct SAVE/DUPE/DELETE target) is used — the ALL view is for finding
+    // a stray config, not editing it out of context.
+    await glSelectType(c.game_type_id);
+    c = (glConfigs[glSelectedType] || []).find(x => x.id === id);
+    if (!c) return;
+  }
   glSelectedConfigId = id;
   renderGlConfigGrid();
-  const c = (glConfigs[glSelectedType] || []).find(x => x.id === id);
-  if (!c) return;
   document.getElementById('gl-editor-placeholder').style.display = 'none';
   document.getElementById('gl-editor').style.display = 'block';
   document.getElementById('gl-collapse-row').style.display = 'flex';
@@ -6156,6 +6218,7 @@ async function selectGlConfig(id) {
 }
 
 async function glNewConfig() {
+  if (glSelectedType === '__all__') { toast('Pick a specific game type first', 'err'); return; }
   glSelectedConfigId = '';
   renderGlConfigGrid();
   document.getElementById('gl-editor-placeholder').style.display = 'none';
@@ -6180,6 +6243,13 @@ async function renderGlSchemaFields(dataObj) {
       color: dataObj.entry_colors?.[name] || _glRandomEntryColor(),
     }));
     await _renderGlWheelEditor(el, dataObj);
+    return;
+  }
+
+  // Trivia gets a custom question-bank editor instead of the generic list field
+  if (glSelectedType === 'trivia') {
+    _glTriviaQuestions = (dataObj.questions || []).map(q => ({...q}));
+    await _renderGlTriviaEditor(el, dataObj);
     return;
   }
 
@@ -6311,6 +6381,11 @@ async function _renderGlWheelEditor(container, dataObj) {
     sceneOpts += sc.map(s => `<option value="${escHtml(s.id)}">${escHtml(s.name || s.id)}</option>`).join('');
   } catch(e) {}
 
+  if (!gameEntries.length) await loadGameEntries().catch(() => {});
+  const introEntry = dataObj.intro_entry || '';
+  let introOpts = '<option value="">— none —</option>';
+  introOpts += gameEntries.map(e => `<option value="${escHtml(e.id)}">${escHtml(e.name)}</option>`).join('');
+
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
   container.style.gap = '14px';
@@ -6329,6 +6404,12 @@ async function _renderGlWheelEditor(container, dataObj) {
         <input type="checkbox" id="glf-auto_remove" ${autoRem ? 'checked' : ''} style="width:16px;height:16px" onchange="_glScheduleAutoSave()">
         <label for="glf-auto_remove" style="font-size:12px;cursor:pointer">Remove winner on next spin</label>
       </div>
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">INTRO</div>
+    <div>
+      <label class="field-label">GAME ENTRY (OPTIONAL) <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— plays first, wheel loads behind it and reveals already spinning</span></label>
+      <select id="glf-intro_entry" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${introOpts}</select>
     </div>
     <div class="section-divider"></div>
     <div class="card-title">AUDIO</div>
@@ -6350,10 +6431,12 @@ async function _renderGlWheelEditor(container, dataObj) {
     </div>`;
 
   // Set scene select values after render
-  const spinSel = document.getElementById('glf-spin_scene');
-  const winSel  = document.getElementById('glf-winner_scene');
-  if (spinSel) { spinSel.value = spinScene; spinSel.onchange = _glScheduleAutoSave; }
-  if (winSel)  { winSel.value  = winScene;  winSel.onchange  = _glScheduleAutoSave; }
+  const spinSel  = document.getElementById('glf-spin_scene');
+  const winSel   = document.getElementById('glf-winner_scene');
+  const introSel = document.getElementById('glf-intro_entry');
+  if (spinSel)  { spinSel.value  = spinScene;  spinSel.onchange  = _glScheduleAutoSave; }
+  if (winSel)   { winSel.value   = winScene;   winSel.onchange   = _glScheduleAutoSave; }
+  if (introSel) { introSel.value = introEntry; introSel.onchange = _glScheduleAutoSave; }
 
   _renderGlWheelEntryList();
 
@@ -6461,6 +6544,176 @@ function glWheelRemoveEntry(i) {
   _glScheduleAutoSave();
 }
 
+// ── AG Trivia editor ────────────────────────────────────────────────────────
+
+async function _renderGlTriviaEditor(container, dataObj) {
+  let sceneOpts = '<option value="">— none —</option>';
+  try {
+    const sc = await fetch('/api/scenes').then(r => r.json());
+    sceneOpts += sc.map(s => `<option value="${escHtml(s.id)}">${escHtml(s.name || s.id)}</option>`).join('');
+  } catch(e) {}
+
+  let audioOpts = '<option value="">— none —</option>';
+  try {
+    const [sfx, music] = await Promise.all([
+      fetch('/api/sfx/list').then(r=>r.json()).catch(()=>[]),
+      fetch('/api/music/list').then(r=>r.json()).catch(()=>[]),
+    ]);
+    audioOpts += sfx.map(f => `<option value="${escHtml(f)}">🔊 ${escHtml(f)}</option>`).join('');
+    audioOpts += music.map(f => `<option value="${escHtml(f)}">🎵 ${escHtml(f)}</option>`).join('');
+  } catch(e) {}
+
+  if (!gameEntries.length) await loadGameEntries().catch(() => {});
+  const introEntry = dataObj.intro_entry || '';
+  let introOpts = '<option value="">— none —</option>';
+  introOpts += gameEntries.map(e => `<option value="${escHtml(e.id)}">${escHtml(e.name)}</option>`).join('');
+
+  let h2hOpts = '<option value="">— none —</option>';
+  try {
+    const h2hGames = await fetch('/api/head_to_head').then(r => r.json());
+    h2hOpts += h2hGames.map(g => `<option value="${escHtml(g.id)}">${escHtml(g.name)} (${(g.contestants||[]).length} teams)</option>`).join('');
+  } catch(e) {}
+  const h2hLinked = dataObj.h2h_game_id || '';
+
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '14px';
+  container.innerHTML = `
+    <div>
+      <label class="field-label">QUESTIONS</label>
+      <div id="glt-question-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="glTriviaAddQuestion()" style="flex:1">+ ADD QUESTION</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('glt-import-file').click()" style="flex:1">📄 IMPORT FILE</button>
+        <input type="file" id="glt-import-file" accept=".csv,.xlsx" style="display:none" onchange="glTriviaImportFile(this.files[0]);this.value=''">
+      </div>
+      <div id="glt-import-status" style="font-size:11px;color:var(--text-dim);margin-top:6px"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <input type="checkbox" id="glf-shuffle" ${dataObj.shuffle ? 'checked' : ''} style="width:16px;height:16px" onchange="_glScheduleAutoSave()">
+        <label for="glf-shuffle" style="font-size:12px;cursor:pointer">🔀 Shuffle question order — fresh random order every GO LIVE (list above stays in this order for editing)</label>
+      </div>
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">GUESS TIMER</div>
+    <div>
+      <label class="field-label">SECONDS (OPTIONAL) <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— 0 = no timer. Operator starts it per-question with a button; it's just a visible countdown, nothing auto-fires when it hits zero</span></label>
+      <input type="number" id="glf-guess_timer_secs" class="text-input" value="${dataObj.guess_timer_secs || 0}" min="0" max="120" style="width:100px" oninput="_glScheduleAutoSave()">
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">INTRO</div>
+    <div>
+      <label class="field-label">GAME ENTRY (OPTIONAL) <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— plays first, trivia loads behind it and reveals when it ends</span></label>
+      <select id="glf-intro_entry" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${introOpts}</select>
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">TEAM SCOREBOARD</div>
+    <div>
+      <label class="field-label">LINK HEAD TO HEAD GAME (OPTIONAL) <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— shows team names/scores on screen; operator gets Head to Head's own +/− and multiplier controls instead of Correct/Incorrect below</span></label>
+      <select id="glf-h2h_game_id" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${h2hOpts}</select>
+    </div>
+    <div class="section-divider"></div>
+    <div class="card-title">CORRECT / INCORRECT <span id="glt-ci-ignored-note" style="display:${h2hLinked?'inline':'none'};font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— ignored while a Team Scoreboard is linked above</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label class="field-label">CORRECT SCENE</label>
+        <select id="glf-correct_scene" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${sceneOpts}</select>
+      </div>
+      <div>
+        <label class="field-label">INCORRECT SCENE</label>
+        <select id="glf-incorrect_scene" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${sceneOpts}</select>
+      </div>
+      <div>
+        <label class="field-label">CORRECT SFX (OPTIONAL)</label>
+        <select id="glf-correct_sfx" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${audioOpts}</select>
+      </div>
+      <div>
+        <label class="field-label">INCORRECT SFX (OPTIONAL)</label>
+        <select id="glf-incorrect_sfx" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${audioOpts}</select>
+      </div>
+    </div>`;
+
+  const introSel   = document.getElementById('glf-intro_entry');
+  const h2hSel     = document.getElementById('glf-h2h_game_id');
+  const correctSc  = document.getElementById('glf-correct_scene');
+  const incorrectSc= document.getElementById('glf-incorrect_scene');
+  const correctSfx = document.getElementById('glf-correct_sfx');
+  const incorrectSfx = document.getElementById('glf-incorrect_sfx');
+  if (introSel)     { introSel.value     = introEntry;                 introSel.onchange     = _glScheduleAutoSave; }
+  if (h2hSel) {
+    h2hSel.value = h2hLinked;
+    h2hSel.onchange = () => {
+      const note = document.getElementById('glt-ci-ignored-note');
+      if (note) note.style.display = h2hSel.value ? 'inline' : 'none';
+      _glScheduleAutoSave();
+    };
+  }
+  if (correctSc)    { correctSc.value    = dataObj.correct_scene   || ''; correctSc.onchange    = _glScheduleAutoSave; }
+  if (incorrectSc)  { incorrectSc.value  = dataObj.incorrect_scene || ''; incorrectSc.onchange  = _glScheduleAutoSave; }
+  if (correctSfx)   { correctSfx.value   = dataObj.correct_sfx     || ''; correctSfx.onchange   = _glScheduleAutoSave; }
+  if (incorrectSfx) { incorrectSfx.value = dataObj.incorrect_sfx   || ''; incorrectSfx.onchange = _glScheduleAutoSave; }
+
+  _renderGlTriviaQuestionList();
+}
+
+function _renderGlTriviaQuestionList() {
+  const el = document.getElementById('glt-question-list');
+  if (!el) return;
+  if (!_glTriviaQuestions.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:1px;padding:4px 0">NO QUESTIONS — ADD ONE OR IMPORT A FILE</div>';
+    return;
+  }
+  el.innerHTML = _glTriviaQuestions.map((q, i) => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;gap:8px;align-items:flex-start">
+      <div style="font-size:10px;color:var(--text-dim);font-weight:700;padding-top:8px;flex-shrink:0;width:22px">#${i+1}</div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+        <input type="text" value="${escHtml(q.question||'')}" placeholder="Question"
+          oninput="_glTriviaQuestions[${i}].question=this.value;_glScheduleAutoSave()"
+          class="text-input" style="margin:0;padding:6px 10px;font-size:13px">
+        <input type="text" value="${escHtml(q.answer||'')}" placeholder="Answer"
+          oninput="_glTriviaQuestions[${i}].answer=this.value;_glScheduleAutoSave()"
+          class="text-input" style="margin:0;padding:6px 10px;font-size:13px">
+        <input type="text" value="${escHtml(q.category||'')}" placeholder="Category (optional)"
+          oninput="_glTriviaQuestions[${i}].category=this.value;_glScheduleAutoSave()"
+          class="text-input" style="margin:0;padding:5px 10px;font-size:11px;color:var(--text-dim)">
+      </div>
+      <button onclick="glTriviaRemoveQuestion(${i})"
+        style="flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:rgba(220,38,38,0.12);border:1px solid rgba(220,38,38,0.4);color:var(--red,#e63946);border-radius:5px;cursor:pointer;font-size:14px;line-height:1">✕</button>
+    </div>`).join('');
+}
+
+function glTriviaAddQuestion() {
+  _glTriviaQuestions.push({ id: 'q_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), question: '', answer: '', category: '' });
+  _renderGlTriviaQuestionList();
+  const inputs = document.querySelectorAll('#glt-question-list input[type=text]');
+  if (inputs.length) inputs[inputs.length - 3].focus();
+  _glScheduleAutoSave();
+}
+
+function glTriviaRemoveQuestion(i) {
+  _glTriviaQuestions.splice(i, 1);
+  _renderGlTriviaQuestionList();
+  _glScheduleAutoSave();
+}
+
+async function glTriviaImportFile(file) {
+  if (!file) return;
+  const statusEl = document.getElementById('glt-import-status');
+  if (statusEl) statusEl.textContent = 'Importing…';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch('/api/games/trivia/import', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.ok) { if (statusEl) statusEl.textContent = d.error || 'Import failed'; return; }
+    _glTriviaQuestions.push(...d.questions);
+    _renderGlTriviaQuestionList();
+    _glScheduleAutoSave();
+    if (statusEl) statusEl.textContent = `Added ${d.questions.length} question${d.questions.length===1?'':'s'} from ${escHtml(file.name)}`;
+  } catch(e) {
+    if (statusEl) statusEl.textContent = 'Import failed';
+  }
+}
+
 function glReadSchemaData() {
   if (glSelectedType === 'wheel') {
     const entries      = _glWheelEntries.map(e => e.name.trim()).filter(Boolean);
@@ -6470,6 +6723,7 @@ function glReadSchemaData() {
     const autoEl      = document.getElementById('glf-auto_remove');
     const spinSceneEl = document.getElementById('glf-spin_scene');
     const winSceneEl  = document.getElementById('glf-winner_scene');
+    const introEl     = document.getElementById('glf-intro_entry');
     return {
       entries,
       entry_colors,
@@ -6477,6 +6731,29 @@ function glReadSchemaData() {
       auto_remove:   autoEl      ? autoEl.checked : true,
       spin_scene:    spinSceneEl ? spinSceneEl.value : '',
       winner_scene:  winSceneEl  ? winSceneEl.value  : '',
+      intro_entry:   introEl     ? introEl.value     : '',
+    };
+  }
+  if (glSelectedType === 'trivia') {
+    const questions = _glTriviaQuestions.filter(q => (q.question||'').trim() || (q.answer||'').trim());
+    const introEl       = document.getElementById('glf-intro_entry');
+    const h2hEl          = document.getElementById('glf-h2h_game_id');
+    const correctScEl   = document.getElementById('glf-correct_scene');
+    const incorrectScEl = document.getElementById('glf-incorrect_scene');
+    const correctSfxEl  = document.getElementById('glf-correct_sfx');
+    const incorrectSfxEl= document.getElementById('glf-incorrect_sfx');
+    const timerEl        = document.getElementById('glf-guess_timer_secs');
+    const shuffleEl       = document.getElementById('glf-shuffle');
+    return {
+      questions,
+      intro_entry:     introEl       ? introEl.value       : '',
+      h2h_game_id:      h2hEl         ? h2hEl.value          : '',
+      correct_scene:   correctScEl   ? correctScEl.value   : '',
+      incorrect_scene: incorrectScEl ? incorrectScEl.value : '',
+      correct_sfx:     correctSfxEl  ? correctSfxEl.value  : '',
+      incorrect_sfx:   incorrectSfxEl? incorrectSfxEl.value: '',
+      guess_timer_secs: timerEl      ? (parseInt(timerEl.value) || 0) : 0,
+      shuffle:          shuffleEl    ? shuffleEl.checked      : false,
     };
   }
   const gt = glGameTypes.find(g => g.id === glSelectedType);
