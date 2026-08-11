@@ -3494,6 +3494,21 @@ function initWebSocket() {
         });
       }
 
+      else if (event === 'scenes_updated') {
+        // Scene library changed (added/edited/deleted/reordered) from Admin —
+        // rebuild the grid without a page refresh, preserving whichever
+        // scene is currently marked active.
+        const activeBtn = document.querySelector('.scene-btn.active');
+        const activeId  = activeBtn ? activeBtn.dataset.sceneId : null;
+        buildSceneGrid().then(() => {
+          if (activeId) {
+            document.querySelectorAll('.scene-btn').forEach(b => {
+              b.classList.toggle('active', b.dataset.sceneId === activeId);
+            });
+          }
+        });
+      }
+
       else if (event === 'show_step') {
         showStep = data.index;
         _renderShowFlowGrid();

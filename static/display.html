@@ -198,6 +198,35 @@
   .sl-qr .sl-qimg    { width:24vw; height:24vw; margin:1.2vw auto; display:block; border:1vw solid #fff; border-radius:.6vw; image-rendering:pixelated; }
   .sl-qr .sl-url     { font-size:1.7vw; font-weight:600; letter-spacing:.08em; color:rgba(255,255,255,.38); font-family:'Share Tech Mono','Courier New',monospace; margin-top:.4vw; }
 
+  /* ── BAND PHOTO SLIDESHOW LAYER ─────────────────────────────── */
+  #layer-band-slideshow {
+    position:fixed; inset:0; z-index:5;
+    opacity:0; pointer-events:none;
+    transition:opacity .7s ease;
+    background:#000;
+  }
+  .band-slide-img {
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:contain;
+    opacity:0;
+    transition:opacity 1.2s ease;
+  }
+  #layer-band-qr {
+    position:fixed; right:3vw; bottom:3vw; z-index:6;
+    opacity:0; pointer-events:none;
+    transition:opacity 1s ease;
+    background:rgba(6,5,4,.82);
+    border:.25vw solid rgba(255,255,255,.5);
+    border-radius:.8vw;
+    padding:1.2vw;
+  }
+  #layer-band-qr img {
+    width:11vw; height:11vw;
+    display:block;
+    image-rendering:pixelated;
+  }
+
   /* ── VS CARD LAYER ──────────────────────────────────────────── */
   #layer-vs {
     position: fixed; inset: 0; z-index: 7;
@@ -588,6 +617,15 @@
 <!-- SLIDE LAYER -->
 <div id="layer-slide"></div>
 
+<!-- BAND PHOTO SLIDESHOW LAYER -->
+<div id="layer-band-slideshow">
+  <img id="band-img-a" class="band-slide-img">
+  <img id="band-img-b" class="band-slide-img">
+</div>
+<div id="layer-band-qr">
+  <img id="band-qr-img" alt="QR">
+</div>
+
 <!-- VS CARD LAYER -->
 <div id="layer-vs">
   <div id="vs-divider-line"></div>
@@ -699,6 +737,8 @@ const layerStandby = document.getElementById('layer-standby');
 const layerWalkup  = document.getElementById('layer-walkup');
 const layerTitle   = document.getElementById('layer-title');
 const layerSlide   = document.getElementById('layer-slide');
+const layerBandSlideshow = document.getElementById('layer-band-slideshow');
+const layerBandQr        = document.getElementById('layer-band-qr');
 const wuBg         = document.getElementById('wu-bg');
 const wuVideo      = document.getElementById('wu-video');
 // _wuCurrentEl: the video element currently displayed in the walkup layer (starts as wuVideo).
@@ -1184,6 +1224,80 @@ function hideSlide() {
   layerSlide.style.pointerEvents = 'none';
 }
 
+// ── BAND PHOTO SLIDESHOW ────────────────────────────────────────────────────
+const BAND_PHOTO_INTERVAL_MS = 8000;
+const BAND_QR_VISIBLE_MS     = 5000;
+let _bandSlideTimer  = null;
+let _bandSlot        = 'a';
+let _bandPhotos      = [];
+let _bandIdx         = 0;
+let _bandQrCounter   = 0;
+let _bandQrFadeEvery = 6;
+
+async function showBandSlideshow(data) {
+  hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow();
+  hideSlide(); hideLeaderboard();
+  standbyActive = false;
+  clearInterval(_bandSlideTimer);
+  _bandPhotos = []; _bandIdx = 0; _bandQrCounter = 0;
+  _bandQrFadeEvery = (data && data.qr_fade_interval_photos) || 6;
+
+  document.getElementById('band-qr-img').src = (data && data.qr_data_url) || '';
+  layerBandQr.style.opacity = '0';
+
+  try {
+    const res = await fetch('/api/band_slideshow/playlist');
+    const pl  = await res.json();
+    _bandPhotos = pl.photos || [];
+  } catch (e) { _bandPhotos = []; }
+  if (!_bandPhotos.length) return;  // nothing cached yet — leave display as-is
+
+  const t = 'opacity .7s ease';
+  [layerWalkup, layerTitle, layerStandby].forEach(l => l.style.transition = t);
+  layerWalkup.style.opacity  = '0'; layerWalkup.style.pointerEvents = 'none';
+  layerTitle.style.opacity   = '0';
+  layerStandby.style.opacity = '0';
+  layerBandSlideshow.style.opacity = '1'; layerBandSlideshow.style.pointerEvents = 'auto';
+
+  _bandShowNext();
+  _bandSlideTimer = setInterval(_bandShowNext, BAND_PHOTO_INTERVAL_MS);
+}
+
+function _bandShowNext() {
+  if (!_bandPhotos.length) return;
+  const url = _bandPhotos[_bandIdx % _bandPhotos.length];
+  _bandIdx++;
+
+  // Double-buffer crossfade — same technique as showStep()'s title-img-a/b:
+  // load into the hidden slot, only swap opacity once it's actually loaded,
+  // guarded by _displaySeq so a stale in-flight load can't win a late race.
+  const nextSlot = _bandSlot === 'a' ? 'b' : 'a';
+  const nextImg  = document.getElementById('band-img-' + nextSlot);
+  const prevImg  = document.getElementById('band-img-' + _bandSlot);
+  const seq = ++_displaySeq;
+  nextImg.onload = () => {
+    if (_displaySeq !== seq) return;
+    nextImg.style.opacity = '1';
+    prevImg.style.opacity = '0';
+    _bandSlot = nextSlot;
+  };
+  nextImg.onerror = () => {};
+  nextImg.src = url;
+
+  _bandQrCounter++;
+  if (document.getElementById('band-qr-img').src && _bandQrCounter % _bandQrFadeEvery === 0) {
+    layerBandQr.style.opacity = '1';
+    setTimeout(() => { layerBandQr.style.opacity = '0'; }, BAND_QR_VISIBLE_MS);
+  }
+}
+
+function hideBandSlideshow() {
+  clearInterval(_bandSlideTimer);
+  layerBandSlideshow.style.opacity = '0';
+  layerBandSlideshow.style.pointerEvents = 'none';
+  layerBandQr.style.opacity = '0';
+}
+
 // ── GAME FRAME (iframe overlay — kiosk never leaves /display) ──
 // Clearing _gameFrame.src triggers a Chromium JS GC that blocks the main thread
 // for several seconds on Pi 4B — enough to delay walkup video by 7s. We defer
@@ -1367,7 +1481,7 @@ function hideH2HWinner() {
 function showH2H(data) {
   hideSlide();
   hideLeaderboard();
-  hideH2HWinner();
+  hideH2HWinner(); hideBandSlideshow();
 
   const contestants = data.contestants || [];
   layerH2h.setAttribute('data-count', String(contestants.length));
@@ -1620,15 +1734,17 @@ function connectWS() {
 
       if      (msg.event === 'preload_assets')    { preloadAssets(data.urls); }
       else if (msg.event === 'walkup_preload')    { preloadWalkupVideo(data); }
-      else if (msg.event === 'display_walkup')    { if (!_gamePreloading) hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showWalkup(data); }
-      else if (msg.event === 'display_step')      { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showStep(data); }
-      else if (msg.event === 'display_animation') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showTitleVideo(data); }
-      else if (msg.event === 'display_clear')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); blackout(); }
-      else if (msg.event === 'display_standby')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showStandby(); }
-      else if (msg.event === 'display_slide')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showSlide(data); }
+      else if (msg.event === 'display_walkup')    { if (!_gamePreloading) hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showWalkup(data); }
+      else if (msg.event === 'display_step')      { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showStep(data); }
+      else if (msg.event === 'display_animation') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showTitleVideo(data); }
+      else if (msg.event === 'display_clear')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); blackout(); }
+      else if (msg.event === 'display_standby')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showStandby(); }
+      else if (msg.event === 'display_slide')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showSlide(data); }
       else if (msg.event === 'display_slide_clear') { hideSlide(); }
-      else if (msg.event === 'display_vs_card')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideH2H(); hideH2HWinner(); showVsCard(data); }
-      else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); showLeaderboard(data); }
+      else if (msg.event === 'display_band_slideshow_start') { showBandSlideshow(data); }
+      else if (msg.event === 'display_band_slideshow_stop')  { hideBandSlideshow(); }
+      else if (msg.event === 'display_vs_card')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showVsCard(data); }
+      else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showLeaderboard(data); }
       else if (msg.event === 'display_h2h')       { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showH2H(data); }
       else if (msg.event === 'h2h_score')         { updateH2HScore(data); }
       else if (msg.event === 'h2h_reset')         { updateH2HReset(data); }
@@ -1640,13 +1756,13 @@ function connectWS() {
         if (!data.url || data.url === '/display' || data.url.startsWith('/display?')) {
           hideGameFrame();
         } else {
-          hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner();
+          hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow();
           showGameFrame(data.url);
         }
       }
       else if (msg.event === 'display_preload_game') { preloadGameFrame(data.url); }
       else if (msg.event === 'display_reveal_game')  {
-        hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner();
+        hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow();
         revealGameFrame();
       }
       else if (msg.event === 'timer_show')        { showChronoOverlay('countdown', {seconds: data.seconds || 0}, 'skit'); }
@@ -1657,7 +1773,7 @@ function connectWS() {
       else if (msg.event === 'countdown_state')   { handleCountdownState(data); }
       else if (msg.event === 'countdown_expired') { hideChronoOverlay('countdown'); }
       else if (msg.event === 'stopwatch_state')   { handleStopwatchState(data); }
-      else if (msg.event === 'viz_show')    { hideGameFrame(); hideChronoOverlay(); hideVsCard(); hideH2H(); hideH2HWinner(); if (data.scene === 'crowd') showCrowdViz(data.settings); else showMusicViz(data.settings); }
+      else if (msg.event === 'viz_show')    { hideGameFrame(); hideChronoOverlay(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); if (data.scene === 'crowd') showCrowdViz(data.settings); else showMusicViz(data.settings); }
       else if (msg.event === 'viz_hide')    { hideViz(); }
       else if (msg.event === 'viz_music')   { _eqReceive(data); }
       else if (msg.event === 'viz_crowd')   { _crowdReceive(data); }

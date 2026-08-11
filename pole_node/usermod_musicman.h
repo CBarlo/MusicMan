@@ -85,8 +85,24 @@ private:
   // ── DMX ──────────────────────────────────────────────────────────────────────
   uint8_t  _dmx[MM_DMX_CHANNELS] = {0};
   uint32_t _lastDmxSend   = 0;
+  uint32_t _maxDmxGap     = 0;  // worst gap ever seen between two _sendDmx() calls, since boot
   uint32_t _lastPoll      = 0;
   bool     _dmxActive     = false;  // true if any channel > 0
+  // _dmx[] is written by setDmxChannels() from the AsyncWebServer /dmx
+  // handler and read by _sendDmx() every ~33ms from loop() — two different
+  // execution contexts with no prior synchronization. A /dmx POST landing
+  // mid-transmit could read a half-written buffer: some channels from the
+  // old scene, some from the new one, including a fixture's own mode/master
+  // channel — which is enough to knock a fixture out of DMX control into
+  // its onboard auto mode with a value neither scene ever specified. Only
+  // reproduces when a write happens to overlap the 30Hz read, so it's
+  // inherently intermittent and gets more likely the faster scenes fire.
+  portMUX_TYPE _dmxMux = portMUX_INITIALIZER_UNLOCKED;
+
+  // Reassembly buffer for /dmx POST bodies that arrive across more than one
+  // TCP chunk (see setup()'s /dmx handler) — sized to match the JSON
+  // document capacity used to parse it.
+  uint8_t _dmxBodyBuf[1024];
 
   // ── PI HEALTH CHECK — runs on core 0, low priority ───────────────────────────
   TaskHandle_t _healthTask = nullptr;
@@ -125,7 +141,9 @@ private:
     // Start code + channel data
     uint8_t buf[MM_DMX_CHANNELS + 1];
     buf[0] = 0x00;
+    portENTER_CRITICAL(&_dmxMux);
     memcpy(buf + 1, _dmx, MM_DMX_CHANNELS);
+    portEXIT_CRITICAL(&_dmxMux);
     Serial2.write(buf, sizeof(buf));
     Serial2.flush();
 
@@ -183,11 +201,34 @@ public:
     // Pi health check — core 0, priority 1
     xTaskCreatePinnedToCore(_healthCheckTask, "mm_health", 4096, this, 1, &_healthTask, 0);
 
-    // /dmx HTTP endpoint
+    // /dmx HTTP endpoint — the body can arrive across more than one TCP
+    // chunk under WiFi congestion. AsyncWebServer's onBody callback fires
+    // once per chunk with (data, len, index, total); this used to ignore
+    // index/total entirely and treat every chunk as if it were the whole
+    // body — silently parsing (and applying) a truncated JSON fragment,
+    // and calling r->send() once per chunk instead of once per request.
+    // A partial parse landing wrong bytes across multiple fixtures' mode
+    // channels in the same write is the leading suspect for fixtures
+    // dropping out of DMX control together during a fast-moving animation.
+    // Now buffers chunks until the full body has arrived, and only ever
+    // applies a parse that actually succeeded.
     server.on("/dmx", HTTP_POST, [](AsyncWebServerRequest *r){}, NULL,
-      [this](AsyncWebServerRequest *r, uint8_t *data, size_t len, size_t, size_t) {
+      [this](AsyncWebServerRequest *r, uint8_t *data, size_t len, size_t index, size_t total) {
+        if (total == 0 || total > sizeof(_dmxBodyBuf)) {
+          if (index + len >= total) r->send(400, "application/json", "{\"ok\":false,\"error\":\"bad body size\"}");
+          return;
+        }
+        if (index + len <= sizeof(_dmxBodyBuf)) {
+          memcpy(_dmxBodyBuf + index, data, len);
+        }
+        if (index + len < total) return;  // more chunks still coming
+
         DynamicJsonDocument doc(1024);
-        deserializeJson(doc, data, len);
+        DeserializationError err = deserializeJson(doc, _dmxBodyBuf, total);
+        if (err || !doc["fixtures"].is<JsonArray>()) {
+          r->send(400, "application/json", "{\"ok\":false,\"error\":\"bad json\"}");
+          return;
+        }
         JsonArray fixtures = doc["fixtures"];
         setDmxChannels(fixtures);
         _wledFlashEnd = millis() + 300;  // purple flash for 300ms
@@ -203,8 +244,14 @@ public:
     // Mark booted once WLED interfaces are up
     if (!_booted && interfacesInited) _booted = true;
 
-    // DMX at 30Hz
+    // DMX at 30Hz — track the actual gap between sends so a stalled loop()
+    // (WiFi stack, AsyncWebServer, whatever) shows up as hard evidence
+    // instead of a guess. A fixture that's lost signal for long enough
+    // falls back to its own onboard effects mode on its own; this is the
+    // only way to tell whether that's actually what's happening here.
     if (now - _lastDmxSend >= MM_DMX_INTERVAL) {
+      uint32_t gap = now - _lastDmxSend;
+      if (_lastDmxSend != 0 && gap > _maxDmxGap) _maxDmxGap = gap;
       _lastDmxSend = now;
       _sendDmx();
     }
@@ -217,6 +264,7 @@ public:
   }
 
   void setDmxChannels(JsonArray& fixtures) {
+    portENTER_CRITICAL(&_dmxMux);
     for (JsonObject fix : fixtures) {
       uint8_t start = fix["start"] | 1;
       JsonArray chans = fix["channels"];
@@ -227,6 +275,7 @@ public:
         _dmx[addr++] = val;
       }
     }
+    portEXIT_CRITICAL(&_dmxMux);
     // Recheck whether any channel is active
     _dmxActive = false;
     for (int i = 0; i < MM_DMX_CHANNELS; i++) {
@@ -240,6 +289,24 @@ public:
     user["mm_dmx_ch1"] = _dmx[0];
     user["mm_dmx_ch7"] = _dmx[6];
     user["mm_pi_ok"]   = _piReachable;
+    user["mm_dmx_gap_now"] = millis() - _lastDmxSend;  // ms since the last actual DMX send
+    user["mm_dmx_gap_max"] = _maxDmxGap;               // worst gap ever seen, since boot
+
+    // Full raw channel dump for live diagnosis — the two fields above only
+    // ever exposed pinspot's master and wash's dimmer, nothing from the PAR
+    // fixture (channels 15-24) at all, which is the one that keeps failing
+    // first. Comma-joined channels 1-24 (pinspot 1-6, wash 7-14, par 15-24)
+    // covers everything one pole's /dmx payload actually writes.
+    {
+      char buf[4 * MM_DMX_CHANNELS];
+      int  pos = 0;
+      portENTER_CRITICAL(&_dmxMux);
+      for (int i = 0; i < 24 && i < MM_DMX_CHANNELS; i++) {
+        pos += snprintf(buf + pos, sizeof(buf) - pos, i ? ",%u" : "%u", _dmx[i]);
+      }
+      portEXIT_CRITICAL(&_dmxMux);
+      user["mm_dmx_raw"] = String(buf);
+    }
 
     // Expose AudioReactive volume for Pi sound-level polling
     um_data_t *ar = nullptr;

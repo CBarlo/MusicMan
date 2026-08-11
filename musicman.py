@@ -1736,8 +1736,6 @@ def wled_set_scene(scene_id):
                           _fixture_types=fixture_types_snap, _loops=loop_count):
             global _dmx_anim_active
             _dmx_anim_active = True
-            STEP_S  = 0.04  # 40 ms per step (~25 Hz)
-            n_steps = max(1, round(_tv / STEP_S))
 
             # Pole node addresses are mDNS hostnames (pole-a.local, pole-b.local),
             # and requests.post() re-resolves the hostname fresh on every single
@@ -1822,25 +1820,26 @@ def wled_set_scene(scene_id):
                         with _inflight_lock:
                             _inflight.discard(node_id)
 
-            def _interp(fa, fb, t):
-                result = {}
-                for node_id, fix_vals in fa.items():
-                    result[node_id] = {}
-                    fb_node = fb.get(node_id, {})
-                    for fix_id, ch_a in fix_vals.items():
-                        ch_b = (fb_node.get(fix_id) or ch_a)
-                        ch_b = (ch_b + ch_a)[:len(ch_a)]  # pad/trim to same length
-                        result[node_id][fix_id] = [
-                            int(round(a + (b - a) * t)) for a, b in zip(ch_a, ch_b)
-                        ]
-                return result
-
-            # loops=0 (or unset) means "forever, until a new scene fires" — the
-            # long-standing behavior. A finite loop count stops the loop on its
-            # own once it's played through the whole frame sequence that many
-            # times (one loop = one transition through every frame), holding on
-            # the last frame reached rather than waiting on a new scene to cut
-            # it off.
+            # Hard-cut between frames — send a look's exact values once, hold
+            # for _tv, then jump straight to the next look. No interpolation,
+            # so no intermediate/in-between values are ever sent at all. This
+            # replaced a smooth-fade interpolator: every animation frame used
+            # to be re-sent every ~200ms throughout the whole transition
+            # (n_steps POSTs per fade), which meant a sustained burst of
+            # WiFi RX activity on the pole node for as long as the animation
+            # ran. Chris's read of the failure pattern (only during
+            # animations, gets worse over time, needs the fixture's own IR
+            # remote to recover) points at the pole node's own WiFi radio
+            # activity injecting electrical noise into its RS485 output —
+            # cutting each transition down to exactly one send removes most
+            # of that sustained activity outright, regardless of whether
+            # that mechanism turns out to be the whole story.
+            #
+            # loops=0 (or unset) means "forever, until a new scene fires" —
+            # the long-standing behavior. A finite loop count stops the loop
+            # on its own once it's played through the whole frame sequence
+            # that many times, holding on the last frame reached rather than
+            # waiting on a new scene to cut it off.
             max_transitions = (_loops * len(_frames)) if _loops else None
 
             try:
@@ -1854,21 +1853,11 @@ def wled_set_scene(scene_id):
                 while not _stop.is_set():
                     if max_transitions is not None and transitions_done >= max_transitions:
                         break
-                    fa = _frames[fi % len(_frames)]
-                    fb = _frames[(fi + 1) % len(_frames)]
-                    for step in range(n_steps):
-                        if _stop.is_set():
-                            return
-                        _send(_interp(fa, fb, step / n_steps))
-                        _stop.wait(STEP_S)
+                    _send(_frames[fi % len(_frames)])
+                    if _stop.wait(_tv):
+                        return
                     fi += 1
                     transitions_done += 1
-                if max_transitions is not None and not _stop.is_set():
-                    # The loop's last step is an interpolation just short of
-                    # the landing frame (step/n_steps never quite reaches 1.0)
-                    # — send the exact frame once more so a finite-loop
-                    # animation holds on a clean value, not a near-miss.
-                    _send(_frames[fi % len(_frames)])
             finally:
                 _dmx_anim_active = False
 
@@ -1899,27 +1888,52 @@ def wled_set_color(device_id, color, brightness=75, seg_id=0):
 
 # ── KILL LIGHTS ──
 def kill_lights():
-    """Send brightness 0 to every WLED device and all-zeros DMX to every pole node."""
+    """Send brightness 0 to every WLED device and all-zeros DMX to every pole node.
+
+    Every send is a fire-and-forget single attempt with only a log.warning on
+    failure — unlike scene-fire (_apply_dmx_node), which learned this lesson
+    and resends once more ~0.25s later as insurance against a transient miss.
+    A blackout that silently fails to land is worse than a scene that does:
+    there's no next scene fire to correct it, so a fixture can be left on
+    for hours (confirmed live — this exact gap left a pole node lit
+    overnight after kill_lights ran). Each off-send now retries the same way
+    scene-fire already does.
+    """
     cfg = config
     off_payload = json.dumps({'bri': 0, 'on': False})
     headers = {'Content-Type': 'application/json'}
     def _wled_off(ip):
-        try:
-            requests.post(f'http://{_resolve_ip_once(ip)}/json/state', data=off_payload,
-                          headers=headers, timeout=0.8)
-        except Exception as e:
-            _invalidate_ip(ip)
-            log.warning(f"WLED {ip} kill unreachable: {e}")
+        for attempt in range(2):
+            try:
+                requests.post(f'http://{_resolve_ip_once(ip)}/json/state', data=off_payload,
+                              headers=headers, timeout=0.8)
+                return
+            except Exception as e:
+                _invalidate_ip(ip)
+                if attempt == 0:
+                    time.sleep(0.3)
+                else:
+                    log.warning(f"WLED {ip} kill unreachable: {e}")
     def _dmx_off(ip):
+        # start=15/10ch is the 'par' fixture — added after this function was
+        # first written, and missed here even though scene-fire and kill_lights
+        # elsewhere both know about it. Without this, kill_lights never turned
+        # the PAR fixture off at all, network reliability aside.
         fixtures = [
             {'start': 1,  'channels': [0] * 6},
             {'start': 7,  'channels': [0] * 8},
+            {'start': 15, 'channels': [0] * 10},
         ]
-        try:
-            requests.post(f'http://{_resolve_ip_once(ip)}/dmx', json={'fixtures': fixtures}, timeout=0.8)
-        except Exception as e:
-            _invalidate_ip(ip)
-            log.warning(f"Pole node {ip} kill unreachable: {e}")
+        for attempt in range(2):
+            try:
+                requests.post(f'http://{_resolve_ip_once(ip)}/dmx', json={'fixtures': fixtures}, timeout=0.8)
+                return
+            except Exception as e:
+                _invalidate_ip(ip)
+                if attempt == 0:
+                    time.sleep(0.3)
+                else:
+                    log.warning(f"Pole node {ip} kill unreachable: {e}")
     threads = []
     for d in cfg.get('wled_devices', []):
         if d.get('ip'):
@@ -5213,6 +5227,7 @@ def api_save_scene():
         cfg['scenes'].append(data)
     save_config(cfg)
     config = cfg
+    broadcast('scenes_updated', {})
     return jsonify({'ok': True})
 
 @app.route('/api/admin/scene/delete', methods=['POST'])
@@ -5241,6 +5256,7 @@ def api_delete_scene():
     cfg['scenes'] = [s for s in cfg.get('scenes', []) if s['id'] != scene_id]
     save_config(cfg)
     config = cfg
+    broadcast('scenes_updated', {})
     return jsonify({'ok': True})
 
 @app.route('/api/admin/scenes/reorder', methods=['POST'])
@@ -5256,6 +5272,7 @@ def api_reorder_scenes():
     cfg['scenes'] = ordered + remaining
     save_config(cfg)
     config = cfg
+    broadcast('scenes_updated', {})
     return jsonify({'ok': True})
 
 @app.route('/api/admin/macro', methods=['POST'])
@@ -7171,6 +7188,75 @@ def _batt_all():
         return list(_battery_cache.values())
 
 
+def _dc_cycle_marker_path(address):
+    # /tmp is genuine tmpfs on this Pi (confirmed live) — cleared on every
+    # real reboot, but survives a musicman.service restart within the same
+    # boot session, which is exactly the distinction needed: cycle DC once
+    # per physical Pi boot, never on a mid-session service restart.
+    return Path(f'/tmp/musicman_dc_cycled_{address.replace(":", "")}')
+
+
+async def _cycle_dc_once_per_boot(device, address, label):
+    """Power-cycle a pole's Solix DC output once, the first time this boot
+    that its BLE connection comes up — forces the pole node's ESP32 to
+    reboot fresh and re-associate with WiFi, rather than potentially
+    carrying over whatever state it was in before the Pi itself last
+    booted. Never repeats within the same boot (see _dc_cycle_marker_path).
+
+    Confirms each half against real telemetry (device.dc_output.name —
+    'OUTPUT' when live, 'NOT_CONNECTED' when off, confirmed live: toggling
+    DC off dropped dc_power_out to 0 and flipped this field) rather than
+    assuming a command landed just because the BLE write didn't raise —
+    the C300 already reports real status, no reason to guess with a timer
+    instead of asking it directly."""
+    marker = _dc_cycle_marker_path(address)
+    if marker.exists():
+        return
+
+    async def _dc_is_on():
+        try:
+            params = await _asyncio.wait_for(device.get_status_update(), timeout=10)
+            if params:
+                device._data = params
+            return device.dc_output.name == 'OUTPUT'
+        except Exception:
+            return None  # unknown — treat as "not confirmed", not as False
+
+    async def _wait_for(target_on, attempts=4, interval=3):
+        for _ in range(attempts):
+            await _asyncio.sleep(interval)
+            if await _dc_is_on() == target_on:
+                return True
+        return False
+
+    try:
+        log.info(f'Battery [Pole {label}]: cycling DC output (first connect since boot)')
+        await device.turn_dc_off()
+    except Exception as e:
+        log.warning(f'Battery [Pole {label}]: DC-off during boot cycle failed, skipping (will retry on next reconnect): {e}')
+        return
+
+    if not await _wait_for(target_on=False):
+        log.warning(f'Battery [Pole {label}]: could not confirm DC actually turned off — proceeding to turn it back on anyway')
+
+    # DC is now off (or at least, we tried) — getting it back on matters
+    # more than the off half did. Retry rather than leaving the pole
+    # unpowered on a single transient BLE hiccup.
+    for attempt in range(3):
+        try:
+            await device.turn_dc_on()
+        except Exception as e:
+            log.warning(f'Battery [Pole {label}]: DC-on attempt {attempt+1}/3 failed to send: {e}')
+            await _asyncio.sleep(2)
+            continue
+        if await _wait_for(target_on=True):
+            log.info(f'Battery [Pole {label}]: DC cycle complete, confirmed back on')
+            marker.touch()
+            return
+        log.warning(f'Battery [Pole {label}]: sent DC-on but could not confirm it took effect (attempt {attempt+1}/3)')
+    log.error(f'Battery [Pole {label}]: DC cycle may have left the pole powered OFF after 3 failed on-attempts — check manually')
+
+
 def _batt_cmd(addr, coro_fn):
     """Run a C300 command coroutine from Flask (thread-safe). Returns (ok, err)."""
     with _battery_lock:
@@ -7271,6 +7357,7 @@ async def _monitor_unit(address, label):
                 with _battery_lock:
                     _battery_devices[address] = device
                 _batt_update(address, {'status': 'connected', 'error': None})
+                await _cycle_dc_once_per_boot(device, address, label)
 
                 last_data_time = time.time()
                 while client.is_connected:
@@ -7947,6 +8034,331 @@ def wled_proxy(node_id, path):
         resp_headers['Location'] = f'/wled/{node_id}' + loc
 
     return Response(body, status=up.status_code, headers=resp_headers)
+
+
+# ════════════════════════════════════════════
+# BAND SLIDESHOW — photos synced from a band.us album, shown on Display
+# ════════════════════════════════════════════
+BAND_SLIDESHOW_DIR = ASSETS_DIR / 'band_slideshow'
+BAND_MANIFEST_FILE = BAND_SLIDESHOW_DIR / 'manifest.json'
+BAND_API_BASE       = 'https://openapi.band.us'
+BAND_AUTH_BASE      = 'https://auth.band.us'
+
+_band_lock   = threading.Lock()
+_band_status = {'last_sync': None, 'ok': None, 'error': None, 'photo_count': 0, 'cache_bytes': 0}
+
+def _band_update_status(patch):
+    with _band_lock:
+        _band_status.update(patch)
+
+def _band_get_status():
+    with _band_lock:
+        return dict(_band_status)
+
+def _band_cfg():
+    return config.get('band_slideshow', {})
+
+def load_band_manifest() -> list:
+    try:
+        with open(BAND_MANIFEST_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_band_manifest(data: list):
+    BAND_SLIDESHOW_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = BAND_MANIFEST_FILE.with_suffix('.tmp')
+    try:
+        with _config_lock:
+            with open(tmp, 'w') as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp, BAND_MANIFEST_FILE)
+    except Exception as e:
+        log.error(f"save_band_manifest: {e}")
+        try: tmp.unlink()
+        except OSError: pass
+
+def _band_paged_get(url, params, retries=3, retry_delay=2):
+    """GET a BAND endpoint, following the 'next_params' pagination cursor
+    (BAND's Get Albums / Get Photos are both paginated, not single-shot)
+    until exhausted. Returns the combined 'items' list, or None on failure —
+    callers treat None as 'leave the existing cache alone', never as empty."""
+    items = []
+    next_params = dict(params)
+    while next_params is not None:
+        page = None
+        for attempt in range(1, retries + 1):
+            try:
+                r = requests.get(url, params=next_params, timeout=10)
+                r.raise_for_status()
+                page = r.json()
+                break
+            except Exception as e:
+                log.warning(f"BAND API error ({url}, attempt {attempt}/{retries}): {e}")
+                if attempt < retries:
+                    time.sleep(retry_delay)
+        if page is None:
+            return None
+        if page.get('result_code') != 1:
+            log.warning(f"BAND API non-success result_code for {url}: {page}")
+            return None
+        data = page.get('result_data', {})
+        items.extend(data.get('items', []))
+        next_params = data.get('paging', {}).get('next_params')
+    return items
+
+def _band_get_band_key(access_token, retries=3, retry_delay=2):
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(f'{BAND_API_BASE}/v2.1/bands',
+                              params={'access_token': access_token}, timeout=10)
+            r.raise_for_status()
+            bands = r.json().get('result_data', {}).get('bands', [])
+            return bands[0]['band_key'] if bands else None
+        except Exception as e:
+            log.warning(f"BAND get_bands error (attempt {attempt}/{retries}): {e}")
+            if attempt < retries:
+                time.sleep(retry_delay)
+    return None
+
+def _band_get_albums(access_token, band_key):
+    return _band_paged_get(f'{BAND_API_BASE}/v2/band/albums',
+                            {'access_token': access_token, 'band_key': band_key})
+
+def _band_get_photos(access_token, band_key, photo_album_key):
+    return _band_paged_get(f'{BAND_API_BASE}/v2/band/album/photos',
+                            {'access_token': access_token, 'band_key': band_key,
+                             'photo_album_key': photo_album_key})
+
+def _band_cache_total(manifest):
+    return sum(m.get('file_size', 0) for m in manifest)
+
+def _band_evict_to_fit(manifest, extra_bytes=0):
+    """Evict oldest-cached_at entries (deleting their files) until the cache,
+    plus extra_bytes of headroom for an incoming write, fits under
+    max_cache_mb. Mutates manifest in place. Called both pre-write (when the
+    incoming photo's Content-Length is known) and post-write (to catch cases
+    where it wasn't), so the cap is never meaningfully exceeded either way."""
+    cap_bytes = int(_band_cfg().get('max_cache_mb', 2000)) * 1024 * 1024
+    manifest.sort(key=lambda m: m.get('cached_at', 0))
+    while manifest and _band_cache_total(manifest) + extra_bytes > cap_bytes:
+        victim = manifest.pop(0)
+        f = BAND_SLIDESHOW_DIR / f"{victim['photo_id']}{victim.get('ext', '.jpg')}"
+        try: f.unlink()
+        except OSError: pass
+        log.info(f"BAND slideshow: evicted {victim['photo_id']} (oldest-cached) to stay under cache cap")
+
+def _band_sync(retries=3, retry_delay=2):
+    """One-shot sync: fetch target album(s) from BAND, diff against the local
+    manifest, download new photos, drop ones no longer in BAND, enforce the
+    cache cap. Never raises and never touches the cache on a failed fetch —
+    on any error the existing cache (whatever was there before this call)
+    is left exactly as it was, per the 'no error surfaced to the show' spec."""
+    bcfg = _band_cfg()
+    access_token = bcfg.get('access_token', '')
+    if not access_token:
+        _band_update_status({'ok': False, 'error': 'not authorized (no access_token)'})
+        return
+
+    band_key = bcfg.get('band_key') or _band_get_band_key(access_token, retries, retry_delay)
+    if not band_key:
+        _band_update_status({'ok': False, 'error': 'could not resolve band_key'})
+        return
+    if bcfg.get('band_key') != band_key:
+        cfg = load_config()
+        cfg.setdefault('band_slideshow', {})['band_key'] = band_key
+        save_config(cfg)
+
+    albums = _band_get_albums(access_token, band_key)
+    if albums is None:
+        _band_update_status({'ok': False, 'error': 'could not fetch albums (keeping existing cache)'})
+        return
+
+    mode = bcfg.get('mode', 'season')
+    if mode == 'event':
+        target_keys = [bcfg['event_album_key']] if bcfg.get('event_album_key') else []
+    else:
+        season_keys = list(bcfg.get('season_album_keys') or [])
+        appended = False
+        for a in albums:
+            k = a['photo_album_key']
+            if k not in season_keys:
+                season_keys.append(k)
+                appended = True
+        target_keys = season_keys
+        if appended:
+            cfg = load_config()
+            cfg.setdefault('band_slideshow', {})['season_album_keys'] = season_keys
+            save_config(cfg)
+
+    BAND_SLIDESHOW_DIR.mkdir(parents=True, exist_ok=True)
+    manifest = load_band_manifest()
+    known_ids = {m['photo_id'] for m in manifest}
+    seen_ids  = set()
+
+    for album_key in target_keys:
+        photos = _band_get_photos(access_token, band_key, album_key)
+        if photos is None:
+            log.warning(f"BAND slideshow: photo fetch failed for album {album_key}, skipping (keeping its existing cached photos)")
+            seen_ids |= {m['photo_id'] for m in manifest if m['album_key'] == album_key}
+            continue
+        for p in photos:
+            pid = p['photo_key']
+            seen_ids.add(pid)
+            if pid in known_ids:
+                continue
+            ext = os.path.splitext(p['url'].split('?')[0])[1] or '.jpg'
+            dest = BAND_SLIDESHOW_DIR / f'{pid}{ext}'
+            try:
+                r = requests.get(p['url'], timeout=15, stream=True)
+                r.raise_for_status()
+                content_len = int(r.headers.get('content-length') or 0)
+                if content_len:
+                    _band_evict_to_fit(manifest, content_len)
+                dest.write_bytes(r.content)
+            except Exception as e:
+                log.warning(f"BAND slideshow: photo download failed ({pid}): {e}")
+                continue
+            entry = {'album_key': album_key, 'photo_id': pid, 'cached_at': time.time(),
+                      'file_size': dest.stat().st_size, 'ext': ext}
+            manifest.append(entry)
+            known_ids.add(pid)
+            _band_evict_to_fit(manifest)
+
+    # Drop cached photos no longer present in BAND — only within albums that
+    # were actually synced this pass; an album whose fetch failed keeps its
+    # existing cached photos untouched (its ids were pre-added to seen_ids above).
+    synced_albums = set(target_keys)
+    kept = []
+    for m in manifest:
+        if m['album_key'] in synced_albums and m['photo_id'] not in seen_ids:
+            f = BAND_SLIDESHOW_DIR / f"{m['photo_id']}{m.get('ext', '.jpg')}"
+            try: f.unlink()
+            except OSError: pass
+            continue
+        kept.append(m)
+    manifest = kept
+    save_band_manifest(manifest)
+
+    _band_update_status({'ok': True, 'error': None, 'last_sync': time.time(),
+                          'photo_count': len(manifest), 'cache_bytes': _band_cache_total(manifest)})
+    log.info(f"BAND slideshow sync: {len(manifest)} photos cached, {_band_cache_total(manifest)/1e6:.1f}MB")
+
+def _start_band_sync():
+    if not config.get('band_slideshow', {}).get('access_token'):
+        log.info('BAND slideshow: no access_token configured, skipping boot sync')
+        return
+    threading.Thread(target=_band_sync, daemon=True, name='band-slideshow-sync').start()
+
+try:
+    _start_band_sync()
+    log.info('BAND slideshow sync started')
+except Exception as exc:
+    log.warning(f'BAND slideshow sync failed to start: {exc}')
+
+@app.route('/api/band_slideshow/config', methods=['GET'])
+def api_band_config_get():
+    bcfg = dict(_band_cfg())
+    has_secret = bool(bcfg.pop('client_secret', ''))
+    has_token  = bool(bcfg.pop('access_token', ''))
+    bcfg['has_secret'] = has_secret
+    bcfg['has_token']  = has_token
+    return jsonify(bcfg)
+
+@app.route('/api/band_slideshow/config', methods=['POST'])
+def api_band_config_set():
+    data = request.get_json() or {}
+    cfg = load_config()
+    bcfg = cfg.setdefault('band_slideshow', {})
+    for key in ('client_id', 'client_secret', 'mode', 'event_album_key',
+                'season_album_keys', 'max_cache_mb', 'qr_target_url', 'qr_fade_interval_photos'):
+        if key in data:
+            bcfg[key] = data[key]
+    save_config(cfg)
+    return jsonify({'ok': True})
+
+@app.route('/api/band_slideshow/exchange_code', methods=['POST'])
+def api_band_exchange_code():
+    data = request.get_json() or {}
+    code = data.get('code', '').strip()
+    if not code:
+        return jsonify({'ok': False, 'error': 'code required'}), 400
+    cfg = load_config()
+    bcfg = cfg.setdefault('band_slideshow', {})
+    client_id, client_secret = bcfg.get('client_id', ''), bcfg.get('client_secret', '')
+    if not client_id or not client_secret:
+        return jsonify({'ok': False, 'error': 'client_id/client_secret not set'}), 400
+    basic = base64.b64encode(f'{client_id}:{client_secret}'.encode()).decode()
+    try:
+        r = requests.get(f'{BAND_AUTH_BASE}/oauth2/token',
+                          params={'grant_type': 'authorization_code', 'code': code},
+                          headers={'Authorization': f'Basic {basic}'}, timeout=10)
+        r.raise_for_status()
+        tok = r.json()
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 502
+    if 'access_token' not in tok:
+        return jsonify({'ok': False, 'error': tok.get('error_description') or 'no access_token in response'}), 502
+    bcfg['access_token'] = tok['access_token']
+    bcfg['user_key']     = tok.get('user_key', '')
+    save_config(cfg)
+    return jsonify({'ok': True})
+
+@app.route('/api/band_slideshow/sync', methods=['POST'])
+def api_band_sync():
+    threading.Thread(target=_band_sync, daemon=True, name='band-slideshow-sync-manual').start()
+    return jsonify({'ok': True})
+
+@app.route('/api/band_slideshow/status')
+def api_band_status():
+    return jsonify(_band_get_status())
+
+@app.route('/api/band_slideshow/albums')
+def api_band_albums():
+    bcfg = _band_cfg()
+    access_token, band_key = bcfg.get('access_token', ''), bcfg.get('band_key', '')
+    if not access_token or not band_key:
+        return jsonify({'ok': False, 'error': 'not authorized yet'}), 400
+    albums = _band_get_albums(access_token, band_key)
+    if albums is None:
+        return jsonify({'ok': False, 'error': 'fetch failed'}), 502
+    return jsonify({'ok': True, 'albums': albums})
+
+@app.route('/api/band_slideshow/photo/<photo_id>')
+def api_band_photo(photo_id):
+    if '..' in photo_id:
+        return '', 400
+    for m in load_band_manifest():
+        if m['photo_id'] == photo_id:
+            return send_from_directory(str(BAND_SLIDESHOW_DIR), f"{photo_id}{m.get('ext', '.jpg')}")
+    return '', 404
+
+@app.route('/api/band_slideshow/playlist')
+def api_band_playlist():
+    bcfg = _band_cfg()
+    manifest = load_band_manifest()
+    if bcfg.get('mode', 'season') == 'event':
+        target = bcfg.get('event_album_key')
+        manifest = [m for m in manifest if m['album_key'] == target]
+    urls = [f"/api/band_slideshow/photo/{m['photo_id']}" for m in manifest]
+    random.shuffle(urls)
+    return jsonify({'ok': True, 'photos': urls})
+
+@app.route('/api/display/band_slideshow/start', methods=['POST'])
+def api_display_band_slideshow_start():
+    bcfg = _band_cfg()
+    qr_url = bcfg.get('qr_target_url', '')
+    data = {
+        'qr_data_url': _make_qr_data_url(qr_url) if qr_url else '',
+        'qr_fade_interval_photos': int(bcfg.get('qr_fade_interval_photos', 6)),
+    }
+    _ensure_display_for('display_band_slideshow_start', data)
+    return jsonify({'ok': True})
+
+@app.route('/api/display/band_slideshow/stop', methods=['POST'])
+def api_display_band_slideshow_stop():
+    _ensure_display_for('display_band_slideshow_stop', {})
+    return jsonify({'ok': True})
 
 
 # ════════════════════════════════════════════

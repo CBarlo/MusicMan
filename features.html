@@ -284,6 +284,10 @@
         <div class="feat-name">MEMES Tab</div>
         <div class="feat-desc">Video-only quick-fire grid on the Console — same files and volume settings as the Display library, filtered down to short clips. One tap fires full-screen with sound; hold-drag to reorder. Auto-returns to standby when the clip ends.</div>
       </div>
+      <div class="feat blue wide">
+        <div class="feat-name">BAND Photo Slideshow</div>
+        <div class="feat-desc">Pulls photos from the group's BAND album (one-time OAuth setup, ~10yr token) and shows them full-screen with a floating QR code inviting attendees to add their own. Season mode cycles every synced album; Event mode shows just one. Photos cache to the Pi's SD card with size-capped eviction — sync is a manual/boot-time pull, never a live poll during a show. Start/Stop from Admin for now; not yet wired into Show Flow or the Stream Deck.</div>
+      </div>
     </div>
   </div>
 
@@ -359,7 +363,7 @@
     <div class="feat-grid">
       <div class="feat purple">
         <div class="feat-name">Scenes</div>
-        <div class="feat-desc">Named lighting presets that set WLED strips, DMX fixtures, and pole flashlights simultaneously. Scenes drag-reorderable in the Console. Callable from macros, walk-ups, timers, and the crowd meter.</div>
+        <div class="feat-desc">Named lighting presets that set WLED strips, DMX fixtures, and pole flashlights simultaneously. Scenes drag-reorderable in the Console. Callable from macros, walk-ups, timers, and the crowd meter. Adding, deleting, or reordering a scene in Admin pushes live to the Console and Stream Deck's scene lists over WebSocket — no refresh needed.</div>
       </div>
       <div class="feat purple">
         <div class="feat-name">WLED Strip Control</div>
@@ -387,7 +391,7 @@
       </div>
       <div class="feat purple">
         <div class="feat-name">DMX Animation</div>
-        <div class="feat-desc">Per-scene looping DMX keyframe animations. Frames interpolate smoothly; interval and transition configurable in Admin.</div>
+        <div class="feat-desc">Per-scene looping DMX keyframe animations. Frames hard-cut from one stored value to the next — no interpolated in-between values — since cheap DMX fixtures could latch into an autonomous/sound-active mode when they received a transitional value outside a valid range. Hold duration per frame configurable in Admin.</div>
       </div>
       <div class="feat purple">
         <div class="feat-name">Multi-Pole Scenes</div>
@@ -591,6 +595,25 @@
       <div class="feat green">
         <div class="feat-name">Auto-Reconnect</div>
         <div class="feat-desc">Service reconnects automatically on USB disconnect. Includes a USB reset helper (sudo NOPASSWD) to recover HID lock-ups without rebooting the Pi. Retries every 3s; resets every 5th failed attempt.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POWER & SAFETY -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-icon">🔌</span>
+      <span class="section-label">Power & Safety</span>
+      <div class="section-rule"></div>
+    </div>
+    <div class="feat-grid">
+      <div class="feat rose wide">
+        <div class="feat-name">Power Button & Status Light</div>
+        <div class="feat-desc">One button, wired to both GPIO3 (hardware wake-from-halt) and GPIO17 (gpio-shutdown overlay), doubles as power-on and graceful-shutdown trigger — press while running to shut down cleanly, press again while off to power back on. A WS2812B pixel next to it shows boot state at a glance: amber = booting, blue = musicman service up but not every pole node connected yet, green = fully connected, solid white = shutdown signal received and safe to remove power once it's been white a few seconds. The white state holds indefinitely on its own (no timer) rather than guessing when shutdown has actually finished.</div>
+      </div>
+      <div class="feat rose">
+        <div class="feat-name">Solix DC Auto-Cycle on Boot</div>
+        <div class="feat-desc">First BLE reconnect after each Pi boot briefly cycles each pole's Solix C300 DC output off and back on, confirmed via the unit's own dc_output telemetry rather than blind timing — clears a stale DC-disconnected state left over from the previous session so the pole reliably powers back up without a manual toggle. Runs once per boot per unit.</div>
       </div>
     </div>
   </div>

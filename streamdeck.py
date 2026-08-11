@@ -1011,6 +1011,18 @@ def on_ws_message(ws_app, message):
             _stop_timer_tick()
             changed = True
 
+        elif event == 'scenes_updated':
+            # Scene library changed from Admin — refetch just the scenes list
+            # (not a full load_pi_data(), which would also re-hit every other
+            # endpoint) so the LIGHTS page stays current without waiting on
+            # the 60s refresh_loop.
+            try:
+                pi['scenes'] = requests.get(f'{BASE_URL}/api/scenes', timeout=5).json()
+            except Exception as e:
+                print(f'Scene refetch error: {e}')
+            if state['page'] == PAGE_SCENES:
+                changed = True
+
         if changed:
             render_current_page()
 

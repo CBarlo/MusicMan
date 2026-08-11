@@ -752,6 +752,77 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <button onclick="setDisplayLogo('')" class="btn btn-secondary btn-sm" id="disp-logo-clear-btn" style="display:none">✕ CLEAR</button>
         </div>
       </div>
+
+      <!-- BAND PHOTO SLIDESHOW -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">📷 BAND PHOTO SLIDESHOW</div>
+        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:14px">
+          Pulls photos from the group's BAND album and shows them full-screen with a floating QR
+          code inviting attendees to add their own. Synced once at boot or on demand — never
+          polls live during a show.
+        </p>
+
+        <div class="editor-panel" style="margin-bottom:12px">
+          <div class="editor-label">1 · CONNECT TO BAND</div>
+          <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5">
+            Register an app at <strong>developers.band.us → My Apps</strong> to get a Client ID/Secret
+            (any redirect URI works — this flow doesn't need it to be reachable). Then authorize once
+            and paste the code back here. The token lasts ~10 years, so this is a one-time step.
+          </p>
+          <label class="field-label">CLIENT ID</label>
+          <input id="band-client-id" type="text" class="text-input" style="margin-bottom:10px">
+          <label class="field-label">CLIENT SECRET</label>
+          <input id="band-client-secret" type="password" class="text-input" placeholder="— unchanged if left blank —" style="margin-bottom:10px">
+          <div class="btn-row" style="margin-bottom:10px">
+            <button class="btn btn-secondary btn-sm" onclick="bandOpenAuthorize()">↗ AUTHORIZE IN BAND</button>
+          </div>
+          <label class="field-label">AUTHORIZATION CODE <span style="font-weight:400;color:var(--text-dim)">(paste the "code" param from the redirected URL)</span></label>
+          <input id="band-auth-code" type="text" class="text-input" style="margin-bottom:10px">
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="bandExchangeCode()">EXCHANGE FOR TOKEN</button>
+          </div>
+          <div id="band-token-status" style="font-size:11px;letter-spacing:1px;margin-top:8px;color:var(--text-dim)">— checking —</div>
+        </div>
+
+        <div class="editor-panel" style="margin-bottom:12px">
+          <div class="editor-label">2 · SETTINGS</div>
+          <label class="field-label">MODE</label>
+          <select id="band-mode" class="text-input" style="margin-bottom:10px">
+            <option value="season">SEASON — every cached album</option>
+            <option value="event">EVENT — one selected album only</option>
+          </select>
+          <label class="field-label">EVENT ALBUM <span style="font-weight:400;color:var(--text-dim)">(used when mode = event)</span></label>
+          <select id="band-event-album" class="text-input" style="margin-bottom:10px">
+            <option value="">— sync first to list albums —</option>
+          </select>
+          <label class="field-label">MAX CACHE (MB)</label>
+          <input id="band-max-cache" type="number" class="text-input" value="2000" style="margin-bottom:10px">
+          <label class="field-label">QR TARGET URL <span style="font-weight:400;color:var(--text-dim)">(BAND album link — attendees tap to add photos)</span></label>
+          <input id="band-qr-url" type="text" class="text-input" placeholder="https://band.us/band/XXXXX/album/XXXXX" style="margin-bottom:10px">
+          <label class="field-label">QR FADE INTERVAL <span style="font-weight:400;color:var(--text-dim)">(show QR every N photos)</span></label>
+          <input id="band-qr-interval" type="number" class="text-input" value="6" style="margin-bottom:10px">
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="bandSaveConfig()">✓ SAVE SETTINGS</button>
+          </div>
+        </div>
+
+        <div class="editor-panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <div>
+            <div class="editor-label" style="margin-bottom:4px">3 · SYNC</div>
+            <div id="band-sync-status" style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">— never synced —</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="bandSyncNow(this)">⟳ SYNC NOW</button>
+        </div>
+
+        <div class="editor-panel">
+          <div class="editor-label" style="margin-bottom:10px">4 · DISPLAY</div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="bandStartSlideshow()">▶ START SLIDESHOW</button>
+            <button class="btn btn-secondary btn-sm" onclick="bandStopSlideshow()">■ STOP SLIDESHOW</button>
+          </div>
+        </div>
+      </div>
+
       <div class="disk-bar-wrap">
         <div class="disk-bar-labels">
           <span>💾 PI DISK USAGE</span>
@@ -2286,7 +2357,7 @@ function switchTab(name) {
   if (name === 'lighting')      { loadPoleNodes(); }
   if (name === 'scenes')        { loadPoleNodes(); renderSceneGrid && renderSceneGrid(); }
   if (name === 'showflow')      { loadShowFlow(); loadShowFlowTemplates(); }
-  if (name === 'display-content') loadDisplayFiles();
+  if (name === 'display-content') { loadDisplayFiles(); bandLoadConfig(); }
   if (name === 'slides')        { admRenderFields(); loadSavedSlides(); }
   if (name === 'vs-cards')      loadVsCards();
   if (name === 'game-entries')  loadGameEntries();
@@ -7950,6 +8021,142 @@ function _showDhcpStatus(dhcp) {
     parts.push(`${dhcp.pending.length} PENDING (${dhcp.pending.join(', ')} — connect device first)`);
   el.style.color = dhcp.pending && dhcp.pending.length ? 'var(--amber,#f0a500)' : 'var(--green)';
   el.textContent = parts.join(' · ');
+}
+
+// ── BAND SLIDESHOW ───────────────────────────────────────────────────────────
+let _bandEventAlbumWanted = '';
+
+async function bandLoadConfig() {
+  try {
+    const r = await fetch('/api/band_slideshow/config');
+    const c = await r.json();
+    document.getElementById('band-client-id').value  = c.client_id || '';
+    document.getElementById('band-mode').value        = c.mode || 'season';
+    document.getElementById('band-max-cache').value   = c.max_cache_mb ?? 2000;
+    document.getElementById('band-qr-url').value       = c.qr_target_url || '';
+    document.getElementById('band-qr-interval').value = c.qr_fade_interval_photos ?? 6;
+    const statusEl = document.getElementById('band-token-status');
+    if (c.has_token) {
+      statusEl.style.color = 'var(--green)';
+      statusEl.textContent = 'CONNECTED' + (c.has_secret ? '' : ' — client secret not set, re-enter it if you need to re-authorize');
+    } else {
+      statusEl.style.color = 'var(--text-dim)';
+      statusEl.textContent = 'NOT CONNECTED — authorize below';
+    }
+    _bandEventAlbumWanted = c.event_album_key || '';
+    if (c.band_key) bandLoadAlbums();
+  } catch (e) {}
+  bandRefreshStatus();
+}
+
+async function bandLoadAlbums() {
+  const sel = document.getElementById('band-event-album');
+  try {
+    const r = await fetch('/api/band_slideshow/albums');
+    const d = await r.json();
+    if (!d.ok) { sel.innerHTML = '<option value="">— sync first to list albums —</option>'; return; }
+    const H = s => String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    sel.innerHTML = (d.albums.map(a =>
+      `<option value="${a.photo_album_key}">${H(a.name)} (${a.photo_count||0})</option>`
+    ).join('')) || '<option value="">— no albums found —</option>';
+    if (_bandEventAlbumWanted) sel.value = _bandEventAlbumWanted;
+  } catch (e) {}
+}
+
+function bandOpenAuthorize() {
+  const clientId = document.getElementById('band-client-id').value.trim();
+  if (!clientId) { toast('Enter a Client ID first', 'err'); return; }
+  const redirect = prompt(
+    "Redirect URI registered with this app in BAND (any reachable-or-not domain works — " +
+    "you'll copy the code out of the address bar after login, not rely on the page itself loading):",
+    'https://example.com'
+  );
+  if (!redirect) return;
+  const url = `https://auth.band.us/oauth2/authorize?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirect)}`;
+  window.open(url, '_blank');
+}
+
+async function bandSaveConfig() {
+  const body = {
+    client_id:               document.getElementById('band-client-id').value.trim(),
+    mode:                    document.getElementById('band-mode').value,
+    event_album_key:         document.getElementById('band-event-album').value,
+    max_cache_mb:            parseInt(document.getElementById('band-max-cache').value) || 2000,
+    qr_target_url:           document.getElementById('band-qr-url').value.trim(),
+    qr_fade_interval_photos: parseInt(document.getElementById('band-qr-interval').value) || 6,
+  };
+  const secret = document.getElementById('band-client-secret').value;
+  if (secret) body.client_secret = secret;  // write-only field — omit unless actually changed
+  try {
+    const r = await fetch('/api/band_slideshow/config', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('Settings saved', 'ok');
+      document.getElementById('band-client-secret').value = '';
+      bandLoadConfig();
+    } else toast(d.error || 'Save failed', 'err');
+  } catch (e) { toast('Save failed', 'err'); }
+}
+
+async function bandExchangeCode() {
+  const code = document.getElementById('band-auth-code').value.trim();
+  if (!code) { toast('Paste the authorization code first', 'err'); return; }
+  try {
+    const r = await fetch('/api/band_slideshow/exchange_code', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('Connected to BAND', 'ok');
+      document.getElementById('band-auth-code').value = '';
+      bandLoadConfig();
+    } else toast(d.error || 'Exchange failed', 'err');
+  } catch (e) { toast('Exchange failed', 'err'); }
+}
+
+async function bandSyncNow(btn) {
+  const prev = btn.textContent;
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    await fetch('/api/band_slideshow/sync', {method: 'POST'});
+    toast('Sync started', 'ok');
+    setTimeout(bandRefreshStatus, 4000);
+    setTimeout(bandLoadAlbums, 4000);
+  } catch (e) { toast('Sync failed to start', 'err'); }
+  btn.textContent = prev; btn.disabled = false;
+}
+
+async function bandRefreshStatus() {
+  const el = document.getElementById('band-sync-status');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/band_slideshow/status');
+    const s = await r.json();
+    if (!s.last_sync) { el.textContent = '— never synced —'; el.style.color = 'var(--text-dim)'; return; }
+    const when = new Date(s.last_sync * 1000).toLocaleString();
+    const mb   = ((s.cache_bytes || 0) / 1e6).toFixed(1);
+    if (s.ok) {
+      el.style.color = 'var(--green)';
+      el.textContent = `${s.photo_count} photos · ${mb}MB · last synced ${when}`;
+    } else {
+      el.style.color = 'var(--red)';
+      el.textContent = `SYNC ERROR: ${s.error || 'unknown'} (last good sync: ${when})`;
+    }
+  } catch (e) {}
+}
+
+function bandStartSlideshow() {
+  fetch('/api/display/band_slideshow/start', {method: 'POST'})
+    .then(() => toast('Slideshow started', 'ok'))
+    .catch(() => toast('Failed to start', 'err'));
+}
+
+function bandStopSlideshow() {
+  fetch('/api/display/band_slideshow/stop', {method: 'POST'})
+    .then(() => toast('Slideshow stopped', 'ok'))
+    .catch(() => toast('Failed to stop', 'err'));
 }
 
 // ── DMX LOOKS ────────────────────────────────────────────────────────────────

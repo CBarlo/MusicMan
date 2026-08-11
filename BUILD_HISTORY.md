@@ -380,4 +380,40 @@ Music Viz previously had exactly one look (bars) with no way to change it. Added
 
 ---
 
-*Last updated: July 2026 — Phase 10*
+---
+
+## Phase 11 — Stream Deck Rewrite, DMX Reliability, BAND Slideshow, Pi Power System
+
+### Stream Deck: Full Rewrite
+The original Stream Deck driver was a flat set of hardcoded pages, each button wired individually — adding a new page meant writing a new render/handle function from scratch, and nothing scaled past whatever list length was hardcoded at build time. Rewritten around a generic paginated-list engine: any page that's fundamentally "a list of things with a tap action" (scenes, music, slides, VS cards, viz presets, the display library) is now one render function and one handle function, parameterized by data source and fire action. A new **MENU** directory page fans out to all of them, uncapped — a library of 60 scenes pages exactly as well as one of 6.
+
+**Games** got a different treatment: rather than a static config-picker list, the Games page tracks whichever game was most recently launched (from GO LIVE, a show step, or a macro) and swaps to that game's real live controls — SPIN for Prize Wheel, START/STOP for Musical Chairs, REVEAL/NEXT/CORRECT/INCORRECT for Trivia, START/RESET for Shell Game. No live game yet, or a game type with no deck controller defined, falls back to the GO LIVE config picker. Show Flow Keys, walk-up/role buttons, and audio transport carried forward from the original build, now sitting on top of the same paginated engine as everything else.
+
+### DMX Reliability — Three Real Bugs, One Redesign
+Traced and fixed across a multi-session debugging arc after poles started "wigging out" mid-show — a fixture would silently drop into its own autonomous/sound-reactive mode (visible as random color chases unrelated to any scene) and stay there until manually recovered, always during DMX animation playback, never during a static scene:
+
+1. **Buffer race**: `_sendDmx()`'s continuous 30Hz retransmission loop and the `/dmx` HTTP handler's write into the same channel buffer had no mutual exclusion — a write landing mid-send could hand the transmit loop a half-updated buffer. Fixed with a `portMUX_TYPE` critical section around both the read and the write.
+2. **Chunked-body parsing**: AsyncWebServer delivers POST bodies in chunks via an `onBody` callback; the `/dmx` handler was treating each chunk as if it were the complete JSON payload. A multi-chunk body (anything over ~1 packet) would fail `deserializeJson()` silently or parse a truncated fragment, which could produce a channel value the fixture read as a mode/effect command instead of a color value. Rewrote the handler to reassemble the full body across chunks before parsing, with real validation (size bounds, JSON parse errors) instead of assuming success.
+3. **Frame interpolation**: independent of both bugs above, `_run_dmx_anim()` was smoothly interpolating between keyframes rather than hard-cutting — every intermediate value along that fade was a value the fixture had never been scene-tested with, and any one of them landing in the fixture's own mode/effect channel range could trigger the same autonomous-mode failsafe cheap DMX fixtures use when they think they've lost a valid signal. Redesigned the animation loop to hold each frame's exact stored values for the configured interval, then hard-cut to the next frame — zero intermediate values ever sent.
+
+Also added live diagnostics to the pole firmware (`mm_dmx_gap_now`/`mm_dmx_gap_max`, exposed via WLED's info API) to test and rule out a fourth theory — WiFi/send-loop stalling — before landing on the interpolation fix above; gap measurements came back symmetric and boot-transient-only across both poles, disproving the stall theory with real data rather than continued guessing.
+
+Separately, `kill_lights()` gained a 2-attempt retry on both the WLED-off and DMX-off calls, and its DMX zero-out list gained the PAR fixture (address 15), which had been silently left out — kill_lights was leaving the PAR fixture lit on every use even though scene-fire and the rest of the DMX path both knew about it.
+
+### Pi Power Button + Status LED
+The Pi previously had no physical power control or boot feedback at all — startup/shutdown status was invisible without a monitor plugged in. Added a manual power button and a WS2812B status pixel: amber while booting, blue once `musicman.service` is up, green once every configured pole node is connected, solid white once a shutdown signal is received (holds indefinitely rather than timing out, so it never claims "safe to unplug" before the OS has actually finished shutting down).
+
+Hardware note worth keeping: the button drives both GPIO3 (the Pi's dedicated wake-from-halt pin, hardware-level and non-transferable to any other GPIO) and GPIO17 (running the `gpio-shutdown` overlay for the press-to-shutdown trigger) — GPIO3 alone can't run the overlay because it doubles as the HiFiBerry audio HAT's I2C clock line. Full wiring in [`WIRING_GUIDE.md`](WIRING_GUIDE.md). Driven by a new `pi_status_led.py` + `musicman-statusled.service`, polling `musicman.service`'s own API rather than depending on it structurally, so the amber "booting" state shows immediately even before the service is fully up.
+
+### BAND Photo Slideshow
+New Display feature: pulls photos from the troop's BAND app group album and shows them full-screen on the projector between show segments, with a floating QR code inviting attendees to add their own photos. One-time OAuth setup (manual code-paste flow, since the Pi has no public redirect URL to register) yields a token good for roughly ten years — no ongoing auth maintenance. Sync is boot-time/on-demand only, never a live poll during a show; photos cache to the Pi's SD card with size-capped eviction of the oldest images. Season mode cycles every synced album, Event mode shows just one. v1 is a manual Start/Stop from Admin — not yet wired into Show Flow or the Stream Deck.
+
+### Solix DC Auto-Cycle on Boot
+Each pole's Solix C300 occasionally came out of the prior session in a stale DC-disconnected state that a plain reboot didn't clear on its own. Fixed by cycling the DC output off and back on once, automatically, on the first BLE reconnect after each Pi boot — confirmed via the Solix's own `dc_output` telemetry rather than blind timing, so the pole reliably powers back up without a manual toggle at setup.
+
+### Live Scene List Sync
+Adding, deleting, or reordering a lighting scene in Admin now broadcasts a `scenes_updated` WebSocket event, so the Console and Stream Deck's scene lists refresh immediately instead of requiring a page reload or tab switch to pick up the change.
+
+---
+
+*Last updated: August 2026 — Phase 11*

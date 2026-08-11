@@ -1414,13 +1414,36 @@
     <tr><td>CPU / Memory / Disk / Uptime</td><td>Live Pi health stats. Disk full is the most common silent failure — check here if things stop working.</td></tr>
     <tr><td>🔈 RESET AUDIO</td><td>Restarts the audio system without rebooting the Pi. Try this first if audio stops working.</td></tr>
     <tr><td>⚠ RESTART SERVICE</td><td>Restarts the MusicMan software. Connected browsers reconnect automatically within seconds.</td></tr>
-    <tr><td>🔌 SHUTDOWN PI</td><td>Safely shuts down the Raspberry Pi. Wait for the activity light to stop blinking before removing power.</td></tr>
+    <tr><td>🔌 SHUTDOWN PI</td><td>Safely shuts down the Raspberry Pi from Admin. The physical power button on the case does the same thing — see below.</td></tr>
   </table>
 
+  <h3>Power Button &amp; Status Light</h3>
+  <p>
+    The case has a physical button and a status pixel next to it — this is the normal way to
+    power the system on and off, no need to open Admin for it.
+  </p>
+  <table>
+    <tr><th>Light color</th><th>Meaning</th></tr>
+    <tr><td>🟠 Amber</td><td>Booting — Pi is starting up.</td></tr>
+    <tr><td>🔵 Blue</td><td>Pi is running, but not every pole node has connected yet.</td></tr>
+    <tr><td>🟢 Green</td><td>Fully up — Pi running and both pole nodes connected. Normal operating state.</td></tr>
+    <tr><td>⚪ White</td><td>Shutting down. See callout below before you unplug.</td></tr>
+  </table>
+  <p>
+    <strong>To turn on:</strong> flip the power switch. The light goes amber, then blue, then
+    green once the poles connect.<br>
+    <strong>To shut down:</strong> press the button once. The Pi shuts down cleanly on its own —
+    no need to hold the button down or use Admin.
+  </p>
+
   <div class="callout callout-warn">
-    <div class="callout-title">Always use Shutdown before unplugging</div>
-    Pulling power while the Pi is running can corrupt the memory card. Click <kbd>🔌 SHUTDOWN PI</kbd>
-    and wait ~10 seconds for the green activity light to go dark before removing power.
+    <div class="callout-title">Wait a few seconds after the light turns white</div>
+    White means shutdown has started, but the Pi may still be finishing up in the background for
+    a few more seconds — the light doesn't turn off on its own (it just holds whatever color it
+    was last shown, for as long as the case still has power). Wait about 5–10 seconds after it
+    turns white, then flip the power switch off. Don't wait for the light to go dark by itself —
+    that only happens once you've actually cut power, which is the action you're taking, not a
+    signal to wait for.
   </div>
 
   <h3>Config Backups</h3>
