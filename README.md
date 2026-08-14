@@ -6,6 +6,8 @@ MusicMan is a campfire show production system that runs on a Raspberry Pi. It gi
 
 Built by a dad, for dads.
 
+[`Video Here`](MusicMan%20Ad%20720p.mov)
+
 ---
 
 ## What It Does
