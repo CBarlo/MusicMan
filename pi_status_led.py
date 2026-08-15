@@ -22,7 +22,7 @@ see /boot/firmware/config.txt) through four states:
 
 Runs as root (required for PWM/DMA access) via musicman-statusled.service.
 """
-import time, signal, sys
+import os, time, signal, sys
 import requests
 import yaml
 from pathlib import Path
@@ -38,7 +38,7 @@ LED_CHANNEL    = 1
 
 COLOR_BOOTING   = Color(255, 140, 0)
 COLOR_RUNNING   = Color(0, 90, 255)
-COLOR_CONNECTED = Color(0, 200, 60)
+COLOR_CONNECTED = Color(0, 90, 0)
 COLOR_SAFE      = Color(255, 255, 255)
 
 CONFIG_PATH   = Path('/home/pi/musicman/config.yaml')
@@ -52,21 +52,40 @@ strip.begin()
 _last_state = None
 
 def set_color(c, state=None):
+    # strip.show() measured at ~33% sustained CPU on this Pi even for a
+    # single pixel — rpi_ws281x appears to busy-wait on DMA completion far
+    # longer than the transfer should take. A WS2812B holds its last color
+    # with no ongoing signal needed, so skip the call entirely when the
+    # state hasn't changed instead of re-sending the same color every poll.
+    global _last_state
+    if state is not None and state == _last_state:
+        return
     strip.setPixelColor(0, c)
     strip.show()
-    global _last_state
-    if state is not None and state != _last_state:
+    if state is not None:
         print(f'state -> {state}', flush=True)
         _last_state = state
 
 
+_node_ids_cache = {'mtime': None, 'ids': []}
+
 def _configured_node_ids():
+    # config.yaml is ~4500 lines; PyYAML's pure-Python safe loader measured
+    # at ~3 SECONDS to parse it on this Pi — re-parsing every 2s poll meant
+    # this script was almost never actually idle, which is what was driving
+    # the sustained high CPU (not strip.show(), which is sub-millisecond).
+    # pole_nodes changes only when an admin edits Lighting Hardware, so only
+    # re-parse when the file's mtime actually moves.
     try:
-        with open(CONFIG_PATH) as f:
-            cfg = yaml.safe_load(f)
-        return [n['id'] for n in cfg.get('pole_nodes', []) if n.get('ip')]
+        mtime = CONFIG_PATH.stat().st_mtime
+        if mtime != _node_ids_cache['mtime']:
+            with open(CONFIG_PATH) as f:
+                cfg = yaml.safe_load(f)
+            _node_ids_cache['ids'] = [n['id'] for n in cfg.get('pole_nodes', []) if n.get('ip')]
+            _node_ids_cache['mtime'] = mtime
     except Exception:
-        return []
+        pass
+    return _node_ids_cache['ids']
 
 
 def _shutdown(signum, frame):
@@ -82,7 +101,17 @@ def _shutdown(signum, frame):
     # finished. "Stays white" isn't exact either, but it never claims
     # done before it's true, which is the property that actually matters.
     set_color(COLOR_SAFE, 'SAFE')
-    sys.exit(0)
+    # Confirmed live via strace: after this point rpi_ws281x's own cleanup
+    # hangs forever in a busy-wait (endless 10us clock_nanosleep loop),
+    # apparently waiting on a DMA-completion flag that never flips on this
+    # Pi. sys.exit() waits for that cleanup before the process actually
+    # terminates, so it never did — systemd was killing it with SIGKILL
+    # after the full TimeoutStopSec every time, well after the pixel was
+    # already correctly set. os._exit() ends the process immediately at
+    # the OS level, skipping that hang entirely — nothing after the pixel
+    # write above needs to happen anyway.
+    sys.stdout.flush()
+    os._exit(0)
 
 
 signal.signal(signal.SIGTERM, _shutdown)

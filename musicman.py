@@ -25,6 +25,7 @@ import yaml
 import json
 import time
 import shutil
+import itertools
 import datetime
 import subprocess
 import threading
@@ -64,6 +65,7 @@ GAMES_FILE        = BASE_DIR / 'games.json'
 GAME_CONFIGS_FILE = BASE_DIR / 'game_configs.json'
 VS_CARDS_FILE     = BASE_DIR / 'vs_cards.json'
 HEAD_TO_HEAD_FILE = BASE_DIR / 'head_to_head.json'
+BACKUP_STATE_FILE = BASE_DIR / 'backup_state.json'
 
 # ── LOGGING ──
 _log_file = BASE_DIR / 'logs' / 'musicman.log'
@@ -102,17 +104,17 @@ def _collect_show_flow_assets(cfg):
         if url and url not in seen:
             seen.add(url); urls.append(url)
     for c in cfg.get('circles', []):
-        a = c.get('assets', {}); cid = c['id']
-        if a.get('animation_intro'): _add(f"/assets/circles/{cid}/{a['animation_intro']}")
-        if a.get('animation'):       _add(f"/assets/circles/{cid}/{a['animation']}")
+        a = c.get('assets', {}); cid = c['id']; d = ASSETS_DIR / 'circles'
+        if a.get('animation_intro'): _add(f"/assets/circles/{cid}/{_versioned_walkup_file(d, cid, a['animation_intro'])}")
+        if a.get('animation'):       _add(f"/assets/circles/{cid}/{_versioned_walkup_file(d, cid, a['animation'])}")
     for r in cfg.get('roles', []):
-        a = r.get('assets', {}); rid = r['id']
-        if a.get('animation_intro'): _add(f"/assets/roles/{rid}/{a['animation_intro']}")
-        if a.get('animation'):       _add(f"/assets/roles/{rid}/{a['animation']}")
+        a = r.get('assets', {}); rid = r['id']; d = ASSETS_DIR / 'roles'
+        if a.get('animation_intro'): _add(f"/assets/roles/{rid}/{_versioned_walkup_file(d, rid, a['animation_intro'])}")
+        if a.get('animation'):       _add(f"/assets/roles/{rid}/{_versioned_walkup_file(d, rid, a['animation'])}")
     for ge in cfg.get('game_entries', []):
-        a = ge.get('assets', {}); geid = ge['id']
-        if a.get('animation_intro'): _add(f"/assets/game_entries/{geid}/{a['animation_intro']}")
-        if a.get('animation'):       _add(f"/assets/game_entries/{geid}/{a['animation']}")
+        a = ge.get('assets', {}); geid = ge['id']; d = ASSETS_DIR / 'game_entries'
+        if a.get('animation_intro'): _add(f"/assets/game_entries/{geid}/{_versioned_walkup_file(d, geid, a['animation_intro'])}")
+        if a.get('animation'):       _add(f"/assets/game_entries/{geid}/{_versioned_walkup_file(d, geid, a['animation'])}")
     return urls
 
 
@@ -167,11 +169,49 @@ def save_config(cfg):
     config = cfg  # keep in-memory copy fresh so hot paths avoid disk reads
     threading.Thread(target=_write_config_backups, args=(CONFIG_PATH,),
                      daemon=True, name='config-backup').start()
+    _bump_backup_change_counter()
     try:
         broadcast('preload_assets', {'urls': _collect_show_flow_assets(cfg)})
         broadcast('config_changed', {})
     except Exception:
         pass
+
+
+def load_backup_state() -> dict:
+    try:
+        with open(BACKUP_STATE_FILE) as f:
+            d = json.load(f)
+    except Exception:
+        d = {}
+    d.setdefault('last_backup_at', None)
+    d.setdefault('last_backup_ok', None)
+    d.setdefault('changes_since_backup', 0)
+    return d
+
+
+def save_backup_state(d: dict):
+    tmp = BACKUP_STATE_FILE.with_suffix('.tmp')
+    try:
+        with _config_lock:
+            with open(tmp, 'w') as f:
+                json.dump(d, f, indent=2)
+            os.replace(tmp, BACKUP_STATE_FILE)
+    except Exception as e:
+        log.error(f'save_backup_state: {e}')
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+
+
+def _bump_backup_change_counter():
+    """Every save_config() call counts as a 'change' for the Admin backup-nudge indicator."""
+    try:
+        st = load_backup_state()
+        st['changes_since_backup'] = st.get('changes_since_backup', 0) + 1
+        save_backup_state(st)
+    except Exception as e:
+        log.debug(f'backup change counter skipped: {e}')
 
 config = load_config()
 log.info(f"Music Man Console starting — {config['expedition']['name']}")
@@ -1952,16 +1992,39 @@ def kill_everything():
     Emergency stop. Stops all audio, turns off all lights.
     Does NOT lose program position or reset timer to zero.
     """
-    global _walkup_fade_cancel
+    global _walkup_fade_cancel, _macro_cancel
     log.info("KILL EVERYTHING fired")
     _walkup_fade_cancel.set()
     _walkup_fade_cancel = threading.Event()
+    _macro_cancel.set()  # stops any running macro, including a looping one
+    _macro_cancel = threading.Event()
     stop_audio()
     timer_state['running'] = False
     kill_lights()
     broadcast('kill_all', {})
 
 # ── WALKUP MACRO ──
+def _versioned_walkup_file(base_dir, item_id, filename):
+    """Append a cache-busting ?v=<mtime> to a walkup video filename.
+
+    Uploading a replacement circle/role/game-entry video always overwrites a
+    fixed filename (walkup.mp4, walkup_intro.mp4) — the URL never changes.
+    Both the browser's own HTTP cache (/assets/ is served with a 1hr
+    max-age) and this app's own preload caches in display.html
+    (_preloadPool, _wuWarm — keyed purely by URL, no TTL) would otherwise
+    keep serving the old file indefinitely after a swap, until the kiosk
+    happens to reload. Appending the file's mtime makes a replaced file
+    produce a new URL, forcing a fresh fetch, while an unchanged file keeps
+    its URL and stays cached/preloaded as intended.
+    """
+    if not filename:
+        return filename
+    try:
+        mtime = int((base_dir / item_id / filename).stat().st_mtime)
+        return f'{filename}?v={mtime}'
+    except OSError:
+        return filename
+
 def fire_walkup(circle_id=None, role_id=None, show_flow_idx=None):
     """Fire a complete walk-up sequence for a circle or role."""
     cfg = config  # use in-memory copy — eliminates SD card read on every walkup
@@ -2010,6 +2073,7 @@ def fire_walkup(circle_id=None, role_id=None, show_flow_idx=None):
                     continue
                 wled_set_color(device['id'], color, brightness=80)
 
+    _walkup_dir = ASSETS_DIR / ('circles' if item_type == 'circle' else 'roles')
     display_payload = {
         'id':              item['id'],
         'name':            item.get('name', ''),
@@ -2021,8 +2085,8 @@ def fire_walkup(circle_id=None, role_id=None, show_flow_idx=None):
         'logo':            item.get('assets', {}).get('logo', ''),
         'logo_url':        logo_url,
         'duration':        walkup_cfg.get('duration', 30),
-        'animation':       item.get('assets', {}).get('animation',       ''),
-        'animation_intro': item.get('assets', {}).get('animation_intro', ''),
+        'animation':       _versioned_walkup_file(_walkup_dir, item['id'], item.get('assets', {}).get('animation',       '')),
+        'animation_intro': _versioned_walkup_file(_walkup_dir, item['id'], item.get('assets', {}).get('animation_intro', '')),
         'hide_name':       walkup_cfg.get('hide_name', False),
     }
     next_preload = _get_next_walkup_preload(cfg, show_flow_idx)
@@ -2132,8 +2196,8 @@ def fire_game_entry(entry_id, reveal_url=None):
         'logo':            '',
         'logo_url':        '',
         'duration':        walkup_cfg.get('duration', 30),
-        'animation':       assets_cfg.get('animation',       ''),
-        'animation_intro': assets_cfg.get('animation_intro', ''),
+        'animation':       _versioned_walkup_file(ASSETS_DIR / 'game_entries', item['id'], assets_cfg.get('animation',       '')),
+        'animation_intro': _versioned_walkup_file(ASSETS_DIR / 'game_entries', item['id'], assets_cfg.get('animation_intro', '')),
         'hide_name':       walkup_cfg.get('hide_name', False),
         'muted':           walkup_cfg.get('muted', True),
         'reveal_game_url': reveal_url,
@@ -3461,11 +3525,14 @@ def api_display_images():
         if not d.exists():
             continue
         for f in sorted(d.rglob('*')):
-            if f.suffix.lower() in IMAGE_EXTS and f.is_file():
-                rel = str(f.relative_to(ASSETS_DIR))
-                parts = f.relative_to(d).parts
-                label = ' / '.join(p.replace('_', ' ').title() for p in parts)
-                results.append({'path': rel, 'label': label, 'dir': subdir})
+            if f.suffix.lower() not in IMAGE_EXTS or not f.is_file():
+                continue
+            parts = f.relative_to(d).parts
+            if any(p.startswith('.') for p in parts):
+                continue  # skip hidden dirs/files, e.g. the auto-generated .thumbs/ cache
+            rel = str(f.relative_to(ASSETS_DIR))
+            label = ' / '.join(p.replace('_', ' ').title() for p in parts)
+            results.append({'path': rel, 'label': label, 'dir': subdir})
     return jsonify(results)
 
 @app.route('/api/display/list')
@@ -3511,6 +3578,16 @@ def api_display_thumb(filename):
 
 @app.route('/api/admin/display-logo', methods=['GET'])
 def api_display_logo_get():
+    cfg = load_config()
+    return jsonify({'logo': cfg.get('display', {}).get('logo', '')})
+
+@app.route('/api/display-logo', methods=['GET'])
+def api_display_logo_get_public():
+    # Console needs this too, but Console isn't behind admin auth — the
+    # /api/admin/* path is, so a duplicate un-prefixed route is needed
+    # rather than reusing the admin one, which always 401s for Console
+    # and silently reads as "no logo set" once .logo is missing from the
+    # error body.
     cfg = load_config()
     return jsonify({'logo': cfg.get('display', {}).get('logo', '')})
 
@@ -4274,6 +4351,19 @@ def api_delete_game_config(config_id):
     save_game_configs(new)
     return jsonify({'ok': True})
 
+def _intro_entry_for_game(game_type_id, config_id):
+    """Return the configured Intro Game Entry id for a game config, or None.
+    Shared by _launch_game() (which fires it) and the preload_intro route
+    (which just warms its video ahead of a later GO LIVE) so both agree on
+    exactly which entry a given config points at."""
+    if not config_id:
+        return None
+    if game_type_id == 'musical_chairs':
+        cfg_data, _ = _chairs_config_data(config_id)
+        return cfg_data.get('intro_entry') or None
+    match = next((c for c in load_game_configs() if c['id'] == config_id), None)
+    return (match.get('data') or {}).get('intro_entry') if match else None
+
 def _launch_game(game_type_id, config_id=''):
     """Launch a game type's HDMI presence and return (controller_url, display_url).
     Shared by the Games Library GO LIVE button, a Show Flow game step, and a macro
@@ -4316,8 +4406,7 @@ def _launch_game(game_type_id, config_id=''):
     disp_base = gt.get('display_route', f'/games/{game_type_id}')
     disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
 
-    match       = next((c for c in load_game_configs() if c['id'] == config_id), None) if config_id else None
-    intro_entry = (match.get('data') or {}).get('intro_entry') if match else None
+    intro_entry = _intro_entry_for_game(game_type_id, config_id)
     if intro_entry:
         # fire_game_entry() only does synchronous setup (including resetting
         # _walkup_fade_cancel to a fresh Event) before handing its real work
@@ -4376,6 +4465,25 @@ def api_games_launch():
         return jsonify({'ok': False, 'error': 'unknown game_type_id'}), 400
     ctrl_url, disp_url = _launch_game(game_type_id, config_id)
     return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': disp_url})
+
+@app.route('/api/games/preload_intro', methods=['POST'])
+def api_games_preload_intro():
+    """Warm a game's Intro Game Entry video on the display before GO LIVE is
+    pressed. Console calls this when the operator opens a game's controller
+    (glUiJoinControls) — well before they actually launch it — so the cold
+    mp4 start (network fetch + decode) that used to happen right at GO LIVE
+    happens ahead of time instead, the same way show-flow walkups already
+    get chained preloaded one step ahead."""
+    data         = request.json or {}
+    game_type_id = data.get('game_type_id', '')
+    config_id    = data.get('config_id', '')
+    intro_entry  = _intro_entry_for_game(game_type_id, config_id)
+    if not intro_entry:
+        return jsonify({'ok': True, 'preloaded': False})
+    payload = _walkup_preload_payload_for_item('game_entry', intro_entry, config)
+    if payload:
+        broadcast('walkup_preload', payload)
+    return jsonify({'ok': True, 'preloaded': bool(payload)})
 
 @app.route('/api/games/current')
 def api_games_current():
@@ -5033,6 +5141,12 @@ def api_get_pole_nodes():
     cfg = load_config()
     return jsonify(cfg.get('pole_nodes', []))
 
+@app.route('/api/pole_nodes')
+def api_get_pole_nodes_public():
+    # Console-facing mirror (Lighting tab) — see api_display_logo_get_public.
+    cfg = load_config()
+    return jsonify(cfg.get('pole_nodes', []))
+
 @app.route('/api/admin/pole_nodes', methods=['POST'])
 def api_save_pole_nodes():
     global config
@@ -5109,28 +5223,40 @@ def api_fire_node_preset(node_id):
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 502
 
-@app.route('/api/admin/wled_presets/<node_id>')
-def api_wled_presets(node_id):
+def _fetch_wled_presets(node_id):
     nodes = {n['id']: n for n in config.get('pole_nodes', [])}
     node = nodes.get(node_id)
     if not node or not node.get('ip'):
-        return jsonify({'error': 'Node not found'}), 404
+        return None, ('Node not found', 404)
     try:
         r = requests.get(f"http://{_resolve_ip_once(node['ip'])}/presets.json", timeout=3)
-        return (r.content, r.status_code, {'Content-Type': 'application/json'})
+        return r, None
     except Exception as e:
         _invalidate_ip(node['ip'])
-        return jsonify({'error': str(e)}), 502
+        return None, (str(e), 502)
 
-@app.route('/api/admin/pole_dmx_test', methods=['POST'])
-def api_pole_dmx_test():
-    data = request.get_json() or {}
+@app.route('/api/admin/wled_presets/<node_id>')
+def api_wled_presets(node_id):
+    r, err = _fetch_wled_presets(node_id)
+    if err:
+        return jsonify({'error': err[0]}), err[1]
+    return (r.content, r.status_code, {'Content-Type': 'application/json'})
+
+@app.route('/api/wled_presets/<node_id>')
+def api_wled_presets_public(node_id):
+    # Console-facing mirror (Lighting tab preset test) — see api_display_logo_get_public.
+    r, err = _fetch_wled_presets(node_id)
+    if err:
+        return jsonify({'error': err[0]}), err[1]
+    return (r.content, r.status_code, {'Content-Type': 'application/json'})
+
+def _run_pole_dmx_test(data):
     node_id = data.get('node_id')
     fixtures_vals = data.get('fixtures', {})
     nodes = {n['id']: n for n in config.get('pole_nodes', [])}
     node = nodes.get(node_id)
     if not node or not node.get('ip'):
-        return jsonify({'ok': False, 'error': 'Node not found or no IP'})
+        return False, 'Node not found or no IP'
     fixture_defs = {f['id']: f for f in node.get('fixtures', [])}
     payload = []
     for fix_id, channels in fixtures_vals.items():
@@ -5139,14 +5265,25 @@ def api_pole_dmx_test():
             continue
         payload.append({'start': fix['start'], 'channels': channels})
     if not payload:
-        return jsonify({'ok': False, 'error': 'No valid fixtures'})
+        return False, 'No valid fixtures'
     hostname = node['ip']
     try:
         r = requests.post(f"http://{_resolve_ip_once(hostname)}/dmx", json={'fixtures': payload}, timeout=2)
-        return jsonify({'ok': r.status_code == 200})
+        return r.status_code == 200, None
     except Exception as e:
         _invalidate_ip(hostname)
-        return jsonify({'ok': False, 'error': str(e)})
+        return False, str(e)
+
+@app.route('/api/admin/pole_dmx_test', methods=['POST'])
+def api_pole_dmx_test():
+    ok, err = _run_pole_dmx_test(request.get_json() or {})
+    return jsonify({'ok': ok, 'error': err} if err else {'ok': ok})
+
+@app.route('/api/pole_dmx_test', methods=['POST'])
+def api_pole_dmx_test_public():
+    # Console-facing mirror (Lighting tab DMX channel test) — see api_display_logo_get_public.
+    ok, err = _run_pole_dmx_test(request.get_json() or {})
+    return jsonify({'ok': ok, 'error': err} if err else {'ok': ok})
 
 # ── FIXTURE PROFILES ──
 @app.route('/api/admin/fixture_profiles')
@@ -5167,14 +5304,28 @@ def api_save_fixture_profiles():
 def api_get_fixture_types():
     return jsonify(load_config().get('fixture_types', {}))
 
-@app.route('/api/admin/fixture_types', methods=['POST'])
-def api_save_fixture_types():
+@app.route('/api/fixture_types')
+def api_get_fixture_types_public():
+    # Console-facing mirror (Lighting tab) — see api_display_logo_get_public.
+    return jsonify(load_config().get('fixture_types', {}))
+
+def _save_fixture_types(data):
     global config
-    data = request.get_json() or {}
     cfg = load_config()
     cfg['fixture_types'] = data
     save_config(cfg)
     config = cfg
+
+@app.route('/api/admin/fixture_types', methods=['POST'])
+def api_save_fixture_types():
+    _save_fixture_types(request.get_json() or {})
+    return jsonify({'ok': True})
+
+@app.route('/api/fixture_types', methods=['POST'])
+def api_save_fixture_types_public():
+    # Console-facing mirror (DMX test "look" values get saved quietly here) —
+    # see api_display_logo_get_public.
+    _save_fixture_types(request.get_json() or {})
     return jsonify({'ok': True})
 
 @app.route('/api/admin/wled_devices')
@@ -5259,12 +5410,9 @@ def api_delete_scene():
     broadcast('scenes_updated', {})
     return jsonify({'ok': True})
 
-@app.route('/api/admin/scenes/reorder', methods=['POST'])
-def api_reorder_scenes():
+def _reorder_scenes(order):
     global config
-    data  = request.get_json()
-    order = data.get('order', [])
-    cfg   = load_config()
+    cfg = load_config()
     scenes     = cfg.get('scenes', [])
     scene_map  = {s['id']: s for s in scenes}
     ordered    = [scene_map[sid] for sid in order if sid in scene_map]
@@ -5273,6 +5421,17 @@ def api_reorder_scenes():
     save_config(cfg)
     config = cfg
     broadcast('scenes_updated', {})
+
+@app.route('/api/admin/scenes/reorder', methods=['POST'])
+def api_reorder_scenes():
+    _reorder_scenes((request.get_json() or {}).get('order', []))
+    return jsonify({'ok': True})
+
+@app.route('/api/scenes/reorder', methods=['POST'])
+def api_reorder_scenes_public():
+    # Console-facing mirror (drag-reorder on the Console scene grid) — see
+    # api_display_logo_get_public.
+    _reorder_scenes((request.get_json() or {}).get('order', []))
     return jsonify({'ok': True})
 
 @app.route('/api/admin/macro', methods=['POST'])
@@ -5332,22 +5491,27 @@ def api_macro_run():
     return jsonify({'ok': True})
 
 def _walkup_preload_payload_for_item(item_type, target_id, cfg):
-    """Return a walkup_preload payload dict for a circle or role, or None if not found."""
-    item_key = 'circles' if item_type == 'circle' else 'roles'
+    """Return a walkup_preload payload dict for a circle, role, or game entry, or None if not found."""
+    item_key = {'circle': 'circles', 'role': 'roles', 'game_entry': 'game_entries'}.get(item_type, 'circles')
     items    = {i['id']: i for i in cfg.get(item_key, [])}
     item     = items.get(target_id)
     if not item:
         return None
-    assets = item.get('assets', {})
+    assets   = item.get('assets', {})
+    base_dir = ASSETS_DIR / item_key
     return {
         'type':            item_type,
         'id':              target_id,
-        'animation_intro': assets.get('animation_intro', ''),
-        'animation':       assets.get('animation', ''),
+        'animation_intro': _versioned_walkup_file(base_dir, target_id, assets.get('animation_intro', '')),
+        'animation':       _versioned_walkup_file(base_dir, target_id, assets.get('animation', '')),
     }
 
 def _get_next_walkup_preload(cfg, idx):
-    """Return walkup_preload payload for the first walkup after show_flow[idx], skipping game steps."""
+    """Return walkup_preload payload for the first walkup (or game intro) after
+    show_flow[idx]. Game steps preload their own Intro Game Entry video the same
+    way circle/role walkups do — a Prize Wheel or Musical Chairs step scheduled
+    next in the flow gets its intro warmed while the current step is still
+    playing, instead of cold-starting the moment it's reached."""
     if idx is None:
         return None
     flow = cfg.get('show_flow', [])
@@ -5359,6 +5523,13 @@ def _get_next_walkup_preload(cfg, idx):
         return _walkup_preload_payload_for_item('circle', nxt.get('target_id', ''), cfg)
     elif nxt_type == 'role':
         return _walkup_preload_payload_for_item('role', nxt.get('target_id', ''), cfg)
+    elif nxt_type == 'game':
+        intro_entry = _intro_entry_for_game(nxt.get('game_type_id', ''), nxt.get('game_config_id', ''))
+        if intro_entry:
+            payload = _walkup_preload_payload_for_item('game_entry', intro_entry, cfg)
+            if payload:
+                return payload
+        return _get_next_walkup_preload(cfg, idx + 1)
     elif nxt_type == 'macro':
         macro_id  = nxt.get('macro_id', '')
         macros    = {m['id']: m for m in cfg.get('macros', [])}
@@ -5369,7 +5540,13 @@ def _get_next_walkup_preload(cfg, idx):
                     return _walkup_preload_payload_for_item('circle', step.get('circle_id', ''), cfg)
                 elif step.get('action') == 'walkup_role':
                     return _walkup_preload_payload_for_item('role', step.get('role_id', ''), cfg)
-    elif nxt_type in ('game', 'vs_card'):
+                elif step.get('action') == 'game':
+                    intro_entry = _intro_entry_for_game(step.get('game_type_id', ''), step.get('game_config_id', ''))
+                    if intro_entry:
+                        payload = _walkup_preload_payload_for_item('game_entry', intro_entry, cfg)
+                        if payload:
+                            return payload
+    elif nxt_type == 'vs_card':
         # Skip non-walkup steps and preload for whatever follows
         return _get_next_walkup_preload(cfg, idx + 1)
     return None
@@ -5454,13 +5631,14 @@ def api_show_reset():
 
 def _broadcast_display_only(item_type, item):
     """Show a circle/role's display without triggering audio or lighting."""
-    assets = item.get('assets', {})
+    assets   = item.get('assets', {})
+    base_dir = ASSETS_DIR / ('circles' if item_type == 'circle' else 'roles')
     _ensure_display_for('display_walkup', {
         'id':        item.get('id', ''),
         'name':      item.get('name', ''),
         'color':     item.get('color', '#F5A623'),
         'type':      item_type,
-        'animation': assets.get('animation', ''),
+        'animation': _versioned_walkup_file(base_dir, item.get('id', ''), assets.get('animation', '')),
         'logo':      assets.get('logo', ''),
     })
 
@@ -5491,7 +5669,18 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
         _viz_scene = None
         _stop_audio_analyzer()
         broadcast('viz_hide', {})
-    for step in steps:
+    # loop=True repeats the step list forever until cancelled — cancellation
+    # is already checked promptly inside individual steps (wait/display_image
+    # etc via cancel.wait()), so an infinite chain of steps is safe as long
+    # as at least one such step exists per pass. Guard the empty-steps case
+    # explicitly: chaining an infinite repeat of [] would spin forever with
+    # nothing to ever observe the cancel flag.
+    if macro.get('loop') and steps:
+        step_iter = itertools.chain.from_iterable(itertools.repeat(steps))
+    else:
+        step_iter = iter(steps)
+
+    for step in step_iter:
         action = step.get('action', '')
         try:
             if action == 'scene':
@@ -6297,6 +6486,221 @@ def api_system_shutdown():
     threading.Thread(target=_do_shutdown, daemon=True).start()
     return jsonify({'ok': True})
 
+# ══ SD CARD BACKUP ══
+# Full clone of the live SD card to a USB-attached destination via
+# scripts/backup_sd_image.sh. Never a raw dd of the live root partition —
+# see the script's own header comment for why. Requires a one-time NOPASSWD
+# sudoers entry for that exact script path (added by the operator, not by
+# this app — see WIRING_GUIDE.md / install.sh).
+
+BACKUP_SCRIPT = BASE_DIR / 'scripts' / 'backup_sd_image.sh'
+_BACKUP_STEP_FILE = BASE_DIR / 'logs' / 'backup_progress'
+
+_BACKUP_STEP_PCT = {
+    '':               0,
+    'unmounting_dest': 5,
+    'partitioning':    10,
+    'formatting':      15,
+    'mounting':        20,
+    'rsync_boot':      25,
+    'rsync_root':      30,   # refined up to 85 below while this step is active
+    'fixup':           90,
+    'unmounting':      95,
+    'done':            100,
+}
+
+_backup_job = {
+    'running':       False,
+    'step':          '',
+    'pct':           0,
+    'target_device': '',
+    'error':         None,
+    'started_at':    0,
+}
+
+
+def _backup_root_disk_name() -> str | None:
+    """The disk backing / (e.g. 'mmcblk0') — never a valid backup destination."""
+    try:
+        src = subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'],
+                              capture_output=True, text=True, check=True).stdout.strip()
+        pk = subprocess.run(['lsblk', '-no', 'PKNAME', src],
+                             capture_output=True, text=True, check=True).stdout.strip()
+        return pk or None
+    except Exception as e:
+        log.warning(f'_backup_root_disk_name failed: {e}')
+        return None
+
+
+def _backup_disk_has_mount(dev: dict) -> bool:
+    """True if this disk or any of its partitions is currently mounted anywhere.
+    This is the check that actually protects the music-library USB stick — it's
+    removable and not the root disk, so it would otherwise pass every other
+    gate. Excluding on 'is anything mounted' rather than a specific known
+    label/path also protects any *other* USB drive someone happens to have
+    plugged in for an unrelated reason, not just the one stick we know about."""
+    if dev.get('mountpoint'):
+        return True
+    for child in dev.get('children') or []:
+        if child.get('mountpoint') or _backup_disk_has_mount(child):
+            return True
+    return False
+
+
+def _backup_list_candidates() -> list:
+    """Removable, currently-unmounted USB disks eligible as a backup destination.
+    Excludes the live root disk and anything with an active mount (see
+    _backup_disk_has_mount) — a blank/spare card reader has neither."""
+    root_disk = _backup_root_disk_name()
+    used_bytes = shutil.disk_usage('/').used
+    needed = used_bytes + max(int(used_bytes * 0.15), 2 * 1024**3)
+    out = []
+    try:
+        r = subprocess.run(
+            ['lsblk', '-J', '-b', '-o', 'NAME,SIZE,TYPE,MOUNTPOINT,RM,MODEL'],
+            capture_output=True, text=True, check=True
+        )
+        data = json.loads(r.stdout)
+        for dev in data.get('blockdevices', []):
+            if dev.get('type') != 'disk' or dev.get('rm') not in (True, '1', 1):
+                continue
+            name = dev.get('name', '')
+            if not re.match(r'^sd[a-z]$', name) or name == root_disk:
+                continue
+            if _backup_disk_has_mount(dev):
+                continue
+            size = int(dev.get('size') or 0)
+            out.append({
+                'name': name,
+                'size_bytes': size,
+                'size_h': f'{size / 1e9:.1f} GB',
+                'model': (dev.get('model') or '').strip() or 'Unknown device',
+                'too_small': size < needed,
+            })
+    except Exception as e:
+        log.warning(f'_backup_list_candidates failed: {e}')
+    return out
+
+
+def _backup_poll_step_file():
+    """Background poller: mirrors the script's step-file into _backup_job while it runs."""
+    while _backup_job['running']:
+        try:
+            raw = _BACKUP_STEP_FILE.read_text().strip()
+        except Exception:
+            raw = ''
+        if raw.startswith('error:'):
+            _backup_job['error'] = raw[len('error:'):]
+        elif raw.startswith('rsync_root:'):
+            _backup_job['step'] = 'rsync_root'
+            m = re.search(r'([\d,]+)\s+\d+%', raw)
+            base = _BACKUP_STEP_PCT['rsync_root']
+            if m:
+                # best-effort refine within the rsync_root band (30-85%) from the
+                # last progress2 line's own reported percentage; falls back to the
+                # flat per-step value above if this ever fails to parse.
+                pctm = re.search(r'\s(\d+)%', raw)
+                frac = int(pctm.group(1)) / 100 if pctm else 0
+                _backup_job['pct'] = int(base + frac * (85 - base))
+            else:
+                _backup_job['pct'] = base
+        elif raw:
+            _backup_job['step'] = raw
+            _backup_job['pct'] = _BACKUP_STEP_PCT.get(raw, _backup_job['pct'])
+        time.sleep(1)
+
+
+def _run_backup(device: str):
+    dest = f'/dev/{device}'
+    _backup_job.update({
+        'running': True, 'step': '', 'pct': 0, 'target_device': dest,
+        'error': None, 'started_at': time.time(),
+    })
+    _BACKUP_STEP_FILE.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        _BACKUP_STEP_FILE.write_text('')
+    except Exception:
+        pass
+
+    poller = threading.Thread(target=_backup_poll_step_file, daemon=True, name='backup-poller')
+    poller.start()
+
+    ok = False
+    try:
+        proc = subprocess.run(
+            ['/usr/bin/sudo', str(BACKUP_SCRIPT), dest, str(_BACKUP_STEP_FILE)],
+            capture_output=True, text=True, timeout=3600,
+        )
+        ok = proc.returncode == 0
+        if not ok:
+            log.error(f'backup script failed (rc={proc.returncode}): {proc.stderr[-2000:]}')
+            if not _backup_job.get('error'):
+                _backup_job['error'] = f'script exited {proc.returncode}'
+    except subprocess.TimeoutExpired:
+        log.error('backup script timed out after 1 hour')
+        _backup_job['error'] = 'timed out'
+    except Exception as e:
+        log.error(f'backup script invocation failed: {e}')
+        _backup_job['error'] = str(e)
+    finally:
+        _backup_job['running'] = False
+        _backup_job['step'] = 'done' if ok else 'error'
+        _backup_job['pct'] = 100 if ok else _backup_job['pct']
+
+    st = load_backup_state()
+    st['last_backup_ok'] = ok
+    if ok:
+        st['last_backup_at'] = time.time()
+        st['changes_since_backup'] = 0
+    save_backup_state(st)
+
+
+@app.route('/api/admin/backup/candidates')
+def api_backup_candidates():
+    return jsonify({'ok': True, 'candidates': _backup_list_candidates()})
+
+
+@app.route('/api/admin/backup/start', methods=['POST'])
+def api_backup_start():
+    if _backup_job['running']:
+        return jsonify({'ok': False, 'error': 'A backup is already running'}), 400
+    device = (request.get_json(silent=True) or {}).get('device', '')
+    if not re.match(r'^sd[a-z]$', device or ''):
+        return jsonify({'ok': False, 'error': 'Invalid device'}), 400
+    root_disk = _backup_root_disk_name()
+    if device == root_disk:
+        return jsonify({'ok': False, 'error': 'Refusing to target the live root disk'}), 400
+    candidates = {c['name']: c for c in _backup_list_candidates()}
+    cand = candidates.get(device)
+    if not cand:
+        return jsonify({'ok': False, 'error': 'Device not found or not removable'}), 400
+    if cand['too_small']:
+        return jsonify({'ok': False, 'error': 'Selected device is too small'}), 400
+    if not BACKUP_SCRIPT.exists():
+        return jsonify({'ok': False, 'error': 'Backup script missing on this install'}), 500
+    threading.Thread(target=_run_backup, args=(device,), daemon=True, name='sd-backup').start()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/admin/backup/status')
+def api_backup_status():
+    s = dict(_backup_job)
+    if not s['running']:
+        s.update(load_backup_state())
+    return jsonify(s)
+
+
+@app.route('/api/admin/backup/cancel', methods=['POST'])
+def api_backup_cancel():
+    # Best-effort only — a cancelled clone is not a valid backup and the UI
+    # must say so rather than imply the operation was safely undone.
+    subprocess.run(['/usr/bin/sudo', '/usr/bin/pkill', '-f', str(BACKUP_SCRIPT)],
+                    capture_output=True)
+    _backup_job['running'] = False
+    _backup_job['error'] = 'Cancelled by operator'
+    return jsonify({'ok': True})
+
+
 @app.route('/api/usb/list')
 def api_usb_list():
     import shutil
@@ -6724,11 +7128,9 @@ def api_show_flow_templates_load(tid):
     save_config(cfg)
     return jsonify({'ok': True})
 
-@app.route('/api/admin/timer', methods=['POST'])
-def api_save_timer():
-    cfg  = load_config()
-    data = request.json or {}
-    t    = cfg.setdefault('timer', {})
+def _apply_timer_config_update(data):
+    cfg = load_config()
+    t   = cfg.setdefault('timer', {})
     if 'duration'      in data: t['duration']      = int(data['duration'])
     if 'warning_at'    in data: t['warning_at']    = int(data['warning_at'])
     if 'start_sound'          in data: t['start_sound']          = data['start_sound']
@@ -6753,6 +7155,18 @@ def api_save_timer():
     timer_state['running'] = was_running
     timer_state['seconds_remaining'] = secs
     broadcast('timer_state', timer_state)
+
+@app.route('/api/admin/timer', methods=['POST'])
+def api_save_timer():
+    _apply_timer_config_update(request.json or {})
+    return jsonify({'ok': True})
+
+@app.route('/api/timer/update', methods=['POST'])
+def api_update_timer_public():
+    # Console needs this (e.g. the start-sound-loop toggle) but isn't behind
+    # admin auth — see api_display_logo_get_public for why a duplicate
+    # un-prefixed route is needed rather than reusing the /api/admin/ one.
+    _apply_timer_config_update(request.json or {})
     return jsonify({'ok': True})
 
 @app.route('/api/admin/timer/presets')
@@ -6760,12 +7174,16 @@ def api_get_timer_presets():
     cfg = load_config()
     return jsonify(cfg.get('skit_timer_presets', {}))
 
-@app.route('/api/admin/timer/preset/save', methods=['POST'])
-def api_save_timer_preset():
-    data = request.json or {}
+@app.route('/api/timer/presets')
+def api_get_timer_presets_public():
+    # Console-facing mirror — see api_display_logo_get_public.
+    cfg = load_config()
+    return jsonify(cfg.get('skit_timer_presets', {}))
+
+def _save_timer_preset(data):
     name = data.get('name', '').strip()
     if not name:
-        return jsonify({'ok': False, 'error': 'name required'}), 400
+        return None, ('name required', 400)
     cfg = load_config()
     presets = cfg.setdefault('skit_timer_presets', {})
     # Start from existing timer config, then overlay any values passed directly
@@ -6780,6 +7198,21 @@ def api_save_timer_preset():
         snapshot['duration'] = int(snapshot['duration'])
     presets[name] = snapshot
     save_config(cfg)
+    return presets, None
+
+@app.route('/api/admin/timer/preset/save', methods=['POST'])
+def api_save_timer_preset():
+    presets, err = _save_timer_preset(request.json or {})
+    if err:
+        return jsonify({'ok': False, 'error': err[0]}), err[1]
+    return jsonify({'ok': True, 'presets': presets})
+
+@app.route('/api/timer/preset/save', methods=['POST'])
+def api_save_timer_preset_public():
+    # Console-facing mirror — see api_display_logo_get_public.
+    presets, err = _save_timer_preset(request.json or {})
+    if err:
+        return jsonify({'ok': False, 'error': err[0]}), err[1]
     return jsonify({'ok': True, 'presets': presets})
 
 @app.route('/api/admin/timer/preset/delete', methods=['POST'])

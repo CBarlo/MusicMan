@@ -126,6 +126,8 @@
   .walkup-circle { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; margin-bottom: 2px; }
   .walkup-name { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-align: center; line-height: 1.1; }
   .walkup-song { font-size: 10px; color: var(--text-dim); text-align: center; font-family: 'Share Tech Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 0 4px; }
+  .walkup-display-btn { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--border2); background: var(--bg2); color: var(--text-dim); font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0.7; }
+  .walkup-display-btn:hover { opacity: 1; border-color: var(--amber); color: var(--amber); }
   .sfx-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
   .sfx-btn { height: 54px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: background .1s, transform .1s; display: flex; align-items: center; justify-content: center; padding: 4px 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .5px; color: var(--text); text-align: center; line-height: 1.2; word-break: break-word; hyphens: auto; }
   .sfx-btn:hover { background: var(--bg3); box-shadow: 0 0 12px rgba(0,0,0,.5); }
@@ -951,7 +953,10 @@
       <div style="display:flex;flex-direction:column;height:100%">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--bg2);border-bottom:2px solid var(--border);flex-shrink:0;">
           <span style="color:var(--amber);font-weight:700;letter-spacing:2px;font-size:13px;text-transform:uppercase;">🎮 GAME CONTROLLER</span>
-          <button onclick="hideGameOverlay()" style="background:rgba(220,38,38,0.2);border:1px solid rgba(220,38,38,0.5);color:#f87171;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;">✕ CLOSE</button>
+          <div style="display:flex;gap:8px">
+            <button id="glOverlayGoLiveBtn" onclick="glOverlayGoLive()" style="display:none;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.5);color:#4ade80;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;" title="Nothing shown on the projector yet? This pushes it live.">⚡ GO LIVE</button>
+            <button onclick="hideGameOverlay()" style="background:rgba(220,38,38,0.2);border:1px solid rgba(220,38,38,0.5);color:#f87171;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;">✕ CLOSE</button>
+          </div>
         </div>
         <iframe id="gameOverlayFrame" src="" style="flex:1;border:none;width:100%;background:#0b1a3d;"></iframe>
       </div>
@@ -1643,12 +1648,12 @@ function timerSetShowDisplay(val) {
     body: JSON.stringify({show: val})}).catch(()=>{});
 }
 function timerSetSoundLoop(val) {
-  fetch('/api/admin/timer', {method:'POST', headers:{'Content-Type':'application/json'},
+  fetch('/api/timer/update', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({start_sound_loop: val})}).catch(()=>{});
 }
 async function refreshTimerPresetList(selectName) {
   try {
-    const presets = await fetch('/api/admin/timer/presets').then(r => r.json());
+    const presets = await fetch('/api/timer/presets').then(r => r.json());
     const sel = document.getElementById('timerPresetSelect');
     if (!sel) return;
     const names = Object.keys(presets);
@@ -1674,7 +1679,7 @@ async function consoleSavePreset() {
     name = name.trim();
   }
   try {
-    const r = await fetch('/api/admin/timer/preset/save', {method:'POST',
+    const r = await fetch('/api/timer/preset/save', {method:'POST',
       headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
     const d = await r.json();
     if (d.ok) { await refreshTimerPresetList(name); showAlert('✔ Saved: ' + name, 2000); }
@@ -1954,7 +1959,7 @@ async function glUiGoLive(typeId, configId) {
       body: JSON.stringify({ game_type_id: typeId, config_id: configId }),
     });
     const d = await r.json();
-    if (d.ok) showGameOverlay(d.controller_url);
+    if (d.ok) showGameOverlay(d.controller_url, typeId, configId);
     else showAlert('Launch failed', 2000);
   } catch(e) {
     showAlert('Launch error', 2000);
@@ -1972,7 +1977,16 @@ async function glUiGoLive(typeId, configId) {
 function glUiJoinControls(typeId, configId) {
   const gt = _glUiGameTypes.find(g => g.id === typeId);
   const route = (gt && gt.controller_route) || `/games/${typeId}`;
-  showGameOverlay(route + '?config=' + encodeURIComponent(configId));
+  // Warm the game's Intro Game Entry video now, while the operator is still
+  // looking at the controller — GO LIVE is usually pressed several seconds
+  // later, giving the display time to have the video decoded and ready
+  // instead of a cold start right when GO LIVE fires it.
+  fetch('/api/games/preload_intro', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ game_type_id: typeId, config_id: configId }),
+  }).catch(()=>{});
+  showGameOverlay(route + '?config=' + encodeURIComponent(configId), typeId, configId);
 }
 
 // ─ Countdown (cd*) ─
@@ -2588,7 +2602,7 @@ async function buildRolesGrid() {
     return;
   }
   roles.forEach(r => {
-    const btn = document.createElement('button');
+    const btn = document.createElement('div');
     btn.className = 'walkup-btn';
     btn.id = 'ro-' + r.id;
     const col = r.color || '#8899AA';
@@ -2597,6 +2611,7 @@ async function buildRolesGrid() {
     btn.style.borderColor = col + '55';
     const song = (r.assets || {}).walkup_music || '';
     btn.innerHTML = `
+      <button class="walkup-display-btn" onclick="event.stopPropagation();sendToDisplay('role','${escHtml(r.id)}')" title="Show on display without playing the walk-up">📺</button>
       <div class="walkup-circle" style="background:${col}22;color:${col};border:1px solid ${col}66">★</div>
       <div class="walkup-name" style="color:${col}">${escHtml(r.name)}</div>
       <div class="walkup-song">${escHtml(song)}</div>`;
@@ -2641,7 +2656,7 @@ async function buildWalkupGrid() {
     return;
   }
   circles.forEach(c => {
-    const btn = document.createElement('button');
+    const btn = document.createElement('div');
     btn.className = 'walkup-btn';
     btn.id = 'wu-' + c.id;
     const glow = (c.color || '#888888') + '55';
@@ -2649,10 +2664,14 @@ async function buildWalkupGrid() {
     btn.style.borderColor = (c.color || '#888888') + '55';
     const num = c.number || '';
     const song = (c.assets || {}).walkup_music || '';
-    btn.innerHTML = `<div class="walkup-circle" style="background:${c.color}22;color:${c.color};border:1px solid ${c.color}66">${num}</div><div class="walkup-name" style="color:${c.color}">${escHtml(c.name)}</div><div class="walkup-song">${escHtml(song)}</div>`;
+    btn.innerHTML = `<button class="walkup-display-btn" onclick="event.stopPropagation();sendToDisplay('circle','${escHtml(c.id)}')" title="Show on display without playing the walk-up">📺</button><div class="walkup-circle" style="background:${c.color}22;color:${c.color};border:1px solid ${c.color}66">${num}</div><div class="walkup-name" style="color:${c.color}">${escHtml(c.name)}</div><div class="walkup-song">${escHtml(song)}</div>`;
     btn.onclick = () => playWalkup(c);
     grid.appendChild(btn);
   });
+}
+
+function sendToDisplay(type, id) {
+  fetch(`/api/display/show?${type}=${encodeURIComponent(id)}`).catch(()=>{});
 }
 
 let progressAnim;
@@ -2969,7 +2988,7 @@ function _sceneAddDrag(btn) {
     if (fromIdx < toIdx) grid.insertBefore(_sceneDragSrc, btn.nextSibling);
     else grid.insertBefore(_sceneDragSrc, btn);
     const order = [...grid.children].map(b => b.dataset.sceneId);
-    fetch('/api/admin/scenes/reorder', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({order})}).catch(()=>{});
+    fetch('/api/scenes/reorder', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({order})}).catch(()=>{});
     const lg = document.getElementById('sceneGridLights');
     if (lg) order.forEach(id => { const b = lg.querySelector(`[data-scene-id="${id}"]`); if (b) lg.appendChild(b); });
     _sceneDragSrc = null;
@@ -2987,8 +3006,8 @@ let _fixtureTypes = {};
 let _dmxLookVals  = {};
 
 async function loadPoleNodesForLights() {
-  try { _lightsNodes  = await fetch('/api/admin/pole_nodes').then(r=>r.json()); } catch(e) { _lightsNodes = []; }
-  try { _fixtureTypes = await fetch('/api/admin/fixture_types').then(r=>r.json()); } catch(e) { _fixtureTypes = {}; }
+  try { _lightsNodes  = await fetch('/api/pole_nodes').then(r=>r.json()); } catch(e) { _lightsNodes = []; }
+  try { _fixtureTypes = await fetch('/api/fixture_types').then(r=>r.json()); } catch(e) { _fixtureTypes = {}; }
   renderLightsNodes();
   renderDmxLookTypesel();
 }
@@ -3153,7 +3172,7 @@ async function testDmxLook() {
     }
     if (!Object.keys(fixtures).length) continue;
     try {
-      await fetch('/api/admin/pole_dmx_test', {
+      await fetch('/api/pole_dmx_test', {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({node_id: node.id, fixtures})
       });
@@ -3165,7 +3184,7 @@ async function testDmxLook() {
 
 async function _saveFixtureTypesQuiet() {
   try {
-    const r = await fetch('/api/admin/fixture_types', {
+    const r = await fetch('/api/fixture_types', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(_fixtureTypes)
     });
@@ -3180,7 +3199,7 @@ async function refreshLtestPresets(btn, nodeId) {
   const prev = sel.value;
   btn.textContent = '…'; btn.disabled = true;
   try {
-    const data = await fetch(`/api/admin/wled_presets/${nodeId}`).then(r => r.json());
+    const data = await fetch(`/api/wled_presets/${nodeId}`).then(r => r.json());
     sel.innerHTML = '<option value="">— select preset —</option>';
     let count = 0;
     Object.entries(data).sort(([a],[b]) => +a - +b).forEach(([id, p]) => {
@@ -3227,7 +3246,7 @@ function uiToast(msg) {
   el._t = setTimeout(() => { el.style.opacity = '0'; }, 2000);
 }
 let _displayLogo = '';
-fetch('/api/admin/display-logo').then(r=>r.json()).then(d=>{ _displayLogo = d.logo || ''; }).catch(()=>{});
+fetch('/api/display-logo').then(r=>r.json()).then(d=>{ _displayLogo = d.logo || ''; }).catch(()=>{});
 
 Promise.all([
   buildShowFlowGrid(), buildWalkupGrid(), buildRolesGrid(),
@@ -3532,7 +3551,7 @@ function initWebSocket() {
       else if (event === 'launch_game') {
         const ctrlUrl = data.controller_url || '';
         showAlert('🎮 ' + (data.name || 'GAME'), 6000);
-        if (ctrlUrl) showGameOverlay(ctrlUrl);
+        if (ctrlUrl) showGameOverlay(ctrlUrl, data.game_type_id, data.game_config_id);
       }
 
       else if (event === 'timer_preset_loaded') {
@@ -4279,10 +4298,33 @@ function wifiForget(name) {
 // Renders in the page frame (right panel) like every other tab, not a full-screen
 // takeover — keeps the top bar and left sidebar (timer/lighting/transport) usable
 // while a game is live.
-function showGameOverlay(url) {
+let _glOverlayType = '', _glOverlayConfig = '';
+function showGameOverlay(url, typeId, configId) {
   const sep = url.includes('?') ? '&' : '?';
   document.getElementById('gameOverlayFrame').src = url + sep + '_v=' + Date.now();
+  _glOverlayType   = typeId   || '';
+  _glOverlayConfig = configId || '';
+  document.getElementById('glOverlayGoLiveBtn').style.display = (_glOverlayType && _glOverlayConfig) ? '' : 'none';
   showPage('gamelive');
+}
+// Header Go Live button — covers the case where controls were opened via
+// glUiJoinControls() (card tap, not the small GO LIVE button) and nothing
+// is actually live yet. Same launch call glUiGoLive() uses, then reloads
+// the controller so it picks up the fresh session.
+async function glOverlayGoLive() {
+  if (!_glOverlayType || !_glOverlayConfig) return;
+  try {
+    const r = await fetch('/api/games/launch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ game_type_id: _glOverlayType, config_id: _glOverlayConfig }),
+    });
+    const d = await r.json();
+    if (d.ok) showGameOverlay(d.controller_url, _glOverlayType, _glOverlayConfig);
+    else showAlert('Launch failed', 2000);
+  } catch(e) {
+    showAlert('Launch error', 2000);
+  }
 }
 function hideGameOverlay() {
   document.getElementById('gameOverlayFrame').src = '';

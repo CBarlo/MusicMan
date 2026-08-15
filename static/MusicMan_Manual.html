@@ -834,6 +834,7 @@
     <li>Click <kbd>+ NEW MACRO</kbd>. Give it a name and optional description.</li>
     <li>Under <strong>STEPS</strong>, pick a step type from the dropdown and click <kbd>+ ADD STEP</kbd>.</li>
     <li>Configure each step's fields. Use <kbd>▲</kbd> / <kbd>▼</kbd> to reorder steps.</li>
+    <li>Check <kbd>🔁 LOOP</kbd> to repeat the whole step list continuously instead of running once — good for a slideshow or ambient light cycle that should keep going until you interrupt it. A loop stops when another macro fires or Kill All is pressed.</li>
     <li>Click <kbd>✓ SAVE MACRO</kbd>.</li>
     <li>Click <kbd>▶ TEST</kbd> to fire it immediately for testing.</li>
     <li>Click <kbd>⧉ DUPLICATE</kbd> to copy a macro as a starting point for a similar one.</li>
@@ -1397,9 +1398,10 @@
   <h3>Battery Monitor (Anker SOLIX)</h3>
   <p>
     The Anker SOLIX C300 power stations for the pole lighting rigs are monitored here
-    over Bluetooth. The card shows battery percentage, power in/out (watts), and has
-    toggle buttons for AC, DC, and the unit's built-in light.
-    Click <kbd>SCAN NOW</kbd> to force a refresh.
+    over Bluetooth — Pole A and Pole B both tracked at the same time, side by side. Each
+    unit's card shows battery percentage, power in/out (watts), and has toggle buttons
+    for AC, DC, and the unit's built-in light. Click <kbd>SCAN NOW</kbd> to force a refresh.
+    The same panel is also available on the Console, in case that's more convenient mid-show.
   </p>
   <div class="callout callout-tip">
     <div class="callout-title">After a Pi restart</div>
@@ -1459,6 +1461,29 @@
     you an off-Pi backup automatically. Copy the file back to the Pi via SFTP and rename it
     <span class="mono">config.yaml</span> to restore from any backup.
   </p>
+
+  <h3>SD Card Backup</h3>
+  <p>
+    Config Backups (above) only cover <span class="mono">config.yaml</span> — this is different:
+    a full clone of the Pi's entire SD card (operating system, MusicMan install, every asset
+    file) onto a spare card via a USB card reader. It's what you'd actually need to recover
+    from a dead or corrupted SD card, not just lost settings.
+  </p>
+  <p>
+    The System tab shows when the backup was last run and how many config changes have
+    happened since. To make one: insert a USB card reader with a spare SD card, click
+    <kbd>BACK UP NOW</kbd>, click <kbd>DETECT CARD READER</kbd>, then confirm the specific
+    device shown (it names the exact drive and size — read it before confirming, since this
+    step erases whatever's on that card). The progress bar shows named stages rather than a
+    percentage; a full clone takes a while, since it's copying the whole card, not just changed
+    files.
+  </p>
+  <div class="callout callout-warn">
+    <div class="callout-title">Verify a fresh backup before trusting it</div>
+    After a first backup (or any time you want to confirm one is good), power off, swap the
+    cloned card into the Pi in place of the original, and confirm it boots cleanly. Keep the
+    original card untouched and ready to swap back regardless of outcome.
+  </div>
 </div>
 
 <!-- ══════════════════ PART 4 ══════════════════ -->

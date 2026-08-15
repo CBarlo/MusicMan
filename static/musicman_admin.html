@@ -306,7 +306,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="nav-item" data-tab="slides" onclick="switchTab('slides')">📋 Slides</div>
     <div class="nav-item" data-tab="vs-cards" onclick="switchTab('vs-cards')">⚔ VS Cards</div>
     <div class="nav-item" data-tab="game-entries" onclick="switchTab('game-entries')">🎯 Game Entries</div>
-    <div class="nav-item" data-tab="games" onclick="switchTab('games');sgLoadConfig();loadTimerConfig();loadGamesLibrary();loadGameEntries().then(loadHeadToHead)">🎮 Games</div>
+    <div class="nav-item" data-tab="games" onclick="openGamesTab()">🎮 Games</div>
     <div class="nav-divider"></div>
     <div class="sidebar-section">LIVE</div>
     <div class="nav-item" data-tab="music-viz" onclick="switchTab('music-viz')">🎛 Visualizations</div>
@@ -1342,6 +1342,11 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                 </div>
               </div>
 
+              <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+                <input type="checkbox" id="mc-loop" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+                <label for="mc-loop" style="margin:0;cursor:pointer">🔁 LOOP <span style="color:var(--text-dim);font-weight:400">— repeat the step list until interrupted by another macro or Kill All</span></label>
+              </div>
+
               <div class="section-divider"></div>
               <div class="card-title">STEPS <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px;font-weight:400">(RUN IN ORDER)</span></div>
               <div id="mc-steps-container"></div>
@@ -2275,6 +2280,48 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         </div>
       </div>
 
+      <!-- POLE BATTERIES -->
+      <div class="editor-panel" style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="editor-label" style="margin-bottom:0">🔋 POLE BATTERIES</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div id="admin-batteryList">
+            <div style="padding:14px 16px;color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;text-align:center">SCANNING...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SD CARD BACKUP -->
+      <div class="editor-panel" style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="editor-label" style="margin-bottom:0">💾 SD CARD BACKUP</div>
+          <span id="backup-summary" style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">—</span>
+        </div>
+
+        <div id="backup-idle">
+          <button class="btn btn-secondary" onclick="backupOpenPicker()">⎘ BACK UP NOW</button>
+        </div>
+
+        <div id="backup-picker" style="display:none">
+          <p style="font-size:12px;color:var(--text-dim);margin:0 0 10px;line-height:1.5">
+            Insert a blank/spare SD card into a USB card reader, plug it into the Pi, then detect it.
+            This will <b>erase everything</b> on the card you select.
+          </p>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-secondary btn-sm" onclick="backupDetect()">⟳ DETECT CARD READER</button>
+            <button class="btn btn-secondary btn-sm" onclick="backupClosePicker()">CANCEL</button>
+          </div>
+          <div id="backup-candidates" style="margin-top:10px"></div>
+        </div>
+
+        <div id="backup-progress-wrap" style="display:none">
+          <div class="disk-bar-bg" style="margin-bottom:6px"><div id="backup-bar" class="disk-bar-fill" style="width:0%"></div></div>
+          <div id="backup-status" style="font-size:10px;color:var(--text-dim);text-align:center;font-family:'Share Tech Mono',monospace;letter-spacing:1px;margin-bottom:8px">—</div>
+          <button class="btn btn-danger btn-sm" onclick="backupCancel()">CANCEL</button>
+        </div>
+      </div>
+
       <div class="sys-grid">
         <div class="sys-card"><div class="sys-label">CPU</div><div class="sys-value" id="s-cpu">—</div></div>
         <div class="sys-card"><div class="sys-label">MEMORY</div><div class="sys-value" id="s-mem">—</div></div>
@@ -2353,7 +2400,7 @@ function switchTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   const navEl = document.querySelector(`.nav-item[data-tab="${name}"]`);
   if (navEl) navEl.classList.add('active');
-  if (name === 'system')        { loadHealth(); startHealthAutoRefresh(); } else { stopHealthAutoRefresh(); }
+  if (name === 'system')        { loadHealth(); startHealthAutoRefresh(); backupRefreshStatus(); startBatteryAutoRefresh(); } else { stopHealthAutoRefresh(); stopBatteryAutoRefresh(); }
   if (name === 'lighting')      { loadPoleNodes(); }
   if (name === 'scenes')        { loadPoleNodes(); renderSceneGrid && renderSceneGrid(); }
   if (name === 'showflow')      { loadShowFlow(); loadShowFlowTemplates(); }
@@ -4306,6 +4353,7 @@ function populateMacroEditor(id) {
   document.getElementById('mc-name').value = m.name || '';
   document.getElementById('mc-id').value   = m.id   || '';
   document.getElementById('mc-desc').value = m.desc || '';
+  document.getElementById('mc-loop').checked = !!m.loop;
   // Show existing display image preview if any
   const prev  = document.getElementById('mc-display-image-preview');
   const stat  = document.getElementById('mc-display-image-status');
@@ -4901,6 +4949,7 @@ async function saveMacro() {
   if (!id || !name) { toast('Name and ID are required', 'err'); return; }
   const data = { id, name,
     desc:  document.getElementById('mc-desc').value.trim(),
+    loop:  document.getElementById('mc-loop').checked,
     steps: collectSteps()
   };
   if (id !== selectedMacroId) {
@@ -7363,6 +7412,21 @@ async function deleteShowFlowTemplate(id) {
 // ── TIMER CONFIG ───────────────────────────────────────────────────────────
 let _selectedTimerPreset = null;
 
+async function openGamesTab() {
+  switchTab('games');
+  // loadTimerConfig()/loadHeadToHead() build their dropdown options straight from
+  // the sfxList/scenes globals. On a fast tap right after the page appears (seen
+  // on the iPad, where the DOMContentLoaded fetch chain is still mid-flight), those
+  // globals can still be empty at this point — await them here so the dropdowns are
+  // always populated no matter how quickly this tab gets opened.
+  await Promise.all([loadStepLists(), loadScenes()]);
+  sgLoadConfig();
+  loadTimerConfig();
+  loadGamesLibrary();
+  await loadGameEntries();
+  await loadHeadToHead();
+}
+
 async function loadTimerConfig() {
   // Populate SFX dropdowns (option lists only — values are set per-preset on select)
   const sfxOpts = ['<option value="">(none)</option>',
@@ -7723,6 +7787,145 @@ function stopHealthAutoRefresh() {
   _healthTimer = null;
 }
 
+// ── POLE BATTERIES (mirrors the Console's batteryLoad/battCmd/battScan) ────
+let _adminBattTimer = null;
+
+function startBatteryAutoRefresh() {
+  adminBatteryLoad();
+  clearInterval(_adminBattTimer);
+  _adminBattTimer = setInterval(adminBatteryLoad, 10000);
+}
+function stopBatteryAutoRefresh() {
+  clearInterval(_adminBattTimer);
+  _adminBattTimer = null;
+}
+
+function adminBattCmd(addr, port, state) {
+  fetch(`/api/battery/${addr}/${port}/${state}`, {method:'POST'})
+    .then(() => setTimeout(adminBatteryLoad, 800))
+    .catch(() => {});
+}
+
+function adminBattScan(btn) {
+  btn.textContent = 'SCANNING...';
+  btn.disabled = true;
+  fetch('/api/battery/scan', {method:'POST'})
+    .then(() => setTimeout(adminBatteryLoad, 2000))
+    .catch(() => { btn.textContent = 'SCAN NOW'; btn.disabled = false; });
+}
+
+function adminBatteryLoad() {
+  const el = document.getElementById('admin-batteryList');
+  if (!el) return;
+  fetch('/api/battery').then(r => r.json()).then(d => {
+    const units = d.units || [];
+    if (!units.length) {
+      el.innerHTML = '<div style="padding:14px 16px;color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;letter-spacing:2px;text-align:center">SCANNING FOR BATTERIES...</div>';
+      return;
+    }
+    const mono = "'Share Tech Mono',monospace";
+    el.innerHTML = units.map((u, i) => {
+      const label    = u.label || String.fromCharCode(65 + i);
+      const pct      = u.battery ?? -1;
+      const st       = u.status || 'unknown';
+      const ok       = st === 'ok';
+      const sep      = i < units.length - 1 ? 'border-bottom:2px solid var(--border);' : '';
+      const pctColor = pct <= 0 ? 'var(--text-dim)' : pct <= 20 ? '#e05252' : pct <= 50 ? 'var(--amber)' : '#52e07a';
+
+      if (!ok) {
+        const stLabel = {connecting:'SCANNING...',connected:'READING DATA...',offline:'OFFLINE — press C300 button to wake',error:'ERROR: '+(u.error||'unknown')}[st] || st.toUpperCase();
+        const hasStale = pct >= 0;
+        const staleColor = '#555';
+        return `<div style="padding:14px 16px;${sep}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${hasStale?'8px':'0'}">
+            <span style="font-size:12px;font-weight:700;color:var(--text);font-family:${mono};letter-spacing:1px">POLE ${label}</span>
+            <span style="font-size:10px;color:var(--amber);font-family:${mono};letter-spacing:1px">${stLabel}</span>
+          </div>
+          ${hasStale ? `
+          <div style="height:5px;background:var(--bg2);border-radius:3px;margin-bottom:6px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${staleColor};border-radius:3px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:18px;font-weight:700;color:${staleColor};font-family:${mono}">${pct}%</span>
+            <span style="font-size:10px;color:var(--text-dim);font-family:${mono}">${u.updated ? 'last seen '+Math.round((Date.now()/1000-u.updated)/60)+'m ago' : ''}</span>
+          </div>` : ''}
+          <button onclick="adminBattScan(this)" style="width:100%;padding:8px 0;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text-dim);font-size:10px;font-weight:700;letter-spacing:2px;font-family:${mono};cursor:pointer">SCAN NOW</button>
+        </div>`;
+      }
+
+      const tr    = u.time_remaining || 0;
+      const trTxt = tr > 0 ? (tr >= 24 ? Math.floor(tr/24)+'d '+Math.round(tr%24)+'h' : tr.toFixed(1)+'h') : null;
+      const trLbl = u.charging==='CHARGING' ? 'to full' : 'remaining';
+
+      const chgText  = u.charging==='CHARGING'    ? `<span style="color:#52e07a">CHARGING${u.power_in>0?' · '+u.power_in+'W':''}</span>` :
+                       u.charging==='DISCHARGING' ? `<span style="color:var(--amber)">DISCHARGING</span>` :
+                                                    `<span style="color:var(--text-dim)">IDLE</span>`;
+
+      const ports = [
+        {lbl:'AC',     pw:u.ac_power_out,  st:u.ac_output},
+        {lbl:'DC',     pw:u.dc_power_out,  st:u.dc_output},
+        {lbl:'USB-C1', pw:u.usb_c1_power,  st:u.usb_port_c1},
+        {lbl:'USB-C2', pw:u.usb_c2_power,  st:u.usb_port_c2},
+        {lbl:'USB-C3', pw:u.usb_c3_power,  st:u.usb_port_c3},
+        {lbl:'USB-A1', pw:u.usb_a1_power,  st:u.usb_port_a1},
+      ];
+      const activePorts = ports.filter(p => p.st === 'OUTPUT');
+      const portsHtml = activePorts.length
+        ? activePorts.map(p =>
+            `<div style="display:flex;justify-content:space-between;padding:2px 0">
+              <span style="color:var(--text-dim);font-size:10px;font-family:${mono};letter-spacing:1px">${p.lbl}</span>
+              <span style="font-size:10px;font-family:${mono};color:var(--text);font-weight:700">${p.pw}W</span>
+            </div>`).join('')
+        : `<div style="font-size:10px;color:var(--text-dim);font-family:${mono};padding:2px 0;letter-spacing:1px">NO LOAD</div>`;
+
+      return `<div style="padding:14px 16px;${sep}">
+        <div style="font-size:10px;font-weight:700;color:var(--text-dim);font-family:${mono};letter-spacing:2px;margin-bottom:8px">POLE ${label}</div>
+        <div style="height:6px;background:var(--bg2);border-radius:3px;margin-bottom:10px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${pctColor};border-radius:3px"></div>
+        </div>
+        <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:26px;font-weight:700;color:${pctColor};font-family:${mono}">${pct}%</span>
+          ${trTxt ? `<span style="font-size:14px;color:var(--text-dim);font-family:${mono}">·</span><span style="font-size:26px;font-weight:700;color:var(--text);font-family:${mono}">${trTxt} <span style="font-size:14px;font-weight:400;color:var(--text-dim)">${trLbl}</span></span>` : ''}
+        </div>
+        <div style="text-align:center;margin-bottom:${(activePorts.length||u.power_out>0)?'10px':'0'}">
+          <span style="font-size:14px;font-family:${mono}">${chgText}</span>
+          <span style="font-size:12px;color:var(--text-dim);font-family:${mono}"> · ${u.temp}°C</span>
+        </div>
+        ${activePorts.length || u.power_out > 0 ? `
+        <div style="background:var(--bg2);border-radius:6px;padding:8px 10px;margin-bottom:10px">
+          <div style="font-size:9px;color:var(--text-dim);font-family:${mono};letter-spacing:2px;margin-bottom:5px">OUTPUT ${u.power_out>0?'· '+u.power_out+'W total':''}</div>
+          ${portsHtml}
+        </div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:${(activePorts.length||u.power_out>0)?'0':'10px'}">
+          ${['ac','dc'].map(port => {
+            const on = u[port+'_output'] === 'OUTPUT';
+            const urlAddr = u.address.replace(/:/g,'-');
+            return `<button onclick="adminBattCmd('${urlAddr}','${port}','${on?'off':'on'}')"
+              style="flex:1;padding:7px 0;border-radius:6px;border:1px solid ${on?'var(--green)':'var(--border2)'};
+              background:${on?'rgba(82,224,122,0.12)':'var(--bg2)'};color:${on?'var(--green)':'var(--text-dim)'};
+              font-size:10px;font-weight:700;letter-spacing:2px;font-family:${mono};cursor:pointer">
+              ${port.toUpperCase()} ${on?'ON':'OFF'}
+            </button>`;
+          }).join('')}
+          ${['off','low','high'].map(m => {
+            const active = u.light === m.toUpperCase();
+            const urlAddr = u.address.replace(/:/g,'-');
+            const colors = {off:'var(--text-dim)',low:'#f0c060',high:'#ffe080'};
+            return `<button onclick="adminBattCmd('${urlAddr}','light','${m}')"
+              style="flex:1;padding:7px 0;border-radius:6px;border:1px solid ${active?colors[m]:'var(--border2)'};
+              background:${active?'rgba(255,200,80,0.1)':'var(--bg2)'};color:${active?colors[m]:'var(--text-dim)'};
+              font-size:10px;font-weight:700;letter-spacing:2px;font-family:${mono};cursor:pointer">
+              ☀ ${m.toUpperCase()}
+            </button>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }).catch(() => {
+    el.innerHTML = '<div style="padding:14px 16px;color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;letter-spacing:1px">BATTERY API UNAVAILABLE</div>';
+  });
+}
+
 async function mcLoadGameConfigs(typeSelect, cfgSelect) {
   if (!cfgSelect) return;
   const typeId   = typeSelect.value;
@@ -7758,6 +7961,116 @@ async function shutdownPi() {
     await fetch('/api/system/shutdown', { method:'POST' });
     toast('Shutting down…', 'info');
   } catch(e) { toast('Shutdown failed', 'err'); }
+}
+
+// ── SD CARD BACKUP ───────────────────────────────────────────────────────
+let _backupPollTimer = null;
+
+function backupOpenPicker() {
+  document.getElementById('backup-idle').style.display = 'none';
+  document.getElementById('backup-picker').style.display = 'block';
+  document.getElementById('backup-candidates').innerHTML = '';
+}
+function backupClosePicker() {
+  document.getElementById('backup-picker').style.display = 'none';
+  document.getElementById('backup-idle').style.display = 'block';
+}
+
+async function backupDetect() {
+  const c = document.getElementById('backup-candidates');
+  c.innerHTML = '<div style="color:var(--text-dim);font-size:11px">Scanning…</div>';
+  try {
+    const d = await fetch('/api/admin/backup/candidates').then(r => r.json());
+    if (!d.candidates || !d.candidates.length) {
+      c.innerHTML = '<div style="color:var(--text-dim);font-size:11px">No card reader detected — insert one and try again.</div>';
+      return;
+    }
+    c.innerHTML = d.candidates.map(cand => `
+      <div style="border:1px solid var(--border);border-radius:6px;margin-bottom:6px;padding:10px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div>
+          <div style="font-weight:700">${escHtml(cand.model)} — /dev/${escHtml(cand.name)}</div>
+          <div style="font-size:11px;color:var(--text-dim)">${cand.size_h}${cand.too_small ? ' — TOO SMALL' : ''}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" ${cand.too_small ? 'disabled' : ''}
+                onclick="backupStart('${escHtml(cand.name)}','${escHtml(cand.model)}','${cand.size_h}')">ERASE &amp; CLONE</button>
+      </div>`).join('');
+  } catch(e) {
+    c.innerHTML = '<div style="color:var(--red);font-size:11px">Detection failed.</div>';
+  }
+}
+
+async function backupStart(device, model, sizeH) {
+  if (!confirm(`Erase everything on ${model} (/dev/${device}, ${sizeH}) and write a full clone of this SD card to it? This cannot be undone.`)) return;
+  try {
+    const r = await fetch('/api/admin/backup/start', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({device})
+    });
+    const d = await r.json();
+    if (!d.ok) { toast(d.error || 'Cannot start backup', 'err'); return; }
+    document.getElementById('backup-picker').style.display = 'none';
+    document.getElementById('backup-progress-wrap').style.display = 'block';
+    if (_backupPollTimer) clearInterval(_backupPollTimer);
+    _backupPollTimer = setInterval(_pollBackup, 1000);
+  } catch(e) { toast('Could not start backup', 'err'); }
+}
+
+async function backupCancel() {
+  if (!confirm('Cancel the running backup? The destination card will be left partially written and unusable — this is not a safe stop.')) return;
+  await fetch('/api/admin/backup/cancel', { method:'POST' });
+}
+
+function _relativeDay(epochSec) {
+  const days = Math.floor((Date.now() - epochSec * 1000) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return '1 day ago';
+  return `${days} days ago`;
+}
+
+function _applyBackupStatus(s) {
+  const summary = document.getElementById('backup-summary');
+  if (!s.running) {
+    document.getElementById('backup-idle').style.display = 'block';
+    document.getElementById('backup-picker').style.display = 'none';
+    document.getElementById('backup-progress-wrap').style.display = 'none';
+    if (s.last_backup_at) {
+      const when = new Date(s.last_backup_at * 1000);
+      const dateStr = when.toLocaleDateString([], {month:'short', day:'numeric'});
+      summary.textContent = `Last backup: ${dateStr} (${_relativeDay(s.last_backup_at)}) · ${s.changes_since_backup} changes since`;
+      summary.style.color = s.last_backup_ok === false ? 'var(--red)' : 'var(--text-dim)';
+    } else {
+      summary.textContent = 'Never backed up';
+      summary.style.color = 'var(--amber)';
+    }
+  } else {
+    document.getElementById('backup-idle').style.display = 'none';
+    document.getElementById('backup-picker').style.display = 'none';
+    document.getElementById('backup-progress-wrap').style.display = 'block';
+    document.getElementById('backup-bar').style.width = (s.pct || 0) + '%';
+    const label = (s.step || '').toUpperCase().replace(/_/g, ' ') || 'STARTING…';
+    document.getElementById('backup-status').textContent = label;
+  }
+}
+
+async function _pollBackup() {
+  try {
+    const s = await fetch('/api/admin/backup/status').then(r => r.json());
+    _applyBackupStatus(s);
+    if (!s.running) {
+      clearInterval(_backupPollTimer);
+      _backupPollTimer = null;
+      if (s.error) toast(`Backup failed: ${s.error}`, 'err');
+      else if (s.step === 'done') toast('Backup complete', 'ok');
+    }
+  } catch(e) { /* keep polling — a transient fetch failure isn't fatal */ }
+}
+
+async function backupRefreshStatus() {
+  try {
+    const s = await fetch('/api/admin/backup/status').then(r => r.json());
+    _applyBackupStatus(s);
+    if (s.running && !_backupPollTimer) _backupPollTimer = setInterval(_pollBackup, 1000);
+  } catch(e) { /* System tab may load before the backend is ready — fail quiet */ }
 }
 
 async function resetMixer() {

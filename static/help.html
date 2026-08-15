@@ -572,6 +572,7 @@
         <li><strong>Wait</strong> — pause for a set number of seconds before the next action</li>
       </ul>
       <p>Macros are the workhorse of a show. Most show flow steps point to a macro — the macro handles the sequencing so the operator just taps once.</p>
+      <p><strong>🔁 Loop</strong> — check this in the macro editor to repeat the whole step list continuously instead of running once. Good for an ambient light cycle or looping slideshow. Stops when another macro fires or Kill All is pressed.</p>
 
       <div class="tip"><strong>Tip:</strong> Build a "Climax" macro for crowd peak moments — strobe the poles, blast a sound, maybe fire a VS card — and hook it up to the Crowd Meter's climax trigger.</div>
     </section>
@@ -646,6 +647,8 @@
         <li><strong>Service Controls</strong> — restart the Music Man service if something stops responding.</li>
         <li><strong>Disk Usage</strong> — keep an eye on this if you're importing lots of large video files.</li>
         <li><strong>Temperature</strong> — the Pi 4B runs warm; above 80°C means you need more airflow.</li>
+        <li><strong>Battery Monitor</strong> — Pole A and Pole B's Anker SOLIX units, monitored simultaneously (not either/or). Charge %, AC/DC state, and per-unit toggle controls.</li>
+        <li><strong>SD Card Backup</strong> — full clone of the Pi's SD card to a spare card via USB reader. Different from the automatic config.yaml backups — this is what you'd need to recover from a dead SD card. Insert a reader, click BACK UP NOW, confirm the exact device shown before it erases and clones.</li>
       </ul>
     </section>
 

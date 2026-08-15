@@ -231,7 +231,7 @@
       </div>
       <div class="feat amber wide">
         <div class="feat-name">Walk-Up Pipeline</div>
-        <div class="feat-desc">Each walk-up fires simultaneously: entrance music starts → projector crossfades to the kid's card → lighting scene switches → animation plays on-screen → stage scene restores when audio ends. Configurable per-entry: music file, SFX, display animation, lighting scene, entrance duration.</div>
+        <div class="feat-desc">Each walk-up fires simultaneously: entrance music starts → projector crossfades to the kid's card → lighting scene switches → animation plays on-screen → stage scene restores when audio ends. Configurable per-entry: music file, SFX, display animation, lighting scene, entrance duration. A 📺 Send to Display button on each Console tile pushes just the card/animation to the projector without triggering its music or lighting, for when the visual is wanted without the full entrance.</div>
       </div>
       <div class="feat amber">
         <div class="feat-name">Game Entries</div>
@@ -410,7 +410,7 @@
     <div class="feat-grid">
       <div class="feat rose">
         <div class="feat-name">Macros</div>
-        <div class="feat-desc">Multi-step sequences executed in parallel or series. Steps can be any combination of: scene, SFX, music, audio fade/stop, display image/animation/slide, walk-up, VS card, viz show/hide, game, timer start/reset, skit timer preset, wait.</div>
+        <div class="feat-desc">Multi-step sequences executed in parallel or series. Steps can be any combination of: scene, SFX, music, audio fade/stop, display image/animation/slide, walk-up, VS card, viz show/hide, game, timer start/reset, skit timer preset, wait. Optional 🔁 Loop repeats the whole step list until interrupted by another macro or Kill All.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">Show Flow</div>
@@ -644,11 +644,15 @@
       </div>
       <div class="feat rose">
         <div class="feat-name">Battery Monitor</div>
-        <div class="feat-desc">BLE connection to Solix C300 units per pole. Reads charge %, AC/DC state. Controls AC outlet, DC outlet, and flashlight mode per unit.</div>
+        <div class="feat-desc">BLE connection to a Solix C300 unit per pole, monitored in parallel — Pole A and Pole B both tracked simultaneously, not either/or. Reads charge %, AC/DC state. Controls AC outlet, DC outlet, and flashlight mode per unit. Same rich panel lives on both Console and Admin's System tab.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">System Controls</div>
         <div class="feat-desc">Restart service, restart kiosk browser, or full system shutdown — all from the Console without SSH.</div>
+      </div>
+      <div class="feat rose wide">
+        <div class="feat-name">SD Card Backup</div>
+        <div class="feat-desc">Full-clone backup to a USB card reader from Admin's System tab — partitions and formats the destination to match the live card, then rsyncs the running filesystem onto it and rewrites its boot references so the clone is independently bootable. Tracks last-backup time and a running count of config changes since. Device selection carries three independent, redundant safety gates (UI, route, and script all separately refuse anything that isn't a removable non-root disk) given how unrecoverable choosing the wrong target would be.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">OTA File Update</div>

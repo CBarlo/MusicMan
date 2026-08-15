@@ -230,7 +230,7 @@
   </div>
 
   <div class="qa-area" id="qaArea">
-    <div class="question-card">
+    <div class="question-card" id="questionCard">
       <div class="question-label">Question</div>
       <div class="question-text" id="questionText">—</div>
     </div>
@@ -370,6 +370,25 @@ function connectWS() {
 connectWS();
 
 // ── RENDER ──
+// Shrinks the question text until it fits within the card's available
+// vertical space, same technique as display.html's VS Card name fitting —
+// a long question at the default 7vw size can otherwise wrap past the
+// bottom of the screen with nothing to stop it.
+function _fitQuestionText() {
+  const textEl = document.getElementById('questionText');
+  const cardEl = document.getElementById('questionCard');
+  if (!textEl || !cardEl) return;
+  textEl.style.fontSize = '';
+  const availBelow = window.innerHeight - cardEl.getBoundingClientRect().top - (window.innerHeight * 0.04);
+  let size = parseFloat(getComputedStyle(textEl).fontSize);
+  let guard = 0;
+  while (cardEl.scrollHeight > availBelow && guard < 40) {
+    size -= size * 0.06;
+    textEl.style.fontSize = size + 'px';
+    guard++;
+  }
+}
+
 function applyState(index, revealed, timerEnd, log, showScoreFlag, order) {
   curIndex = index || 0;
   curRevealed = !!revealed;
@@ -385,6 +404,7 @@ function applyState(index, revealed, timerEnd, log, showScoreFlag, order) {
     ? `Q ${curIndex + 1} of ${questions.length}` : 'No questions';
   document.getElementById('questionText').textContent = q ? q.question : 'No questions loaded';
   document.getElementById('opQuestionText').textContent = q ? q.question : 'No questions loaded';
+  _fitQuestionText();
   document.getElementById('opAnswerText').textContent = q ? q.answer : '—';
   document.getElementById('opIndex').textContent = questions.length ? (curIndex + 1) : 0;
   document.getElementById('opCount').textContent = questions.length;

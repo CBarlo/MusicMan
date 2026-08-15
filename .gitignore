@@ -25,6 +25,10 @@ assets/
 # ── Runtime files ──
 logs/
 games.json
+game_configs.json
+vs_cards.json
+head_to_head.json
+backup_state.json
 *.tmp
 *.corrupt
 *.zip
