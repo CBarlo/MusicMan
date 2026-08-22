@@ -905,6 +905,8 @@ def scan_playlist(path):
         return tracks
     elif p.is_dir():
         return sorted(str(f) for f in p.rglob('*') if f.suffix.lower() in AUDIO_EXTS and f.is_file())
+    elif p.suffix.lower() in AUDIO_EXTS and p.is_file():
+        return [str(p)]  # single track — a "playlist" of one, so USB search results can reuse play_playlist()
     return []
 
 def _advance_playlist_to(idx):
@@ -1159,6 +1161,65 @@ stopwatch_state = {
     'show_on_display': False,
 }
 
+# Persisted "what's currently happening" — unlike the show_step WS broadcast
+# (a fire-and-forget event, missed entirely by any client that wasn't
+# connected at that instant), this is queryable at any time via
+# /api/remote/state. Built for the M5Stick remote, which walks around
+# outdoors and will routinely reconnect mid-show — on reconnect it needs to
+# ask "what's current?" directly rather than wait for the next event.
+_current_show_step = {
+    'index': None, 'type': None, 'name': '', 'desc': '',
+    'game_type_id': '', 'game_config_id': '', 'controller_url': '', 'display_url': '',
+}
+_current_show_step_lock = threading.Lock()
+
+def _set_current_show_step(**kwargs):
+    global _current_show_step
+    step = {
+        'index': None, 'type': None, 'name': '', 'desc': '',
+        'game_type_id': '', 'game_config_id': '', 'controller_url': '', 'display_url': '',
+        'has_timer': False,
+    }
+    step.update(kwargs)
+    with _current_show_step_lock:
+        _current_show_step = step
+
+# M5Stick remote connection status — surfaced in Console/Admin the same way
+# pole nodes and battery units are (see /api/health). Originally tracked via
+# a persistent WebSocket connection (a 'remote_hello' identify message on
+# connect, cleared on disconnect) — dropped that after finding a one-sided
+# failure in the field: the ESP32's WebSocketsClient believed the connection
+# stayed up (isConnected()==true for 20+s straight in its own serial log)
+# while flask-sock silently closed it server-side within seconds every time,
+# for reasons that didn't repro cleanly. Plain HTTP proved completely
+# reliable across dozens of consecutive calls on the same link, so
+# 'connected' is now heartbeat-based instead: the remote POSTs
+# /api/remote/heartbeat periodically, and a background thread marks it
+# disconnected if too long passes without one — same staleness pattern
+# already used for pole-node/battery reachability elsewhere in this file.
+_remote_status = {'connected': False, 'last_seen': None, 'battery_pct': None, 'ip': None}
+_remote_status_lock = threading.Lock()
+_REMOTE_HEARTBEAT_STALE_S = 15   # heartbeat every ~5s expected; 3 misses = disconnected
+
+def _set_remote_status(**kwargs):
+    global _remote_status
+    with _remote_status_lock:
+        _remote_status = {**_remote_status, **kwargs}
+        snapshot = dict(_remote_status)
+    broadcast('remote_status', snapshot)
+
+def _start_remote_staleness_check():
+    def _loop():
+        while True:
+            time.sleep(5)
+            with _remote_status_lock:
+                last_seen = _remote_status.get('last_seen')
+                was_connected = _remote_status.get('connected')
+            if was_connected and last_seen and (time.time() - last_seen > _REMOTE_HEARTBEAT_STALE_S):
+                _set_remote_status(connected=False)
+                log.info("M5 remote heartbeat stale — marking disconnected")
+    threading.Thread(target=_loop, daemon=True, name='remote-staleness').start()
+
 # Games-tab countdown — fully independent from the skit timer
 countdown_state = {
     'running': False,
@@ -1314,9 +1375,21 @@ def _resolve_audio_file(name: str, prefer_music: bool = False):
 def load_games() -> dict:
     try:
         with open(GAMES_FILE) as f:
-            return json.load(f)
+            games = json.load(f)
     except Exception:
         return {}
+    # Backfill a stable id onto any entry recorded before entries had one —
+    # renaming/deleting a specific runner needs something to target that
+    # isn't just "same label", since duplicate names are the normal case.
+    changed = False
+    for entries in games.values():
+        for entry in entries:
+            if 'id' not in entry:
+                entry['id'] = uuid.uuid4().hex[:8]
+                changed = True
+    if changed:
+        save_games(games)
+    return games
 
 def save_games(data: dict):
     try:
@@ -1371,8 +1444,49 @@ GAME_TYPES = {
             {'key': 'stop_scene',   'type': 'select', 'label': 'Stop Cue Lighting Scene',     'source': 'scenes'},
         ],
     },
+    'timed_competition': {
+        'label': 'Timed Competition',
+        'icon': '⏱️',
+        'controller_route': '/games/timedcomp',
+        'display_route': '/games/timedcomp/display',
+        # Same "no iframe ever reaches HDMI" shape as Musical Chairs -- the
+        # Intro Game Entry (or fallback headline/text/image) is what shows
+        # on screen, and it just stays up for the whole event. Results
+        # (name + time) are recorded into games.json via the same
+        # /api/games/record + /api/games/display pipeline the Games tab's
+        # generic stopwatch leaderboard already uses -- this config just
+        # gets its own auto-created bucket (named after the config) instead
+        # of the operator having to pick/create one by hand each time.
+        'schema': [
+            {'key': 'intro_entry',       'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
+            {'key': 'fallback_headline', 'type': 'text',   'label': 'Screen Headline (used if no Game Entry above)'},
+            {'key': 'fallback_text',     'type': 'text',   'label': 'Screen Text'},
+            {'key': 'fallback_image',    'type': 'select', 'label': 'Screen Image',           'source': 'display_images'},
+            {'key': 'sort_mode', 'type': 'select', 'label': 'Ranking', 'default': 'asc',
+             'options': [{'value': 'asc', 'label': 'Fastest wins'}, {'value': 'desc', 'label': 'Longest wins'}]},
+        ],
+    },
+    'countdown_game': {
+        'label': 'Countdown Timer',
+        'icon': '⏲️',
+        'controller_route': '/games/countdown',
+        'display_route': '/games/countdown/display',
+        # Same shape as Timed Competition, wired to the countdown timer
+        # instead of the stopwatch -- an Intro Game Entry (or fallback
+        # screen) fires on GO LIVE, this config's own duration loads into
+        # the one shared timer_state, and the remote/Console controllers
+        # auto-enter timer mode. No results/ranking here -- a countdown is
+        # a shared clock, not a per-runner comparison.
+        'schema': [
+            {'key': 'intro_entry',       'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
+            {'key': 'fallback_headline', 'type': 'text',   'label': 'Screen Headline (used if no Game Entry above)'},
+            {'key': 'fallback_text',     'type': 'text',   'label': 'Screen Text'},
+            {'key': 'fallback_image',    'type': 'select', 'label': 'Screen Image',           'source': 'display_images'},
+            {'key': 'duration', 'type': 'number', 'label': 'Duration (seconds)', 'default': 180},
+        ],
+    },
     'trivia': {
-        'label': 'AG Trivia',
+        'label': 'Trivia',
         'icon': '❓',
         'controller_route': '/games/trivia',
         'display_route': '/games/trivia',
@@ -1532,22 +1646,49 @@ def _resolve_ip_once(hostname):
                     threading.Thread(target=_do_resolve_ip, args=(hostname,), daemon=True).start()
         return ip
     # Nothing cached yet — nothing to hand back while refreshing in the
-    # background, so this one call has to block on the lookup.
+    # background, so this one call has to block on the lookup. A node
+    # that's down at process start (or has never once resolved) failed
+    # this same blocking lookup on every single call, not just the first —
+    # _do_resolve_ip() only ever wrote the cache on success, so a
+    # persistently-down node left nothing behind to short-circuit later
+    # calls, and every one of them paid the same ~8s cost as the first.
+    # Caching the fallback here too (same value already being returned)
+    # means only the very first call ever blocks; every call after that
+    # takes the normal non-blocking cached-return-plus-background-refresh
+    # path, same as a node that resolved successfully.
     try:
         ip = socket.gethostbyname(hostname)
     except Exception:
+        with _ip_resolve_lock:
+            _ip_resolve_cache[hostname] = (hostname, time.time())
         return hostname
     with _ip_resolve_lock:
         _ip_resolve_cache[hostname] = (ip, time.time())
     return ip
 
 def _invalidate_ip(hostname):
-    """Drop a cached resolution so the next _resolve_ip_once() call for this
-    hostname does a fresh lookup instead of waiting out the TTL. Call this
-    when a request to the cached IP fails — a stale IP after a pole
-    reconnects with a new DHCP lease should recover in roughly one failed
-    send, not up to a minute later."""
-    _ip_resolve_cache.pop(hostname, None)
+    """Force the next _resolve_ip_once() call for this hostname to refresh in
+    the background instead of coasting on the full TTL. Call this when a
+    request to the cached IP fails — a stale IP after a pole reconnects with
+    a new DHCP lease should recover in roughly one failed send, not up to a
+    minute later.
+
+    Deliberately does NOT drop the cache entry outright (the original
+    implementation did) — with nothing cached at all, _resolve_ip_once()'s
+    only option is a synchronous, blocking lookup (measured up to ~8s on
+    this network). A node that's genuinely offline (not just DHCP-shuffled)
+    fails, and therefore invalidates, on every single send — which turned
+    every subsequent call into another blocking lookup, and since that call
+    happens on the caller's own thread (e.g. the DMX animation loop, before
+    it even gets to the next node in the same frame), a permanently-down
+    node stalled everything sharing that thread for as long as it stayed
+    down. Forcing the existing entry's timestamp to already-expired instead
+    keeps the fast, non-blocking path — return the last-known IP
+    immediately, refresh in the background — even while a node stays down."""
+    cached = _ip_resolve_cache.get(hostname)
+    if cached:
+        ip, _ = cached
+        _ip_resolve_cache[hostname] = (ip, 0)
 
 def _prewarm_ip_cache():
     """Resolve every configured pole-node/WLED hostname once, up front, in
@@ -2808,16 +2949,18 @@ def shell_game_theme_asset(theme_id, slot):
         return send_from_directory(str(theme_dir), fname)
     return '', 404
 
-@app.route('/api/shell-game/themes/<theme_id>/load', methods=['POST'])
-def shell_game_themes_load(theme_id):
-    """Restore a theme: copy its assets to the active slots and merge its text config."""
+def _load_shell_game_theme(theme_id):
+    """Restore a theme: copy its assets to the active slots and merge its text
+    config. Shared by the Admin 'load theme' button and the Shell Game macro
+    step (so a macro can pick a specific variant instead of whatever's
+    currently active) — one implementation, not two copies to drift apart."""
     import json, shutil
     if '..' in theme_id:
-        return '', 400
+        return False, 'bad theme id'
     theme_dir = ASSETS_DIR / 'shell_game' / 'themes' / theme_id
     meta_f    = theme_dir / 'meta.json'
     if not meta_f.exists():
-        return jsonify({'ok': False, 'error': 'Theme not found'}), 404
+        return False, 'Theme not found'
     meta   = json.loads(meta_f.read_text())
     sg_dir = ASSETS_DIR / 'shell_game'
     sg_dir.mkdir(parents=True, exist_ok=True)
@@ -2842,6 +2985,13 @@ def shell_game_themes_load(theme_id):
     cfg['shell_game'] = sg
     save_config(cfg)
     broadcast('shell_game_reload', {})
+    return True, None
+
+@app.route('/api/shell-game/themes/<theme_id>/load', methods=['POST'])
+def shell_game_themes_load(theme_id):
+    ok, err = _load_shell_game_theme(theme_id)
+    if not ok:
+        return jsonify({'ok': False, 'error': err}), (400 if err == 'bad theme id' else 404)
     return jsonify({'ok': True})
 
 @app.route('/api/shell-game/themes/<theme_id>', methods=['DELETE'])
@@ -3711,6 +3861,60 @@ def api_state():
         }
     })
 
+@app.route('/api/remote/state')
+def api_remote_state():
+    """Consolidated snapshot for the M5Stick remote (or any other client that
+    can't rely on having been connected to the WS the whole time). The event
+    stream (show_step, trivia_state, etc.) tells a live-connected client what
+    JUST changed; this answers "what's true right now" for a client that just
+    connected or reconnected after being out of WiFi range."""
+    with _current_show_step_lock:
+        step = dict(_current_show_step)
+
+    # _current_live_game, not step['game_type_id'] -- a game launched directly
+    # (Admin/Console "GO LIVE", not through a Show Flow step) never touches
+    # _current_show_step at all, so keying off the step left the remote
+    # completely blind to it. _current_live_game is the app's one existing
+    # choke point for "what game is actually up right now" (also what the
+    # StreamDeck uses for the same reason), updated by _launch_game() itself
+    # regardless of which of the 3 ways it got fired.
+    live_game = dict(_current_live_game)
+    game_live = {}
+    gtid   = live_game.get('game_type_id')
+    cfg_id = live_game.get('config_id', '')
+    if gtid == 'trivia':
+        data, _   = _trivia_config_data(cfg_id)
+        questions = data.get('questions', [])
+        st = _trivia_get_state(cfg_id, len(questions))
+        real_idx = _trivia_real_index(st, len(questions))
+        q = questions[real_idx] if questions and 0 <= real_idx < len(questions) else {}
+        game_live = {'trivia': {
+            'index': st['index'], 'revealed': st['revealed'], 'count': len(questions),
+            'question': q.get('question', ''), 'answer': q.get('answer', ''),
+        }}
+    elif gtid == 'musical_chairs':
+        game_live = {'chairs': chairs_state}
+
+    # stopwatch_state['elapsed_ms'] is only ever updated at stop -- every
+    # other consumer (Console, the game controllers) is a browser computing
+    # Date.now() - start_ms client-side against its own synced wall clock,
+    # which the ESP32 remote doesn't have. Without this, the remote polled a
+    # value frozen at whatever it was when start was pressed (usually 0)
+    # every 3s, making its own "add time since last poll" interpolation
+    # visibly reset to zero each poll instead of ticking smoothly.
+    stopwatch = dict(stopwatch_state)
+    if stopwatch.get('running') and stopwatch.get('start_ms'):
+        stopwatch['elapsed_ms'] = int(time.time() * 1000) - stopwatch['start_ms']
+
+    return jsonify({
+        'ok': True,
+        'step': step,
+        'live_game': live_game,
+        'timer': timer_state,
+        'stopwatch': stopwatch,
+        **game_live,
+    })
+
 # ── AUDIO ──
 @app.route('/api/audio/stop')
 def api_audio_stop():
@@ -3784,7 +3988,47 @@ def api_sfx_play():
     log.warning(f"SFX not found: {name}")
     return jsonify({'ok': False, 'error': f'SFX not found: {name}'}), 404
 
+@app.route('/api/sfx/stop')
+def api_sfx_stop():
+    """Stop the current SFX channel only -- leaves music untouched."""
+    global _sfx_channel
+    if _sfx_channel:
+        _sfx_channel.stop()
+    _sfx_channel = None
+    sfx_state['playing'] = False
+    sfx_state['paused']  = False
+    broadcast('sfx_state', sfx_state)
+    return jsonify({'ok': True})
+
 # ── TIMER ──
+_timer_run_generation = 0
+
+def _schedule_timer_autohide():
+    """Fades the countdown off the HDMI a configurable number of seconds
+    after it appears, so it isn't sitting there distracting the crowd for
+    the whole skit -- the existing warning_at mechanism (timer_warning
+    broadcast, unconditional showChronoOverlay) still pops it back up right
+    on schedule regardless of this, since that's a separate code path this
+    doesn't touch at all.
+
+    _timer_run_generation guards against a stale hide from an earlier run
+    firing into a NEW run that started (e.g. reset-and-restart) within the
+    delay window -- every fresh start bumps it, invalidating any pending
+    thread from a previous start."""
+    global _timer_run_generation
+    delay = config.get('timer', {}).get('auto_hide_after', 0) or 0
+    if delay <= 0:
+        return
+    _timer_run_generation += 1
+    my_gen = _timer_run_generation
+    warning_at = config.get('timer', {}).get('warning_at', 15) or 15
+    def _run(gen=my_gen, wa=warning_at):
+        time.sleep(delay)
+        if (_timer_run_generation == gen and timer_state['running']
+                and timer_state['seconds_remaining'] > wa):
+            broadcast('timer_auto_hide', {})
+    threading.Thread(target=_run, daemon=True).start()
+
 @app.route('/api/timer/start')
 def api_timer_start():
     global _timer_sound_looping, _timer_sound_stop
@@ -3799,6 +4043,7 @@ def api_timer_start():
         broadcast('timer_state', timer_state)
         if not was_paused and timer_state.get('show_on_display'):
             broadcast('timer_show', {'seconds': timer_state['seconds_remaining']})
+            _schedule_timer_autohide()
         # Restart the start sound fresh both on a brand-new start and on
         # resume-from-pause — pausing stops the sound (see api_timer_pause),
         # so resuming needs to kick it off again from the top.
@@ -4225,7 +4470,7 @@ def api_games_record():
     games = load_games()
     if game not in games:
         games[game] = []
-    entry = {'label': label, 'at': int(time.time())}
+    entry = {'id': uuid.uuid4().hex[:8], 'label': label, 'at': int(time.time())}
     if score is not None:
         entry['score'] = float(score)
         games[game].append(entry)
@@ -4273,6 +4518,45 @@ def api_games_delete():
         broadcast('games_state', games)
     return jsonify({'ok': True})
 
+@app.route('/api/games/entry/update', methods=['POST'])
+def api_games_entry_update():
+    """Rename a recorded runner, or correct their recorded time/score."""
+    data  = request.json or {}
+    game  = data.get('game', '').strip()
+    eid   = data.get('id', '')
+    games = load_games()
+    entries = games.get(game, [])
+    entry = next((e for e in entries if e.get('id') == eid), None)
+    if not entry:
+        return jsonify({'ok': False, 'error': 'entry not found'}), 404
+    if 'label' in data:
+        entry['label'] = (data.get('label') or '').strip() or 'Runner'
+    if 'ms' in data and data['ms'] is not None:
+        entry['ms'] = int(data['ms'])
+        entries.sort(key=lambda x: x.get('ms', 0))
+    if 'score' in data and data['score'] is not None:
+        entry['score'] = float(data['score'])
+        entries.sort(key=lambda x: x.get('score', 0), reverse=True)
+    save_games(games)
+    broadcast('games_state', games)
+    return jsonify({'ok': True, 'games': games})
+
+@app.route('/api/games/entry/delete', methods=['POST'])
+def api_games_entry_delete():
+    """Remove a single runner from a game's leaderboard (not the whole game)."""
+    data  = request.json or {}
+    game  = data.get('game', '').strip()
+    eid   = data.get('id', '')
+    games = load_games()
+    entries = games.get(game, [])
+    new_entries = [e for e in entries if e.get('id') != eid]
+    if len(new_entries) == len(entries):
+        return jsonify({'ok': False, 'error': 'entry not found'}), 404
+    games[game] = new_entries
+    save_games(games)
+    broadcast('games_state', games)
+    return jsonify({'ok': True, 'games': games})
+
 @app.route('/api/games/display', methods=['POST'])
 def api_games_display():
     data    = request.json or {}
@@ -4286,6 +4570,14 @@ def api_games_display():
     else:
         times = sorted(entries, key=lambda t: t.get('ms', 0), reverse=(sort == 'desc'))
     _ensure_display_for('display_leaderboard', {'game': game, 'times': times, 'score_mode': is_score})
+    return jsonify({'ok': True})
+
+@app.route('/api/games/display/hide', methods=['POST'])
+def api_games_display_hide():
+    """Dismiss just the leaderboard overlay, leaving whatever's underneath
+    (the static image, an intro's held last frame, etc.) showing -- no way to
+    undo an accidental SHOW ON HDMI without a full blackout/standby before this."""
+    broadcast('display_leaderboard_hide', {})
     return jsonify({'ok': True})
 
 # ── GAME CONFIG API ──
@@ -4364,7 +4656,7 @@ def _intro_entry_for_game(game_type_id, config_id):
     match = next((c for c in load_game_configs() if c['id'] == config_id), None)
     return (match.get('data') or {}).get('intro_entry') if match else None
 
-def _launch_game(game_type_id, config_id=''):
+def _launch_game(game_type_id, config_id='', skip_intro=False):
     """Launch a game type's HDMI presence and return (controller_url, display_url).
     Shared by the Games Library GO LIVE button, a Show Flow game step, and a macro
     game step — all three used to carry their own copy of this and only one of
@@ -4375,7 +4667,13 @@ def _launch_game(game_type_id, config_id=''):
     from games_chairs.html is ever meant to reach HDMI, so it's special-cased to
     fire the config's Intro Game Entry or built-in Screen fields directly instead
     — whichever is set stays up for the whole game, and display_url comes back
-    empty so callers don't also navigate the iframe there."""
+    empty so callers don't also navigate the iframe there.
+
+    skip_intro=True is for a Restart Game action fired from a controller that's
+    already on screen mid-session (e.g. Trivia's own Restart button) -- it still
+    does every state-reset step below (fresh question 1, wiped scoreboard, etc.)
+    but skips walkup/fallback-screen/display-navigate entirely, since whatever's
+    already showing just needs to be told the state, not sent anywhere new."""
     gt = GAME_TYPES.get(game_type_id, {})
     ctrl_url = gt.get('controller_route', f'/games/{game_type_id}') + (f'?config={config_id}' if config_id else '')
 
@@ -4395,16 +4693,83 @@ def _launch_game(game_type_id, config_id=''):
         with _trivia_state_lock:
             _trivia_state[config_id] = fresh
 
+        # Every GO LIVE also starts the linked team scoreboard at zero — a
+        # score left over from a rehearsal or an earlier event was showing up
+        # live. This is a fresh SESSION reset (same "every GO LIVE" contract
+        # as the question index above), not a per-round one — running trivia
+        # multiple times in one show still wipes to zero each time.
+        h2h_game_id = trivia_data.get('h2h_game_id')
+        if h2h_game_id:
+            h2h_games = load_head_to_head()
+            h2h_game = next((g for g in h2h_games if g['id'] == h2h_game_id), None)
+            if h2h_game:
+                h2h_game['scores'] = {c['id']: 0 for c in h2h_game.get('contestants', [])}
+                save_head_to_head(h2h_games)
+                broadcast('h2h_reset', {'game_id': h2h_game_id, 'scores': h2h_game['scores']})
+
     if game_type_id == 'musical_chairs':
         cfg_data, _ = _chairs_config_data(config_id)
-        if cfg_data.get('intro_entry'):
-            threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
-        elif cfg_data.get('fallback_headline') or cfg_data.get('fallback_text') or cfg_data.get('fallback_image'):
-            threading.Thread(target=_chairs_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
+        if not skip_intro:
+            if cfg_data.get('intro_entry'):
+                threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
+            elif cfg_data.get('fallback_headline') or cfg_data.get('fallback_text') or cfg_data.get('fallback_image'):
+                threading.Thread(target=_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
+        return ctrl_url, ''
+
+    if game_type_id == 'timed_competition':
+        cfg_data, cfg_name = _timedcomp_config_data(config_id)
+
+        # Fresh session every GO LIVE, same contract as trivia/chairs above:
+        # the stopwatch starts at zero (a paused leftover from a rehearsal
+        # or the last race showing up live was the exact complaint this is
+        # fixing), and this competition's results bucket in games.json
+        # starts empty rather than accumulating across separate launches.
+        stopwatch_state['running']    = False
+        stopwatch_state['start_ms']   = None
+        stopwatch_state['elapsed_ms'] = 0
+        broadcast('stopwatch_state', stopwatch_state)
+
+        bucket = cfg_name or config_id
+        if bucket:
+            games = load_games()
+            games[bucket] = []
+            save_games(games)
+            broadcast('games_state', games)
+
+        if not skip_intro:
+            if cfg_data.get('intro_entry'):
+                threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
+            elif cfg_data.get('fallback_headline') or cfg_data.get('fallback_text') or cfg_data.get('fallback_image'):
+                threading.Thread(target=_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
+        return ctrl_url, ''
+
+    if game_type_id == 'countdown_game':
+        cfg_data, _ = _countdowngame_config_data(config_id)
+
+        # Fresh session every GO LIVE, same contract as everything above --
+        # loads this config's own duration into the one shared timer_state
+        # rather than resuming whatever the last skit/event left it at.
+        duration = int(cfg_data.get('duration') or 180)
+        timer_state['duration']          = duration
+        timer_state['seconds_remaining'] = duration
+        timer_state['running']           = False
+        timer_state['paused']            = False
+        timer_state['expired']           = False
+        timer_state['warning_fired']     = False
+        broadcast('timer_state', timer_state)
+
+        if not skip_intro:
+            if cfg_data.get('intro_entry'):
+                threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
+            elif cfg_data.get('fallback_headline') or cfg_data.get('fallback_text') or cfg_data.get('fallback_image'):
+                threading.Thread(target=_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
         return ctrl_url, ''
 
     disp_base = gt.get('display_route', f'/games/{game_type_id}')
     disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
+
+    if skip_intro:
+        return ctrl_url, disp_url
 
     intro_entry = _intro_entry_for_game(game_type_id, config_id)
     if intro_entry:
@@ -4461,9 +4826,10 @@ def api_games_launch():
     data         = request.json or {}
     game_type_id = data.get('game_type_id', '')
     config_id    = data.get('config_id', '')
+    skip_intro   = bool(data.get('skip_intro', False))
     if game_type_id not in GAME_TYPES:
         return jsonify({'ok': False, 'error': 'unknown game_type_id'}), 400
-    ctrl_url, disp_url = _launch_game(game_type_id, config_id)
+    ctrl_url, disp_url = _launch_game(game_type_id, config_id, skip_intro=skip_intro)
     return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': disp_url})
 
 @app.route('/api/games/preload_intro', methods=['POST'])
@@ -4503,6 +4869,32 @@ def _chairs_config_data(config_id):
         return {}, ''
     return (match.get('data') or {}), match.get('name', '')
 
+@app.route('/games/timedcomp')
+@app.route('/games/timedcomp/display')
+def games_timedcomp():
+    return send_from_directory(STATIC_DIR, 'games_timedcomp.html')
+
+def _timedcomp_config_data(config_id):
+    if not config_id:
+        return {}, ''
+    match = next((c for c in load_game_configs() if c['id'] == config_id), None)
+    if not match:
+        return {}, ''
+    return (match.get('data') or {}), match.get('name', '')
+
+@app.route('/games/countdown')
+@app.route('/games/countdown/display')
+def games_countdown():
+    return send_from_directory(STATIC_DIR, 'games_countdown.html')
+
+def _countdowngame_config_data(config_id):
+    if not config_id:
+        return {}, ''
+    match = next((c for c in load_game_configs() if c['id'] == config_id), None)
+    if not match:
+        return {}, ''
+    return (match.get('data') or {}), match.get('name', '')
+
 def _chairs_play_cue_file(filename):
     """stop_sfx values come from the merged sfx+music picker — check both dirs."""
     for sub in ('sfx', 'music'):
@@ -4512,9 +4904,11 @@ def _chairs_play_cue_file(filename):
             return
     log.warning(f"Musical Chairs stop cue file not found: {filename}")
 
-def _chairs_fire_fallback_screen(cfg_data):
-    """Push the config's own headline/text/image straight to the display — no
-    separate Slide or Game Entry to create and pick, it's just built in."""
+def _fire_fallback_screen(cfg_data):
+    """Push a game config's own headline/text/image straight to the display —
+    no separate Slide or Game Entry to create and pick, it's just built in.
+    Shared by any game type whose config has fallback_headline/fallback_text/
+    fallback_image fields (currently Musical Chairs and Timed Competition)."""
     global current_slide
     slide_data = {
         'template': 'spotlight',
@@ -5434,6 +5828,47 @@ def api_reorder_scenes_public():
     _reorder_scenes((request.get_json() or {}).get('order', []))
     return jsonify({'ok': True})
 
+# ── CONSOLE GRID ORDER (SFX / MEMES / DISPLAY) ──────────────────────────────
+# Scenes reorder in place because they're config objects with stable ids;
+# SFX/Memes/Display are just filenames on disk with no such record, so their
+# drag order is saved separately as an ordered filename list per kind rather
+# than baked into /api/sfx/list or /api/display/list themselves — those stay
+# plain alphabetical so every OTHER caller (Admin dropdowns, macro editors,
+# etc.) is unaffected by how the operator likes the Console grid arranged.
+# Memes gets its own order (not reusing Display's) because it only shows the
+# video subset — sharing one order would clump all videos to the front of the
+# full Display grid the moment someone reordered them from the Memes tab.
+_CONSOLE_ORDER_KEYS = {'sfx': 'sfx_order', 'memes': 'memes_order', 'display': 'display_order'}
+
+def _apply_saved_order(files, order):
+    """Sort `files` per a saved order list, appending anything not in that
+    list (e.g. a new upload) at the end in its existing order."""
+    ordered = [f for f in order if f in files]
+    ordered_set = set(ordered)
+    remaining = [f for f in files if f not in ordered_set]
+    return ordered + remaining
+
+@app.route('/api/console_order/<kind>')
+def api_console_order_get(kind):
+    key = _CONSOLE_ORDER_KEYS.get(kind)
+    if not key:
+        return jsonify({'ok': False, 'error': 'unknown kind'}), 404
+    return jsonify({'ok': True, 'order': load_config().get(key, [])})
+
+@app.route('/api/console_order/<kind>', methods=['POST'])
+def api_console_order_save(kind):
+    global config
+    key = _CONSOLE_ORDER_KEYS.get(kind)
+    if not key:
+        return jsonify({'ok': False, 'error': 'unknown kind'}), 404
+    order = (request.get_json() or {}).get('order', [])
+    cfg = load_config()
+    cfg[key] = order
+    save_config(cfg)
+    config = cfg
+    broadcast('console_order_updated', {'kind': kind, 'order': order})
+    return jsonify({'ok': True})
+
 @app.route('/api/admin/macro', methods=['POST'])
 def api_save_macro():
     global config
@@ -5472,12 +5907,17 @@ def api_macro_run():
     macro_obj = macros[name]
     step_name  = macro_obj.get('name', name)
     step_color = '#F5A623'
+    matched_idx = None
+    matched_desc = ''
     for idx, entry in enumerate(cfg.get('show_flow', [])):
         if entry.get('macro_id') == name:
             step_name  = entry.get('name') or step_name
             step_color = entry.get('color', step_color)
-            broadcast('show_step', {'index': idx, 'macro_id': name, 'name': step_name, 'desc': entry.get('desc', '')})
+            matched_idx = idx
+            matched_desc = entry.get('desc', '')
+            broadcast('show_step', {'index': idx, 'macro_id': name, 'name': step_name, 'desc': matched_desc})
             break
+    _set_current_show_step(index=matched_idx, type='macro', name=step_name, desc=matched_desc)
     # Always update projector display when a macro fires
     disp = {'name': step_name, 'color': step_color}
     img  = macro_obj.get('display_image', '')
@@ -5487,7 +5927,12 @@ def api_macro_run():
     global _macro_cancel
     _macro_cancel.set()
     _macro_cancel = threading.Event()
-    threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel), daemon=True).start()
+    # matched_idx lets any walkup_circle/walkup_role step inside this macro chain a
+    # next_preload the same way show-flow-advanced walkups do (see fire_walkup) —
+    # without it, a macro fired directly (the normal case for every macro button:
+    # Console, Admin TEST, StreamDeck) never warms whatever plays next, guaranteeing
+    # a cold start regardless of how that next thing gets fired.
+    threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel, matched_idx), daemon=True).start()
     return jsonify({'ok': True})
 
 def _walkup_preload_payload_for_item(item_type, target_id, cfg):
@@ -5567,14 +6012,25 @@ def api_show_fire():
     entry     = flow[idx]
     step_type = entry.get('type', 'macro')
     step_desc = entry.get('desc', '')
+    # Cancel whatever's currently running (a looping macro especially) before firing
+    # this step — a walkup/game/vs_card advance used to leave a looping macro like
+    # Announcements Loop completely unaware anything else had fired, so its next
+    # step would broadcast straight over the walkup that just started playing.
+    global _macro_cancel
+    _macro_cancel.set()
+    _macro_cancel = threading.Event()
     if step_type == 'circle':
         target_id = entry.get('target_id', '')
-        broadcast('show_step', {'index': idx, 'name': entry.get('name', target_id), 'desc': step_desc})
+        step_name = entry.get('name', target_id)
+        _set_current_show_step(index=idx, type='circle', name=step_name, desc=step_desc)
+        broadcast('show_step', {'index': idx, 'name': step_name, 'desc': step_desc})
         _navigate_home_if_needed()
         threading.Thread(target=fire_walkup, kwargs={'circle_id': target_id, 'show_flow_idx': idx}, daemon=True).start()
     elif step_type == 'role':
         target_id = entry.get('target_id', '')
-        broadcast('show_step', {'index': idx, 'name': entry.get('name', target_id), 'desc': step_desc})
+        step_name = entry.get('name', target_id)
+        _set_current_show_step(index=idx, type='role', name=step_name, desc=step_desc)
+        broadcast('show_step', {'index': idx, 'name': step_name, 'desc': step_desc})
         _navigate_home_if_needed()
         threading.Thread(target=fire_walkup, kwargs={'role_id': target_id, 'show_flow_idx': idx}, daemon=True).start()
     elif step_type == 'game':
@@ -5583,6 +6039,9 @@ def api_show_fire():
         gt             = GAME_TYPES.get(game_type_id, {})
         step_name      = entry.get('name') or gt.get('label', 'Game')
         ctrl_url, disp_url = _launch_game(game_type_id, game_config_id)
+        _set_current_show_step(index=idx, type='game', name=step_name, desc=step_desc,
+                                game_type_id=game_type_id, game_config_id=game_config_id,
+                                controller_url=ctrl_url, display_url=disp_url)
         broadcast('show_step', {'index': idx, 'name': step_name, 'desc': step_desc, 'type': 'game'})
         broadcast('launch_game', {
             'game_type_id':   game_type_id,
@@ -5596,6 +6055,7 @@ def api_show_fire():
         cards     = {c['id']: c for c in load_vs_cards()}
         card      = dict(cards.get(card_id, {}))
         step_name = entry.get('name') or card.get('name', 'VS')
+        _set_current_show_step(index=idx, type='vs_card', name=step_name, desc=step_desc)
         broadcast('show_step', {'index': idx, 'name': step_name, 'desc': step_desc, 'type': 'vs_card'})
         if card:
             card = _vs_card_resolve_images(card, card_id)
@@ -5611,21 +6071,26 @@ def api_show_fire():
             return jsonify({'ok': False, 'error': f'macro not found: {macro_id}'}), 404
         step_name  = entry.get('name') or macro_obj.get('name', macro_id)
         step_color = entry.get('color', '#F5A623')
-        broadcast('show_step', {'index': idx, 'macro_id': macro_id, 'name': step_name, 'desc': step_desc})
+        # Navigation only, not an auto-start -- the macro's own timer_start/
+        # setup_skit_timer step (if present) is what actually starts it, same
+        # as it always has. This just lets the remote follow along onto the
+        # Timer screen automatically instead of the MC having to navigate
+        # there by hand, the same way it already jumps into a live game.
+        has_timer = any(s.get('action') in ('timer_start', 'setup_skit_timer') for s in macro_obj.get('steps', []))
+        _set_current_show_step(index=idx, type='macro', name=step_name, desc=step_desc, has_timer=has_timer)
+        broadcast('show_step', {'index': idx, 'macro_id': macro_id, 'name': step_name, 'desc': step_desc, 'has_timer': has_timer})
         disp = {'name': step_name, 'color': step_color}
         img  = macro_obj.get('display_image', '')
         if img:
             disp['image'] = f'/assets/macros/{macro_id}/{img}'
         _ensure_display_for('display_step', disp)
-        global _macro_cancel
-        _macro_cancel.set()
-        _macro_cancel = threading.Event()
         threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel, idx), daemon=True).start()
 
     return jsonify({'ok': True})
 
 @app.route('/api/show/reset')
 def api_show_reset():
+    _set_current_show_step()
     broadcast('show_step', {'index': None})
     return jsonify({'ok': True})
 
@@ -5834,6 +6299,9 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                     'name':           gt.get('label', 'Game'),
                 })
             elif action == 'shell_game':
+                theme_id = step.get('theme_id', '')
+                if theme_id:
+                    _load_shell_game_theme(theme_id)  # loads its own hold too, but the step's own value below wins
                 hold = step.get('hold', 5)
                 url = f'/shell-game?hold={hold}'
                 broadcast('display_navigate', {'url': url})
@@ -5886,6 +6354,11 @@ def api_walkup():
     circle = request.args.get('circle')
     role = request.args.get('role')
     _navigate_home_if_needed()
+    # Cancel any currently-running macro (a looping one especially) — otherwise it
+    # keeps firing its own steps over this walkup, unaware anything else started.
+    global _macro_cancel
+    _macro_cancel.set()
+    _macro_cancel = threading.Event()
     threading.Thread(
         target=fire_walkup,
         kwargs={'circle_id': circle, 'role_id': role},
@@ -6447,6 +6920,7 @@ def api_health():
             'disk_pct':    round(disk.percent, 1),
             'disk_free_gb': round(disk.free / 1e9, 1),
             'uptime_s':    round(time.time() - psutil.boot_time()),
+            'boot_time':   psutil.boot_time(),
         },
         'services': {
             'musicman':   True,
@@ -6462,7 +6936,81 @@ def api_health():
         'wled_devices': wled_results,
         'battery':      [{'label': b.get('label','?'), 'soc': b.get('battery'), 'charging': b.get('power_in', 0) > 0}
                          for b in _batt_all()],
+        'remote':       dict(_remote_status),
     })
+
+@app.route('/api/remote/status')
+def api_remote_status_route():
+    return jsonify(dict(_remote_status))
+
+@app.route('/api/remote/heartbeat', methods=['POST'])
+def api_remote_heartbeat():
+    """Called periodically by the M5Stick (~every 5s) instead of relying on
+    WebSocket connect/disconnect events -- see the comment on _remote_status
+    for why. A missed heartbeat window (_start_remote_staleness_check) is
+    what actually flips this back to disconnected, not a socket callback."""
+    data = request.json or {}
+    _set_remote_status(connected=True, last_seen=time.time(),
+                        battery_pct=data.get('battery_pct'), ip=request.remote_addr or 'unknown')
+    return jsonify({'ok': True})
+
+@app.route('/api/remote/show_flow')
+def api_remote_show_flow():
+    """Compact show-flow listing (index/type/name only) for the M5Stick to
+    browse locally with up/down. Deliberately not /api/config — that returns
+    every circle/role/macro/scene in the whole expedition, far more than an
+    ESP32 needs to parse just to know step names."""
+    macros = {m['id']: m for m in config.get('macros', [])}
+    out = []
+    for idx, entry in enumerate(config.get('show_flow', [])):
+        step_type = entry.get('type', 'macro')
+        if step_type in ('circle', 'role'):
+            name = entry.get('name') or entry.get('target_id', '')
+        elif step_type == 'game':
+            gt   = GAME_TYPES.get(entry.get('game_type_id', ''), {})
+            name = entry.get('name') or gt.get('label', 'Game')
+        elif step_type == 'vs_card':
+            name = entry.get('name', 'VS')
+        else:
+            macro_obj = macros.get(entry.get('macro_id', ''))
+            name = entry.get('name') or (macro_obj.get('name', '') if macro_obj else entry.get('macro_id', ''))
+        out.append({'index': idx, 'type': step_type, 'name': name, 'game_type_id': entry.get('game_type_id', '')})
+    return jsonify({'ok': True, 'steps': out})
+
+@app.route('/api/remote/library')
+def api_remote_library():
+    """Compact SFX/circle/role listings (id + name only) for the remote's
+    category browser. Same reasoning as /api/remote/show_flow -- these barely
+    change during a show, so one periodic fetch of just the fields actually
+    needed beats parsing the full /api/config blob on an ESP32."""
+    return jsonify({
+        'ok': True,
+        'sfx':     [{'id': s.get('id', ''), 'name': s.get('name', '')} for s in config.get('sfx', [])],
+        'circles': [{'id': c.get('id', ''), 'name': c.get('name', '')} for c in config.get('circles', [])],
+        'roles':   [{'id': r.get('id', ''), 'name': r.get('name', '')} for r in config.get('roles', [])],
+    })
+
+@app.route('/api/admin/system/log')
+def api_admin_system_log():
+    """Tail of musicman.log for the Admin System page — so a battery/pole/DMX
+    incident like today's can be read from the UI instead of needing SSH.
+    level=warn filters to WARNING/ERROR lines only (the default — a full
+    show generates plenty of routine INFO noise); level=all returns everything."""
+    level = request.args.get('level', 'warn')
+    try:
+        n = min(max(int(request.args.get('lines', 200)), 1), 500)
+    except ValueError:
+        n = 200
+    log_path = Path(__file__).parent / 'logs' / 'musicman.log'
+    try:
+        with open(log_path, errors='replace') as f:
+            all_lines = f.readlines()
+    except Exception:
+        all_lines = []
+    if level == 'warn':
+        all_lines = [l for l in all_lines if ' [WARNING] ' in l or ' [ERROR] ' in l]
+    tail = [l.rstrip('\n') for l in all_lines[-n:]]
+    return jsonify({'ok': True, 'lines': tail})
 
 @app.route('/api/system/restart', methods=['POST'])
 def api_system_restart():
@@ -6735,6 +7283,28 @@ def api_usb_list():
     except Exception:
         pass
     return jsonify({'mounted': mount, 'items': items, 'disk': disk})
+
+@app.route('/api/usb/tracks')
+def api_usb_tracks():
+    """Flat list of every audio file on the USB drive, name + containing
+    folder, for Console's music search to filter client-side. /api/usb/list
+    only returns top-level folder/playlist names — browsing into a folder is
+    lazy — so a song search needs this separate one-time full-drive walk to
+    find a track regardless of which folder it's actually buried in."""
+    mount = _find_usb_mount()
+    if not mount:
+        return jsonify({'files': []})
+    mount_path = Path(mount)
+    files = []
+    try:
+        for f in mount_path.rglob('*'):
+            if f.is_file() and f.suffix.lower() in AUDIO_EXTS and not f.name.startswith('.'):
+                rel = f.relative_to(mount_path)
+                folder = str(rel.parent) if rel.parent != Path('.') else ''
+                files.append({'name': f.stem, 'path': str(f), 'folder': folder})
+    except Exception as e:
+        log.error(f'USB tracks scan error: {e}')
+    return jsonify({'files': files})
 
 @app.route('/api/usb/eject', methods=['POST'])
 def api_usb_eject():
@@ -7074,10 +7644,19 @@ def api_get_show_flow():
         macro_id = entry.get('macro_id', '')
         macro = macros.get(macro_id, {})
         result.append({
-            'id':       entry.get('id', macro_id),
-            'name':     entry.get('name') or macro.get('name', macro_id),
-            'color':    entry.get('color', '#F5A623'),
-            'macro_id': macro_id,
+            'id':             entry.get('id', macro_id),
+            'name':           entry.get('name') or macro.get('name', macro_id),
+            'color':          entry.get('color', '#F5A623'),
+            'macro_id':       macro_id,
+            # Previously dropped, which made every entry look like a plain
+            # macro step to Console's Show Flow UI — a "game" step's tap
+            # handler had no way to tell it was one, so re-clicking an
+            # already-live game (e.g. to just check on it) always re-fired
+            # /api/show/fire and re-ran _launch_game(), replaying its walkup
+            # video every time instead of just opening its controller.
+            'type':           entry.get('type', 'macro'),
+            'game_type_id':   entry.get('game_type_id', ''),
+            'game_config_id': entry.get('game_config_id', ''),
         })
     return jsonify(result)
 
@@ -7146,6 +7725,7 @@ def _apply_timer_config_update(data):
     if 'start_sound_loop'  in data: t['start_sound_loop']  = bool(data['start_sound_loop'])
     if 'show_on_display'   in data: t['show_on_display']   = bool(data['show_on_display'])
     if 'show_end_display'  in data: t['show_end_display']  = bool(data['show_end_display'])
+    if 'auto_hide_after'   in data: t['auto_hide_after']   = int(data['auto_hide_after'] or 0)
     save_config(cfg)
     # Sync all params into live timer_state
     new_ts = _timer_state_from_cfg(cfg)
@@ -7191,11 +7771,14 @@ def _save_timer_preset(data):
     for key in ('duration', 'warning_at', 'start_sound', 'start_sound_start',
                 'start_sound_duration', 'start_sound_fade', 'start_sound_loop',
                 'warning_sound', 'warning_scene', 'warning_display',
-                'end_sound', 'end_scene', 'end_display', 'show_on_display', 'show_end_display'):
+                'end_sound', 'end_scene', 'end_display', 'show_on_display', 'show_end_display',
+                'auto_hide_after'):
         if key in data:
             snapshot[key] = data[key]
     if 'duration' in snapshot:
         snapshot['duration'] = int(snapshot['duration'])
+    if 'auto_hide_after' in snapshot:
+        snapshot['auto_hide_after'] = int(snapshot['auto_hide_after'] or 0)
     presets[name] = snapshot
     save_config(cfg)
     return presets, None
@@ -7291,6 +7874,12 @@ def api_music_play():
     threading.Thread(target=_play, daemon=True).start()
     return jsonify({'ok': True})
 
+@app.route('/api/music/stop')
+def api_music_stop():
+    """Stop music/playlist only -- leaves any playing SFX untouched."""
+    _stop_music()
+    return jsonify({'ok': True})
+
 @app.route('/api/sfx/list')
 def api_get_sfx():
     # Return actual files from sfx directory so the console shows what's available
@@ -7303,6 +7892,58 @@ def api_get_sfx():
     # Fall back to config list
     cfg = load_config()
     return jsonify(cfg.get('sfx', []))
+
+# ── SFX CATEGORIES ──────────────────────────────────────────────────────────
+# Deliberately just a filename -> [tags] overlay in config, not a rename or a
+# move to subfolders -- Chris's SFX list has grown large enough to need
+# grouping, but every macro/walkup/timer-sound/StreamDeck button that already
+# references a sound by its bare filename would need remapping if the file
+# ever moved. This is purely additive: untagged sounds work exactly as they
+# always have, and tagging can happen gradually instead of as one big
+# migration project. A sound can carry multiple tags (e.g. a sound can be
+# both "Pirate" and "Funny") since it's a list per file, not a single folder.
+@app.route('/api/sfx/tags')
+def api_get_sfx_tags():
+    return jsonify(load_config().get('sfx_tags', {}))
+
+@app.route('/api/sfx/categories')
+def api_get_sfx_categories():
+    tags = load_config().get('sfx_tags', {})
+    all_tags = sorted({t for tag_list in tags.values() for t in tag_list}, key=str.lower)
+    return jsonify(all_tags)
+
+def _normalize_sfx_tag(tag, known_tags):
+    """First use of a tag sets its canonical casing; later uses of the same
+    word in a different case reuse that casing instead of silently creating
+    a second, near-duplicate category (e.g. "farts" showing up separately
+    from an existing "Farts")."""
+    tag = tag.strip()
+    for existing in known_tags:
+        if existing.lower() == tag.lower():
+            return existing
+    return tag
+
+@app.route('/api/admin/sfx/tags', methods=['POST'])
+def api_set_sfx_tags():
+    data = request.json or {}
+    filename = (data.get('file') or '').strip()
+    if not filename:
+        return jsonify({'ok': False, 'error': 'file required'}), 400
+    raw_tags = data.get('tags') or []
+    cfg = load_config()
+    sfx_tags = cfg.setdefault('sfx_tags', {})
+    known = sorted({t for tag_list in sfx_tags.values() for t in tag_list}, key=str.lower)
+    clean_tags = []
+    for t in raw_tags:
+        t = _normalize_sfx_tag(t, known)
+        if t and t not in clean_tags:
+            clean_tags.append(t)
+    if clean_tags:
+        sfx_tags[filename] = clean_tags
+    else:
+        sfx_tags.pop(filename, None)
+    save_config(cfg)
+    return jsonify({'ok': True, 'tags': sfx_tags})
 
 # ── FILE MANAGEMENT ──
 @app.route('/api/admin/file/delete', methods=['POST'])
@@ -7766,86 +8407,109 @@ async def _monitor_unit(address, label):
     while True:
         try:
             connect_target = ble_dev if ble_dev is not None else address
-            async with BleakClient(connect_target, timeout=10.0) as client:
-                fail_count = 0
-                c300_dev = ble_dev or BLEDevice(address=address, name='Anker SOLIX C300', details={}, rssi=0)
-                device = C300(c300_dev)
-                device._reset_session(reset_data=False)
-                device._client = client
+            # Connect+negotiate is the radio-sensitive part — confirmed live as
+            # the actual cause of a real outage: two units doing this at once
+            # (e.g. both cold-starting after a musicman.service restart) throw
+            # org.bluez.Error.InProgress within milliseconds of each other,
+            # which triggers _reset_bt_adapter() (a full `systemctl restart
+            # bluetooth`) and drops whichever unit had already connected too.
+            # _scan_until_seen() already serializes the scan half of this with
+            # _batt_scan_sem; this acquires the same lock around connect+
+            # negotiate so the two units' setup sequences never overlap
+            # regardless of where each one currently is. Released right after
+            # negotiation succeeds — steady-state polling on an already-open
+            # connection doesn't contend for the adapter the way setup does,
+            # so there's no reason to hold the other unit back for that.
+            await _batt_scan_sem.acquire()
+            sem_held = True
+            try:
+                async with BleakClient(connect_target, timeout=10.0) as client:
+                    fail_count = 0
+                    c300_dev = ble_dev or BLEDevice(address=address, name='Anker SOLIX C300', details={}, rssi=0)
+                    device = C300(c300_dev)
+                    device._reset_session(reset_data=False)
+                    device._client = client
 
-                await client.start_notify(
-                    _BATT_TELE_UUID,
-                    _partial(device._process_notification, client)
-                )
-                await device._initiate_negotiations()
+                    await client.start_notify(
+                        _BATT_TELE_UUID,
+                        _partial(device._process_notification, client)
+                    )
+                    await device._initiate_negotiations()
 
-                for _ in range(20):
-                    await _asyncio.sleep(1)
-                    if device.negotiated:
-                        break
-                else:
-                    raise RuntimeError('negotiate timeout')
+                    for _ in range(20):
+                        await _asyncio.sleep(1)
+                        if device.negotiated:
+                            break
+                    else:
+                        raise RuntimeError('negotiate timeout')
 
-                log.info(f'Battery [Pole {label}]: connected and negotiated')
-                with _battery_lock:
-                    _battery_devices[address] = device
-                _batt_update(address, {'status': 'connected', 'error': None})
-                await _cycle_dc_once_per_boot(device, address, label)
+                    log.info(f'Battery [Pole {label}]: connected and negotiated')
+                    with _battery_lock:
+                        _battery_devices[address] = device
+                    _batt_update(address, {'status': 'connected', 'error': None})
 
-                last_data_time = time.time()
-                while client.is_connected:
-                    try:
-                        # get_status_update() returns a params dict from c840 response;
-                        # inject it into device._data so properties work
-                        params = await _asyncio.wait_for(device.get_status_update(), timeout=15)
-                        if params:
-                            device._data = params
-                    except _asyncio.CancelledError:
-                        raise
-                    except Exception as e:
-                        log.warning(f'Battery [Pole {label}]: poll error: {type(e).__name__}: {e}')
+                    _batt_scan_sem.release()
+                    sem_held = False
 
-                    if device._data is not None:
-                        last_data_time = time.time()
-                        _batt_update(address, {
-                            'status':         'ok',
-                            'error':          None,
-                            'battery':        device.battery_percentage,
-                            'charging':       device.charging_status.name,
-                            'temp':           device.temperature,
-                            'time_remaining': device.time_remaining,
-                            'power_in':       device.power_in,
-                            'power_out':      device.power_out,
-                            'ac_power_in':    device.ac_power_in,
-                            'ac_power_out':   device.ac_power_out,
-                            'solar_power_in': device.solar_power_in,
-                            'dc_power_out':   device.dc_power_out,
-                            'usb_c1_power':   device.usb_c1_power,
-                            'usb_c2_power':   device.usb_c2_power,
-                            'usb_c3_power':   device.usb_c3_power,
-                            'usb_a1_power':   device.usb_a1_power,
-                            'ac_output':      device.ac_output.name,
-                            'dc_output':      device.dc_output.name,
-                            'usb_port_c1':    device.usb_port_c1.name,
-                            'usb_port_c2':    device.usb_port_c2.name,
-                            'usb_port_c3':    device.usb_port_c3.name,
-                            'usb_port_a1':    device.usb_port_a1.name,
-                            'light':          device.light.name,
-                            'serial':         device.serial_number,
-                            'firmware':       device.software_version,
-                            'updated':        time.time(),
-                        })
-                    elif time.time() - last_data_time > 45:
-                        log.warning(f'Battery [Pole {label}]: no data for 45s, reconnecting')
-                        break
+                    await _cycle_dc_once_per_boot(device, address, label)
 
-                    wake_evt.clear()
-                    try:
-                        await _asyncio.wait_for(wake_evt.wait(), _BATT_POLL_SEC)
-                    except _asyncio.TimeoutError:
-                        pass
+                    last_data_time = time.time()
+                    while client.is_connected:
+                        try:
+                            # get_status_update() returns a params dict from c840 response;
+                            # inject it into device._data so properties work
+                            params = await _asyncio.wait_for(device.get_status_update(), timeout=15)
+                            if params:
+                                device._data = params
+                        except _asyncio.CancelledError:
+                            raise
+                        except Exception as e:
+                            log.warning(f'Battery [Pole {label}]: poll error: {type(e).__name__}: {e}')
 
-                log.info(f'Battery [Pole {label}]: disconnected, retrying')
+                        if device._data is not None:
+                            last_data_time = time.time()
+                            _batt_update(address, {
+                                'status':         'ok',
+                                'error':          None,
+                                'battery':        device.battery_percentage,
+                                'charging':       device.charging_status.name,
+                                'temp':           device.temperature,
+                                'time_remaining': device.time_remaining,
+                                'power_in':       device.power_in,
+                                'power_out':      device.power_out,
+                                'ac_power_in':    device.ac_power_in,
+                                'ac_power_out':   device.ac_power_out,
+                                'solar_power_in': device.solar_power_in,
+                                'dc_power_out':   device.dc_power_out,
+                                'usb_c1_power':   device.usb_c1_power,
+                                'usb_c2_power':   device.usb_c2_power,
+                                'usb_c3_power':   device.usb_c3_power,
+                                'usb_a1_power':   device.usb_a1_power,
+                                'ac_output':      device.ac_output.name,
+                                'dc_output':      device.dc_output.name,
+                                'usb_port_c1':    device.usb_port_c1.name,
+                                'usb_port_c2':    device.usb_port_c2.name,
+                                'usb_port_c3':    device.usb_port_c3.name,
+                                'usb_port_a1':    device.usb_port_a1.name,
+                                'light':          device.light.name,
+                                'serial':         device.serial_number,
+                                'firmware':       device.software_version,
+                                'updated':        time.time(),
+                            })
+                        elif time.time() - last_data_time > 45:
+                            log.warning(f'Battery [Pole {label}]: no data for 45s, reconnecting')
+                            break
+
+                        wake_evt.clear()
+                        try:
+                            await _asyncio.wait_for(wake_evt.wait(), _BATT_POLL_SEC)
+                        except _asyncio.TimeoutError:
+                            pass
+
+                    log.info(f'Battery [Pole {label}]: disconnected, retrying')
+            finally:
+                if sem_held:
+                    _batt_scan_sem.release()
 
         except BleakDeviceNotFoundError:
             log.info(f'Battery [Pole {label}]: not in BlueZ cache, scanning...')
@@ -8801,6 +9465,7 @@ _prewarm_ip_cache()
 start_timer_thread()
 start_countdown_thread()
 _start_sound_poll()
+_start_remote_staleness_check()
 
 if __name__ == '__main__':
     log.info(f"Serving at http://{config['system']['hostname']}.local")

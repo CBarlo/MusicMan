@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MM — Timed Competition</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+  :root {
+    --bg:        #0f1117;
+    --bg2:       #161921;
+    --bg3:       #1d2130;
+    --surface:   #232838;
+    --border:    #2e3448;
+    --border2:   #404868;
+    --text:      #e8ecf4;
+    --text-dim:  #6b7494;
+    --amber:     #F5A623;
+    --amber-dim: rgba(245,166,35,.15);
+    --green:     #3CB96A;
+    --green-dim: rgba(60,185,106,.15);
+    --red:       #E83A3A;
+    --red-dim:   rgba(232,58,58,.18);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body {
+    min-height:100%; background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .heading { font-family:'Barlow Condensed','Arial Narrow',sans-serif; }
+
+  .stage {
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100vh; padding:20px 20px 28px;
+  }
+
+  .brand-row { display:flex; align-items:center; gap:12px; width:100%; max-width:560px; margin-bottom:6px; }
+  .brand-badge {
+    width:38px; height:38px; border-radius:10px; flex-shrink:0;
+    background:var(--amber-dim); border:1px solid var(--amber);
+    display:flex; align-items:center; justify-content:center; font-size:19px;
+  }
+  .brand-name { font-family:'Barlow Condensed',sans-serif; font-size:19px; font-weight:800; letter-spacing:1px; color:var(--amber); line-height:1.1; }
+  .brand-sub  { font-size:10px; letter-spacing:2px; color:var(--text-dim); text-transform:uppercase; }
+  .config-name { margin-left:auto; font-size:11px; letter-spacing:1px; color:var(--text-dim); text-align:right; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .status-badge {
+    width:100%; max-width:560px; margin-top:18px;
+    border-radius:16px; padding:22px 20px; text-align:center;
+    border:2px solid var(--border2); background:var(--surface);
+    transition:background .25s, border-color .25s;
+  }
+  .status-badge.running { border-color:var(--green); background:var(--green-dim); }
+  .status-badge.stopped { border-color:var(--red);   background:var(--red-dim); }
+
+  .status-label { font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:14px; letter-spacing:3px; }
+  .status-badge.running .status-label { color:var(--green); }
+  .status-badge.stopped .status-label { color:var(--red); }
+  .sw-display {
+    font-family:'Share Tech Mono',monospace; font-weight:700;
+    font-size:56px; line-height:1.15; color:var(--text); letter-spacing:1px;
+  }
+
+  .admin { width:100%; max-width:560px; margin-top:18px; }
+  .field-label { display:block; font-size:10px; letter-spacing:1.5px; color:var(--text-dim); margin-bottom:5px; font-weight:700; text-transform:uppercase; }
+  .mm-input {
+    width:100%; background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:11px 12px; border-radius:8px; font-size:14px; font-family:inherit; margin-bottom:10px;
+  }
+
+  .btn-row { display:flex; gap:10px; }
+  .mm-btn {
+    flex:1; padding:16px 10px; border-radius:10px; border:1px solid var(--border2);
+    background:var(--bg3); color:var(--text); font-family:'Barlow Condensed',sans-serif;
+    font-size:16px; font-weight:700; letter-spacing:1px; cursor:pointer;
+  }
+  .mm-btn:active { filter:brightness(1.2); }
+  .mm-btn.start  { border-color:var(--green); background:var(--green-dim); color:var(--green); }
+  .mm-btn.stop   { border-color:var(--red);   background:var(--red-dim);   color:var(--red); }
+  .mm-btn.record { border-color:var(--amber); background:var(--amber-dim); color:var(--amber); }
+  .mm-btn.small  { padding:10px; font-size:12px; }
+  .mm-btn:disabled { opacity:.4; cursor:default; }
+
+  .reset-row { margin-top:10px; display:flex; gap:10px; }
+  .reset-row .mm-btn { background:var(--bg2); color:var(--text-dim); font-size:12px; padding:10px; }
+
+  .results-hdr { display:flex; align-items:center; justify-content:space-between; margin-top:22px; margin-bottom:8px; }
+  .results-title { font-size:10px; letter-spacing:2px; color:var(--text-dim); font-weight:700; text-transform:uppercase; }
+  .sort-badge { font-size:10px; letter-spacing:1px; color:var(--amber); font-weight:700; background:none; border:none; cursor:pointer; padding:4px 6px; border-radius:4px; }
+  .sort-badge:hover { background:var(--amber-dim); }
+
+  .lb-table { width:100%; border-collapse:collapse; font-family:'Barlow Condensed',sans-serif; }
+  .lb-table th { padding:6px 8px; font-size:9px; letter-spacing:2px; color:var(--text-dim); text-transform:uppercase; border-bottom:1px solid var(--border); text-align:left; }
+  .lb-table td { padding:8px; font-size:14px; border-bottom:1px solid var(--border); }
+  .lb-table tr:last-child td { border-bottom:none; }
+  .lb-empty { color:var(--text-dim); font-size:11px; font-family:'Share Tech Mono',monospace; padding:16px; text-align:center; letter-spacing:2px; }
+
+  .footer-hint { margin-top:16px; font-size:10px; letter-spacing:1px; color:var(--text-dim); text-align:center; }
+
+  /* ── DISPLAY MODE ──
+     Nothing from this page is ever meant to reach the HDMI -- the Intro
+     Game Entry (or fallback headline/text/image) is what shows there, and
+     it just stays up for the whole event. This iframe just stays blank. */
+  .display-mode .stage { display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="brand-row">
+    <div class="brand-badge">⏱️</div>
+    <div>
+      <div class="brand-name">TIMED COMPETITION</div>
+      <div class="brand-sub">MusicMan</div>
+    </div>
+    <div class="config-name" id="configName"></div>
+  </div>
+
+  <div class="status-badge stopped" id="statusBadge">
+    <div class="status-label" id="statusLabel">STOPPED</div>
+    <div class="sw-display" id="swDisplay">0:00.0</div>
+  </div>
+
+  <div class="admin">
+    <div style="display:flex;align-items:center;gap:8px;margin-top:14px">
+      <input type="checkbox" id="swShowDisplay" style="width:16px;height:16px">
+      <label for="swShowDisplay" style="font-size:11px;color:var(--text-dim);letter-spacing:.5px;cursor:pointer">Show the running stopwatch on HDMI (otherwise the static screen stays up the whole time)</label>
+    </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="mm-btn start" id="swStartBtn" onclick="swToggle()">▶ START</button>
+    </div>
+    <div class="reset-row">
+      <button class="mm-btn" onclick="swReset()">↺ RESET STOPWATCH</button>
+    </div>
+
+    <label class="field-label" for="nameInput" style="margin-top:18px;display:block">Name</label>
+    <input type="text" id="nameInput" class="mm-input" placeholder="Who just went?" onkeydown="if(event.key==='Enter')recordTime()">
+    <button class="mm-btn record" style="width:100%" onclick="recordTime()">⏱ RECORD TIME</button>
+
+    <div class="results-hdr">
+      <span class="results-title">Results</span>
+      <button class="sort-badge" id="sortBadge" onclick="toggleSort()" title="Flip the ranking order for this view"></button>
+    </div>
+    <div id="resultsList"></div>
+
+    <div class="reset-row">
+      <button class="mm-btn small" onclick="showOnHDMI()">📺 SHOW ON HDMI</button>
+      <button class="mm-btn small" onclick="hideFromHDMI()">🚫 HIDE FROM HDMI</button>
+      <button class="mm-btn small" onclick="clearResults()">🗑 CLEAR RESULTS</button>
+    </div>
+    <div class="footer-hint">MC starts/stops from the remote or here. Type a name and record after each run.</div>
+  </div>
+</div>
+
+<script>
+let _isDisplay = false;
+let _configId  = null;
+let _cfgData   = {};
+let _bucket    = '';
+let _results   = [];
+
+// ── STOPWATCH (mirrors Console's own sw* logic in musicman_ui.html, so a
+// remote-fired start/stop and this page's own buttons both stay correct
+// no matter which one drives it) ──
+let swRunning = false, swStartMs = null, swElapsedMs = 0, swInterval = null;
+
+function swToggle() {
+  if (!swRunning) {
+    swRunning = true; swStartMs = Date.now() - swElapsedMs;
+    swInterval = setInterval(renderSw, 100);
+    setSwButtons();
+    const showOnHdmi = document.getElementById('swShowDisplay')?.checked ? '1' : '0';
+    fetch('/api/stopwatch/start?display=' + showOnHdmi).catch(() => {});
+  } else {
+    clearInterval(swInterval); swElapsedMs = Date.now() - swStartMs; swRunning = false;
+    renderSw(); setSwButtons();
+    fetch('/api/stopwatch/stop').catch(() => {});
+  }
+}
+
+function swReset() {
+  clearInterval(swInterval); swRunning = false; swStartMs = null; swElapsedMs = 0;
+  renderSw(); setSwButtons();
+  fetch('/api/stopwatch/reset').catch(() => {});
+}
+
+function renderSw() {
+  const ms = swRunning ? Date.now() - swStartMs : swElapsedMs;
+  const tot = ms / 1000;
+  const m = Math.floor(tot / 60), s = Math.floor(tot % 60), t = Math.floor((tot % 1) * 10);
+  document.getElementById('swDisplay').textContent =
+    m > 0 ? m + ':' + String(s).padStart(2, '0') + '.' + t : s + '.' + t;
+}
+
+function setSwButtons() {
+  const badge = document.getElementById('statusBadge');
+  const label = document.getElementById('statusLabel');
+  const btn   = document.getElementById('swStartBtn');
+  badge.classList.toggle('running', swRunning);
+  badge.classList.toggle('stopped', !swRunning);
+  label.textContent = swRunning ? 'RUNNING' : 'STOPPED';
+  btn.textContent = swRunning ? '⏸ STOP' : '▶ START';
+  btn.classList.toggle('start', !swRunning);
+  btn.classList.toggle('stop', swRunning);
+}
+
+// ── RESULTS (games.json bucket named after this config, via the same
+// /api/games/record + /api/games/display pipeline the Games tab's generic
+// leaderboard already uses) ──
+let _sortAsc = null;   // null until first render, then seeded from config's default and freely toggleable per session
+
+// Was a plain <span> reflecting the config's fixed sort_mode -- looked
+// exactly like Console's own clickable FASTEST/LONGEST toggle (same
+// wording, same styling) but had no onclick at all, so clicking it did
+// nothing. Deliberately NOT auto-pushing to HDMI on toggle the way
+// Console's generic version does -- that would force the leaderboard
+// onto the display, overriding the static-image-stays-up design this game
+// type specifically wants. SHOW ON HDMI (below) is still the one explicit
+// way to push whatever the current sort is out to the projector.
+function toggleSort() {
+  _sortAsc = !_sortAsc;
+  renderResults();
+}
+
+function renderResults() {
+  const el = document.getElementById('resultsList');
+  if (_sortAsc === null) _sortAsc = _cfgData.sort_mode !== 'desc';
+  document.getElementById('sortBadge').textContent = _sortAsc ? '▲ FASTEST FIRST' : '▼ LONGEST FIRST';
+  if (!_results.length) { el.innerHTML = '<div class="lb-empty">NO RESULTS YET</div>'; return; }
+  const sorted = [..._results].sort((a, b) => _sortAsc ? a.ms - b.ms : b.ms - a.ms);
+  const rows = sorted.map((r, i) => {
+    const tot = r.ms / 1000, m = Math.floor(tot / 60), s = Math.floor(tot % 60), t = Math.floor((tot % 1) * 10);
+    const timeStr = m > 0 ? m + ':' + String(s).padStart(2, '0') + '.' + t : s + '.' + t + 's';
+    const idJson = JSON.stringify(r.id || '').replace(/"/g, '&quot;');
+    return `<tr>
+      <td style="text-align:center;color:${i === 0 ? 'var(--amber)' : 'var(--text)'}">${i + 1}.</td>
+      <td style="font-weight:700">${escHtmlTc(r.label)}</td>
+      <td style="font-family:'Share Tech Mono',monospace;text-align:right;color:${i === 0 ? 'var(--amber)' : 'var(--text)'}">${timeStr}</td>
+      <td style="text-align:right"><button onclick='deleteResult(${idJson})' style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:2px 5px">✕</button></td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<table class="lb-table"><thead><tr><th style="text-align:center">#</th><th>Name</th><th style="text-align:right">Time</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function escHtmlTc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function recordTime() {
+  const ms = swRunning ? Date.now() - swStartMs : swElapsedMs;
+  if (ms <= 0) { alert('Start the stopwatch first'); return; }
+  const label = (document.getElementById('nameInput').value || '').trim() || 'Runner';
+  try {
+    const r = await fetch('/api/games/record', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ game: _bucket, label, ms: Math.round(ms) }),
+    }).then(r => r.json());
+    if (r.ok) { _results = r.games[_bucket] || []; renderResults(); document.getElementById('nameInput').value = ''; }
+  } catch (e) {}
+}
+
+async function deleteResult(id) {
+  try {
+    const r = await fetch('/api/games/entry/delete', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ game: _bucket, id }),
+    }).then(r => r.json());
+    if (r.ok) { _results = r.games[_bucket] || []; renderResults(); }
+  } catch (e) {}
+}
+
+async function clearResults() {
+  if (!confirm('Clear all results for "' + _bucket + '"?')) return;
+  try { await fetch('/api/games/clear', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name: _bucket }) }); } catch (e) {}
+  _results = []; renderResults();
+}
+
+function showOnHDMI() {
+  fetch('/api/games/display', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ game: _bucket, sort: _sortAsc ? 'asc' : 'desc' }),
+  }).catch(() => {});
+}
+
+function hideFromHDMI() {
+  fetch('/api/games/display/hide', { method: 'POST' }).catch(() => {});
+}
+
+// ── WEBSOCKET ──
+let _ws = null;
+function connectWS() {
+  _ws = new WebSocket('ws://' + location.host + '/ws');
+  _ws.onopen  = () => { _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); refreshResults(); };
+  _ws.onclose = () => setTimeout(connectWS, 3000);
+  _ws.onerror = () => _ws.close();
+  _ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.event === 'stopwatch_state') {
+        const data = msg.data || {};
+        const wasRun = swRunning;
+        swRunning = !!data.running;
+        if (swRunning) {
+          swStartMs = data.start_ms || Date.now();
+          if (!wasRun) { clearInterval(swInterval); swInterval = setInterval(renderSw, 100); }
+        } else {
+          clearInterval(swInterval);
+          swElapsedMs = data.elapsed_ms || 0;
+          renderSw();
+        }
+        setSwButtons();
+      } else if (msg.event === 'games_state' && _bucket) {
+        _results = (msg.data || {})[_bucket] || [];
+        renderResults();
+      }
+    } catch (e) {}
+  };
+}
+connectWS();
+
+async function refreshResults() {
+  if (!_bucket) return;
+  try {
+    const games = await fetch('/api/games').then(r => r.json());
+    _results = games[_bucket] || [];
+    renderResults();
+  } catch (e) {}
+}
+
+(async function init() {
+  const params = new URLSearchParams(location.search);
+  _isDisplay = params.get('display') === '1';
+  if (_isDisplay) document.body.classList.add('display-mode');
+
+  _configId = params.get('config');
+  if (_configId) {
+    try {
+      const cfg = await fetch(`/api/game_configs/${_configId}`).then(r => r.json());
+      if (cfg && cfg.id) {
+        _cfgData = cfg.data || {};
+        _bucket  = cfg.name || _configId;
+        document.getElementById('configName').textContent = cfg.name;
+        document.title = 'MM Timed Competition — ' + cfg.name;
+      }
+    } catch (e) {}
+  }
+
+  // Sync to whatever's actually running right now -- covers opening the
+  // controller mid-event (e.g. via Console's "jump to active game" button).
+  try {
+    const st = await fetch('/api/state').then(r => r.json());
+    const sw = st.stopwatch || {};
+    swRunning = !!sw.running;
+    swStartMs = sw.start_ms || null;
+    swElapsedMs = sw.elapsed_ms || 0;
+    if (swRunning) { swInterval = setInterval(renderSw, 100); }
+  } catch (e) {}
+  renderSw(); setSwButtons();
+
+  await refreshResults();
+})();
+</script>
+</body>
+</html>

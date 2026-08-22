@@ -326,6 +326,7 @@
       <li><a href="#prize-wheel-run">Prize Wheel — live operation</a></li>
       <li><a href="#musical-chairs-run">Musical Chairs — live operation</a></li>
       <li><a href="#usb-run">USB Playlist tab</a></li>
+      <li><a href="#remote-run">The Physical Remote</a></li>
       <li><a href="#streamdeck-run">Stream Deck</a></li>
       <li><a href="#kill-all">Emergency stop (Kill All)</a></li>
     </ul>
@@ -584,7 +585,13 @@
     <li>In Admin, click <strong>♪ Audio</strong>.</li>
     <li>Under <strong>SFX</strong>, click the dashed upload zone or drag files onto it.</li>
     <li>Use <kbd>▶</kbd> to preview, pencil to rename, trash to delete.</li>
+    <li>Click the <kbd>🏷</kbd> tag icon on a sound to file it under one or more categories (e.g. "pirate," "farts") — a sound can carry as many tags as make sense, since it's a label, not a folder. Tagging is purely organizational; it never renames or moves the underlying file, so nothing that already references it (macros, walk-ups, timer sounds, Stream Deck) needs to change.</li>
   </ol>
+  <p>
+    Tags show up as filter chips above the SFX grid on Console, and as a category picker on the
+    Stream Deck's SFX page — tap a category to narrow down to just its sounds. Untagged sounds
+    are grouped under their own filter so nothing gets lost while you're still tagging your library.
+  </p>
 
   <h3>Background Music (Music Library)</h3>
   <p>Songs, ambient tracks, and walk-up music.</p>
@@ -1071,9 +1078,10 @@
   <h2 id="interactive-games-admin">Interactive Games Library</h2>
   <p>
     The <strong>Games Library</strong> lets you build named configurations for interactive audience
-    games — currently Prize Wheel, Shell Game, and Musical Chairs. Each configuration stores all
-    the game's settings (segments, sounds, images) under a name, so you can have multiple themed
-    versions ready to go (e.g., "Week 1 Prizes," "Finale Round").
+    games — currently Prize Wheel, Shell Game, Musical Chairs, Trivia, Timed Competition, and
+    Countdown Timer. Each configuration stores all the game's settings (segments, sounds, images)
+    under a name, so you can have multiple themed versions ready to go (e.g., "Week 1 Prizes,"
+    "Finale Round," "Pirate Trivia").
   </p>
   <p>Configure in Admin → <strong>🎮 Games</strong>, under the <strong>GAMES LIBRARY</strong> section at the top of the tab.</p>
 
@@ -1083,6 +1091,9 @@
     <tr><td><strong>Prize Wheel</strong></td><td>A randomized spin wheel shown fullscreen on HDMI. Segments show names or prizes; the wheel spins and lands on a random winner.</td></tr>
     <tr><td><strong>Shell Game</strong></td><td>Three shuffling tents hiding a hidden item — same game as configured in the Shell Game section, but saved as a named Library config.</td></tr>
     <tr><td><strong>Musical Chairs</strong></td><td>Pick a song and play it; music stops on cue. Nothing from the game itself shows on HDMI — an optional Intro Game Entry, or a built-in headline/text/image, is what the audience actually sees.</td></tr>
+    <tr><td><strong>Trivia</strong></td><td>A question-by-question trivia session, revealed one at a time on HDMI, with per-question Reveal/Next/Correct/Incorrect operator controls. "Trivia" is the game type — build as many themed sets as you like under it (e.g. "AG Trivia," "Pirate Trivia"), each with its own question list. Can optionally link to a Head to Head game for a live team scoreboard, or run standalone with just a running session log.</td></tr>
+    <tr><td><strong>Timed Competition</strong></td><td>A stopwatch-driven race/challenge game — the MC starts, stops, and resets the stopwatch from the physical remote while the console operator records each runner's name and time into a leaderboard. Supports fastest-wins (races) or longest-wins (e.g. a pull-up hold) sorting.</td></tr>
+    <tr><td><strong>Countdown Timer</strong></td><td>A standalone shared countdown clock for the whole group (as opposed to the per-runner Timed Competition stopwatch) — start, pause, and reset from the console, the game controller, or the physical remote, with an optional "show on HDMI" display.</td></tr>
   </table>
 
   <h3>Creating a game configuration</h3>
@@ -1133,6 +1144,42 @@
     music is playing — it cancels the pending auto-stop and cuts the music immediately. Use
     auto-stop for hands-free rounds, or ignore it and run every round manually.
   </div>
+
+  <h3>Timed Competition settings</h3>
+  <p>
+    Built for a race or a timed challenge run one contestant at a time. The MC controls the
+    stopwatch from the physical remote (front button = start/stop, side button = reset) while the
+    console operator types each name in and records the time. Results feed the same leaderboard
+    system as every other game, shown on HDMI when toggled on.
+  </p>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Intro Game Entry / Screen Headline, Text, Image</td><td>Same as Musical Chairs — fires on <kbd>↗ GO LIVE</kbd> and stays up as a static image for the whole game while the stopwatch runs underneath.</td></tr>
+    <tr><td>Sort Mode</td><td><strong>Fastest wins</strong> (default) for races, or <strong>Longest wins</strong> for anything you're timing a hold on — a pull-up bar, a plank, staring contests. Toggle it live from the controller's sort badge without leaving the game.</td></tr>
+  </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">Remote auto-jumps to the stopwatch</div>
+    Launching a Timed Competition from Show Flow or a macro automatically switches the MC's
+    physical remote into stopwatch mode — no manual navigation needed. See
+    <a href="#remote-run">The Physical Remote</a>.
+  </div>
+
+  <h3>Countdown Timer settings</h3>
+  <p>
+    A shared group countdown, separate from the per-runner Timed Competition stopwatch and
+    separate from the Skit Timer — this is its own game type so it can be launched from the Games
+    Library/Show Flow the same way as any other game, with its own intro screen.
+  </p>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Intro Game Entry / Screen Headline, Text, Image</td><td>Same as the other game types — the static screen that stays up on HDMI while the countdown runs.</td></tr>
+    <tr><td>Duration</td><td>Countdown length in seconds. Resets to this value every time the game is (re)launched.</td></tr>
+  </table>
+  <p>
+    Start, pause, and reset from the game controller, from Console, or from the MC's physical
+    remote (which auto-jumps into timer mode the same way it does for a skit timer — see
+    <a href="#remote-run">The Physical Remote</a>).
+  </p>
 
   <h3>Launching from Show Flow</h3>
   <p>
@@ -1645,6 +1692,14 @@
   </p>
 
   <h2 id="games-run">Games Tab</h2>
+  <div class="callout callout-info">
+    <div class="callout-title">Not the same as the Countdown Timer / Timed Competition game types</div>
+    This tab is a general-purpose countdown + stopwatch + leaderboard panel you can use for any
+    quick game on the fly, with no Library config needed. If you want a game that's launchable
+    from Show Flow with its own intro screen — and, for a stopwatch race, control from the MC's
+    physical remote — build a <strong>Countdown Timer</strong> or <strong>Timed Competition</strong>
+    config in the <a href="#interactive-games-admin">Games Library</a> instead.
+  </div>
 
   <h3>Games Countdown Timer</h3>
   <p>A separate countdown timer for games — independent of the Skit Timer.</p>
@@ -1669,7 +1724,7 @@
     <li>After each run, enter the participant's name and click <kbd>⏱ RECORD</kbd> to save the stopwatch time.</li>
     <li>Click <kbd>▲ FASTEST FIRST</kbd> / <kbd>▼ MOST RECENT</kbd> to sort. The HDMI leaderboard updates automatically.</li>
     <li>Click <kbd>📺 SHOW SCORES</kbd> to display the leaderboard on HDMI.</li>
-    <li>Click <kbd>✕ CLEAR</kbd> to clear times for the current game.</li>
+    <li>Click <kbd>✕ HIDE</kbd> to hide the scores overlay from HDMI — the recorded times themselves aren't cleared.</li>
   </ol>
 
   <h2 id="game-entries-run">Game Entries</h2>
@@ -1730,10 +1785,11 @@
 
   <h2 id="memes-run">MEMES Tab</h2>
   <p>
-    <span class="tab">MEMES</span> is a dedicated, video-only version of the Display grid above —
-    same files, same mute/volume settings, but filtered down to just the short clips you'd fire
-    on the fly (reaction videos, sound stingers, quick gags) so you're not hunting through
-    background images to find them.
+    <span class="tab">MEMES</span> is a dedicated, video-and-GIF version of the Display grid above —
+    same files, same mute/volume settings, but filtered down to just the short clips (and animated
+    GIFs) you'd fire on the fly — reaction videos, sound stingers, quick gags — so you're not
+    hunting through background images to find them. Upload GIFs the same way as any other Display
+    file (Admin → 🖼 Display); they show up under MEMES automatically.
   </p>
   <ol class="steps">
     <li>Go to the <span class="tab">MEMES</span> tab.</li>
@@ -1905,6 +1961,56 @@
     <li>Use <kbd>⏭ NEXT TRACK</kbd> to skip ahead.</li>
   </ol>
 
+  <h2 id="remote-run">The Physical Remote</h2>
+  <p>
+    A small handheld remote (M5StickC Plus) gives the MC hands-free control while walking the
+    floor — no phone or tablet needed for the most common actions. It talks to the Pi over WiFi,
+    the same network as everything else.
+  </p>
+  <p>Two buttons do everything:</p>
+  <table>
+    <tr><th>Button</th><th>Short press</th><th>Long press</th></tr>
+    <tr><td><strong>Front</strong></td><td>Move selection forward / next item</td><td>Confirm / fire the selected item</td></tr>
+    <tr><td><strong>Side</strong></td><td>Move selection backward / previous item</td><td>Back — always returns to the category picker, from any screen, no matter how deep</td></tr>
+  </table>
+  <p>
+    The remote wakes from sleep with either button and goes back to sleep after a period of
+    inactivity to save battery. From the top-level <strong>category picker</strong>, front/side
+    short-press cycles between five categories, and a front long-press enters the highlighted one:
+  </p>
+  <ul>
+    <li><strong>SHOW FLOW</strong> — browse show steps by name; front long-press fires the highlighted step, same as tapping it on Console.</li>
+    <li><strong>SFX</strong> — browse and fire sound effects.</li>
+    <li><strong>CIRCLES</strong> — browse and fire circle walk-ups.</li>
+    <li><strong>ROLES</strong> — browse and fire role walk-ups.</li>
+    <li><strong>TIMER</strong> — the Skit Timer screen (see below).</li>
+  </ul>
+
+  <h3>Skit Timer &amp; Stopwatch control</h3>
+  <p>
+    On the Timer screen: front short-press starts/pauses, side short-press shows the countdown on
+    HDMI, and holding front resets it. On a Timed Competition's stopwatch screen: front short-press
+    starts/stops, side short-press resets (a short press here, not a hold — since the MC resets
+    between every runner, it needs to be the fast, no-friction gesture).
+  </p>
+  <div class="callout callout-tip">
+    <div class="callout-title">The remote finds the timer for you</div>
+    You don't have to navigate to TIMER manually for a skit. Firing a Show Flow step or macro that
+    contains a timer step (or launching a Timed Competition / Countdown Timer game) automatically
+    switches the remote into the right timer/stopwatch screen — and switches back out again once
+    that step ends. Hold the side button any time to bail out early. Both the countdown and
+    stopwatch tick live on the remote's own screen between polls, so the number you see is always
+    current, not just refreshed every few seconds.
+  </div>
+
+  <h3>Live game controls</h3>
+  <p>
+    When a game with remote support is live (Musical Chairs, Trivia, Timed Competition), the
+    remote automatically switches to that game's own control screen — START/STOP for Musical
+    Chairs, NEXT/PREV/REVEAL for Trivia, START/STOP/RESET for the Timed Competition stopwatch.
+    Holding side backs out to the category picker without stopping the game itself.
+  </p>
+
   <h2 id="streamdeck-run">Stream Deck</h2>
   <p>
     The Stream Deck is a 15-key hardware controller plugged directly into the Pi via USB.
@@ -2000,11 +2106,21 @@
     <kbd>HOME ←</kbd> is always bottom-left.
   </p>
 
-  <h3>SFX, MACROS, and LIGHTS pages</h3>
+  <h3>MACROS and LIGHTS pages</h3>
   <p>
-    Paginated, color-coded buttons — one per SFX file, macro, or lighting scene. Labels are the item's
+    Paginated, color-coded buttons — one per macro or lighting scene. Labels are the item's
     name (truncated to fit). Tap to fire. <kbd>◂ PAGE</kbd> / <kbd>PAGE ▸</kbd> reach every item in
     the library; <kbd>HOME ←</kbd> is key 13.
+  </p>
+
+  <h3>SFX page</h3>
+  <p>
+    Opens on a <strong>category picker</strong> — one button per SFX tag (plus an untagged
+    catch-all if any sounds have no tags), matching the tags set in Admin. Tap a category to drill
+    into its sounds, paginated the same way as any other list page. A pinned red <kbd>STOP · SFX</kbd>
+    button sits at key 0 on every SFX screen — category picker or item list — stopping whatever
+    sound effect is currently playing without touching the music. <kbd>HOME ←</kbd> backs up one
+    level (out of a category, or off the picker to MAIN).
   </p>
 
   <h3>MENU page</h3>
@@ -2018,6 +2134,8 @@
   <p>
     Paginated buttons for the music library (tap to play a track), saved slides and VS cards (tap to
     push to the projector), and saved visualization presets (tap to activate). Reached through MENU.
+    MUSIC also has a pinned red <kbd>STOP · MUSIC</kbd> button at key 0, stopping playback without
+    touching any SFX that's currently playing.
   </p>
 
   <h3>DISPLAY page</h3>
@@ -2044,8 +2162,9 @@
     <tr><th>Game type</th><th>Deck controls</th></tr>
     <tr><td>Prize Wheel</td><td><kbd>SPIN</kbd></td></tr>
     <tr><td>Musical Chairs</td><td><kbd>START/STOP</kbd> toggle</td></tr>
-    <tr><td>AG Trivia</td><td><kbd>REVEAL</kbd>, <kbd>NEXT</kbd>, <kbd>CORRECT</kbd>, <kbd>INCORRECT</kbd></td></tr>
+    <tr><td>Trivia</td><td><kbd>REVEAL</kbd>, <kbd>NEXT</kbd>, <kbd>CORRECT</kbd>, <kbd>INCORRECT</kbd></td></tr>
     <tr><td>Shell Game</td><td><kbd>START</kbd>, <kbd>RESET</kbd></td></tr>
+    <tr><td>Timed Competition</td><td><kbd>START/STOP</kbd> toggle, <kbd>RESET</kbd></td></tr>
   </table>
   <p>
     If nothing's live yet, or the live game's type has no deck controller defined, the page falls

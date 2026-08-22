@@ -204,6 +204,32 @@
   .sl-prev .sl-qr .sl-body  { font-size:2.6cqw; font-weight:600; text-transform:uppercase; color:rgba(255,255,255,.65); margin:1.2cqw 0; }
   .sl-prev .sl-qr .sl-qimg  { width:24cqw; height:24cqw; margin:1.2cqw auto; display:block; border:.2cqw solid #fff; border-radius:.6cqw; image-rendering:pixelated; }
   .sl-prev .sl-qr .sl-url   { font-size:1.7cqw; color:rgba(255,255,255,.38); font-family:'Share Tech Mono',monospace; margin-top:.4cqw; }
+
+  /* Phone-in-landscape header fix. Keyed on max-height rather than max-width:
+     landscape phone viewports are all short (~375-430px tall, same as their
+     own portrait width) regardless of how wide the model is, while the iPad
+     landscape height (768+) and any normal desktop window never trip this --
+     so this can safely be aggressive without touching the iPad/desktop layout
+     the rest of the page is designed around. Root cause was .header being a
+     hard-coded height:58px with no room for "MUSIC MAN CONSOLE" + subtitle +
+     five status labels + poles + clock all in one row at ~667-812px wide --
+     the title wrapped to 2 lines and the fixed height clipped it. */
+  @media (max-height: 430px) {
+    .header { height: 40px; padding: 4px 10px; gap: 8px; }
+    .header img { height: 28px; width: 28px; }
+    .header-title h1 { font-size: 14px; letter-spacing: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .header-title p { display: none; }
+    .header-status { gap: 6px; }
+    .hstat-label { display: none; }
+    .clock { font-size: 12px; letter-spacing: 1px; }
+    .main { height: calc(100vh - 40px); height: calc(100dvh - 40px); }
+    /* .page-tabs-top normally splits width evenly across all 6 tabs so
+       nothing can overflow off a narrow-but-tall iPad -- at this height
+       there isn't enough width for that either, so switch to the same
+       scroll-instead-of-truncate behavior .page-tabs-bottom already uses. */
+    .page-tabs-top { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .page-tabs-top .page-tab { flex: 0 0 auto; overflow: visible; text-overflow: clip; padding: 10px 12px; font-size: 12px; }
+  }
 </style>
 </head>
 <body>
@@ -218,6 +244,7 @@
     <div class="hstat"><div class="status-dot dim" id="hs-deck"></div><div class="hstat-label">DECK</div></div>
     <div class="hstat"><div class="status-dot dim" id="hs-audio"></div><div class="hstat-label">AUDIO</div></div>
     <div class="hstat"><div class="status-dot dim" id="hs-ipad"></div><div class="hstat-label">IPAD</div></div>
+    <div class="hstat"><div class="status-dot dim" id="hs-remote"></div><div class="hstat-label">REMOTE</div></div>
     <div id="hs-poles" style="display:flex;gap:8px"></div>
     <div style="width:1px;height:28px;background:var(--border);margin:0 4px"></div>
     <div id="panel-mic-wrap" style="display:none;align-items:center;gap:8px">
@@ -233,6 +260,7 @@
       <div class="section-label">NOW PLAYING</div>
       <div class="track-title" id="trackTitle">&mdash; STANDBY &mdash;</div>
       <div class="track-sub" id="trackSub">Select a walk-up or press play</div>
+      <button id="activeGameBtn" class="btn-transport" style="display:none;width:100%;margin-top:8px;background:var(--amber-dim);border-color:var(--amber);color:var(--amber);font-weight:800" onclick="_openActiveGame()">🎮 OPEN GAME CONTROLS</button>
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
       <div class="progress-times"><span id="timeElapsed">0:00</span><span id="timeTotal">0:00</span></div>
       <div class="transport">
@@ -327,6 +355,9 @@
     </div>
     <div class="page" id="page-sfx">
       <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Tap a button to fire a sound effect. Plays on top of whatever is already playing.</div>
+      <input id="sfx-search" type="search" placeholder="🔍 Search SFX…" autocomplete="off" oninput="filterSfxGrid(this.value)"
+        style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;margin-bottom:10px">
+      <div id="sfxTagChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
       <div class="sfx-grid" id="sfxGrid"></div>
     </div>
     <div class="page" id="page-macros">
@@ -525,6 +556,8 @@
           <div style="font-size:11px;letter-spacing:2px;color:var(--text-dim)">MUSIC LIBRARY</div>
           <button onclick="loadMusicTracks()" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-weight:700;font-family:'Barlow Condensed',sans-serif">↺ REFRESH</button>
         </div>
+        <input id="music-search" type="search" placeholder="🔍 Search music…" autocomplete="off" oninput="renderMusicTrackList(this.value)"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;margin-bottom:10px">
         <div id="music-track-list" style="display:flex;flex-direction:column;gap:6px"></div>
 
         <!-- ── USB ── -->
@@ -539,6 +572,8 @@
               <button onclick="refreshUsbList()" style="font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-weight:700;font-family:'Barlow Condensed',sans-serif">↺ SCAN</button>
             </div>
           </div>
+          <input id="usb-search" type="search" placeholder="🔍 Search USB songs…" autocomplete="off" oninput="usbSearchInput(this.value)"
+            style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;margin-bottom:8px">
           <div id="usb-label" style="font-size:11px;letter-spacing:2px;color:var(--text-dim);margin-bottom:8px">TAP SCAN TO FIND USB</div>
           <div id="usb-items" style="display:flex;flex-direction:column;gap:6px"></div>
           <div id="pl-now-playing" style="display:none;border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
@@ -590,11 +625,11 @@
         <div class="section-label">⏱ COUNTDOWN TIMER</div>
         <!-- Preset recall -->
         <div class="games-row" style="margin-bottom:10px">
-          <select id="timerPresetSelect" class="games-select" style="flex:1">
+          <select id="timerPresetSelectGames" class="games-select" style="flex:1">
             <option value="">— saved presets —</option>
           </select>
-          <button class="games-btn" onclick="consoleLoadPreset()" style="border-color:var(--amber-dim);color:var(--amber)">LOAD</button>
-          <button class="games-btn" onclick="consoleSavePreset()">SAVE</button>
+          <button class="games-btn" onclick="consoleLoadPreset('timerPresetSelectGames')" style="border-color:var(--amber-dim);color:var(--amber)">LOAD</button>
+          <button class="games-btn" onclick="consoleSavePreset('timerPresetSelectGames')">SAVE</button>
         </div>
         <div class="games-row">
           <span class="games-label">DURATION</span>
@@ -700,7 +735,7 @@
         </div>
         <div style="display:flex;gap:8px;margin-top:10px">
           <button class="games-btn" onclick="gtShowOnScreen()" style="flex:1;border-color:var(--amber-dim);color:var(--amber);font-size:13px;padding:9px">&#128250; SHOW SCORES</button>
-          <button class="games-btn" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('DISPLAY CLEARED',1500)" style="border-color:var(--border);color:var(--text-dim);font-size:13px;padding:9px">&#10005; CLEAR</button>
+          <button class="games-btn" onclick="fetch('/api/games/display/hide',{method:'POST'}).catch(()=>{});showAlert('SCORES HIDDEN',1500)" style="border-color:var(--border);color:var(--text-dim);font-size:13px;padding:9px" title="Hides just the scores overlay -- whatever else is on screen stays put">&#10005; HIDE</button>
         </div>
       </div>
 
@@ -1065,6 +1100,7 @@ async function loadUiHealth() {
     _hsDot('hs-deck',  svc.streamdeck ?? null);
     _hsDot('hs-audio', d.audio?.ok ?? null);
     _hsDot('hs-ipad',  net.remote_count > 0);
+    _hsDot('hs-remote', d.remote?.connected ?? null);
 
     // Pole nodes + WLED devices — all render dynamically
     const polesEl = document.getElementById('hs-poles');
@@ -1082,7 +1118,7 @@ async function loadUiHealth() {
       polesEl.innerHTML = [...poleDots, ...wledDots].join('');
     }
   } catch(e) {
-    ['hs-svc','hs-audio','hs-ipad'].forEach(id => _hsDot(id, null));
+    ['hs-svc','hs-audio','hs-ipad','hs-remote'].forEach(id => _hsDot(id, null));
   }
 }
 
@@ -1098,7 +1134,48 @@ function togglePlShuffle() {
   btn.style.color       = _plShuffle ? 'var(--amber)' : 'var(--text-dim)';
 }
 
+// ── USB SONG SEARCH ──────────────────────────────────────────────────────
+// /api/usb/list only returns top-level folder/playlist names (browsing a
+// folder is lazy) — this fetches a flat, every-track index once so a search
+// can find a song regardless of which folder it's actually in.
+let _usbTracksCache = null;
+
+async function ensureUsbTracksLoaded() {
+  if (_usbTracksCache) return _usbTracksCache;
+  try {
+    _usbTracksCache = (await fetch('/api/usb/tracks').then(r => r.json())).files || [];
+  } catch(e) { _usbTracksCache = []; }
+  return _usbTracksCache;
+}
+
+async function usbSearchInput(q) {
+  q = (q || '').trim();
+  const items = document.getElementById('usb-items');
+  if (!items) return;
+  if (!q) { refreshUsbList(); return; }
+  items.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:16px 0;text-align:center">SEARCHING…</div>';
+  const tracks = await ensureUsbTracksLoaded();
+  const ql = q.toLowerCase();
+  const matches = tracks.filter(t => t.name.toLowerCase().includes(ql)).slice(0, 100);
+  if (!matches.length) {
+    items.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:16px 0;text-align:center">NO MATCHES</div>';
+    return;
+  }
+  items.innerHTML = matches.map(t => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 10px">
+      <span style="font-size:16px;flex-shrink:0">🎵</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(t.name)}</div>
+        ${t.folder ? `<div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(t.folder)}</div>` : ''}
+      </div>
+      <button onclick="startPlaylist(${JSON.stringify(t.path)})" style="height:38px;padding:0 14px;border-radius:6px;border:1px solid var(--amber);background:var(--amber-dim);color:var(--amber);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ PLAY</button>
+    </div>`).join('');
+}
+
 async function refreshUsbList() {
+  _usbTracksCache = null;
+  const searchBox = document.getElementById('usb-search');
+  if (searchBox) searchBox.value = '';
   const label = document.getElementById('usb-label');
   const items = document.getElementById('usb-items');
   const ejectBtn = document.getElementById('usb-eject-btn');
@@ -1651,27 +1728,39 @@ function timerSetSoundLoop(val) {
   fetch('/api/timer/update', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({start_sound_loop: val})}).catch(()=>{});
 }
+// Two independent timer-preset dropdowns share this list: the persistent
+// left-panel skit timer (id="timerPresetSelect") and the GAMES tab's own
+// countdown timer (id="timerPresetSelectGames") — both read from the same
+// /api/timer/presets data, so every refresh populates both, and load/save
+// take an explicit select id so each dropdown's own buttons act on itself
+// rather than both silently colliding on whichever element the ID resolved
+// to first.
+const _TIMER_PRESET_SELECT_IDS = ['timerPresetSelect', 'timerPresetSelectGames'];
+
 async function refreshTimerPresetList(selectName) {
   try {
     const presets = await fetch('/api/timer/presets').then(r => r.json());
-    const sel = document.getElementById('timerPresetSelect');
-    if (!sel) return;
     const names = Object.keys(presets);
-    sel.innerHTML = '<option value="">— presets —</option>' +
+    const optsHtml = '<option value="">— presets —</option>' +
       names.map(n => `<option value="${n}">${n}</option>`).join('');
-    if (selectName) sel.value = selectName;
+    for (const id of _TIMER_PRESET_SELECT_IDS) {
+      const sel = document.getElementById(id);
+      if (!sel) continue;
+      sel.innerHTML = optsHtml;
+      if (selectName) sel.value = selectName;
+    }
   } catch(e) {}
 }
-async function consoleLoadPreset() {
-  const name = document.getElementById('timerPresetSelect')?.value;
+async function consoleLoadPreset(selectId) {
+  const name = document.getElementById(selectId || 'timerPresetSelect')?.value;
   if (!name) return;
   try {
     await fetch('/api/timer/preset/load', {method:'POST',
       headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
   } catch(e) {}
 }
-async function consoleSavePreset() {
-  const sel = document.getElementById('timerPresetSelect');
+async function consoleSavePreset(selectId) {
+  const sel = document.getElementById(selectId || 'timerPresetSelect');
   let name = sel?.value;
   if (!name) {
     name = prompt('Save timer as preset — enter name:');
@@ -2299,8 +2388,11 @@ function renderLeaderboard() {
   const lb=document.getElementById('leaderboard');
   if(!lb) return;
   if(!game){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">SELECT A GAME TO VIEW TIMES</div>';return;}
+  const addBtnHtml = `<div style="padding:8px 10px;border-top:1px solid var(--border)">
+    <button onclick="lbAddRunner()" style="width:100%;padding:7px;border-radius:6px;border:1px dashed var(--border2);background:transparent;color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer">+ ADD RUNNER</button>
+  </div>`;
   const raw=(_gamesData[game]||[]);
-  if(!raw.length){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">NO ENTRIES YET</div>';return;}
+  if(!raw.length){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">NO ENTRIES YET</div>'+addBtnHtml;return;}
   const isScore = raw.some(e => 'score' in e);
   let sorted;
   if (isScore) {
@@ -2316,14 +2408,75 @@ function renderLeaderboard() {
       const tot=t.ms/1000, min=Math.floor(tot/60), sec=Math.floor(tot%60), tenth=Math.floor((tot%1)*10);
       valStr = min>0 ? min+':'+String(sec).padStart(2,'0')+'.'+tenth : sec+'.'+tenth+'s';
     }
+    const idJson = escHtml(JSON.stringify(t.id||''));
     return `<tr><td style="padding:7px 10px;text-align:center;font-size:15px">${i+1}.</td>
       <td style="padding:7px 10px;font-weight:700;font-size:15px;letter-spacing:1px">${escHtml(t.label)}</td>
-      <td style="padding:7px 10px;font-family:'Share Tech Mono',monospace;font-size:16px;text-align:right;color:${i===0?'var(--amber)':'var(--text)'}">${valStr}</td></tr>`;
+      <td style="padding:7px 10px;font-family:'Share Tech Mono',monospace;font-size:16px;text-align:right;color:${i===0?'var(--amber)':'var(--text)'}">${valStr}</td>
+      <td style="padding:7px 4px;text-align:right;white-space:nowrap">
+        <button onclick='lbRenameEntry(${idJson})' title="Rename" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:2px 5px">✎</button>
+        <button onclick='lbDeleteEntry(${idJson})' title="Remove" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:2px 5px">✕</button>
+      </td></tr>`;
   }).join('');
   const colHead = isScore ? 'SCORE' : 'TIME';
   lb.innerHTML=`<table class="lb-table"><thead><tr>
-    <th style="text-align:center">#</th><th>NAME</th><th style="text-align:right">${colHead}</th>
-  </tr></thead><tbody>${rows}</tbody></table>`;
+    <th style="text-align:center">#</th><th>NAME</th><th style="text-align:right">${colHead}</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table>${addBtnHtml}`;
+}
+
+async function lbRenameEntry(id) {
+  const entry=(_gamesData[_selectedGame]||[]).find(e=>e.id===id);
+  const name=prompt('Rename runner:', entry?entry.label:'');
+  if (name===null) return;
+  const label=name.trim();
+  if (!label) return;
+  try {
+    const r=await fetch('/api/games/entry/update',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({game:_selectedGame,id,label})}).then(r=>r.json());
+    if (r.ok) { _gamesData=r.games; renderLeaderboard(); }
+  } catch(e) {}
+}
+
+async function lbDeleteEntry(id) {
+  const entry=(_gamesData[_selectedGame]||[]).find(e=>e.id===id);
+  if (!confirm(`Remove ${entry?entry.label:'this runner'} from the leaderboard?`)) return;
+  try {
+    const r=await fetch('/api/games/entry/delete',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({game:_selectedGame,id})}).then(r=>r.json());
+    if (r.ok) { _gamesData=r.games; renderLeaderboard(); }
+  } catch(e) {}
+}
+
+async function lbAddRunner() {
+  if (!_selectedGame) { showAlert('Select a game first',2000); return; }
+  const name=prompt('Runner name:');
+  if (name===null) return;
+  const label=name.trim()||'Runner';
+  const raw=(_gamesData[_selectedGame]||[]);
+  const isScore=raw.some(e=>'score' in e);
+  const body={game:_selectedGame,label};
+  if (isScore) {
+    const scoreStr=prompt('Score:');
+    if (scoreStr===null) return;
+    const score=parseFloat(scoreStr);
+    if (isNaN(score)) { showAlert('Invalid score',2000); return; }
+    body.score=score;
+  } else {
+    const timeStr=prompt('Time — mm:ss or seconds:');
+    if (timeStr===null) return;
+    let ms;
+    if (timeStr.includes(':')) {
+      const parts=timeStr.split(':').map(s=>parseFloat(s));
+      ms=Math.round(((parts[0]||0)*60+(parts[1]||0))*1000);
+    } else {
+      ms=Math.round(parseFloat(timeStr)*1000);
+    }
+    if (!ms || isNaN(ms) || ms<=0) { showAlert('Invalid time',2000); return; }
+    body.ms=ms;
+  }
+  try {
+    const r=await fetch('/api/games/record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+    if (r.ok) { _gamesData=r.games; renderLeaderboard(); }
+  } catch(e) {}
 }
 
 async function gtNewGame() {
@@ -2397,30 +2550,42 @@ function escHtml(str) {
 
 // ── MUSIC LIBRARY ──────────────────────────────────────────────────────────
 let _musicTrackActive = '';
+let _musicFiles = [];
 
 async function loadMusicTracks() {
+  try {
+    _musicFiles = await fetch('/api/music/list').then(r => r.json());
+  } catch(e) { _musicFiles = []; }
+  const search = document.getElementById('music-search');
+  renderMusicTrackList(search ? search.value : '');
+}
+
+function renderMusicTrackList(filter) {
   const el = document.getElementById('music-track-list');
   if (!el) return;
-  try {
-    const files = await fetch('/api/music/list').then(r => r.json());
-    if (!files.length) {
-      el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;letter-spacing:2px;padding:14px 0">NO MUSIC FILES — UPLOAD IN ADMIN → AUDIO</div>';
-      return;
-    }
-    el.innerHTML = files.map(f => {
-      const name = f.replace(/[-_]/g,' ').replace(/\.[^.]+$/,'').toUpperCase();
-      const active = f === _musicTrackActive;
-      return `<button data-file="${escHtml(f)}" onclick="playMusicTrack(${escHtml(JSON.stringify(f))},this)"
-        style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:8px;border:1px solid ${active?'var(--amber)':'var(--border)'};background:${active?'var(--amber-dim)':'var(--surface)'};color:var(--text);text-align:left;cursor:pointer;width:100%;font-family:'Barlow Condensed',sans-serif;transition:all .15s">
-        <span style="font-size:18px">🎵</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:700;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(name)}</div>
-          <div style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(f)}</div>
-        </div>
-        <span style="font-size:14px;color:${active?'var(--amber)':'var(--text-dim)'}">▶</span>
-      </button>`;
-    }).join('');
-  } catch(e) {}
+  const q = (filter || '').trim().toLowerCase();
+  const files = q ? _musicFiles.filter(f => f.toLowerCase().includes(q)) : _musicFiles;
+  if (!_musicFiles.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;letter-spacing:2px;padding:14px 0">NO MUSIC FILES — UPLOAD IN ADMIN → AUDIO</div>';
+    return;
+  }
+  if (!files.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;letter-spacing:2px;padding:14px 0">NO MATCHES</div>';
+    return;
+  }
+  el.innerHTML = files.map(f => {
+    const name = f.replace(/[-_]/g,' ').replace(/\.[^.]+$/,'').toUpperCase();
+    const active = f === _musicTrackActive;
+    return `<button data-file="${escHtml(f)}" onclick="playMusicTrack(${escHtml(JSON.stringify(f))},this)"
+      style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:8px;border:1px solid ${active?'var(--amber)':'var(--border)'};background:${active?'var(--amber-dim)':'var(--surface)'};color:var(--text);text-align:left;cursor:pointer;width:100%;font-family:'Barlow Condensed',sans-serif;transition:all .15s">
+      <span style="font-size:18px">🎵</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(name)}</div>
+        <div style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(f)}</div>
+      </div>
+      <span style="font-size:14px;color:${active?'var(--amber)':'var(--text-dim)'}">▶</span>
+    </button>`;
+  }).join('');
 }
 
 function playMusicTrack(filename, btn) {
@@ -2436,6 +2601,7 @@ function playMusicTrack(filename, btn) {
 
 // ── SHOW FLOW GRID ─────────────────────────────────────────────────────────
 let showStep = null;  // index of last-pressed show step
+let _activeGameType = '', _activeGameConfigId = '';  // whatever showGameOverlay() last opened -- see _openActiveGame()
 
 let _sfgMacroCache = null;
 let _sfgFlowCache   = null;
@@ -2569,6 +2735,14 @@ function _renderShowFlowGrid() {
         } else {
           sfInlineAction(el.dataset.inlineAction);
         }
+        return;
+      }
+      // Re-tapping an already-live game step (e.g. just to check on it) used
+      // to re-fire /api/show/fire and replay its walkup every time. If it's
+      // already the current step, open its controller instead -- same "join
+      // without restarting" path the Games Library card tap uses.
+      if (isActive && step.type === 'game' && step.game_type_id && step.game_config_id) {
+        glUiJoinControls(step.game_type_id, step.game_config_id);
         return;
       }
       fireShowStep(i, step, flow.length);
@@ -2710,12 +2884,24 @@ function playWalkup(c) {
   _startProgress(((c.walkup || {}).duration || 30) * 1000);
 }
 
+function _saveConsoleOrder(kind, order) {
+  fetch('/api/console_order/' + kind, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({order}),
+  }).catch(()=>{});
+}
+
+let _sfxTags = {};        // filename (with ext) -> [tags]
+let _sfxActiveTag = null; // null = ALL
+
 async function buildSfxGrid() {
   let sfxFiles = [];
   try {
     const res = await fetch('/api/sfx/list');
     sfxFiles = await res.json();
   } catch(e) {}
+  try { _sfxTags = await fetch('/api/sfx/tags').then(r => r.json()); } catch(e) { _sfxTags = {}; }
 
   const defaults = [
     {name:'AIRHORN',   icon:'📣'},
@@ -2739,12 +2925,14 @@ async function buildSfxGrid() {
     ? sfxFiles.map((f, i) => ({
         name: f.replace(/\.[^.]+$/, '').replace(/_/g, ' ').toUpperCase(),
         playName: f.replace(/\.[^.]+$/, ''),
+        file: f,
         fire: i === 0
       }))
-    : defaults.map((d, i) => ({...d, playName: d.name.toLowerCase().replace(/\s/g, '_'), fire: i === 0}));
+    : defaults.map((d, i) => ({...d, playName: d.name.toLowerCase().replace(/\s/g, '_'), file: '', fire: i === 0}));
 
-  // Apply saved order
-  const savedOrder = JSON.parse(localStorage.getItem('sfxOrder') || '[]');
+  // Apply saved order — synced server-side so every device sees the same arrangement
+  let savedOrder = [];
+  try { savedOrder = (await fetch('/api/console_order/sfx').then(r => r.json())).order || []; } catch(e) {}
   if (savedOrder.length) {
     displayList.sort((a, b) => {
       const ai = savedOrder.indexOf(a.playName);
@@ -2764,6 +2952,7 @@ async function buildSfxGrid() {
     btn.className = 'sfx-btn' + (s.fire ? ' fire' : '');
     btn.textContent = s.name;
     btn.dataset.playName = s.playName;
+    btn.dataset.tags = (_sfxTags[s.file] || []).join('|');
     btn.draggable = true;
 
     btn.onclick = () => {
@@ -2779,7 +2968,7 @@ async function buildSfxGrid() {
       btn.style.opacity = '';
       document.querySelectorAll('.sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
       const order = [...grid.querySelectorAll('.sfx-btn')].map(b => b.dataset.playName);
-      localStorage.setItem('sfxOrder', JSON.stringify(order));
+      _saveConsoleOrder('sfx', order);
     });
     btn.addEventListener('dragover', e => {
       e.preventDefault();
@@ -2799,6 +2988,56 @@ async function buildSfxGrid() {
     });
 
     grid.appendChild(btn);
+  });
+
+  renderSfxTagChips();
+  const search = document.getElementById('sfx-search');
+  filterSfxGrid(search ? search.value : '');
+}
+
+// Filter chips are a lens on the SAME flat, drag-reorderable grid, not a
+// restructuring into per-tag sections -- a multi-tagged sound just needs to
+// show up whenever any of its tags is selected, and drag-reorder only makes
+// sense with one stable ordering to persist, not one per section.
+function renderSfxTagChips() {
+  const wrap = document.getElementById('sfxTagChips');
+  if (!wrap) return;
+  const allTags = new Set();
+  let hasUntagged = false;
+  Object.values(_sfxTags).forEach(tags => tags.forEach(t => allTags.add(t)));
+  document.querySelectorAll('#sfxGrid .sfx-btn').forEach(btn => {
+    if (!btn.dataset.tags) hasUntagged = true;
+  });
+  const chip = (label, tag, active) => `<button class="sfx-tag-chip" data-tag="${escHtml(tag ?? '')}"
+    style="font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:20px;cursor:pointer;
+    border:1px solid ${active ? 'var(--amber)' : 'var(--border)'};
+    background:${active ? 'var(--amber-dim)' : 'var(--bg2)'};
+    color:${active ? 'var(--amber)' : 'var(--text-dim)'};font-weight:700"
+    onclick="setSfxTagFilter(${tag === null ? 'null' : `'${escHtml(tag).replace(/'/g,"\\'")}'`})">${escHtml(label)}</button>`;
+  let html = chip('ALL', null, _sfxActiveTag === null);
+  [...allTags].sort((a, b) => a.localeCompare(b)).forEach(t => {
+    html += chip(t.toUpperCase(), t, _sfxActiveTag === t);
+  });
+  if (hasUntagged) html += chip('UNCATEGORIZED', '__untagged__', _sfxActiveTag === '__untagged__');
+  wrap.innerHTML = html;
+}
+
+function setSfxTagFilter(tag) {
+  _sfxActiveTag = tag;
+  renderSfxTagChips();
+  const search = document.getElementById('sfx-search');
+  filterSfxGrid(search ? search.value : '');
+}
+
+function filterSfxGrid(filter) {
+  const q = (filter || '').trim().toLowerCase();
+  document.querySelectorAll('#sfxGrid .sfx-btn').forEach(btn => {
+    const matchesSearch = !q || btn.textContent.toLowerCase().includes(q);
+    const tags = btn.dataset.tags ? btn.dataset.tags.split('|') : [];
+    const matchesTag = _sfxActiveTag === null ? true
+      : _sfxActiveTag === '__untagged__' ? tags.length === 0
+      : tags.includes(_sfxActiveTag);
+    btn.style.display = (matchesSearch && matchesTag) ? '' : 'none';
   });
 }
 
@@ -2820,6 +3059,21 @@ async function buildDisplayGrid() {
     grid.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:8px">NO DISPLAY FILES — UPLOAD IN ADMIN CONTENT TAB</div>';
     return;
   }
+
+  // Apply saved order — synced server-side, same as SFX/Memes
+  let savedOrder = [];
+  try { savedOrder = (await fetch('/api/console_order/display').then(r => r.json())).order || []; } catch(e) {}
+  if (savedOrder.length) {
+    files = [...files].sort((a, b) => {
+      const ai = savedOrder.indexOf(a);
+      const bi = savedOrder.indexOf(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }
+
+  let _displayDragSrc = null;
   const VIDEO_EXTS = new Set(['.mp4','.webm','.mov','.ogv']);
   files.forEach(f => {
     const ext = f.slice(f.lastIndexOf('.')).toLowerCase();
@@ -2828,17 +3082,48 @@ async function buildDisplayGrid() {
     const label = f.replace(/\.[^.]+$/, '').replace(/_/g, ' ').toUpperCase().slice(0, 14);
     const btn = document.createElement('button');
     btn.className = 'sfx-btn';
+    btn.dataset.filename = f;
     if (isVid) {
       btn.innerHTML = '<span class="sfx-icon">🎬</span>' + label;
     } else {
       btn.innerHTML = '<img src="' + url + '" style="width:48px;height:36px;object-fit:cover;border-radius:4px;margin-bottom:2px" onerror="this.remove()">' + '<span style="font-size:11px;letter-spacing:1px">' + label + '</span>';
     }
     btn.style.flexDirection = 'column';
+    btn.draggable = true;
     btn.onclick = () => {
       fetch('/api/display/show_file?file=' + encodeURIComponent(f)).catch(() => {});
       btn.style.transform = 'scale(0.95)';
       setTimeout(() => btn.style.transform = '', 120);
     };
+
+    btn.addEventListener('dragstart', e => {
+      _displayDragSrc = btn;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => btn.style.opacity = '0.4', 0);
+    });
+    btn.addEventListener('dragend', () => {
+      btn.style.opacity = '';
+      document.querySelectorAll('#displayGrid .sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
+      const order = [...grid.querySelectorAll('.sfx-btn')].map(b => b.dataset.filename);
+      _saveConsoleOrder('display', order);
+    });
+    btn.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('#displayGrid .sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
+      if (btn !== _displayDragSrc) btn.classList.add('sfx-drag-over');
+    });
+    btn.addEventListener('drop', e => {
+      e.preventDefault();
+      if (_displayDragSrc && _displayDragSrc !== btn) {
+        const kids = [...grid.children];
+        const si = kids.indexOf(_displayDragSrc);
+        const di = kids.indexOf(btn);
+        if (si < di) grid.insertBefore(_displayDragSrc, btn.nextSibling);
+        else grid.insertBefore(_displayDragSrc, btn);
+      }
+    });
+
     grid.appendChild(btn);
   });
 }
@@ -2848,7 +3133,7 @@ async function buildMemesGrid() {
   try { files = await fetch('/api/display/list').then(r => r.json()); } catch(e) {}
   const grid = document.getElementById('memesGrid');
   if (!grid) return;
-  const VIDEO_EXTS = new Set(['.mp4','.webm','.mov','.ogv']);
+  const VIDEO_EXTS = new Set(['.mp4','.webm','.mov','.ogv','.gif']);
   let videos = files.filter(f => VIDEO_EXTS.has(f.slice(f.lastIndexOf('.')).toLowerCase()));
   grid.innerHTML = '';
   if (!videos.length) {
@@ -2856,8 +3141,9 @@ async function buildMemesGrid() {
     return;
   }
 
-  // Apply saved order — same drag-to-reorder mechanism as the SFX page
-  const savedOrder = JSON.parse(localStorage.getItem('memesOrder') || '[]');
+  // Apply saved order — synced server-side, same as SFX/Display
+  let savedOrder = [];
+  try { savedOrder = (await fetch('/api/console_order/memes').then(r => r.json())).order || []; } catch(e) {}
   if (savedOrder.length) {
     videos = [...videos].sort((a, b) => {
       const ai = savedOrder.indexOf(a);
@@ -2896,7 +3182,7 @@ async function buildMemesGrid() {
       btn.style.opacity = '';
       document.querySelectorAll('#memesGrid .sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
       const order = [...grid.querySelectorAll('.sfx-btn')].map(b => b.dataset.filename);
-      localStorage.setItem('memesOrder', JSON.stringify(order));
+      _saveConsoleOrder('memes', order);
     });
     btn.addEventListener('dragover', e => {
       e.preventDefault();
@@ -3304,6 +3590,35 @@ function initWebSocket() {
         renderSw();
       }
     }).catch(() => {});
+    // Show Flow's highlighted "current step" only ever moved on the live
+    // show_step WS event, with nothing to catch it back up on a fresh page
+    // load or a reconnect after a WiFi blip -- exactly the situation where a
+    // remote-fired step (or any step fired while Console wasn't listening)
+    // left the grid showing nothing active. /api/remote/state is the same
+    // "what's true right now" snapshot built for the M5Stick remote for this
+    // identical reason -- reusing it here instead of adding a second endpoint.
+    fetch('/api/remote/state').then(r => r.json()).then(s2 => {
+      const step = s2.step || {};
+      if (typeof step.index === 'number') {
+        showStep = step.index;
+        _renderShowFlowGrid();
+      }
+      // A game launched on ANOTHER device (no cross-device broadcast for a
+      // plain GO LIVE, only for a show-flow-fired one) wouldn't otherwise
+      // ever arm this device's "jump to active game" button until it
+      // happened to receive a launch_game event of its own.
+      if (step.type === 'game' && step.game_type_id && step.game_config_id) {
+        _setActiveGame(step.game_type_id, step.game_config_id);
+      }
+    }).catch(() => {});
+    // Same gap, different subsystem: h2h_score/h2h_reset only ever update the
+    // DOM live, so any device whose WS connection blipped at the wrong
+    // moment (two devices watching the same scoreboard is exactly when this
+    // shows up as "the laptop and the iPad disagree") is stuck showing
+    // whatever it last saw until a fresh score event happens to land. Same
+    // fix as h2hSelect() already does when the panel is first opened --
+    // just re-run it here too, on every reconnect.
+    if (h2hCurrentId) h2hSelect(h2hCurrentId);
   };
 
   ws.onmessage = function(evt) {
@@ -3528,6 +3843,14 @@ function initWebSocket() {
         });
       }
 
+      else if (event === 'console_order_updated') {
+        // Another device dragged a new order into SFX/Memes/Display — pick it
+        // up live instead of only on next tab open.
+        if (data.kind === 'sfx')     buildSfxGrid();
+        else if (data.kind === 'memes')   buildMemesGrid();
+        else if (data.kind === 'display') buildDisplayGrid();
+      }
+
       else if (event === 'show_step') {
         showStep = data.index;
         _renderShowFlowGrid();
@@ -3538,6 +3861,10 @@ function initWebSocket() {
           document.getElementById('trackTitle').textContent = _prevTrackTitle;
           document.getElementById('trackSub').textContent   = _prevTrackSub;
         }
+        // Something non-game fired (or the show reset) -- the previous
+        // game's controller button no longer points at "the current thing".
+        // A game step's own launch_game broadcast (below) re-arms it.
+        if (data.type !== 'game') _setActiveGame('', '');
       }
 
       else if (event === 'display_navigate') {
@@ -4171,7 +4498,7 @@ function apLoadClients() {
     }
     el.innerHTML = d.clients.map((c,i) =>
       `<div style="display:flex;align-items:center;padding:10px 16px;${i<d.clients.length-1?'border-bottom:1px solid var(--border)':''}gap:12px">
-        <span style="font-size:15px">${c.hostname.toLowerCase().includes('ipad')||c.hostname.toLowerCase().includes('iphone') ? '📱' : c.hostname.toLowerCase().includes('wled') ? '💡' : '📡'}</span>
+        <span style="font-size:15px">${c.hostname.toLowerCase().includes('ipad')||c.hostname.toLowerCase().includes('iphone') ? '📱' : c.hostname.toLowerCase().includes('wled') ? '💡' : c.hostname.toLowerCase().includes('remote')||c.hostname.toLowerCase().includes('m5stick') ? '🎮' : '📡'}</span>
         <div style="flex:1">
           <div style="font-size:12px;font-weight:700;color:var(--text);font-family:'Share Tech Mono',monospace">${c.hostname}</div>
           <div style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;margin-top:2px">${c.ip} &nbsp;·&nbsp; ${c.mac}</div>
@@ -4306,6 +4633,20 @@ function showGameOverlay(url, typeId, configId) {
   _glOverlayConfig = configId || '';
   document.getElementById('glOverlayGoLiveBtn').style.display = (_glOverlayType && _glOverlayConfig) ? '' : 'none';
   showPage('gamelive');
+  _setActiveGame(typeId, configId);
+}
+
+// Every path that opens a game's controller funnels through showGameOverlay()
+// above, so hooking the "jump to the active game" button there covers all of
+// them (Show Flow, GO LIVE, Games Library join-controls) with one call.
+function _setActiveGame(typeId, configId) {
+  _activeGameType = typeId || '';
+  _activeGameConfigId = configId || '';
+  const btn = document.getElementById('activeGameBtn');
+  if (btn) btn.style.display = (_activeGameType && _activeGameConfigId) ? 'block' : 'none';
+}
+function _openActiveGame() {
+  if (_activeGameType && _activeGameConfigId) glUiJoinControls(_activeGameType, _activeGameConfigId);
 }
 // Header Go Live button — covers the case where controls were opened via
 // glUiJoinControls() (card tap, not the small GO LIVE button) and nothing

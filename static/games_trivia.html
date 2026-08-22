@@ -157,9 +157,11 @@
   /* ── DISPLAY MODE ── */
   .display-mode .admin       { display:none !important; }
   .display-mode .footer-hint { display:none; }
-  .display-mode .stage       { min-height:100vh; padding:5vh 8vw 6vh; justify-content:flex-start; }
-  .display-mode .brand-row   { max-width:100%; margin-bottom:5vh; }
-  .display-mode .brand-name  { font-size:32px; }
+  .display-mode .stage       { min-height:100vh; padding:2vh 3vw 3vh; justify-content:flex-start; }
+  /* The audience doesn't need "AG Trivia" branding taking up headroom --
+     hiding it reclaims real vertical space for the question/answer text,
+     which is the actual overflow-off-the-bottom fix for a long question. */
+  .display-mode .brand-row   { display:none; }
   .display-mode .qa-area     { max-width:100%; gap:4vh; }
   .display-mode .question-card { padding:5vh 6vw; border-radius:20px; }
   .display-mode .question-label{ font-size:16px; }
@@ -308,6 +310,14 @@
         <button class="op-btn nav h2h-mult-btn" data-mult="5" onclick="h2hSetMultiplier(5)">5x</button>
       </div>
       <div id="h2hRows" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:6px 14px"></div>
+      <div class="admin-actions" style="margin-top:8px">
+        <button class="op-btn nav" style="flex:1;border-color:rgba(245,166,35,0.4);color:var(--amber-hi)" onclick="h2hDeclareWinner()">🏆 Declare Winner</button>
+        <button class="op-btn nav" onclick="h2hWipeScores()" title="Zero every team's score for this scoreboard">🧹 Wipe Scores</button>
+      </div>
+    </div>
+
+    <div class="admin-actions" style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08)">
+      <button class="op-btn nav" style="flex:1;border-color:rgba(220,38,38,0.4);color:#f28b82" onclick="triviaRestartGame()" title="Back to question 1, replays the intro walkup, wipes the team scoreboard if one's linked">🔄 Restart Game</button>
     </div>
   </div>
 </div>
@@ -344,9 +354,32 @@ function escHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,
 
 // ── WEBSOCKET ──
 let _ws = null;
+// h2h_score/h2h_reset/h2h_multiplier only ever update the DOM live -- a
+// WS reconnect (WiFi blip, tab backgrounded, whatever) leaves this iframe
+// showing whatever it last saw with nothing to catch it back up. Same
+// full-refetch init() already does at page load, just reusable so
+// connectWS() can also run it on every reconnect.
+async function _loadH2hScoreboard() {
+  if (!h2hGameId) return;
+  try {
+    const g = await fetch(`/api/head_to_head/${h2hGameId}`).then(r => r.json());
+    if (g && g.contestants_resolved) {
+      h2hContestants = g.contestants_resolved;
+      document.getElementById('ciSimple').style.display = 'none';
+      document.getElementById('h2hScoring').style.display = 'block';
+      h2hRenderMultiplier();
+      renderScoreboard();
+      renderH2hRows();
+    }
+  } catch(e) { console.error('Head to Head load failed', e); }
+}
+
 function connectWS() {
   _ws = new WebSocket('ws://' + location.host + '/ws');
-  _ws.onopen  = () => { _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); };
+  _ws.onopen  = () => {
+    _ws.send(JSON.stringify({event:'page_ready', url: location.pathname}));
+    _loadH2hScoreboard();
+  };
   _ws.onclose = () => setTimeout(connectWS, 3000);
   _ws.onerror = () => _ws.close();
   _ws.onmessage = (evt) => {
@@ -378,6 +411,18 @@ function _fitQuestionText() {
   const textEl = document.getElementById('questionText');
   const cardEl = document.getElementById('questionCard');
   if (!textEl || !cardEl) return;
+  // .question-text has transition:font-size .35s ease for the normal case
+  // (a new question sliding in at its natural size). That transition was
+  // silently breaking this loop: setting a new font-size and immediately
+  // reading scrollHeight on the same tick captures the size MID-transition
+  // (still ~unchanged, since real time hasn't passed), not the size JS just
+  // set -- so scrollHeight barely moved between iterations regardless of how
+  // far size had actually been reduced, and the loop's shrink decisions were
+  // being made against stale measurements. Disabling the transition for the
+  // duration of this measurement loop makes each change apply instantly, so
+  // every scrollHeight read reflects the size that was actually just set.
+  const prevTransition = textEl.style.transition;
+  textEl.style.transition = 'none';
   textEl.style.fontSize = '';
   const availBelow = window.innerHeight - cardEl.getBoundingClientRect().top - (window.innerHeight * 0.04);
   let size = parseFloat(getComputedStyle(textEl).fontSize);
@@ -387,6 +432,8 @@ function _fitQuestionText() {
     textEl.style.fontSize = size + 'px';
     guard++;
   }
+  void textEl.offsetHeight;   // force the final size to actually land before transitions come back
+  textEl.style.transition = prevTransition;
 }
 
 function applyState(index, revealed, timerEnd, log, showScoreFlag, order) {
@@ -567,6 +614,29 @@ function h2hManualScore(contestantId, name) {
   }).catch(() => {});
 }
 
+function h2hDeclareWinner() {
+  // Same endpoint + flow as Head to Head's own standalone "Declare Winner"
+  // button in Console (musicman_ui.html) -- when a team scoreboard is linked
+  // to this trivia session, the operator should get the same big winner
+  // takeover from in here too, without switching to a separate H2H panel.
+  if (!h2hGameId || !h2hContestants.length) return;
+  const choice = prompt('Declare winner:\n' + h2hContestants.map((c,i) => `${i+1}. ${c.name}`).join('\n') + '\n\nEnter number:');
+  if (choice === null) return;
+  const idx = parseInt(choice) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= h2hContestants.length) return;
+  if (!confirm(`Declare ${h2hContestants[idx].name} the winner?`)) return;
+  fetch(`/api/head_to_head/${h2hGameId}/winner`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({contestant_id: h2hContestants[idx].id}),
+  }).catch(() => {});
+}
+
+function h2hWipeScores() {
+  if (!h2hGameId) return;
+  if (!confirm('Zero every team\'s score? This can\'t be undone.')) return;
+  fetch(`/api/head_to_head/${h2hGameId}/reset`, { method: 'POST' }).catch(() => {});
+}
+
 // ── OPERATOR ACTIONS ──
 async function triviaStartGame() {
   try {
@@ -577,6 +647,23 @@ async function triviaStartGame() {
   } catch(e) {}
   const row = document.getElementById('startRow');
   if (row) row.style.display = 'none';
+}
+
+// Deliberate, separate from Start Game -- Start Game is harmless/idempotent
+// to press again on an already-running session (it just re-broadcasts the
+// reveal), but this genuinely resets everything: back to question 1,
+// replays the intro walkup, and wipes the linked team scoreboard if any
+// (same "every GO LIVE" contract _launch_game() already applies server-side).
+async function triviaRestartGame() {
+  if (!_configId) return;
+  if (!confirm('Restart this trivia session? Back to question 1, scores wipe if a scoreboard is linked. The walkup will NOT replay -- HDMI stays as-is.')) return;
+  try {
+    await fetch('/api/games/launch', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ game_type_id: 'trivia', config_id: _configId, skip_intro: true }),
+    });
+    location.reload();
+  } catch(e) {}
 }
 
 async function triviaAction(action, extra) {
@@ -638,17 +725,7 @@ async function triviaMark(action) {
   }
 
   if (h2hGameId) {
-    try {
-      const g = await fetch(`/api/head_to_head/${h2hGameId}`).then(r => r.json());
-      if (g && g.contestants_resolved) {
-        h2hContestants = g.contestants_resolved;
-        document.getElementById('ciSimple').style.display = 'none';
-        document.getElementById('h2hScoring').style.display = 'block';
-        h2hRenderMultiplier();
-        renderScoreboard();
-        renderH2hRows();
-      }
-    } catch(e) { console.error('Head to Head load failed', e); }
+    await _loadH2hScoreboard();
   } else {
     // No team scoreboard linked — offer the standalone running log + tally instead.
     const sessionLogEl = document.getElementById('sessionLog');
@@ -666,6 +743,16 @@ async function triviaMark(action) {
     showScoreFlag = !!st.show_score;
     order = st.order || null;
   } catch(e) {}
+
+  // startRow's earlier default only knew whether an intro entry is
+  // configured at all, not whether THIS session already got past it --
+  // opening the controller mid-game (e.g. via Console's "jump to active
+  // game" button) was showing Start Game again next to a question well
+  // into the run. Now that the real position is known, override it.
+  if (revealed || index > 0) {
+    const startRow = document.getElementById('startRow');
+    if (startRow) startRow.style.display = 'none';
+  }
 
   applyState(index, revealed, timerEnd, log, showScoreFlag, order);
 })();

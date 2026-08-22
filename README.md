@@ -18,7 +18,7 @@ Built by a dad, for dads.
 - **Music** — Playlist playback with volume control, fade, and shuffle.
 - **Lighting** — Control WLED nodes and DMX fixtures by scene. Scenes trigger automatically during walk-ups.
 - **Timers** — Countdown timers with warning sounds, end sounds, and display output. Skit timer, 2-minute timer, whatever you save.
-- **Games** — Prize Wheel, Musical Chairs, Trivia, Shell Game, Head to Head, and more — built-in guessing/competition games with custom images, sounds, and music.
+- **Games** — Prize Wheel, Musical Chairs, Trivia, Shell Game, Head to Head, Timed Competition (races/challenges with remote stopwatch control), Countdown Timer, and more — built-in guessing/competition games with custom images, sounds, and music.
 - **Display** — Drive an HDMI screen with logos, animations, timer display, and slides. Optionally pulls photos from a group BAND album for a full-screen slideshow with a QR code inviting attendees to add their own.
 - **Battery Monitor** — Track your Solix/EcoFlow power station in real time, per pole.
 - **Stream Deck** — Optional physical control surface: fire scenes, macros, music, slides, and games directly from a USB Stream Deck, mirroring the console.

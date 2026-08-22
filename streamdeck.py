@@ -85,6 +85,7 @@ state = {
     'timer_remaining': 0.0,      # snapshot while paused/stopped
     'music_volume':    80,
     'sfx_volume':      80,
+    'sfx_category':    None,     # None = category picker; else the tag currently drilled into
 }
 
 _timer_tick_id = 0
@@ -97,6 +98,7 @@ pi = {
     'scenes':       [],
     'macros':       [],
     'sfx':          [],
+    'sfx_tags':     {},   # filename (with ext) -> [tags]
     'display':      [],   # display file names (without path)
     'music':        [],
     'slides':       [],
@@ -550,16 +552,64 @@ _MACRO_COLORS = ['#2B5FA6','#8B44CC','#C4610A','#3CB96A','#F5A623','#CC2222']
 _SCENE_COLORS = ['#F5A623','#3CB96A','#2B5FA6','#8B44CC','#CC2222','#C4610A']
 _MUSIC_COLORS = ['#2B5FA6','#3CB96A','#8B44CC','#F5A623','#C4610A','#CC2222']
 
+_SFX_UNTAGGED = '__untagged__'
+
+def _sfx_categories():
+    """Sorted tag list, plus an Uncategorized bucket if any sfx has no tags --
+    same two buckets Console's own filter chips use."""
+    tags = pi.get('sfx_tags', {}) or {}
+    all_tags = sorted({t for tag_list in tags.values() for t in tag_list}, key=str.lower)
+    if any(not tags.get(name) for name in pi['sfx']):
+        all_tags.append(_SFX_UNTAGGED)
+    return all_tags
+
+def _sfx_items_for_category(cat):
+    tags = pi.get('sfx_tags', {}) or {}
+    if cat == _SFX_UNTAGGED:
+        return [n for n in pi['sfx'] if not tags.get(n)]
+    return [n for n in pi['sfx'] if cat in (tags.get(n) or [])]
+
 def _render_sfx():
-    def image_fn(name, i):
-        return label_image(name.replace('_', ' ').replace('-', ' ').upper()[:10],
-                            color=_SFX_COLORS[i % len(_SFX_COLORS)])
-    _render_list_page(pi['sfx'], image_fn)
+    # Key 0 is a pinned STOP control on every SFX sub-page (category picker
+    # and item list alike) -- pushes the item grid to 11 slots/page instead
+    # of 12, same reserved-key convention Display already uses.
+    deck.set_key_image(0, label_image('STOP', 'SFX', color='#CC2222'))
+    if state['sfx_category'] is None:
+        def image_fn(cat, i):
+            label = 'NO TAG' if cat == _SFX_UNTAGGED else cat
+            return label_image(label.upper()[:10], color=_SFX_COLORS[i % len(_SFX_COLORS)])
+        _render_list_page(_sfx_categories(), image_fn, num_slots=11, key_offset=1)
+    else:
+        def image_fn(name, i):
+            return label_image(name.replace('_', ' ').replace('-', ' ').upper()[:10],
+                                color=_SFX_COLORS[i % len(_SFX_COLORS)])
+        _render_list_page(_sfx_items_for_category(state['sfx_category']), image_fn, num_slots=11, key_offset=1)
 
 def _handle_sfx(key):
-    def fire(name):
-        api_get(f'/api/sfx/play?name={urllib.parse.quote(name)}')
-    _apply_list_result(_handle_list_page(pi['sfx'], key, fire))
+    if key == 0:
+        api_get('/api/sfx/stop')
+        return
+    if state['sfx_category'] is None:
+        def enter_category(cat):
+            state['sfx_category'] = cat
+            state['sub_page'] = 0
+        result = _handle_list_page(_sfx_categories(), key, enter_category, num_slots=11, key_offset=1)
+        if result in ('fired', 'nav'):
+            render_current_page()
+        elif result == 'home':
+            _nav(PAGE_MAIN)
+    else:
+        def fire(name):
+            api_get(f'/api/sfx/play?name={urllib.parse.quote(name)}')
+        result = _handle_list_page(_sfx_items_for_category(state['sfx_category']), key, fire, num_slots=11, key_offset=1)
+        if result == 'home':
+            # Back up one level (to the category picker), not all the way to
+            # PAGE_MAIN -- matches how deep menus elsewhere are expected to behave.
+            state['sfx_category'] = None
+            state['sub_page'] = 0
+            render_current_page()
+        else:
+            _apply_list_result(result)
 
 def _render_macros():
     def image_fn(m, i):
@@ -610,15 +660,21 @@ def _handle_scenes(key):
     _apply_list_result(_handle_list_page(pi['scenes'], key, fire))
 
 def _render_music():
+    # Key 0 pinned STOP, same reserved-key convention as SFX/Display -- 11
+    # item slots/page instead of 12.
+    deck.set_key_image(0, label_image('STOP', 'MUSIC', color='#CC2222'))
     def image_fn(name, i):
         return label_image(os.path.splitext(name)[0].replace('_', ' ').upper()[:10],
                             color=_MUSIC_COLORS[i % len(_MUSIC_COLORS)])
-    _render_list_page(pi['music'], image_fn)
+    _render_list_page(pi['music'], image_fn, num_slots=11, key_offset=1)
 
 def _handle_music(key):
+    if key == 0:
+        api_get('/api/music/stop')
+        return
     def fire(name):
         api_get(f'/api/music/play?file={urllib.parse.quote(name)}')
-    _apply_list_result(_handle_list_page(pi['music'], key, fire))
+    _apply_list_result(_handle_list_page(pi['music'], key, fire, num_slots=11, key_offset=1))
 
 def _render_slides():
     def image_fn(s, i):
@@ -803,6 +859,7 @@ def on_key_press(deck_ref, key, pressed):
 def _nav(page_idx):
     state['page'] = page_idx
     state['sub_page'] = 0   # always land on page 1 of whatever we're navigating to
+    state['sfx_category'] = None   # always re-enter SFX at the category picker, not wherever it was left
     render_current_page()
 
 def _handle_main(key):
@@ -920,6 +977,10 @@ def load_pi_data(retries=4, retry_delay=2):
             pi['macros']       = requests.get(f'{BASE_URL}/api/macros',        timeout=5).json()
             raw                = requests.get(f'{BASE_URL}/api/sfx/list',      timeout=5).json()
             pi['sfx']          = [f.rsplit('.', 1)[0] for f in raw] if raw else []
+            raw_tags           = requests.get(f'{BASE_URL}/api/sfx/tags',      timeout=5).json()
+            # Re-keyed by stem (no extension) since that's what pi['sfx'] and
+            # the SFX page's item list are keyed by everywhere else.
+            pi['sfx_tags']     = {f.rsplit('.', 1)[0]: tags for f, tags in (raw_tags or {}).items()}
             pi['music']        = requests.get(f'{BASE_URL}/api/music/list',    timeout=5).json()
             pi['slides']       = requests.get(f'{BASE_URL}/api/slides',        timeout=5).json()
             pi['vs_cards']     = requests.get(f'{BASE_URL}/api/vs_cards',      timeout=5).json()

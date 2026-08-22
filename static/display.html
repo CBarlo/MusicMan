@@ -778,6 +778,7 @@ fetch('/api/preload_assets').then(r => r.json()).then(d => preloadAssets(d.urls)
 // Same deferred-clear pattern as _gameFrame: clearing title-video.src on Pi 4B
 // triggers a synchronous GC freeze of ~7s if the element has decoded video in memory.
 let _titleVideoClearTimer = null;
+let _titleVideoLoadTimer  = null;
 function _resetTitleVideo() {
   const v = document.getElementById('title-video');
   v.oncanplay = null; v.pause(); v.style.opacity = '0';
@@ -895,10 +896,32 @@ function showTitleVideo(data) {
     titleVideo.src = videoUrlBusted;
     titleVideo.load();
   }
+
+  // A video that never fires canplay — bad file, decode glitch, a transient
+  // load hiccup, anything — used to leave the screen permanently blank: the
+  // caller already hid every other layer in preparation for this video (that
+  // simultaneity is deliberate, e.g. climax firing lights/video/audio all at
+  // once), and with no fallback here, nothing ever took its place until
+  // someone noticed and reloaded the kiosk mid-show. A hard timeout plus an
+  // error handler guarantee the display always recovers to something
+  // (standby) instead of hanging on a single point of failure.
+  const recover = () => {
+    if (_displaySeq !== seq) return;
+    titleVideo.oncanplay = null;
+    titleVideo.onerror   = null;
+    clearTimeout(_titleVideoLoadTimer);
+    showStandby();
+  };
+  clearTimeout(_titleVideoLoadTimer);
+  _titleVideoLoadTimer = setTimeout(recover, 4000);
+  titleVideo.onerror = recover;
+
   titleVideo.oncanplay = () => {
     if (_displaySeq !== seq) return;
+    clearTimeout(_titleVideoLoadTimer);
     titleVideo.oncanplay = null; // canplay can refire during buffering — don't re-issue play()
-    titleVideo.play().catch(() => {});
+    titleVideo.onerror   = null;
+    titleVideo.play().catch(recover);
     titleVideo.style.opacity = '1';
     const t = 'opacity 0.8s ease';
     layerWalkup.style.transition    = t;
@@ -1096,7 +1119,7 @@ function showWalkup(data) {
     // reveal_game_url: this walkup is a game's intro (e.g. the Wheel, preloaded
     // hidden behind it) — reveal it the instant this video actually finishes,
     // not on a blind timer guessing when that'll be.
-    vid.onended = () => { vid.onended = null; _startMainAnim(); if (data.reveal_game_url) revealGameFrame(); };
+    vid.onended = () => { vid.onended = null; _startMainAnim(); if (data.reveal_game_url) revealGameFrame(data.reveal_game_url); };
     if (alreadyReady) {
       try { vid.currentTime = 0; } catch(e) {}
       vid.style.display = 'block';
@@ -1362,9 +1385,26 @@ function preloadGameFrame(url) {
   _gameFrame.style.visibility = 'hidden';
   _gameFrame.src = url + sep + '_v=' + Date.now();
 }
-function revealGameFrame() {
+function _sameGameUrl(a, b) {
+  try {
+    const ua = new URL(a, location.href), ub = new URL(b, location.href);
+    ua.searchParams.delete('_v'); ub.searchParams.delete('_v');
+    return ua.pathname === ub.pathname && ua.search === ub.search;
+  } catch(e) { return false; }
+}
+// url is optional -- passed by display_reveal_game so this can self-heal if
+// the preload never landed (e.g. operator hit START GAME within the first
+// ~2s of the walkup, before the server's staggered display_preload_game
+// broadcast fires) and revealed an iframe with no src at all: blank HDMI.
+// The normal already-preloaded path (src already matches) stays untouched --
+// this only loads the URL when the iframe doesn't already have it.
+function revealGameFrame(url) {
   clearTimeout(_gameFrameClearTimer);
   _gamePreloading = false;
+  if (url && !_sameGameUrl(_gameFrame.src || '', url)) {
+    const sep = url.includes('?') ? '&' : '?';
+    _gameFrame.src = url + sep + '_v=' + Date.now();
+  }
   _gameFrame.style.display = 'block';
   _gameFrame.style.visibility = 'visible';
 }
@@ -1757,6 +1797,7 @@ function connectWS() {
       else if (msg.event === 'display_band_slideshow_stop')  { hideBandSlideshow(); }
       else if (msg.event === 'display_vs_card')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showVsCard(data); }
       else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showLeaderboard(data); }
+      else if (msg.event === 'display_leaderboard_hide') { hideLeaderboard(); }
       else if (msg.event === 'display_h2h')       { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showH2H(data); }
       else if (msg.event === 'h2h_score')         { updateH2HScore(data); }
       else if (msg.event === 'h2h_reset')         { updateH2HReset(data); }
@@ -1775,9 +1816,10 @@ function connectWS() {
       else if (msg.event === 'display_preload_game') { preloadGameFrame(data.url); }
       else if (msg.event === 'display_reveal_game')  {
         hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow();
-        revealGameFrame();
+        revealGameFrame(data.url);
       }
       else if (msg.event === 'timer_show')        { showChronoOverlay('countdown', {seconds: data.seconds || 0}, 'skit'); }
+      else if (msg.event === 'timer_auto_hide')   { hideChronoOverlay('skit'); }
       else if (msg.event === 'timer_warning')     { showChronoOverlay('countdown', {seconds: data.seconds_remaining || 0}, 'skit'); }
       else if (msg.event === 'timer_state')       { handleTimerState(data); }
       else if (msg.event === 'timer_expired')     { hideChronoOverlay('skit'); }

@@ -123,7 +123,7 @@ input:focus, select:focus { border-color:var(--amber-dim); }
 
 /* FILE LIST */
 .file-list { margin-top:12px; }
-.file-item { display:flex; align-items:center; gap:8px; padding:8px 10px; background:var(--bg3); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; transition:border-color .15s; }
+.file-item { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:8px 10px; background:var(--bg3); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; transition:border-color .15s; }
 .file-item:hover { border-color:var(--border2); }
 .file-item.playing { border-color:var(--green); background:#0a1f10; }
 .file-icon { font-size:15px; flex-shrink:0; }
@@ -1839,6 +1839,16 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   SHOW ON SCREEN — show countdown timer on projector while running
                 </label>
               </div>
+              <div style="margin-bottom:10px">
+                <label style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;user-select:none">
+                  <input id="t-auto-hide" type="checkbox" onchange="document.getElementById('t-auto-hide-row').style.display=this.checked?'flex':'none'">
+                  AUTO HIDE — fade it off screen a few seconds after it appears so it's not distracting; still pops back up at the warning trigger below
+                </label>
+                <div id="t-auto-hide-row" style="display:none;align-items:center;gap:8px;margin-top:8px;margin-left:24px">
+                  <input id="t-auto-hide-secs" type="number" class="text-input" style="width:80px" min="1" max="60" placeholder="5">
+                  <span style="font-size:11px;color:var(--text-dim)">sec after it appears</span>
+                </div>
+              </div>
               <div style="margin-bottom:16px">
                 <label style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;user-select:none">
                   <input id="t-show-end-anim" type="checkbox" checked>
@@ -2280,6 +2290,22 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         </div>
       </div>
 
+      <!-- SYSTEM LOG -->
+      <div class="editor-panel" style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div class="editor-label" style="margin-bottom:0">📋 SYSTEM LOG</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button id="sys-log-btn-warn" class="btn btn-secondary" style="padding:4px 10px;font-size:10px" onclick="sysLogSetFilter('warn')">WARNINGS &amp; ERRORS</button>
+            <button id="sys-log-btn-all" class="btn btn-secondary" style="padding:4px 10px;font-size:10px" onclick="sysLogSetFilter('all')">EVERYTHING</button>
+            <button class="btn btn-secondary" style="padding:4px 10px;font-size:10px" onclick="loadSystemLog()">↻</button>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px">Boot events, service restarts, pole/battery connection issues, DMX errors — pulled straight from the Pi's own log, no SSH needed. Auto-refreshes while this tab is open.</div>
+        <div id="system-log-view" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;max-height:280px;overflow-y:auto;font-family:'Share Tech Mono',monospace;font-size:11px;line-height:1.6">
+          <div style="color:var(--text-dim);padding:8px">LOADING…</div>
+        </div>
+      </div>
+
       <!-- POLE BATTERIES -->
       <div class="editor-panel" style="margin-bottom:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -2391,6 +2417,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await loadShowFlow();
   await loadShowFlowTemplates();
   await loadPoleNodes();
+  await sgLoadThemes();
 });
 
 // ── TABS ───────────────────────────────────────────────────────────────────
@@ -2400,7 +2427,7 @@ function switchTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   const navEl = document.querySelector(`.nav-item[data-tab="${name}"]`);
   if (navEl) navEl.classList.add('active');
-  if (name === 'system')        { loadHealth(); startHealthAutoRefresh(); backupRefreshStatus(); startBatteryAutoRefresh(); } else { stopHealthAutoRefresh(); stopBatteryAutoRefresh(); }
+  if (name === 'system')        { loadHealth(); startHealthAutoRefresh(); backupRefreshStatus(); startBatteryAutoRefresh(); startSystemLogAutoRefresh(); } else { stopHealthAutoRefresh(); stopBatteryAutoRefresh(); stopSystemLogAutoRefresh(); }
   if (name === 'lighting')      { loadPoleNodes(); }
   if (name === 'scenes')        { loadPoleNodes(); renderSceneGrid && renderSceneGrid(); }
   if (name === 'showflow')      { loadShowFlow(); loadShowFlowTemplates(); }
@@ -3292,18 +3319,22 @@ async function deleteGameEntry() {
 // ── SOUNDS ─────────────────────────────────────────────────────────────────
 let currentPreviewItem = null;
 
+let _sfxTagsCache = {};
+
 async function loadSounds() {
   try {
-    const [sfxRes, musicRes, sysRes, usbRes] = await Promise.all([
+    const [sfxRes, musicRes, sysRes, usbRes, tagsRes] = await Promise.all([
       fetch('/api/sfx/list'),
       fetch('/api/music/list'),
       fetch('/api/system/status'),
       fetch('/api/usb/list'),
+      fetch('/api/sfx/tags'),
     ]);
     const sfxFiles   = await sfxRes.json();
     const musicFiles = await musicRes.json();
     const sys        = await sysRes.json();
     const usbData    = await usbRes.json();
+    _sfxTagsCache     = await tagsRes.json().catch(() => ({}));
 
     // Pi disk bar
     const pct = sys.disk || 0;
@@ -3788,18 +3819,31 @@ function addFileItem(listId, filename, cat) {
   div.dataset.filename = filename;
   div.dataset.cat      = cat;
 
+  const tagBtn = cat === 'sfx'
+    ? `<button class="file-btn tag-btn" title="Edit categories">🏷</button>` : '';
+  const tagRow = cat === 'sfx'
+    ? `<div class="file-tags" style="width:100%;font-size:10px;color:var(--text-dim);letter-spacing:.5px;margin-top:2px"></div>` : '';
+
   div.innerHTML = `
     <span class="file-icon">${icon}</span>
     <span class="file-name" title="${escHtml(filename)}">${escHtml(filename)}</span>
     <span class="file-cat ${cat}">${cat.toUpperCase()}</span>
     <div class="file-actions">
       <button class="file-btn play-btn" title="Preview">▶</button>
+      ${tagBtn}
       <button class="file-btn rename-btn" title="Rename">✏</button>
       <button class="file-btn danger delete-btn" title="Delete">🗑</button>
-    </div>`;
+    </div>
+    ${tagRow}`;
 
   // Preview
   div.querySelector('.play-btn').addEventListener('click', () => previewFile(div, assetPath, filename));
+
+  // Categories (SFX only)
+  if (cat === 'sfx') {
+    div.querySelector('.tag-btn').addEventListener('click', () => editSfxTags(div, filename));
+    _renderSfxTagRow(div, filename);
+  }
 
   // Rename
   div.querySelector('.rename-btn').addEventListener('click', () => startRename(div, filename, cat));
@@ -3808,6 +3852,31 @@ function addFileItem(listId, filename, cat) {
   div.querySelector('.delete-btn').addEventListener('click', () => deleteFile(div, filename, cat));
 
   list.appendChild(div);
+}
+
+function _renderSfxTagRow(div, filename) {
+  const row = div.querySelector('.file-tags');
+  if (!row) return;
+  const tags = _sfxTagsCache[filename] || [];
+  row.textContent = tags.length ? '🏷 ' + tags.join(', ') : '';
+}
+
+async function editSfxTags(div, filename) {
+  const current = (_sfxTagsCache[filename] || []).join(', ');
+  const input = prompt(`Categories for "${filename}" (comma-separated, e.g. "Pirate, Funny"):`, current);
+  if (input === null) return;
+  const tags = input.split(',').map(t => t.trim()).filter(Boolean);
+  try {
+    const r = await fetch('/api/admin/sfx/tags', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ file: filename, tags }),
+    }).then(r => r.json());
+    if (r.ok) {
+      _sfxTagsCache = r.tags;
+      _renderSfxTagRow(div, filename);
+      toast('Categories saved', 'ok');
+    } else { toast('Save failed', 'err'); }
+  } catch(e) { toast('Save failed', 'err'); }
 }
 
 function previewFile(div, assetPath, filename) {
@@ -4576,11 +4645,24 @@ function stepParamHtml(step) {
   }
   if (a === 'shell_game') {
     const hold = step.hold ?? 5;
-    return `<div style="display:flex;align-items:center;gap:8px">
-      <label style="font-size:11px;color:var(--text-dim);white-space:nowrap">GUESS TIME</label>
-      <input class="step-param" type="number" value="${hold}" min="2" max="30" step="1"
-             style="width:60px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px">
-      <span style="font-size:11px;color:var(--text-dim)">seconds — navigates display to Shell Game and auto-starts</span>
+    const themeId = step.theme_id || '';
+    const themeOpts = sgThemes.length
+      ? sgThemes.map(t => `<option value="${escHtml(t.id)}" ${themeId===t.id?'selected':''}>${escHtml(t.name)}</option>`).join('')
+      : '<option value="">— no saved variations —</option>';
+    return `<div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:11px;color:var(--text-dim);white-space:nowrap">GUESS TIME</label>
+        <input class="step-param" type="number" value="${hold}" min="2" max="30" step="1"
+               style="width:60px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px">
+        <span style="font-size:11px;color:var(--text-dim)">seconds — navigates display to Shell Game and auto-starts</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:11px;color:var(--text-dim);white-space:nowrap">VARIANT</label>
+        <select class="step-param-theme" style="background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px">
+          <option value="">— currently active —</option>
+          ${themeOpts}
+        </select>
+      </div>
     </div>`;
   }
   if (a === 'viz') {
@@ -4653,7 +4735,10 @@ function collectStepValue(row, action) {
     const cfgEl  = row.querySelector('.step-param-game-config');
     return { game_type_id: typeEl?.value || '', game_config_id: cfgEl?.value || '' };
   }
-  if (action === 'shell_game')       return { hold: parseFloat(val) || 5 };
+  if (action === 'shell_game') {
+    const themeEl = row.querySelector('.step-param-theme');
+    return { hold: parseFloat(val) || 5, theme_id: themeEl?.value || '' };
+  }
   if (action === 'vs_card')          return { vs_card_id: val };
   if (action === 'head_to_head')     return { head_to_head_id: val };
   if (action === 'viz')              return { preset_id: val };
@@ -4846,7 +4931,7 @@ function addMacroStep() {
   else if (type === 'saved_slide')   { step.slide_id = savedSlides.length ? savedSlides[0].id : ''; }
   else if (type === 'slide')         { step.template = 'big_title'; step.theme = 'amber'; step.headline = ''; step.subtitle = ''; }
   else if (type === 'game')          { step.game_type_id = glGameTypes.length ? glGameTypes[0].id : ''; step.game_config_id = ''; }
-  else if (type === 'shell_game')    step.hold = 5;
+  else if (type === 'shell_game')    { step.hold = 5; step.theme_id = ''; }
   else if (type === 'vs_card')       step.vs_card_id = savedVsCards.length ? savedVsCards[0].id : '';
   else if (type === 'head_to_head')  step.head_to_head_id = savedHeadToHead.length ? savedHeadToHead[0].id : '';
   m.steps = collectSteps();
@@ -5348,6 +5433,7 @@ async function admClearSlide() {
 let savedSlides  = [];
 let savedVsCards = [];
 let savedHeadToHead = [];
+let sgThemes = [];
 
 // ── VS CARDS ──────────────────────────────────────────────────────────────────
 
@@ -7530,6 +7616,9 @@ function timerNewPreset() {
   document.getElementById('t-start-fade').value     = 3;
   document.getElementById('t-start-loop').checked   = true;
   document.getElementById('t-show-on-screen').checked = false;
+  document.getElementById('t-auto-hide').checked = false;
+  document.getElementById('t-auto-hide-secs').value = 5;
+  document.getElementById('t-auto-hide-row').style.display = 'none';
   document.getElementById('t-show-end-anim').checked  = true;
   document.getElementById('t-warning-sound').value  = '';
   document.getElementById('t-warning-scene').value  = '';
@@ -7567,6 +7656,9 @@ function loadPresetForEdit(name) {
   document.getElementById('t-start-fade').value     = p.start_sound_fade     ?? 0;
   document.getElementById('t-start-loop').checked   = p.start_sound_loop !== false;
   document.getElementById('t-show-on-screen').checked = p.show_on_display === true;
+  document.getElementById('t-auto-hide').checked = (p.auto_hide_after || 0) > 0;
+  document.getElementById('t-auto-hide-secs').value = p.auto_hide_after || 5;
+  document.getElementById('t-auto-hide-row').style.display = (p.auto_hide_after || 0) > 0 ? 'flex' : 'none';
   document.getElementById('t-show-end-anim').checked  = p.show_end_display !== false;
   if (p.warning_sound) document.getElementById('t-warning-sound').value = p.warning_sound;
   if (p.warning_scene) document.getElementById('t-warning-scene').value = p.warning_scene;
@@ -7602,6 +7694,7 @@ async function saveTimerPreset() {
         start_sound_fade:     parseFloat(document.getElementById('t-start-fade').value) || 0,
         start_sound_loop:     document.getElementById('t-start-loop').checked,
         show_on_display:      document.getElementById('t-show-on-screen').checked,
+        auto_hide_after:      document.getElementById('t-auto-hide').checked ? (parseInt(document.getElementById('t-auto-hide-secs').value) || 5) : 0,
         show_end_display:     document.getElementById('t-show-end-anim').checked,
         warning_sound:        document.getElementById('t-warning-sound').value,
         warning_scene:        document.getElementById('t-warning-scene').value,
@@ -7633,6 +7726,7 @@ async function timerGoLive() {
     start_sound_fade:     parseFloat(document.getElementById('t-start-fade').value)     || 0,
     start_sound_loop:     document.getElementById('t-start-loop').checked,
     show_on_display:      document.getElementById('t-show-on-screen').checked,
+    auto_hide_after:      document.getElementById('t-auto-hide').checked ? (parseInt(document.getElementById('t-auto-hide-secs').value) || 5) : 0,
     show_end_display:     document.getElementById('t-show-end-anim').checked,
     warning_sound:    document.getElementById('t-warning-sound').value,
     warning_scene:    document.getElementById('t-warning-scene').value,
@@ -7733,6 +7827,10 @@ async function loadHealth() {
     rows.push(_hRow('PI CPU', pi.cpu_pct < 90, `${pi.cpu_pct}%  ${temp}`));
     rows.push(_hRow('PI MEMORY', pi.mem_pct < 85, `${pi.mem_pct}%`));
     rows.push(_hRow('PI DISK', pi.disk_pct < 90, `${pi.disk_pct}%  (${pi.disk_free_gb}GB free)`));
+    if (pi.boot_time) {
+      const bootDate = new Date(pi.boot_time * 1000);
+      rows.push(_hRow('LAST BOOT', null, bootDate.toLocaleString()));
+    }
 
     // Services
     const svc = d.services || {};
@@ -7748,6 +7846,13 @@ async function loadHealth() {
     const remoteOk = net.remote_count > 0;
     rows.push(_hRow('IPAD / TABLET', remoteOk, remoteOk ? `${net.remote_count} CLIENT${net.remote_count>1?'S':''}` : 'NOT CONNECTED'));
     rows.push(_hRow('WS CONNECTIONS', net.total_ws >= 0, `${net.total_ws} TOTAL`));
+
+    // M5 remote
+    const m5 = d.remote || {};
+    const m5Detail = m5.connected
+      ? `CONNECTED${m5.battery_pct != null ? '  ' + m5.battery_pct + '%' : ''}`
+      : (m5.last_seen ? `LAST SEEN ${new Date(m5.last_seen * 1000).toLocaleTimeString()}` : 'NEVER CONNECTED');
+    rows.push(_hRow('M5 REMOTE', m5.connected ?? null, m5Detail));
 
     // Pole nodes
     for (const n of (d.pole_nodes || [])) {
@@ -7785,6 +7890,54 @@ function startHealthAutoRefresh() {
 function stopHealthAutoRefresh() {
   clearInterval(_healthTimer);
   _healthTimer = null;
+}
+
+// ── SYSTEM LOG ───────────────────────────────────────────────────────────
+let _sysLogTimer  = null;
+let _sysLogFilter = 'warn';
+
+async function loadSystemLog() {
+  const view = document.getElementById('system-log-view');
+  if (!view) return;
+  try {
+    const res = await fetch(`/api/admin/system/log?level=${_sysLogFilter}&lines=300`);
+    const d = await res.json();
+    const lines = d.lines || [];
+    if (!lines.length) {
+      view.innerHTML = `<div style="color:var(--text-dim);padding:8px">${_sysLogFilter === 'warn' ? 'No warnings or errors.' : 'No log entries.'}</div>`;
+      return;
+    }
+    view.innerHTML = lines.map(l => {
+      const esc = l.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      let color = 'var(--text-dim)';
+      if (l.includes(' [ERROR] '))        color = 'var(--red)';
+      else if (l.includes(' [WARNING] ')) color = 'var(--amber)';
+      else if (l.includes(' [INFO] '))    color = 'var(--text)';
+      return `<div style="color:${color};white-space:pre-wrap;word-break:break-all">${esc}</div>`;
+    }).join('');
+    view.scrollTop = view.scrollHeight;
+  } catch(e) {
+    view.innerHTML = `<div style="color:var(--red)">Log fetch failed — ${e.message}</div>`;
+  }
+}
+
+function sysLogSetFilter(f) {
+  _sysLogFilter = f;
+  const warnBtn = document.getElementById('sys-log-btn-warn');
+  const allBtn  = document.getElementById('sys-log-btn-all');
+  if (warnBtn) { warnBtn.style.borderColor = f === 'warn' ? 'var(--amber)' : 'var(--border)'; warnBtn.style.color = f === 'warn' ? 'var(--amber)' : ''; }
+  if (allBtn)  { allBtn.style.borderColor  = f === 'all'  ? 'var(--amber)' : 'var(--border)'; allBtn.style.color  = f === 'all'  ? 'var(--amber)' : ''; }
+  loadSystemLog();
+}
+
+function startSystemLogAutoRefresh() {
+  clearInterval(_sysLogTimer);
+  sysLogSetFilter(_sysLogFilter);
+  _sysLogTimer = setInterval(loadSystemLog, 8000);
+}
+function stopSystemLogAutoRefresh() {
+  clearInterval(_sysLogTimer);
+  _sysLogTimer = null;
 }
 
 // ── POLE BATTERIES (mirrors the Console's batteryLoad/battCmd/battScan) ────
@@ -10034,10 +10187,11 @@ async function _usbSongImport(usbPath, fieldKey, el) {
 // ── Themes / Variations ──────────────────────────────────────────────────────
 async function sgLoadThemes() {
   const list = document.getElementById('sg-themes-list');
-  if (!list) return;
   try {
     const r = await fetch('/api/shell-game/themes');
     const themes = await r.json();
+    sgThemes = themes;
+    if (!list) return;
     if (!themes.length) {
       list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace">NO SAVED VARIATIONS YET</div>';
       return;

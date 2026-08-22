@@ -458,4 +458,39 @@ Reported live: a game's intro walk-up video (e.g. the Prize Wheel's) took a noti
 
 ---
 
-*Last updated: August 2026 — Phase 12*
+## Phase 13 — Physical Timer/Stopwatch Control, Two New Game Types, SFX Tagging
+
+### The Remote Learns Timer and Stopwatch
+The MC's handheld M5StickC Plus remote could already fire show flow steps, SFX, and walk-ups, but had no way to run a timer or stopwatch — every skit timer start/pause and every race time had to go through Console. Rather than bolt on a standalone "TIMER" picker entry with no context (the first pass at this, before a proper design conversation ruled it out), the remote now auto-detects when the current show step or macro carries a timer action (`timer_start`/`setup_skit_timer`) and switches itself into Timer mode automatically — then switches back out again the moment that step ends. A held side-button always backs out early, on-screen text says so. Both the countdown and (new) stopwatch tick live on the remote's own screen between its ~3-second state polls, using local `millis()`-based interpolation rather than sitting frozen until the next poll lands.
+
+A real bug surfaced building this: the remote's stopwatch would visibly reset to zero every ~3 seconds while running, even though Console showed the correct elapsed time the whole time. Root cause — `stopwatch_state['elapsed_ms']` is only updated at *stop* time; every browser-based consumer computes live elapsed client-side against its own synced wall clock, but the ESP32 has no wall-clock sync at all, so it was polling a value frozen at 0 and re-deriving a wrong number every cycle. Fixed by having `/api/remote/state` compute a live snapshot server-side (the Pi has correct time, the ESP32 doesn't) before sending it, sidestepping the sync problem entirely.
+
+The skit timer also gained an **auto-hide** option: start it, let it fade off HDMI after a configurable delay so it's not a constant on-screen distraction, while keeping the existing warning-at-15-seconds pop-back-up behavior completely untouched.
+
+### Timed Competition and Countdown Timer — Two New Game Types
+**Timed Competition**: a race or timed-challenge game type where the MC runs a stopwatch from the remote (start/stop on the front button, reset on the side) while the console operator records each contestant's name and time into the existing leaderboard/`games.json` pipeline — no parallel results system built, the leaderboard machinery already there for other games does the job. Supports both fastest-wins (races) and longest-wins (a pull-up hold, a plank) via a per-config sort mode, toggleable live from the controller.
+
+**Countdown Timer**: a standalone shared group countdown, distinct from both the Skit Timer and the Timed Competition stopwatch — its own Game Types entry so it can be launched from Show Flow/the Games Library with its own intro screen, controlled from the console, the game controller, or the remote (which reuses the same auto-detecting Timer screen already built for skits).
+
+Both game types launch through the same `_launch_game()` choke point every other game type uses, and both got a real bug fixed along the way: the Timed Competition controller's sort-order badge looked exactly like Console's own (working) sort toggle button but was actually a plain non-interactive `<span>` — it displayed the config's saved sort mode but didn't respond to taps. Converted to a real button with its own session-local toggle state.
+
+### Restart Without Replaying the Walkup
+"Restart Game" previously replayed the full intro walkup every time, which was disruptive mid-testing or mid-recovery. Added a general `skip_intro` flag threaded through `_launch_game()`/`/api/games/launch` — skips every walkup/fallback-screen/display-navigate side effect for any game type while still doing the full state reset (fresh trivia index, wiped scores, wiped stopwatch, fresh timer duration). Built for Trivia's Restart button specifically, but available to every game type since it lives in the shared launch path, not a Trivia-only branch.
+
+### Trivia HDMI Question Overflow
+Long trivia questions were running off the bottom of the HDMI display — the auto-shrink logic (`_fitQuestionText()`) was supposed to scale the question down to fit, but wasn't working. Root cause: the shrink loop set a smaller `font-size` then immediately measured `.scrollHeight` on the same tick, but the element had an active CSS `transition` on font-size — the measurement was reading a value from mid-transition, not the size that had just been set, so the loop's decisions were made off stale data. Fixed by disabling the transition for the duration of the measurement loop, forcing a layout, then restoring it — verified against both a real 133-character question and a deliberately extreme 280-character stress test in an isolated test harness before deploying, to avoid contaminating a live show. While in there: the "AG Trivia" brand row was hidden entirely in display mode and stage padding was cut from 8vw/5vh to 3vw/2vh, reclaiming real screen space per direct feedback that the projector had far more room to work with than the layout was using.
+
+Separately, the Games Library's **Trivia** game type label was corrected from "AG Trivia" (which was actually just the name of one specific themed config, not the type) to plain "Trivia" — "AG Trivia" and "Pirate Trivia" are both configs *of* the Trivia type, not the type itself.
+
+### SFX Tagging — Console, Admin, and Stream Deck
+The SFX library had grown past the point of being scannable by eye. Rejected the obvious first idea (subfolders by theme) once it became clear some sounds genuinely belong in more than one category, and folders can't do that without either duplicating files or picking one folder arbitrarily — plus moving files would break every existing filename-based reference in macros, walk-ups, timer sounds, and the Stream Deck. Built instead as a pure metadata layer: `config['sfx_tags']` maps a filename to a list of tags, entirely additive, nothing physically moves. Admin gained a per-sound 🏷 tag editor; Console gained filter chips above the SFX grid (including an "untagged" bucket); the Stream Deck's SFX page was rebuilt into a two-level category picker — tap a tag, then tap a sound — reusing the same generic paginated-list engine every other Stream Deck page already runs on, rather than one-off UI.
+
+### Memes Tab Missing GIFs
+Reported: GIFs uploaded to the Display library weren't showing up under the Console's MEMES tab. Root cause: MEMES is just the Display library filtered down to a hardcoded video-extension set (`.mp4`/`.webm`/`.mov`/`.ogv`) — `.gif` was never in that list, even though GIFs already played back fine everywhere else in Display (they're served as an image, not a video, and that path was always correct). One-line fix: added `.gif` to the filter.
+
+### Stream Deck: Stop Buttons on SFX and Music
+Neither the SFX nor Music pages had a way to cut a currently-playing sound without leaving the page. Added a pinned red STOP button at key 0 on both — SFX gets a new SFX-only `/api/sfx/stop` (stops just the SFX channel, leaves music alone), Music gets a new `/api/music/stop` wired to the existing music-only `_stop_music()` helper (already used internally for the auto-mute-on-timer path, just never exposed as its own endpoint). Both pages drop from 12 items/page to 11 to make room for the pinned key, same reserved-key convention the Display page already established.
+
+---
+
+*Last updated: August 2026 — Phase 13*
