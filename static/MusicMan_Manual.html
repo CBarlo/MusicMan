@@ -325,6 +325,7 @@
       <li><a href="#shell-game-run">Shell Game — live operation</a></li>
       <li><a href="#prize-wheel-run">Prize Wheel — live operation</a></li>
       <li><a href="#musical-chairs-run">Musical Chairs — live operation</a></li>
+      <li><a href="#trivia-run">Trivia — live operation</a></li>
       <li><a href="#usb-run">USB Playlist tab</a></li>
       <li><a href="#remote-run">The Physical Remote</a></li>
       <li><a href="#streamdeck-run">Stream Deck</a></li>
@@ -1145,6 +1146,43 @@
     auto-stop for hands-free rounds, or ignore it and run every round manually.
   </div>
 
+  <h3>Trivia settings</h3>
+  <p>
+    <strong>Trivia</strong> is the game type — each saved config under it is a themed question set
+    (e.g. "AG Trivia," "Pirate Trivia") with its own list, sounds, and scoring setup. Questions
+    reveal one at a time on HDMI; the operator drives Reveal/Next/Prev/Correct/Incorrect from the
+    controller, which also doubles as an answer key (question and answer both show on the
+    operator's screen regardless of what's revealed on HDMI).
+  </p>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Questions</td><td>Each row is a Question, an Answer, and an optional Category (Category is stored per-question for your own organization when editing — it isn't currently shown anywhere in the live game). Add rows one at a time with <kbd>+ ADD QUESTION</kbd>, or bulk-load with <kbd>📄 IMPORT FILE</kbd>.</td></tr>
+    <tr><td>Shuffle</td><td>When on, every <kbd>↗ GO LIVE</kbd> deals the questions in a fresh random order. The editor's own list order never changes — shuffle only affects play order, so your list stays predictable to edit.</td></tr>
+    <tr><td>Guess Timer (seconds)</td><td>0 = no timer, which is the default. Above 0, a countdown badge becomes available for the operator to start per-question — purely a visible countdown for the room; nothing fires automatically when it hits zero, and revealing the answer clears it.</td></tr>
+    <tr><td>Intro Game Entry (optional)</td><td>Plays first; the trivia session loads behind it, hidden, and reveals automatically once the intro ends.</td></tr>
+    <tr><td>Team Scoreboard — Link Head to Head Game (optional)</td><td>Ties this trivia session to an existing Head to Head game's team scoreboard. When linked, the operator's Correct/Incorrect buttons are replaced by Head to Head's own scoring panel — per-team +/− and exact-set, a point multiplier (1x/2x/3x/5x), Declare Winner, and Wipe Scores — right inside the trivia controller, no need to switch panels. Leave unlinked to run a standalone session instead (see below).</td></tr>
+    <tr><td>Correct / Incorrect Scene &amp; SFX</td><td>Fires the moment the operator taps <kbd>✓ Correct</kbd> or <kbd>✕ Incorrect</kbd> — the scene flashes, then automatically reverts to whatever was showing before (same revert mechanism Head to Head uses for its own correct/incorrect scenes). Only reachable in standalone mode, since a linked Team Scoreboard replaces those buttons with Head to Head's own scoring controls instead.</td></tr>
+  </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">Importing a question bank</div>
+    <kbd>📄 IMPORT FILE</kbd> accepts <strong>CSV</strong> or <strong>.xlsx</strong>. Columns are
+    Question, Answer, and an optional Category — a header row is fine but not required (it's
+    detected automatically). Imported rows are appended to whatever's already in the list, so you
+    can import multiple files or mix imports with manually-added questions. Keep in mind this is
+    projected on HDMI: safe margins on all sides help, though there's a fair amount of room to
+    work with before the auto-shrink kicks in on a long question.
+  </div>
+  <div class="callout callout-info">
+    <div class="callout-title">Standalone mode — Session Log</div>
+    With no Head to Head game linked, the controller shows a running <strong>Session Log</strong>
+    instead: every Correct/Incorrect tap is logged against its question with a live X/Y tally.
+    Tap any entry to flip a mis-tap without clearing the whole log. <kbd>📺 Show Score On Screen</kbd>
+    swaps the HDMI display over to a big tally card (hiding the question/answer view) — tap
+    <kbd>📋 Back To Questions</kbd> to return, or just tap <kbd>Next Question</kbd>, which returns
+    automatically. <kbd>↺ Clear</kbd> resets the log and tally to 0/0 without restarting the whole
+    game.
+  </div>
+
   <h3>Timed Competition settings</h3>
   <p>
     Built for a race or a timed challenge run one contestant at a time. The MC controls the
@@ -1947,6 +1985,31 @@
     round, just tap <kbd>START</kbd> again; the round counter advances and the song picks up
     right where it left off.
   </p>
+
+  <h2 id="trivia-run">Trivia — Live Operation</h2>
+  <p>
+    Launch a Trivia config from the Show Flow (Game step) or from <span class="tab">GAMES</span> →
+    Games Library, same as any other Library game. If the config has an Intro Game Entry, tap
+    <kbd>▶ Start Game</kbd> once it finishes playing to reveal the first question — that button
+    only appears when there's an intro to reveal past; with no intro entry, the question is already
+    visible the moment you go live.
+  </p>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Operator Q&amp;A panel</td><td>Always shows the current question and its answer, regardless of what's revealed on HDMI — this is the MC's answer key.</td></tr>
+    <tr><td><kbd>⏱ Start Timer</kbd> / <kbd>⏹ Stop</kbd></td><td>Only present if the config has a Guess Timer set. Starts a visible countdown on HDMI for the room to guess against; Reveal Answer clears it automatically if you forget to stop it.</td></tr>
+    <tr><td><kbd>👁 Reveal Answer</kbd></td><td>Shows the answer on HDMI, steps the question back to a smaller supporting size, and clears any running guess timer.</td></tr>
+    <tr><td><kbd>◂ Prev</kbd> / <kbd>Next Question ▸</kbd></td><td>Moves between questions. Both reset the reveal state and clear the guess timer — landing on a new question always starts hidden.</td></tr>
+    <tr><td><kbd>✓ Correct</kbd> / <kbd>✕ Incorrect</kbd></td><td>Standalone mode only (no Head to Head linked). Fires the configured scene/SFX and logs the mark against the current question in the Session Log.</td></tr>
+    <tr><td>Head to Head scoring panel</td><td>Replaces Correct/Incorrect when a Team Scoreboard is linked — per-team +/− and exact-score buttons, a shared point multiplier, <kbd>🏆 Declare Winner</kbd>, and <kbd>🧹 Wipe Scores</kbd>, all live-synced with the scoreboard shown on HDMI.</td></tr>
+    <tr><td><kbd>🔄 Restart Game</kbd></td><td>Back to question 1 and wipes the score (Session Log tally, or the linked scoreboard). HDMI stays as-is — the intro walkup does <em>not</em> replay, so this is safe to use mid-testing or to recover from a mis-click without disrupting the room.</td></tr>
+  </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">Next/Prev/Reveal from the remote</div>
+    A live Trivia session shows up on the MC's <a href="#remote-run">physical remote</a> as its own
+    control screen — front short-press for Next, side short-press for Prev, front long-press to
+    Reveal Answer. Correct/Incorrect and the Head to Head scoring panel stay Console-only.
+  </div>
 
   <h2 id="usb-run">USB Playlist Tab</h2>
   <p>
