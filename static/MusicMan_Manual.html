@@ -1159,9 +1159,9 @@
     <tr><td>Questions</td><td>Each row is a Question, an Answer, and an optional Category (Category is stored per-question for your own organization when editing — it isn't currently shown anywhere in the live game). Add rows one at a time with <kbd>+ ADD QUESTION</kbd>, or bulk-load with <kbd>📄 IMPORT FILE</kbd>.</td></tr>
     <tr><td>Shuffle</td><td>When on, every <kbd>↗ GO LIVE</kbd> deals the questions in a fresh random order. The editor's own list order never changes — shuffle only affects play order, so your list stays predictable to edit.</td></tr>
     <tr><td>Guess Timer (seconds)</td><td>0 = no timer, which is the default. Above 0, a countdown badge becomes available for the operator to start per-question — purely a visible countdown for the room; nothing fires automatically when it hits zero, and revealing the answer clears it.</td></tr>
-    <tr><td>Intro Game Entry (optional)</td><td>Plays first; the trivia session loads behind it, hidden, and reveals automatically once the intro ends.</td></tr>
+    <tr><td>Intro Game Entry (optional)</td><td>Plays first; the trivia session loads behind it, hidden, and reveals automatically once the intro ends — into a lobby screen (game name centered, team scores at top if a scoreboard is linked), not straight into question 1. See <a href="#trivia-run">Trivia — Live Operation</a>.</td></tr>
     <tr><td>Team Scoreboard — Link Head to Head Game (optional)</td><td>Ties this trivia session to an existing Head to Head game's team scoreboard. When linked, the operator's Correct/Incorrect buttons are replaced by Head to Head's own scoring panel — per-team +/− and exact-set, a point multiplier (1x/2x/3x/5x), Declare Winner, and Wipe Scores — right inside the trivia controller, no need to switch panels. Leave unlinked to run a standalone session instead (see below).</td></tr>
-    <tr><td>Correct / Incorrect Scene &amp; SFX</td><td>Fires the moment the operator taps <kbd>✓ Correct</kbd> or <kbd>✕ Incorrect</kbd> — the scene flashes, then automatically reverts to whatever was showing before (same revert mechanism Head to Head uses for its own correct/incorrect scenes). Only reachable in standalone mode, since a linked Team Scoreboard replaces those buttons with Head to Head's own scoring controls instead.</td></tr>
+    <tr><td>Correct / Incorrect Scene &amp; SFX</td><td>Fires the moment the operator marks an answer — the scene flashes, then automatically reverts to whatever was showing before. In standalone mode that's the <kbd>✓ Correct</kbd>/<kbd>✕ Incorrect</kbd> buttons; with a Team Scoreboard linked, it's Head to Head's own +/− buttons instead, but this game's scene/SFX still fire — they override whatever's configured on the Head to Head game itself. That's deliberate: a Head to Head scoreboard is often reused season-to-season across differently-themed games, so the theme belongs to whichever game is actually running, not the scoreboard.</td></tr>
   </table>
   <div class="callout callout-tip">
     <div class="callout-title">Importing a question bank</div>
@@ -1989,10 +1989,16 @@
   <h2 id="trivia-run">Trivia — Live Operation</h2>
   <p>
     Launch a Trivia config from the Show Flow (Game step) or from <span class="tab">GAMES</span> →
-    Games Library, same as any other Library game. If the config has an Intro Game Entry, tap
-    <kbd>▶ Start Game</kbd> once it finishes playing to reveal the first question — that button
-    only appears when there's an intro to reveal past; with no intro entry, the question is already
-    visible the moment you go live.
+    Games Library, same as any other Library game. HDMI auto-reveals into a <strong>lobby
+    screen</strong> the moment the Intro Game Entry ends (or immediately, if there's no intro
+    entry) — the game's name centered on screen, with the team scoreboard across the top if one's
+    linked, same as the wheel idling before a spin. It's not a live board yet: no question is
+    showing, and the room just sees "get ready."
+  </p>
+  <p>
+    Tap <kbd>▶ Start Game</kbd> whenever you're ready to actually begin — it swaps the lobby over
+    to question 1. That button is visible any time the session hasn't started yet, and disappears
+    once it has.
   </p>
   <table>
     <tr><th>Control</th><th>What it does</th></tr>
@@ -2002,7 +2008,7 @@
     <tr><td><kbd>◂ Prev</kbd> / <kbd>Next Question ▸</kbd></td><td>Moves between questions. Both reset the reveal state and clear the guess timer — landing on a new question always starts hidden.</td></tr>
     <tr><td><kbd>✓ Correct</kbd> / <kbd>✕ Incorrect</kbd></td><td>Standalone mode only (no Head to Head linked). Fires the configured scene/SFX and logs the mark against the current question in the Session Log.</td></tr>
     <tr><td>Head to Head scoring panel</td><td>Replaces Correct/Incorrect when a Team Scoreboard is linked — per-team +/− and exact-score buttons, a shared point multiplier, <kbd>🏆 Declare Winner</kbd>, and <kbd>🧹 Wipe Scores</kbd>, all live-synced with the scoreboard shown on HDMI.</td></tr>
-    <tr><td><kbd>🔄 Restart Game</kbd></td><td>Back to question 1 and wipes the score (Session Log tally, or the linked scoreboard). HDMI stays as-is — the intro walkup does <em>not</em> replay, so this is safe to use mid-testing or to recover from a mis-click without disrupting the room.</td></tr>
+    <tr><td><kbd>🔄 Restart Game</kbd></td><td>Back to the lobby screen and wipes the score (Session Log tally, or the linked scoreboard) — HDMI switches back to showing the game name/scores, same as a fresh launch, but the intro walkup itself does <em>not</em> replay, so this is safe to use mid-testing or to recover from a mis-click without disrupting the room.</td></tr>
   </table>
   <div class="callout callout-tip">
     <div class="callout-title">Next/Prev/Reveal from the remote</div>

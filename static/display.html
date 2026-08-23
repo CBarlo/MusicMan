@@ -1773,8 +1773,19 @@ function connectWS() {
         if (s.startup_id && _startupId && s.startup_id !== _startupId) {
           // Service restarted — get fresh HTML
           location.href = '/display?v=' + Date.now();
+          return;
         }
-        // else: network hiccup, service still running — stay on current display
+        // else: network hiccup, service still running — stay on current display.
+        // But a reveal broadcast (e.g. Trivia's "Start Game") could have fired
+        // and been dropped during the exact gap this socket was down, leaving
+        // the game frame stuck showing the intro walkup's last frame with no
+        // way to recover -- self-heal by re-applying the reveal if the server
+        // says the live game is supposed to be revealed right now and the
+        // frame doesn't already match. Games whose reveal timing is purely
+        // client-driven (the walkup video's own onended) aren't covered here —
+        // the server has no way to know their exact reveal moment either.
+        const lg = s.live_game || {};
+        if (lg.revealed && lg.disp_url) revealGameFrame(lg.disp_url);
       }).catch(()=>{});
     }
   };

@@ -487,6 +487,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               </div>
               <div class="btn-row">
                 <button class="btn btn-primary" onclick="saveCircle()">✓ SAVE CIRCLE</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteCircle()">🗑 DELETE</button>
               </div>
             </div>
           </div>
@@ -657,6 +658,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               </div>
               <div class="btn-row">
                 <button class="btn btn-primary" onclick="saveRole()">✓ SAVE ROLE</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteRole()">🗑 DELETE</button>
               </div>
             </div>
           </div>
@@ -2846,6 +2848,23 @@ async function saveCircle() {
   }
 }
 
+async function deleteCircle() {
+  if (!selectedCircleId) return;
+  const c = circles.find(x => x.id === selectedCircleId);
+  if (!confirm('Delete circle "' + (c ? c.name : selectedCircleId) + '"? This removes its walkup assets too and can\'t be undone.')) return;
+  try {
+    const res = await fetch(`/api/admin/circle/${selectedCircleId}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.ok) {
+      toast('Circle deleted', 'ok');
+      await loadCircles();
+      collapseCircleEditor();
+    } else {
+      toast('Delete failed', 'err');
+    }
+  } catch(e) { toast('Delete failed', 'err'); }
+}
+
 // Color pickers — circles
 function onCColorInput(val) {
   document.getElementById('c-color-hex').value = val;
@@ -3040,6 +3059,23 @@ async function saveRole() {
     toast('Save failed', 'err');
     setSaveStatus('ERROR');
   }
+}
+
+async function deleteRole() {
+  if (!selectedRoleId) return;
+  const r = roles.find(x => x.id === selectedRoleId);
+  if (!confirm('Delete role "' + (r ? r.name : selectedRoleId) + '"? This removes its walkup assets too and can\'t be undone.')) return;
+  try {
+    const res = await fetch(`/api/admin/role/${selectedRoleId}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.ok) {
+      toast('Role deleted', 'ok');
+      await loadRoles();
+      collapseRoleEditor();
+    } else {
+      toast('Delete failed', 'err');
+    }
+  } catch(e) { toast('Delete failed', 'err'); }
 }
 
 // Color pickers — roles
@@ -6781,6 +6817,14 @@ async function _renderGlTriviaEditor(container, dataObj) {
   } catch(e) {}
   const h2hLinked = dataObj.h2h_game_id || '';
 
+  let lobbyImageOpts = '<option value="">— none (game name + "Get Ready") —</option>';
+  try {
+    const imgExts = new Set(['.jpg','.jpeg','.png','.gif','.webp','.bmp']);
+    const files = await fetch('/api/display/list').then(r => r.json());
+    const images = files.filter(f => imgExts.has(f.slice(f.lastIndexOf('.')).toLowerCase()));
+    lobbyImageOpts += images.map(f => `<option value="${escHtml(f)}">${escHtml(f)}</option>`).join('');
+  } catch(e) {}
+
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
   container.style.gap = '14px';
@@ -6812,13 +6856,19 @@ async function _renderGlTriviaEditor(container, dataObj) {
       <select id="glf-intro_entry" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${introOpts}</select>
     </div>
     <div class="section-divider"></div>
+    <div class="card-title">LOBBY <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— shown after the intro ends, until the operator taps Start Game</span></div>
+    <div>
+      <label class="field-label">LOBBY IMAGE (OPTIONAL) <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— replaces the game name / "Get Ready" text with this image. Team scores across the top (if a scoreboard is linked below) still show either way.</span></label>
+      <select id="glf-lobby_image" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${lobbyImageOpts}</select>
+    </div>
+    <div class="section-divider"></div>
     <div class="card-title">TEAM SCOREBOARD</div>
     <div>
       <label class="field-label">LINK HEAD TO HEAD GAME (OPTIONAL) <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— shows team names/scores on screen; operator gets Head to Head's own +/− and multiplier controls instead of Correct/Incorrect below</span></label>
       <select id="glf-h2h_game_id" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${h2hOpts}</select>
     </div>
     <div class="section-divider"></div>
-    <div class="card-title">CORRECT / INCORRECT <span id="glt-ci-ignored-note" style="display:${h2hLinked?'inline':'none'};font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— ignored while a Team Scoreboard is linked above</span></div>
+    <div class="card-title">CORRECT / INCORRECT <span id="glt-ci-ignored-note" style="display:${h2hLinked?'inline':'none'};font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— this game's theme overrides whatever's set on the linked Head to Head game above, so its +/− buttons use these instead of its own</span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div>
         <label class="field-label">CORRECT SCENE</label>
@@ -6839,12 +6889,14 @@ async function _renderGlTriviaEditor(container, dataObj) {
     </div>`;
 
   const introSel   = document.getElementById('glf-intro_entry');
+  const lobbyImgSel= document.getElementById('glf-lobby_image');
   const h2hSel     = document.getElementById('glf-h2h_game_id');
   const correctSc  = document.getElementById('glf-correct_scene');
   const incorrectSc= document.getElementById('glf-incorrect_scene');
   const correctSfx = document.getElementById('glf-correct_sfx');
   const incorrectSfx = document.getElementById('glf-incorrect_sfx');
   if (introSel)     { introSel.value     = introEntry;                 introSel.onchange     = _glScheduleAutoSave; }
+  if (lobbyImgSel)  { lobbyImgSel.value  = dataObj.lobby_image || '';   lobbyImgSel.onchange  = _glScheduleAutoSave; }
   if (h2hSel) {
     h2hSel.value = h2hLinked;
     h2hSel.onchange = () => {
@@ -6943,6 +6995,7 @@ function glReadSchemaData() {
   if (glSelectedType === 'trivia') {
     const questions = _glTriviaQuestions.filter(q => (q.question||'').trim() || (q.answer||'').trim());
     const introEl       = document.getElementById('glf-intro_entry');
+    const lobbyImgEl     = document.getElementById('glf-lobby_image');
     const h2hEl          = document.getElementById('glf-h2h_game_id');
     const correctScEl   = document.getElementById('glf-correct_scene');
     const incorrectScEl = document.getElementById('glf-incorrect_scene');
@@ -6953,6 +7006,7 @@ function glReadSchemaData() {
     return {
       questions,
       intro_entry:     introEl       ? introEl.value       : '',
+      lobby_image:     lobbyImgEl    ? lobbyImgEl.value    : '',
       h2h_game_id:      h2hEl         ? h2hEl.value          : '',
       correct_scene:   correctScEl   ? correctScEl.value   : '',
       incorrect_scene: incorrectScEl ? incorrectScEl.value : '',

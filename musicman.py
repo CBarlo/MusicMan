@@ -305,6 +305,15 @@ def _navigate_home_if_needed():
 def _ensure_display_for(event, data, delay=1.2):
     """Send a display event, navigating home first if not on display.html."""
     global _display_url
+    # Every non-game display event (walkup, slide, standby, H2H, ...) goes
+    # through here -- the one shared choke point outside the game-iframe path
+    # itself. Clearing 'revealed' here means a WS-reconnect self-heal (see
+    # api_state()'s live_game field and display.html's reconnect handler)
+    # never resurrects a game that's since been superseded by something else,
+    # even though _current_live_game itself isn't reset until the next
+    # _launch_game() call.
+    if _current_live_game.get('revealed'):
+        _current_live_game['revealed'] = False
     with _display_url_lock:
         needs_nav = _display_url != '/display'
         if needs_nav:
@@ -1135,6 +1144,9 @@ def _timer_state_from_cfg(cfg):
         'duration':          t.get('duration', 180),
         'warning_fired': False,
         'expired': False,
+        'visible_on_display': False,   # currently showing on HDMI right now -- distinct
+                                        # from show_on_display, which is the persistent
+                                        # admin toggle for whether it's allowed to show at all
         'preset_name':        t.get('active_preset', ''),
         'show_on_display':    t.get('show_on_display', False),
         'show_end_display':   t.get('show_end_display', True),
@@ -1279,6 +1291,7 @@ def timer_worker():
             disp_file = tcfg.get('warning_display', '')
             if disp_file:
                 _broadcast_timer_display(disp_file)
+            timer_state['visible_on_display'] = True
             broadcast('timer_warning', {'seconds_remaining': timer_state['seconds_remaining'],
                                         'warning_fired': True, 'running': True})
             log.info("Timer: warning fired")
@@ -1315,6 +1328,7 @@ def timer_worker():
                 global _timer_pre_end_slide
                 _timer_pre_end_slide = dict(current_slide)
                 _broadcast_timer_display(disp_file)
+            timer_state['visible_on_display'] = False
             broadcast('timer_expired', {})
             log.info("Timer: expired")
 
@@ -1494,6 +1508,7 @@ GAME_TYPES = {
         # is documentation-only, same relationship Wheel has to its own schema entry.
         'schema': [
             {'key': 'intro_entry',     'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
+            {'key': 'lobby_image',     'type': 'select', 'label': 'Lobby Image (optional)', 'source': 'display_images'},
             {'key': 'correct_scene',   'type': 'select', 'label': 'Correct Answer Scene',   'source': 'scenes'},
             {'key': 'incorrect_scene', 'type': 'select', 'label': 'Incorrect Answer Scene', 'source': 'scenes'},
             {'key': 'correct_sfx',     'type': 'select', 'label': 'Correct Answer SFX (optional)',   'source': 'audio'},
@@ -3394,12 +3409,18 @@ def api_head_to_head_score(game_id):
     save_head_to_head(games)
     broadcast('h2h_score', {'game_id': game_id, 'contestant_id': contestant_id,
                              'score': scores[contestant_id], 'direction': direction})
-    sfx_name = game.get('correct_sfx' if direction > 0 else 'incorrect_sfx', '')
+    # A linked game (e.g. Trivia) can pass its own themed scene/sfx to
+    # override H2H's own -- H2H is the persistent team scoreboard, often
+    # reused across many differently-themed games in a season, so the theme
+    # belongs to whichever game is actually running, not the scoreboard.
+    # Standalone H2H scoring (Console's own panel, Stream Deck) never sends
+    # these keys, so it's unaffected and keeps using the game's own fields.
+    sfx_name = data['sfx'] if 'sfx' in data else game.get('correct_sfx' if direction > 0 else 'incorrect_sfx', '')
     if sfx_name:
         sfx_path = ASSETS_DIR / 'sfx' / sfx_name
         if sfx_path.exists():
             play_sfx(str(sfx_path))
-    scene_id = game.get('correct_scene' if direction > 0 else 'incorrect_scene', '')
+    scene_id = data['scene'] if 'scene' in data else game.get('correct_scene' if direction > 0 else 'incorrect_scene', '')
     if scene_id:
         _h2h_flash_and_revert(scene_id, game.get('flash_duration_ms', 400))
     return jsonify({'ok': True, 'score': scores[contestant_id]})
@@ -3849,6 +3870,7 @@ def api_state():
         'slide':      current_slide,
         'viz_scene':  _viz_scene,
         'startup_id': _startup_id,
+        'live_game':  _current_live_game,
         'display_state': {
             'circle': current_circle,
             'slide':  current_slide,
@@ -4026,6 +4048,7 @@ def _schedule_timer_autohide():
         time.sleep(delay)
         if (_timer_run_generation == gen and timer_state['running']
                 and timer_state['seconds_remaining'] > wa):
+            timer_state['visible_on_display'] = False
             broadcast('timer_auto_hide', {})
     threading.Thread(target=_run, daemon=True).start()
 
@@ -4042,6 +4065,7 @@ def api_timer_start():
         timer_state['paused'] = False
         broadcast('timer_state', timer_state)
         if not was_paused and timer_state.get('show_on_display'):
+            timer_state['visible_on_display'] = True
             broadcast('timer_show', {'seconds': timer_state['seconds_remaining']})
             _schedule_timer_autohide()
         # Restart the start sound fresh both on a brand-new start and on
@@ -4132,6 +4156,7 @@ def api_timer_show():
         timer_state['warning_fired'] = False
         timer_state['expired'] = False
         broadcast('timer_state', timer_state)
+    timer_state['visible_on_display'] = True
     broadcast('timer_show', {'seconds': timer_state['seconds_remaining']})
     log.info("Timer shown (not started)")
     return jsonify({'ok': True, 'timer': timer_state})
@@ -4190,6 +4215,7 @@ def api_timer_reset():
 @app.route('/api/timer/hide')
 def api_timer_hide():
     """Hide the timer overlay from the display without affecting timer state."""
+    timer_state['visible_on_display'] = False
     broadcast('timer_hide', {})
     return jsonify({'ok': True})
 
@@ -4678,7 +4704,13 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
     ctrl_url = gt.get('controller_route', f'/games/{game_type_id}') + (f'?config={config_id}' if config_id else '')
 
     global _current_live_game
-    _current_live_game = {'game_type_id': game_type_id, 'config_id': config_id}
+    # 'revealed'/'disp_url' let display.html self-heal on a WS reconnect that
+    # happened to land right on top of a reveal broadcast (see api_state()
+    # and the reconnect handler in display.html) -- without this, a dropped
+    # reveal event left the display stuck on the intro walkup's last frame
+    # with no way to recover short of a manual re-trigger.
+    _current_live_game = {'game_type_id': game_type_id, 'config_id': config_id,
+                           'revealed': False, 'disp_url': None}
 
     if game_type_id == 'trivia' and config_id:
         # Every GO LIVE starts a fresh session at question 1 — a mid-session HDMI
@@ -4706,6 +4738,18 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
                 h2h_game['scores'] = {c['id']: 0 for c in h2h_game.get('contestants', [])}
                 save_head_to_head(h2h_games)
                 broadcast('h2h_reset', {'game_id': h2h_game_id, 'scores': h2h_game['scores']})
+
+        # Push the fresh session (question 1, started=False -- back to the
+        # lobby) to any already-connected trivia clients right away. Without
+        # this, a skip_intro Restart Game leaves the display showing whatever
+        # question it was last frozen on, since that path deliberately sends
+        # no navigate/reveal broadcast at all -- only the operator's own
+        # controller (which reloads itself) would otherwise see the reset.
+        broadcast('trivia_state', {'config_id': config_id, 'index': fresh['index'],
+                                    'revealed': fresh['revealed'], 'started': fresh['started'],
+                                    'timer_end': fresh['timer_end'], 'log': fresh['log'],
+                                    'order': fresh['order'], 'show_score': fresh['show_score'],
+                                    'count': len(trivia_data.get('questions', []))})
 
     if game_type_id == 'musical_chairs':
         cfg_data, _ = _chairs_config_data(config_id)
@@ -4767,8 +4811,10 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
 
     disp_base = gt.get('display_route', f'/games/{game_type_id}')
     disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
+    _current_live_game['disp_url'] = disp_url
 
     if skip_intro:
+        _current_live_game['revealed'] = True
         return ctrl_url, disp_url
 
     intro_entry = _intro_entry_for_game(game_type_id, config_id)
@@ -4793,13 +4839,14 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
         # blocked, decode error, or a looping animation intro with no natural
         # "ended" event).
         #
-        # Trivia is different: the operator wants the game parked on the intro
-        # video's last frame (it freezes there naturally — no loop, nothing
-        # hides it) until they explicitly press START GAME in the controller
-        # (POST /api/games/trivia/start). Everything else keeps auto-revealing
-        # the instant the video ends, matching Wheel's "reveal already alive"
-        # design this was originally built for.
-        auto_reveal = game_type_id != 'trivia'
+        # Trivia auto-reveals just like every other game type here (matching
+        # Wheel's "reveal already alive" design) -- but what it reveals into
+        # is its own lobby screen (game name + team scores if linked), not
+        # question 1. The operator's later START GAME (POST
+        # /api/games/trivia/start) flips the session's 'started' flag, which
+        # is what actually switches the already-visible iframe over to the
+        # first question.
+        auto_reveal = True
         fire_game_entry(intro_entry, reveal_url=(disp_url if auto_reveal else None))
         cancel_ev = _walkup_fade_cancel
         entry = next((e for e in config.get('game_entries', []) if e['id'] == intro_entry), None)
@@ -4813,11 +4860,13 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
             def _reveal_after_intro_fallback(delay=duration + 8, url=disp_url, ev=cancel_ev):
                 if ev.wait(timeout=delay):
                     return  # a newer walkup/game-entry took over before this timer ran out
+                _current_live_game['revealed'] = True
                 broadcast('display_reveal_game', {'url': url})
             threading.Thread(target=_reveal_after_intro_fallback, daemon=True).start()
         return ctrl_url, disp_url
 
     # display.html shows games in an iframe — kiosk stays on /display, _display_url unchanged
+    _current_live_game['revealed'] = True
     broadcast('display_navigate', {'url': disp_url})
     return ctrl_url, disp_url
 
@@ -4953,7 +5002,15 @@ def api_games_chairs_start():
     data          = request.json or {}
     config_id     = data.get('config_id', '')
     cfg_data, name = _chairs_config_data(config_id)
-    song = data.get('song') or cfg_data.get('song', '')
+    # A caller with no song of its own (the physical remote has no song
+    # picker at all -- it just presses START) should continue with whatever
+    # song is actually active for this session, not silently jump back to
+    # the config's static Admin default. Console/the operator's own dropdown
+    # always sends an explicit song, so this fallback chain only matters for
+    # a start with none. api_games_chairs_reset() clears chairs_state['song']
+    # back to '', so a fresh reset still correctly falls through to the
+    # config default rather than "remembering" a stale song forever.
+    song = data.get('song') or chairs_state.get('song') or cfg_data.get('song', '')
     if not song:
         return jsonify({'ok': False, 'error': 'No song selected'}), 400
     fp = (ASSETS_DIR / 'music' / song).resolve()
@@ -5175,7 +5232,12 @@ _trivia_state = {}         # config_id -> {'index': int, 'revealed': bool, 'time
 _trivia_state_lock = threading.Lock()
 
 def _trivia_default_state():
-    return {'index': 0, 'revealed': False, 'timer_end': None, 'log': [], 'show_score': False, 'order': None}
+    # started=False means "on the lobby screen" (game name + team scores if
+    # linked, no question content yet) -- flips True once the operator taps
+    # Start Game, same lobby-then-go pattern the Prize Wheel already has
+    # (idle spin behind the walkup, then a real spin on the operator's cue).
+    return {'index': 0, 'revealed': False, 'started': False, 'timer_end': None,
+            'log': [], 'show_score': False, 'order': None}
 
 def _trivia_real_index(st, question_count):
     """Map a state's play-order position to the actual index into questions[]."""
@@ -5203,19 +5265,37 @@ def api_games_trivia_state():
     data, _   = _trivia_config_data(config_id)
     questions = data.get('questions', [])
     st = _trivia_get_state(config_id, len(questions))
-    return jsonify({'index': st['index'], 'revealed': st['revealed'], 'timer_end': st['timer_end'],
-                     'log': st['log'], 'order': st['order'], 'show_score': st['show_score'], 'count': len(questions)})
+    return jsonify({'index': st['index'], 'revealed': st['revealed'], 'started': st['started'],
+                     'timer_end': st['timer_end'], 'log': st['log'], 'order': st['order'],
+                     'show_score': st['show_score'], 'count': len(questions)})
 
 @app.route('/api/games/trivia/start', methods=['POST'])
 def api_games_trivia_start():
-    """Operator-pressed START GAME — reveals the trivia iframe over the intro
-    video's frozen last frame. Harmless / idempotent if the game was already
-    revealed (e.g. no intro entry was configured, so it was visible already)."""
+    """Operator-pressed START GAME — leaves the lobby screen (game name +
+    team scores, shown since the walkup auto-revealed into it) and moves the
+    display over to question 1. Also (re-)fires display_reveal_game so this
+    still works as a plain reveal if the iframe somehow isn't up yet -- e.g.
+    no intro entry was configured, or a dropped WS event -- harmless/idempotent
+    if it's already showing."""
     body      = request.json or {}
     config_id = body.get('config_id', '')
-    disp_url  = '/games/trivia?display=1' + (f'&config={config_id}' if config_id else '')
+    data, _   = _trivia_config_data(config_id)
+    questions = data.get('questions', [])
+    with _trivia_state_lock:
+        st = _trivia_state.setdefault(config_id, _trivia_default_state())
+        st['started'] = True
+        new_state = dict(st)
+    payload = {'config_id': config_id, 'index': new_state['index'], 'revealed': new_state['revealed'],
+               'started': new_state['started'], 'timer_end': new_state['timer_end'],
+               'log': new_state['log'], 'order': new_state['order'],
+               'show_score': new_state['show_score'], 'count': len(questions)}
+    broadcast('trivia_state', payload)
+    disp_url = '/games/trivia?display=1' + (f'&config={config_id}' if config_id else '')
+    if (_current_live_game.get('game_type_id') == 'trivia'
+            and _current_live_game.get('config_id') == config_id):
+        _current_live_game['revealed'] = True
     broadcast('display_reveal_game', {'url': disp_url})
-    return jsonify({'ok': True})
+    return jsonify({'ok': True, **payload})
 
 @app.route('/api/games/trivia/action', methods=['POST'])
 def api_games_trivia_action():
@@ -5248,7 +5328,8 @@ def api_games_trivia_action():
                                'correct': action == 'correct'})
             new_state = dict(st)
         payload = {'config_id': config_id, 'index': new_state['index'], 'revealed': new_state['revealed'],
-                   'timer_end': new_state['timer_end'], 'log': new_state['log'], 'order': new_state['order'],
+                   'started': new_state['started'], 'timer_end': new_state['timer_end'],
+                   'log': new_state['log'], 'order': new_state['order'],
                    'show_score': new_state['show_score'], 'count': len(questions)}
         broadcast('trivia_state', payload)
         return jsonify({'ok': True, **payload})
@@ -5291,7 +5372,8 @@ def api_games_trivia_action():
         new_state = dict(st)
 
     payload = {'config_id': config_id, 'index': new_state['index'], 'revealed': new_state['revealed'],
-               'timer_end': new_state['timer_end'], 'log': new_state['log'], 'order': new_state['order'],
+               'started': new_state['started'], 'timer_end': new_state['timer_end'],
+               'log': new_state['log'], 'order': new_state['order'],
                'show_score': new_state['show_score'], 'count': len(questions)}
     broadcast('trivia_state', payload)
     return jsonify({'ok': True, **payload})
@@ -6770,6 +6852,32 @@ def api_save_role():
     save_config(cfg)
     global config
     config = cfg
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/circle/<circle_id>', methods=['DELETE'])
+def api_delete_circle(circle_id):
+    cfg = load_config()
+    cfg['circles'] = [c for c in cfg.get('circles', []) if c['id'] != circle_id]
+    save_config(cfg)
+    global config
+    config = cfg
+    import shutil as _shutil
+    circle_dir = ASSETS_DIR / 'circles' / circle_id
+    if circle_dir.exists():
+        _shutil.rmtree(str(circle_dir), ignore_errors=True)
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/role/<role_id>', methods=['DELETE'])
+def api_delete_role(role_id):
+    cfg = load_config()
+    cfg['roles'] = [r for r in cfg.get('roles', []) if r['id'] != role_id]
+    save_config(cfg)
+    global config
+    config = cfg
+    import shutil as _shutil
+    role_dir = ASSETS_DIR / 'roles' / role_id
+    if role_dir.exists():
+        _shutil.rmtree(str(role_dir), ignore_errors=True)
     return jsonify({'ok': True})
 
 @app.route('/api/admin/game-entry', methods=['POST'])

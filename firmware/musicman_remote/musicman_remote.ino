@@ -126,6 +126,7 @@ unsigned long lastStateFetchMs = 0;   // millis() when timer/stopwatch fields we
 bool timerRunning = false;
 bool timerPaused  = false;
 int  timerSecondsRemaining = 0;
+bool timerVisibleOnDisplay = false;
 bool stopwatchRunning = false;
 long stopwatchElapsedMs = 0;
 
@@ -196,7 +197,7 @@ void fireWalkupRole();
 void fireTriviaAction(const String& action);
 void fireChairsToggle();
 void fireTimerToggle();
-void fireTimerShow();
+void fireTimerToggleDisplay();
 void fireTimerReset();
 void fireStopwatchToggle();
 void fireStopwatchReset();
@@ -354,6 +355,7 @@ bool fetchRemoteState() {
   timerRunning          = timer["running"] | false;
   timerPaused           = timer["paused"] | false;
   timerSecondsRemaining = timer["seconds_remaining"] | 0;
+  timerVisibleOnDisplay = timer["visible_on_display"] | false;
 
   JsonObject stopwatch = doc["stopwatch"];
   stopwatchRunning   = stopwatch["running"] | false;
@@ -704,14 +706,16 @@ void fireTimerToggle() {
   else    { beepFail(); showToast("TIMER ACTION FAILED"); }
 }
 
-// Console's "SET" button -- puts the configured duration up on the display
-// without starting the countdown, e.g. to let people see how long a skit
-// has before it begins.
-void fireTimerShow() {
+// Toggles the countdown's visibility on HDMI -- reads the server's own
+// timerVisibleOnDisplay (not a locally-tracked flag) so this stays correct
+// even when auto-hide or the warning-at pop-back-up changed visibility on
+// their own, without the remote ever being told directly.
+void fireTimerToggleDisplay() {
   bool ok = false;
-  httpGet("/api/timer/show", &ok);
+  const char* path = timerVisibleOnDisplay ? "/api/timer/hide" : "/api/timer/show";
+  httpGet(path, &ok);
   lastActivity = millis();
-  if (ok) { beepConfirm(); showToast("TIMER SHOWN"); fetchRemoteState(); }
+  if (ok) { beepConfirm(); showToast(timerVisibleOnDisplay ? "TIMER HIDDEN" : "TIMER SHOWN"); fetchRemoteState(); }
   else    { beepFail(); showToast("TIMER ACTION FAILED"); }
 }
 
@@ -815,7 +819,7 @@ void handleButtons() {
       break;
     case LEVEL_TIMER:
       if      (frontShort) fireTimerToggle();
-      else if (sideShort)  fireTimerShow();
+      else if (sideShort)  fireTimerToggleDisplay();
       else if (frontLong)  fireTimerReset();
       break;
     case LEVEL_GAME_CHAIRS:
@@ -1047,7 +1051,7 @@ void drawScreen() {
 
       screenBuf.setTextColor(0xC618);
       screenBuf.setCursor(4, 106);
-      screenBuf.print("FRONT=START/PAUSE  SIDE=SHOW");
+      screenBuf.print(timerVisibleOnDisplay ? "FRONT=START/PAUSE  SIDE=HIDE" : "FRONT=START/PAUSE  SIDE=SHOW");
       screenBuf.setCursor(4, 118);
       screenBuf.setTextColor(0x8410);
       screenBuf.print("HOLD FRONT=RESET HOLD SIDE=BACK");

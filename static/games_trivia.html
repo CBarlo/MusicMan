@@ -138,6 +138,38 @@
   .display-mode .score-card-label { font-size:2vw; letter-spacing:0.6vw; margin-bottom:2vh; }
   .display-mode .score-card-val   { font-size:18vw; }
 
+  /* ── LOBBY (between the walkup and Start Game) — game name + team scores
+     already visible in scoreboard-strip above, waiting for the operator ── */
+  .lobby-view {
+    width:100%; max-width:900px; flex:1; min-height:280px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+    background:linear-gradient(180deg, #20241c, #171a1e);
+    border:1px solid rgba(240,169,41,0.3); border-radius:14px;
+    text-align:center; padding:40px 30px;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .lobby-name { font-size:52px; font-weight:800; color:var(--amber-hi); text-wrap:balance; line-height:1.1; text-shadow:0 0 30px rgba(240,169,41,0.35); }
+  .lobby-sub  { font-size:14px; letter-spacing:6px; text-transform:uppercase; color:rgba(242,236,224,0.5); font-weight:700; }
+  .lobby-view #lobbyImage { max-width:100%; max-height:520px; width:auto; height:auto; object-fit:contain; border-radius:8px; }
+  /* has-image: the card exists mainly to frame the text version -- once a
+     custom image is set it should be the dominant thing on screen, so the
+     card shrinks its own padding out of the way instead of boxing the image
+     down to a small graphic in the middle of a lot of empty dark space. */
+  .lobby-view.has-image { padding:16px; }
+  /* width/height:auto (above) only ever SHRINKS an oversized image -- it
+     never grows one that's already smaller than the box, which is exactly
+     what a 1920x1080 lobby image on a 4K kiosk is. Forcing the element to
+     the full box size and letting object-fit:contain do the fitting scales
+     it both up and down as needed. */
+  .lobby-view.has-image #lobbyImage { width:100%; height:100%; max-width:100%; max-height:100%; }
+  .display-mode .lobby-view { max-width:100%; border-radius:24px; padding:6vh 4vw; gap:2vh; }
+  .display-mode .lobby-view.has-image { padding:2vh 2vw; }
+  .display-mode .lobby-name { font-size:7vw; }
+  .display-mode .lobby-sub  { font-size:1.6vw; letter-spacing:0.5vw; }
+  .display-mode .lobby-view #lobbyImage { max-height:50vh; border-radius:16px; }
+  .display-mode .lobby-view.has-image #lobbyImage { width:100%; height:100%; max-height:none; }
+  .display-mode .lobby-view.has-image #lobbyImage { max-height:82vh; }
+
   /* ── SESSION LOG (operator-only, standalone tally) ── */
   .session-log { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
   .session-log-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
@@ -223,6 +255,14 @@
   </div>
 
   <div class="scoreboard-strip" id="scoreboardStrip" style="display:none"></div>
+
+  <div class="lobby-view" id="lobbyView" style="display:none">
+    <div id="lobbyTextGroup">
+      <div class="lobby-name" id="lobbyName">—</div>
+      <div class="lobby-sub">Get Ready</div>
+    </div>
+    <img id="lobbyImage" style="display:none">
+  </div>
 
   <div class="timer-row" id="timerRow" style="display:none">
     <div class="timer-inner">
@@ -317,7 +357,7 @@
     </div>
 
     <div class="admin-actions" style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08)">
-      <button class="op-btn nav" style="flex:1;border-color:rgba(220,38,38,0.4);color:#f28b82" onclick="triviaRestartGame()" title="Back to question 1, replays the intro walkup, wipes the team scoreboard if one's linked">🔄 Restart Game</button>
+      <button class="op-btn nav" style="flex:1;border-color:rgba(220,38,38,0.4);color:#f28b82" onclick="triviaRestartGame()" title="Back to the lobby screen, wipes the team scoreboard if one's linked -- does NOT replay the intro walkup">🔄 Restart Game</button>
     </div>
   </div>
 </div>
@@ -342,6 +382,16 @@ let h2hGameId      = '';
 let h2hContestants = [];   // [{id, name, color, score, image_url}]
 let h2hMultiplier  = 1;
 
+// This game's own themed correct/incorrect cues -- when H2H is linked,
+// these override whatever scene/sfx is configured on the H2H game itself.
+// H2H is the persistent team scoreboard (often reused across many
+// differently-themed games); the theme belongs to whichever game is
+// actually running, not the scoreboard.
+let triviaCorrectScene   = '';
+let triviaIncorrectScene = '';
+let triviaCorrectSfx     = '';
+let triviaIncorrectSfx   = '';
+
 // Optional guess timer
 let guessTimerSecs = 0;      // 0 = disabled, from config
 let _timerInterval = null;
@@ -349,6 +399,7 @@ let _timerInterval = null;
 // Standalone session log (used when no Head to Head game is linked)
 let sessionLog = [];   // [{index, question, correct}]
 let showScore  = false;
+let gameStarted = false;   // false = lobby screen (game name + team scores), true = Q&A flow
 
 function escHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -386,7 +437,7 @@ function connectWS() {
     try {
       const msg = JSON.parse(evt.data);
       if (msg.event === 'trivia_state' && (!msg.data.config_id || msg.data.config_id === _configId)) {
-        applyState(msg.data.index, msg.data.revealed, msg.data.timer_end, msg.data.log, msg.data.show_score, msg.data.order);
+        applyState(msg.data.index, msg.data.revealed, msg.data.timer_end, msg.data.log, msg.data.show_score, msg.data.order, msg.data.started);
       } else if (h2hGameId && msg.event === 'h2h_score' && msg.data.game_id === h2hGameId) {
         const c = h2hContestants.find(x => x.id === msg.data.contestant_id);
         if (c) { c.score = msg.data.score; renderScoreboard(); renderH2hRows(); }
@@ -436,7 +487,7 @@ function _fitQuestionText() {
   textEl.style.transition = prevTransition;
 }
 
-function applyState(index, revealed, timerEnd, log, showScoreFlag, order) {
+function applyState(index, revealed, timerEnd, log, showScoreFlag, order, started) {
   curIndex = index || 0;
   curRevealed = !!revealed;
   if (order !== undefined) questionOrder = order || null;
@@ -444,6 +495,9 @@ function applyState(index, revealed, timerEnd, log, showScoreFlag, order) {
   applyTimer(timerEnd || null);
   if (Array.isArray(log)) sessionLog = log;
   showScore = !!showScoreFlag;
+  if (started !== undefined) gameStarted = !!started;
+  const startRow = document.getElementById('startRow');
+  if (startRow) startRow.style.display = gameStarted ? 'none' : 'flex';
   renderSessionLog();
   renderScoreCard();
 
@@ -503,11 +557,27 @@ function renderScoreCard() {
   const scoreCard = document.getElementById('scoreCard');
   const scoreVal  = document.getElementById('scoreCardVal');
   const showBtn   = document.getElementById('showScoreBtn');
+  const lobbyView = document.getElementById('lobbyView');
+  const timerRow  = document.getElementById('timerRow');
   const correctCount = sessionLog.filter(e => e.correct).length;
   if (scoreVal) scoreVal.textContent = `${correctCount} / ${sessionLog.length}`;
-  if (qaArea)    qaArea.style.display    = showScore ? 'none' : 'flex';
-  if (scoreCard) scoreCard.style.display = showScore ? 'flex' : 'none';
-  if (showBtn)   showBtn.textContent = showScore ? '📋 Back To Questions' : '📺 Show Score On Screen';
+  if (showBtn)  showBtn.textContent = showScore ? '📋 Back To Questions' : '📺 Show Score On Screen';
+
+  // Three mutually-exclusive views: lobby (before Start Game), the tally
+  // card (Show Score On Screen), or the normal Q&A flow. Only one is ever
+  // visible at a time.
+  if (!gameStarted) {
+    if (lobbyView) lobbyView.style.display = 'flex';
+    if (qaArea)    qaArea.style.display    = 'none';
+    if (scoreCard) scoreCard.style.display = 'none';
+    if (timerRow)  timerRow.style.display  = 'none';   // no guess timer during the lobby
+  } else {
+    if (lobbyView) lobbyView.style.display = 'none';
+    if (qaArea)    qaArea.style.display    = showScore ? 'none' : 'flex';
+    if (scoreCard) scoreCard.style.display = showScore ? 'flex' : 'none';
+    // timerRow's own visibility is driven by applyTimer(), called earlier
+    // in applyState() -- left alone here.
+  }
 }
 
 function triviaToggleScore() {
@@ -598,7 +668,13 @@ function h2hScore(contestantId, direction) {
   if (!h2hGameId) return;
   fetch(`/api/head_to_head/${h2hGameId}/score`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({contestant_id: contestantId, direction}),
+    body: JSON.stringify({
+      contestant_id: contestantId, direction,
+      // Always sent (even blank) so this game's theme -- or lack of one --
+      // wins over whatever's configured on the H2H game itself.
+      scene: direction > 0 ? triviaCorrectScene : triviaIncorrectScene,
+      sfx:   direction > 0 ? triviaCorrectSfx   : triviaIncorrectSfx,
+    }),
   }).catch(() => {});
 }
 
@@ -639,14 +715,16 @@ function h2hWipeScores() {
 
 // ── OPERATOR ACTIONS ──
 async function triviaStartGame() {
+  const row = document.getElementById('startRow');
+  if (row) row.style.display = 'none';   // optimistic; applyState() confirms it via the WS broadcast
   try {
-    await fetch('/api/games/trivia/start', {
+    const r = await fetch('/api/games/trivia/start', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ config_id: _configId }),
     });
+    const d = await r.json();
+    if (d.ok) applyState(d.index, d.revealed, d.timer_end, d.log, d.show_score, d.order, d.started);
   } catch(e) {}
-  const row = document.getElementById('startRow');
-  if (row) row.style.display = 'none';
 }
 
 // Deliberate, separate from Start Game -- Start Game is harmless/idempotent
@@ -656,7 +734,7 @@ async function triviaStartGame() {
 // (same "every GO LIVE" contract _launch_game() already applies server-side).
 async function triviaRestartGame() {
   if (!_configId) return;
-  if (!confirm('Restart this trivia session? Back to question 1, scores wipe if a scoreboard is linked. The walkup will NOT replay -- HDMI stays as-is.')) return;
+  if (!confirm('Restart this trivia session? Back to the lobby screen, scores wipe if a scoreboard is linked. The intro walkup will NOT replay.')) return;
   try {
     await fetch('/api/games/launch', {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -673,7 +751,7 @@ async function triviaAction(action, extra) {
       body: JSON.stringify({ config_id: _configId, action, ...(extra || {}) }),
     });
     const d = await r.json();
-    if (d.ok) applyState(d.index, d.revealed, d.timer_end, d.log, d.show_score, d.order);
+    if (d.ok) applyState(d.index, d.revealed, d.timer_end, d.log, d.show_score, d.order, d.started);
   } catch(e) {}
 }
 
@@ -710,16 +788,32 @@ async function triviaMark(action) {
         questions = Array.isArray((cfg.data || {}).questions) ? cfg.data.questions : [];
         h2hGameId = (cfg.data || {}).h2h_game_id || '';
         guessTimerSecs = parseInt((cfg.data || {}).guess_timer_secs) || 0;
-        // Only show Start Game when there's an intro entry — that's the only
-        // case where the trivia iframe is preloaded hidden behind a video
-        // waiting to be revealed. No intro entry means it's already visible.
+        triviaCorrectScene   = (cfg.data || {}).correct_scene   || '';
+        triviaIncorrectScene = (cfg.data || {}).incorrect_scene || '';
+        triviaCorrectSfx     = (cfg.data || {}).correct_sfx     || '';
+        triviaIncorrectSfx   = (cfg.data || {}).incorrect_sfx   || '';
+        // startRow's real visibility is driven by the 'started' flag fetched
+        // from /api/games/trivia/state below (via applyState) -- this is
+        // just a reasonable default before that fetch resolves.
         const startRow = document.getElementById('startRow');
-        if (startRow) startRow.style.display = (cfg.data || {}).intro_entry ? 'flex' : 'none';
+        if (startRow) startRow.style.display = 'flex';
         const timerBtnRow = document.getElementById('timerBtnRow');
         if (timerBtnRow) timerBtnRow.style.display = guessTimerSecs > 0 ? 'flex' : 'none';
         document.getElementById('configBar').style.display = '';
         document.getElementById('configName').textContent  = cfg.name;
+        document.getElementById('lobbyName').textContent   = cfg.name;
         document.title = 'MM Trivia — ' + cfg.name;
+
+        // Lobby image (optional) replaces the name/"Get Ready" text -- the
+        // scoreboard strip above it is untouched either way.
+        const lobbyImage = (cfg.data || {}).lobby_image || '';
+        if (lobbyImage) {
+          const img = document.getElementById('lobbyImage');
+          img.src = '/assets/display/' + encodeURIComponent(lobbyImage);
+          img.style.display = 'block';
+          document.getElementById('lobbyTextGroup').style.display = 'none';
+          document.getElementById('lobbyView').classList.add('has-image');
+        }
       }
     } catch(e) { console.error('Config load failed', e); }
   }
@@ -733,7 +827,7 @@ async function triviaMark(action) {
   }
 
   // Sync to the real current position — covers an HDMI reload mid-game.
-  let index = 0, revealed = false, timerEnd = null, log = [], showScoreFlag = false, order = null;
+  let index = 0, revealed = false, timerEnd = null, log = [], showScoreFlag = false, order = null, started = false;
   try {
     const st = await fetch(`/api/games/trivia/state?config_id=${encodeURIComponent(_configId || '')}`).then(r => r.json());
     index = st.index || 0;
@@ -742,19 +836,10 @@ async function triviaMark(action) {
     log = Array.isArray(st.log) ? st.log : [];
     showScoreFlag = !!st.show_score;
     order = st.order || null;
+    started = !!st.started;
   } catch(e) {}
 
-  // startRow's earlier default only knew whether an intro entry is
-  // configured at all, not whether THIS session already got past it --
-  // opening the controller mid-game (e.g. via Console's "jump to active
-  // game" button) was showing Start Game again next to a question well
-  // into the run. Now that the real position is known, override it.
-  if (revealed || index > 0) {
-    const startRow = document.getElementById('startRow');
-    if (startRow) startRow.style.display = 'none';
-  }
-
-  applyState(index, revealed, timerEnd, log, showScoreFlag, order);
+  applyState(index, revealed, timerEnd, log, showScoreFlag, order, started);
 })();
 </script>
 

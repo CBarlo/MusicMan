@@ -176,6 +176,16 @@ function applyState(s) {
   _state = { ..._state, ...s };
   document.getElementById('roundNum').textContent = _state.round > 0 ? _state.round : '—';
 
+  // Keep the song dropdown in sync with whatever's actually active for this
+  // session -- without this, a second screen (iPad, laptop) can keep
+  // showing the song it happened to load with even after another screen
+  // started a different one, which looks like the game "forgot" the choice
+  // even though the audio itself is correct.
+  if (_state.song) {
+    const sel = document.getElementById('songSelect');
+    if (sel && sel.value !== _state.song) sel.value = _state.song;
+  }
+
   const badge = document.getElementById('statusBadge');
   const icon  = document.getElementById('statusIcon');
   const label = document.getElementById('statusLabel');
