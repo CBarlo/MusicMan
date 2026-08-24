@@ -83,6 +83,13 @@ const unsigned long WIFI_RETRY_MS      = 4000;
 const unsigned long HEARTBEAT_MS       = 5000;   // matches _REMOTE_HEARTBEAT_STALE_S=15 on the Pi
 const unsigned long CONN_LOST_AFTER_MS = 12000;
 const unsigned long SCREEN_SLEEP_MS    = 12000;  // was 30000 -- backlight is the biggest power draw
+// The screen sleeping already kills the biggest draw, but the ESP32 + WiFi
+// radio keep retrying every WIFI_RETRY_MS forever underneath -- real drain
+// left running unattended for hours after a show ends and MusicMan itself
+// is powered down. 10 minutes is long enough that a normal WiFi hiccup or a
+// lull between show segments never triggers it, short enough to actually
+// save battery if the remote gets left on.
+const unsigned long AUTO_POWEROFF_AFTER_MS = 10UL * 60 * 1000;
 
 #define MAX_FLOW_STEPS 120
 #define MAX_SFX 100
@@ -208,6 +215,7 @@ void drawScreen();
 void drawBootLogo();
 void updateLed();
 void updateScreenSleep();
+void checkAutoPowerOff();
 void beepConfirm();
 void beepFail();
 void showToast(const String& msg);
@@ -285,6 +293,7 @@ void loop() {
 
   handleButtons();
   updateScreenSleep();
+  checkAutoPowerOff();
   updateLed();
   drawScreen();
 }
@@ -885,6 +894,34 @@ void updateScreenSleep() {
     }
     wakeBaseAx = ax; wakeBaseAy = ay; wakeBaseAz = az;
   }
+}
+
+// Fully cuts power (not just the screen) once the remote's been both
+// unreachable AND untouched for AUTO_POWEROFF_AFTER_MS -- gated on activity
+// too so someone actively troubleshooting with WiFi down doesn't get the
+// remote yanked out from under them. Ground it back in by pressing either
+// button (it's off, not asleep -- the same power button that turns it back on).
+void checkAutoPowerOff() {
+  if (connState != CONN_OFFLINE) return;
+  unsigned long idleFor = millis() - lastActivity;
+  if (idleFor < AUTO_POWEROFF_AFTER_MS) return;
+
+  M5.Axp.SetLDO2(true);  // screen may already be asleep -- wake it so the message is actually seen
+  screenBuf.fillSprite(BLACK);
+  screenBuf.setTextColor(RED);
+  screenBuf.setTextSize(2);
+  screenBuf.setCursor(20, 40);
+  screenBuf.print("NO CONNECTION");
+  screenBuf.setTextSize(1);
+  screenBuf.setTextColor(0xC618);
+  screenBuf.setCursor(20, 70);
+  screenBuf.print("Powering off to save battery.");
+  screenBuf.setCursor(20, 84);
+  screenBuf.print("Press power button to turn back on.");
+  screenBuf.pushSprite(0, 0);
+  beepFail();
+  delay(2500);
+  M5.Axp.PowerOff();
 }
 
 int getBatteryPct() {

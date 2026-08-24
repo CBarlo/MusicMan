@@ -1814,7 +1814,7 @@ async function buildGameEntriesGrid() {
     btn.id = 'ge-' + e.id;
     btn.style.setProperty('--glow-color', '#5A4FCF55');
     btn.style.borderColor = '#5A4FCF55';
-    const song = (e.assets || {}).walkup_music || (e.assets || {}).walkup_music_lib || '';
+    const song = walkupSongLabel(e.assets);
     btn.innerHTML = `
       <div class="walkup-circle" style="background:#5A4FCF22;color:#8B7FE8;border:1px solid #5A4FCF66">${escHtml(e.emoji || '🎲')}</div>
       <div class="walkup-name" style="color:#8B7FE8">${escHtml(e.name)}</div>
@@ -1986,7 +1986,7 @@ function fireGameEntry(e) {
   if (btn) btn.classList.add('playing');
   document.getElementById('trackTitle').textContent = e.name;
   const assets = e.assets || {};
-  document.getElementById('trackSub').textContent = assets.walkup_music || assets.walkup_music_lib || '—';
+  document.getElementById('trackSub').textContent = walkupSongLabel(assets) || '—';
   _startProgress(((e.walkup || {}).duration || 30) * 1000);
 }
 
@@ -2548,6 +2548,17 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Every walkup_music upload saves to the same fixed filename server-side
+// (walkup.mp3, so re-uploads always cache-bust cleanly) -- walkup_music
+// itself is never something a human would recognize. Prefer whatever WOULD
+// be recognizable: a library pick's real name, then the original upload's
+// filename saved purely for display, then the raw stored name as a last
+// resort for anything set up before this existed.
+function walkupSongLabel(assets) {
+  assets = assets || {};
+  return assets.walkup_music_lib || assets.walkup_music_label || assets.walkup_music || '';
+}
+
 // ── MUSIC LIBRARY ──────────────────────────────────────────────────────────
 let _musicTrackActive = '';
 let _musicFiles = [];
@@ -2783,7 +2794,7 @@ async function buildRolesGrid() {
     const glow = col + '55';
     btn.style.setProperty('--glow-color', glow);
     btn.style.borderColor = col + '55';
-    const song = (r.assets || {}).walkup_music || '';
+    const song = walkupSongLabel(r.assets);
     btn.innerHTML = `
       <button class="walkup-display-btn" onclick="event.stopPropagation();sendToDisplay('role','${escHtml(r.id)}')" title="Show on display without playing the walk-up">📺</button>
       <div class="walkup-circle" style="background:${col}22;color:${col};border:1px solid ${col}66">★</div>
@@ -2801,7 +2812,7 @@ function playRoleWalkup(r) {
   if (btn) btn.classList.add('playing');
   document.getElementById('trackTitle').textContent = r.name + ' Walk-Up';
   const assets = r.assets || {};
-  document.getElementById('trackSub').textContent = assets.walkup_music || '—';
+  document.getElementById('trackSub').textContent = walkupSongLabel(assets) || '—';
   document.getElementById('progressFill').style.width = '0%';
   clearInterval(progressAnim);
   let pct = 0;
@@ -2837,7 +2848,7 @@ async function buildWalkupGrid() {
     btn.style.setProperty('--glow-color', glow);
     btn.style.borderColor = (c.color || '#888888') + '55';
     const num = c.number || '';
-    const song = (c.assets || {}).walkup_music || '';
+    const song = walkupSongLabel(c.assets);
     btn.innerHTML = `<button class="walkup-display-btn" onclick="event.stopPropagation();sendToDisplay('circle','${escHtml(c.id)}')" title="Show on display without playing the walk-up">📺</button><div class="walkup-circle" style="background:${c.color}22;color:${c.color};border:1px solid ${c.color}66">${num}</div><div class="walkup-name" style="color:${c.color}">${escHtml(c.name)}</div><div class="walkup-song">${escHtml(song)}</div>`;
     btn.onclick = () => playWalkup(c);
     grid.appendChild(btn);
@@ -2879,7 +2890,7 @@ function playWalkup(c) {
   if (btn) btn.classList.add('playing');
   document.getElementById('trackTitle').textContent = c.name + ' Walk-Up';
   const assets = c.assets || {};
-  document.getElementById('trackSub').textContent = assets.walkup_music || '—';
+  document.getElementById('trackSub').textContent = walkupSongLabel(assets) || '—';
   document.getElementById('progressFill').style.width = '0%';
   _startProgress(((c.walkup || {}).duration || 30) * 1000);
 }

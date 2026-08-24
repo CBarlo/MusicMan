@@ -6675,7 +6675,15 @@ def api_upload():
                 circle['assets']['logo'] = stored_name
                 circle['assets'].pop('logo_lib', None)
             elif asset_type == 'walkup_music':
+                # Every upload overwrites the same fixed filename (walkup.mp3,
+                # see the versioned-URL cache-busting fix), so the actual
+                # stored name is never anything a human would recognize.
+                # walkup_music_label keeps the original upload's filename
+                # purely for display -- Console's walk-up tiles and Admin's
+                # readiness cards show this instead of the literal
+                # "walkup.mp3" every entry would otherwise share.
                 circle['assets']['walkup_music'] = stored_name
+                circle['assets']['walkup_music_label'] = f.filename
                 circle['assets'].pop('walkup_music_lib', None)
             elif asset_type in ('animation', 'animation_intro'):
                 circle['assets'][asset_type] = stored_name
@@ -6693,6 +6701,7 @@ def api_upload():
                 role['assets'].pop('logo_lib', None)
             elif asset_type == 'walkup_music':
                 role['assets']['walkup_music'] = stored_name
+                role['assets']['walkup_music_label'] = f.filename
                 role['assets'].pop('walkup_music_lib', None)
             elif asset_type in ('animation', 'animation_intro'):
                 role['assets'][asset_type] = stored_name
@@ -6707,6 +6716,7 @@ def api_upload():
                 entry['assets'] = {}
             if asset_type == 'walkup_music':
                 entry['assets']['walkup_music'] = stored_name
+                entry['assets']['walkup_music_label'] = f.filename
                 entry['assets'].pop('walkup_music_lib', None)
             elif asset_type in ('animation', 'animation_intro'):
                 entry['assets'][asset_type] = stored_name
@@ -6757,7 +6767,7 @@ def api_asset_clear():
     if not item:
         return jsonify({'ok': False, 'error': 'Not found'})
     assets = item.setdefault('assets', {})
-    for key in [asset_type, asset_type + '_lib']:
+    for key in [asset_type, asset_type + '_lib', asset_type + '_label']:
         assets.pop(key, None)
     save_config(cfg)
     log.info(f"Cleared asset {asset_type} from {target_type} {target_id}")
@@ -8148,6 +8158,18 @@ def api_file_rename():
         old_thumb = _video_thumb_path(old_name)
         if old_thumb.exists():
             old_thumb.rename(_video_thumb_path(new_name))
+    if file_type == 'sfx':
+        # sfx_tags is keyed by filename -- a rename that doesn't move the tag
+        # entry along with it silently orphans the tags under a name that no
+        # longer exists, and the renamed file reads back as untagged even
+        # though Admin's own (now-stale) DOM still shows the old tag text.
+        cfg = load_config()
+        sfx_tags = cfg.get('sfx_tags', {})
+        if old_name in sfx_tags:
+            sfx_tags[new_name] = sfx_tags.pop(old_name)
+            save_config(cfg)
+            global config
+            config = cfg
     log.info(f"Renamed {file_type} file: {old_name} → {new_name}")
     return jsonify({'ok': True, 'name': new_name})
 

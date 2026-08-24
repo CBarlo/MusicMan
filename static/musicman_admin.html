@@ -2519,7 +2519,7 @@ function populateCircleEditor(id) {
   document.getElementById('c-stage-scene').value  = wu.stage_scene  || '';
   const assets = c.assets || {};
   setSlotFile('c', 'logo',             assets.logo_lib ? '📚 ' + assets.logo_lib : assets.logo);
-  setSlotFile('c', 'walkup_music',     assets.walkup_music_lib ? '📚 ' + assets.walkup_music_lib : assets.walkup_music);
+  setSlotFile('c', 'walkup_music',     assets.walkup_music_lib ? '📚 ' + assets.walkup_music_lib : (assets.walkup_music_label || assets.walkup_music));
   setSlotFile('c', 'animation_intro',  assets.animation_intro);
   setSlotFile('c', 'animation',        assets.animation);
   refreshCirclePreviews(id, assets);
@@ -2797,8 +2797,15 @@ async function uploadCircleAsset(assetType, file) {
     if (data.ok) {
       const fname = getUploadedFilename(data, file.name);
       const c = circles.find(x => x.id === selectedCircleId);
-      if (c) { if (!c.assets) c.assets = {}; c.assets[assetType] = fname; }
-      setSlotFile('c', assetType, fname);
+      if (c) {
+        if (!c.assets) c.assets = {};
+        c.assets[assetType] = fname;
+        // walkup_music always saves to the same fixed filename server-side
+        // (walkup.mp3), so the original upload name is the only thing worth
+        // showing a human -- keep it purely for display.
+        if (assetType === 'walkup_music') c.assets.walkup_music_label = file.name;
+      }
+      setSlotFile('c', assetType, assetType === 'walkup_music' ? file.name : fname);
       renderCircleGrid();
       refreshCirclePreviews(selectedCircleId, c ? c.assets : {});
       toast('Uploaded: ' + fname, 'ok');
@@ -2987,7 +2994,7 @@ function populateRoleEditor(id) {
   document.getElementById('r-stage-scene').value  = wu.stage_scene  || '';
   const assets = r.assets || {};
   setSlotFile('r', 'logo',             assets.logo_lib ? '📚 ' + assets.logo_lib : assets.logo);
-  setSlotFile('r', 'walkup_music',     assets.walkup_music_lib ? '📚 ' + assets.walkup_music_lib : assets.walkup_music);
+  setSlotFile('r', 'walkup_music',     assets.walkup_music_lib ? '📚 ' + assets.walkup_music_lib : (assets.walkup_music_label || assets.walkup_music));
   setSlotFile('r', 'animation_intro',  assets.animation_intro);
   setSlotFile('r', 'animation',        assets.animation);
   refreshRolePreviews(id, assets);
@@ -3010,8 +3017,12 @@ async function uploadRoleAsset(assetType, file) {
     if (data.ok) {
       const fname = getUploadedFilename(data, file.name);
       const r = roles.find(x => x.id === selectedRoleId);
-      if (r) { if (!r.assets) r.assets = {}; r.assets[assetType] = fname; }
-      setSlotFile('r', assetType, fname);
+      if (r) {
+        if (!r.assets) r.assets = {};
+        r.assets[assetType] = fname;
+        if (assetType === 'walkup_music') r.assets.walkup_music_label = file.name;
+      }
+      setSlotFile('r', assetType, assetType === 'walkup_music' ? file.name : fname);
       renderRoleGrid();
       refreshRolePreviews(selectedRoleId, r ? r.assets : {});
       toast('Uploaded: ' + fname, 'ok');
@@ -3186,7 +3197,7 @@ function populateGameEntryEditor(id) {
   document.getElementById('ge-walkup-scene').value = wu.walkup_scene || '';
   document.getElementById('ge-stage-scene').value  = wu.stage_scene  || '';
   const assets = e.assets || {};
-  setSlotFile('ge', 'walkup_music',    assets.walkup_music_lib ? '📚 ' + assets.walkup_music_lib : assets.walkup_music);
+  setSlotFile('ge', 'walkup_music',    assets.walkup_music_lib ? '📚 ' + assets.walkup_music_lib : (assets.walkup_music_label || assets.walkup_music));
   setSlotFile('ge', 'animation_intro', assets.animation_intro);
   setSlotFile('ge', 'animation',       assets.animation);
   refreshGameEntryPreviews(id, assets);
@@ -3271,8 +3282,12 @@ async function uploadGameEntryAsset(assetType, file) {
     if (data.ok) {
       const fname = getUploadedFilename(data, file.name);
       const e = gameEntries.find(x => x.id === selectedGameEntryId);
-      if (e) { if (!e.assets) e.assets = {}; e.assets[assetType] = fname; }
-      setSlotFile('ge', assetType, fname);
+      if (e) {
+        if (!e.assets) e.assets = {};
+        e.assets[assetType] = fname;
+        if (assetType === 'walkup_music') e.assets.walkup_music_label = file.name;
+      }
+      setSlotFile('ge', assetType, assetType === 'walkup_music' ? file.name : fname);
       renderGameEntriesGrid();
       if (e) refreshGameEntryPreviews(selectedGameEntryId, e.assets);
       toast('Uploaded: ' + fname, 'ok');
@@ -3985,6 +4000,15 @@ function startRename(div, oldName, cat) {
           const data = await res.json();
           if (!data.ok) { toast(data.error || 'Rename failed', 'err'); input.focus(); return; }
           div.dataset.filename = newName;
+          // Tags are keyed by filename server-side too -- the backend already
+          // moved the sfx_tags entry to the new name, mirror that in the
+          // local cache and repaint the row so it doesn't keep showing the
+          // OLD name's tags as stale leftover DOM text under the new name.
+          if (cat === 'sfx' && _sfxTagsCache[oldName]) {
+            _sfxTagsCache[newName] = _sfxTagsCache[oldName];
+            delete _sfxTagsCache[oldName];
+          }
+          if (cat === 'sfx') _renderSfxTagRow(div, newName);
           // Update preview path
           const assetPath = `/assets/${cat === 'sfx' ? 'sfx' : 'music'}/${encodeURIComponent(newName)}`;
           div.querySelector('.play-btn').onclick = null;
