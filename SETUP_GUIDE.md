@@ -6,6 +6,19 @@ and everything packed back up correctly — not about running the show itself.
 For that, see `MusicMan_Manual.html`. For internal wiring/repair (inside the
 boxes, not field assembly), see `WIRING_GUIDE.md`.
 
+**New to this? You don't need to know how any of it works.** Every step below
+is a single, concrete action — read one, do that one thing, then move to the
+next. Nothing here requires understanding lighting, audio, or networking.
+If a step genuinely doesn't make sense once you're standing in front of the
+gear, stop and ask rather than guess — most of this only works if it's done
+in order.
+
+**Real-world timing**: one adult working solo, setup of the poles, Music Man
+Box, and PA (not counting the EZ-Up, screen, projector, or generator) took
+about **1 hour 20 minutes**. A second or third person on cables/poles while
+one person runs the console table cuts that down a lot — this isn't a
+one-person job if you can help it.
+
 ---
 
 ## Charge Before You Leave
@@ -75,6 +88,7 @@ Do this the night before / morning of, not at the site:
   already spoken for running pinspot power up each pole.
 - Camera
 - Folding table — the console table itself (Music Man Box + PA controls sit here)
+- Small step stool — for reaching the pole fixtures to aim/adjust them
 
 ---
 
@@ -202,36 +216,53 @@ Setup steps:
 
 1. **Site prep** — walk the site, confirm the fire circle location, mark
    where the two poles, EZ-Up, screen, and PA will go (see Site Layout).
-2. **EZ-Up** — raise early. It's the stage backdrop and the backstage/prep
-   area behind it (where circles/roles/skit performers stage before walking
-   up), not a console tent — the console table sets up separately.
-3. **Check for shore power.** If there isn't any, position and start the
-   generator downwind/away from seating for noise and exhaust, confirm gas
-   level, and let it settle before loading anything onto it (see Power).
-4. **Screen** — position facing the seating area, inflate it, and confirm the
-   inflator is running on continuous power before moving on — don't walk away
-   assuming a one-time inflate is enough.
-5. **Projector** — position with a reasonably short throw to the screen; plug
-   in power if available. Run the video extender's Cat6 cable back to the
-   console and power whichever end of the extender kit is more convenient.
-6. **Poles** — full per-pole assembly above, both poles.
-7. **PA / Audio setup** — full sequence above; leave the Venue powered off
-   until every source is connected.
-8. **Music Man Box** — unpack onto the console table: Pi unit, Stream Deck,
-   the physical remote, iPad mini, wired mic + stand, wireless mic receiver
-   (power it, pair the 2 wireless mics, fresh AA batteries), the MusicMan
-   output cable into the Venue.
-9. **Power everything on**, in this order: shore power/generator first, then
-   the Venue, then the Solix units (if not already on from pole assembly),
-   then the MusicMan unit last.
-10. **Verify connectivity** — once the Pi is booted, its status light should
+2. **Raise the EZ-Up.** It's the stage backdrop and the backstage/prep area
+   behind it (where circles/roles/skit performers stage before walking up),
+   not a console tent — the console table sets up separately, later.
+3. **Check for shore power.** If there isn't any, position the generator
+   downwind/away from seating for noise and exhaust, confirm the gas level,
+   start it, and let it settle before loading anything onto it (see Power).
+4. **Set up the folding table** where the console will go (under/near the
+   EZ-Up) — everything in the Music Man Box and the PA controls end up here.
+5. **Position the screen** facing the seating area.
+6. **Inflate the screen.** Plug in the inflator and confirm it's actually
+   running continuously before moving on — it has to stay plugged in and
+   blowing the whole show, not just a one-time inflate. Don't walk away and
+   accidentally unplug it later thinking it's done its job.
+7. **Position the projector** with a reasonably short, clear throw to the
+   screen.
+8. **Run the long Cat6 cable** from the projector back to the console.
+9. **Connect the video/HDMI extender.** It's a pair of small boxes — one end
+   plugs into the projector's HDMI input, the other into the console's HDMI
+   output, with the long Cat6 cable running between them. Power whichever end
+   is more convenient (only one end needs power, not both).
+10. **Set up each pole** — full per-pole assembly (see Section 2 above), one
+    pole completely before starting the second. Use the step stool to reach
+    the fixtures for aiming — don't try to aim them from the ground by eye.
+11. **Set up the PA (Fender Venue)** — full sequence in the PA / Audio Setup
+    section above: speakers on stands, wireless receiver powered and paired,
+    everything cabled in. Leave the Venue itself powered off until every
+    source is connected.
+12. **Set up the Music Man Box** on the console table: Pi unit, Stream Deck,
+    the physical remote, iPad mini, wired mic + stand, wireless mic receiver
+    (power it, pair the 2 wireless mics, fresh AA batteries), the MusicMan
+    output cable into the Venue.
+13. **Power everything on**, in this order: shore power/generator first, then
+    the Venue, then the Solix units (if not already on from pole assembly),
+    then the MusicMan unit last.
+14. **Verify connectivity** — once the Pi is booted, its status light should
     go from amber (booting) to blue (running) to **green** once both pole
     nodes are connected. Don't consider setup complete until it's green — a
     pole node that isn't checking in usually means a cable came loose during
     assembly, not a real failure, so it's worth a quick look before assuming
     something's broken.
-11. **Hand off to the show operator** to run through the console and confirm
-    lights, sound, and display all respond before the show starts.
+15. **Walk through the Show Flow once, live, on the console** — step through
+    every entry from the start, confirming each one actually fires the right
+    music/light/video before the audience shows up. This is the single best
+    way to catch a loose cable or a wrong setting while it's still easy to
+    fix, instead of finding out live.
+16. **Hand off to the show operator** for a final check of lights, sound, and
+    display before the show starts.
 
 ---
 

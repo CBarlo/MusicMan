@@ -1,0 +1,463 @@
+<title>Load-In Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=Share+Tech+Mono&display=swap">
+<style>
+  :root {
+    --ground:      #f2ece0;
+    --paper:       #ffffff;
+    --ink:         #171310;
+    --ink-dim:     #5b5347;
+    --line:        #d8cfbd;
+    --amber:       #b5730a;
+    --amber-hi:    #f0a929;
+    --amber-wash:  #fbead0;
+    --rust:        #a3321f;
+    --rust-wash:   #fbe4de;
+    --sage:        #3f6249;
+    --sage-wash:   #e4ede4;
+    --charcoal:    #24211c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #14120e;
+      --paper:       #1d1a15;
+      --ink:         #f2ece0;
+      --ink-dim:     #b6ab98;
+      --line:        #3a352b;
+      --amber:       #f0a929;
+      --amber-hi:    #ffce6b;
+      --amber-wash:  #332609;
+      --rust:        #e5745e;
+      --rust-wash:   #3a1a14;
+      --sage:        #7fd99a;
+      --sage-wash:   #16281c;
+      --charcoal:    #0c0a08;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #14120e;
+    --paper:       #1d1a15;
+    --ink:         #f2ece0;
+    --ink-dim:     #b6ab98;
+    --line:        #3a352b;
+    --amber:       #f0a929;
+    --amber-hi:    #ffce6b;
+    --amber-wash:  #332609;
+    --rust:        #e5745e;
+    --rust-wash:   #3a1a14;
+    --sage:        #7fd99a;
+    --sage-wash:   #16281c;
+    --charcoal:    #0c0a08;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: 'Barlow', Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+  }
+
+  h1, h2, h3, .label, .step-title, .chain, .card-title, .btn {
+    font-family: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
+  }
+
+  /* ── MASTHEAD ── */
+  .masthead {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 20px; padding-bottom: 18px; margin-bottom: 22px;
+    border-bottom: 3px solid var(--charcoal);
+  }
+  :root[data-theme="dark"] .masthead, @media (prefers-color-scheme: dark) { }
+  .masthead { border-bottom-color: var(--ink); }
+  .masthead-title { font-weight: 800; font-size: 34px; letter-spacing: 0.5px; line-height: 1; text-wrap: balance; }
+  .masthead-sub { font-family: 'Barlow', Arial, sans-serif; font-size: 13px; color: var(--ink-dim); margin-top: 6px; max-width: 46ch; }
+  .masthead-badge {
+    flex-shrink: 0; text-align: right; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--amber); font-weight: 700; border: 2px solid var(--amber); border-radius: 4px;
+    padding: 6px 10px; white-space: nowrap;
+  }
+
+  .intro {
+    font-size: 13.5px; color: var(--ink-dim); background: var(--paper); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 18px; margin-bottom: 26px;
+  }
+  .intro a { color: var(--amber); }
+  .intro strong { color: var(--ink); }
+
+  /* ── SECTION SCAFFOLDING ── */
+  section { margin-bottom: 34px; }
+  .section-hdr {
+    display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  .section-num {
+    font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--amber);
+    border: 1px solid var(--amber); border-radius: 50%; width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .section-hdr h2 { font-size: 22px; font-weight: 800; letter-spacing: 0.3px; }
+  .section-note { font-size: 12.5px; color: var(--ink-dim); margin: -6px 0 14px 34px; }
+
+  /* ── CONFIRM CALLOUT ── */
+  .confirm {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--rust-wash); border: 1px solid var(--rust); border-radius: 8px;
+    padding: 10px 14px; margin: 10px 0 16px; font-size: 13px;
+  }
+  .confirm-flag {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 10.5px; letter-spacing: 1.5px;
+    color: var(--rust); flex-shrink: 0; padding-top: 1px; white-space: nowrap;
+  }
+  .confirm p { margin: 0; color: var(--ink); }
+
+  /* ── CASE / CHECKLIST CARDS ── */
+  .cases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .cases { grid-template-columns: 1fr; } }
+  .case-card {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 16px 14px; break-inside: avoid;
+  }
+  .case-title {
+    font-weight: 700; font-size: 16px; letter-spacing: 0.3px; margin-bottom: 10px;
+    padding-bottom: 8px; border-bottom: 2px solid var(--amber); color: var(--ink);
+  }
+  .chk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  .chk-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; }
+  .chk-list input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none; width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px;
+    border: 1.5px solid var(--ink-dim); border-radius: 3px; cursor: pointer; background: var(--paper);
+  }
+  .chk-list input[type="checkbox"]:checked { background: var(--sage); border-color: var(--sage); }
+  .chk-list input[type="checkbox"]:checked + span { color: var(--ink-dim); text-decoration: line-through; text-decoration-color: var(--line); }
+  .chk-note { font-size: 12px; color: var(--ink-dim); display: block; margin-top: 1px; }
+
+  /* ── DMX CHAIN DIAGRAM ── */
+  .chain-block { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-bottom: 14px; }
+  .chain-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-dim); font-weight: 700; margin-bottom: 12px; }
+  .chain {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 0; font-size: 15px; font-weight: 700;
+  }
+  .chain .link {
+    background: var(--amber-wash); border: 1.5px solid var(--amber); color: var(--amber);
+    border-radius: 6px; padding: 7px 13px; white-space: nowrap;
+  }
+  .chain .arrow { font-family: 'Share Tech Mono', monospace; color: var(--ink-dim); padding: 0 8px; font-size: 16px; }
+  .chain-cable {
+    font-family: 'Share Tech Mono', monospace; font-size: 10.5px; color: var(--ink-dim);
+    text-align: center; width: 100%; margin: -2px 0 4px; letter-spacing: 0.5px;
+  }
+
+  /* ── NUMBERED STEP LISTS ── */
+  ol.steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  ol.steps > li {
+    counter-increment: step; display: flex; gap: 12px; background: var(--paper);
+    border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px 11px 12px;
+  }
+  ol.steps > li::before {
+    content: counter(step); font-family: 'Share Tech Mono', monospace; font-weight: 700; font-size: 13px;
+    color: var(--paper); background: var(--charcoal); border-radius: 50%; width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  :root[data-theme="dark"] ol.steps > li::before, @media (prefers-color-scheme: dark) { }
+  ol.steps > li::before { background: var(--amber); color: var(--charcoal); }
+  ol.steps > li .step-body { font-size: 13.5px; }
+  ol.steps > li .step-title { font-weight: 700; font-size: 15px; display: block; margin-bottom: 2px; letter-spacing: 0.2px; }
+  ol.steps code, .step-body code {
+    font-family: 'Share Tech Mono', monospace; font-size: 12px; background: var(--amber-wash);
+    color: var(--amber); padding: 1px 5px; border-radius: 3px;
+  }
+
+  .power-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
+  @media (max-width: 640px) { .power-grid { grid-template-columns: 1fr; } }
+  .power-card { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .power-card .fixture { font-weight: 700; font-size: 13.5px; margin-bottom: 4px; }
+  .power-card .source { font-size: 12.5px; color: var(--ink-dim); }
+  .power-card.battery { border-color: var(--sage); }
+  .power-card.battery .fixture { color: var(--sage); }
+
+  /* ── LAYOUT OPTIONS (Site Layout) ── */
+  .layout-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 16px; }
+  @media (max-width: 640px) { .layout-options { grid-template-columns: 1fr; } }
+  .opt-card { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; gap: 12px; }
+  .opt-badge {
+    font-family: 'Share Tech Mono', monospace; font-weight: 700; font-size: 15px; flex-shrink: 0;
+    width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--amber-wash); color: var(--amber); border: 1.5px solid var(--amber);
+  }
+  .opt-card .opt-title { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+  .opt-card .opt-body { font-size: 13px; color: var(--ink-dim); }
+  .layout-note { font-size: 13px; color: var(--ink-dim); margin: 4px 0 18px; }
+  .layout-note strong { color: var(--ink); }
+
+  /* ── SIGNAL CHAIN (PA/Audio) ── */
+  .signal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0 16px; }
+  @media (max-width: 720px) { .signal-grid { grid-template-columns: repeat(2, 1fr); } }
+  .signal-card { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 12px 13px; text-align: center; }
+  .signal-card .src { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+  .signal-card .via-arrow { color: var(--amber); font-family: 'Share Tech Mono', monospace; font-size: 13px; margin-bottom: 6px; }
+  .signal-card .via { font-size: 11.5px; color: var(--ink-dim); }
+  .hub-label { text-align: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; letter-spacing: 2px; font-size: 13px; color: var(--amber); margin-bottom: 10px; }
+
+  /* ── CHARGE BAND ── */
+  .charge-band { background: var(--sage-wash); border: 1.5px solid var(--sage); border-radius: 10px; padding: 14px 18px; margin-bottom: 26px; }
+  .charge-hdr { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .charge-hdr .icon { font-size: 16px; }
+  .charge-hdr .title { font-weight: 800; font-size: 14px; letter-spacing: 0.5px; color: var(--sage); }
+  .charge-hdr .when { font-size: 12px; color: var(--ink-dim); }
+  .charge-items.chk-list { flex-direction: row; flex-wrap: wrap; gap: 8px 18px; }
+  .charge-items.chk-list li { font-size: 13px; }
+
+  /* ── SAFETY CALLOUT ── */
+  .safety {
+    display: flex; gap: 12px; align-items: flex-start; background: var(--amber-wash);
+    border: 1.5px solid var(--amber); border-radius: 8px; padding: 13px 16px; margin: 14px 0;
+  }
+  .safety-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+  .safety p { margin: 0; font-size: 13.5px; }
+  .safety strong { color: var(--amber); }
+
+  .divider-row { display: flex; align-items: center; gap: 12px; margin: 40px 0 26px; }
+  .divider-row .line { flex: 1; height: 1px; background: var(--line); }
+  .divider-row .txt { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--ink-dim); font-weight: 700; }
+
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-dim); }
+
+  @media print {
+    :root { --ground:#fff; --paper:#fff; --ink:#111; --ink-dim:#444; --line:#ccc; --amber:#8a5a06; --amber-wash:#fdf1de; --rust:#8a2c1d; --rust-wash:#fbe9e5; --sage:#2f4d38; --charcoal:#111; }
+    body { padding: 0; font-size: 16.5px; }
+    .masthead-title { font-size: 30px; }
+    .case-card, .chain-block, ol.steps > li, .safety, .confirm, .charge-band { break-inside: avoid; }
+    .cases, section { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+
+<div class="masthead">
+  <div>
+    <div class="masthead-title">MusicMan Load-In Guide</div>
+    <div class="masthead-sub">Physical setup &amp; breakdown for a campfire show — cases, cabling, and the order things happen in.</div>
+  </div>
+  <div class="masthead-badge">Field Copy</div>
+</div>
+
+<div class="intro">
+  This is for getting boxes off the truck, gear on the ground, cables connected, and everything
+  packed back up correctly. It doesn't cover running the show — that's <strong>MusicMan_Manual.html</strong>.
+  <p style="margin-top:10px"><strong>New to this? You don't need to know how any of it works.</strong>
+  Every step below is one concrete action — read it, do that one thing, then move to the next.
+  If a step genuinely doesn't make sense standing in front of the gear, stop and ask rather than
+  guess — most of this only works done in order.</p>
+  <p style="margin-top:10px"><strong>Real-world timing:</strong> one adult working solo — poles,
+  Music Man Box, and PA (not counting the EZ-Up, screen, projector, or generator) — took about
+  <strong>1 hour 20 minutes</strong>. A second or third person on cables/poles while one runs the
+  console table cuts that down a lot. Not a one-person job if you can help it.</p>
+</div>
+
+<div class="charge-band">
+  <div class="charge-hdr"><span class="icon">🔋</span><span class="title">Charge Before You Leave</span><span class="when">— night before / morning of, not at the site</span></div>
+  <ul class="chk-list charge-items">
+    <li><input type="checkbox"><span>PAR lights ×4</span></li>
+    <li><input type="checkbox"><span>Remote</span></li>
+    <li><input type="checkbox"><span>iPad mini</span></li>
+    <li><input type="checkbox"><span>Solix C300 ×2</span></li>
+    <li><input type="checkbox"><span>Generator gas</span></li>
+    <li><input type="checkbox"><span>Camera</span></li>
+  </ul>
+</div>
+
+<section>
+  <div class="section-hdr"><span class="section-num">1</span><h2>What's in Each Case</h2></div>
+  <div class="cases">
+    <div class="case-card">
+      <div class="case-title">Music Man Box</div>
+      <ul class="chk-list">
+        <li><input type="checkbox"><span>MusicMan (Pi unit)</span></li>
+        <li><input type="checkbox"><span>Stream Deck</span></li>
+        <li><input type="checkbox"><span>Physical remote<span class="chk-note">M5StickC Plus, MC's handheld control</span></span></li>
+        <li><input type="checkbox"><span>Wireless mic receiver (Rx, 2CH)</span></li>
+        <li><input type="checkbox"><span>Wireless mics ×2</span></li>
+        <li><input type="checkbox"><span>Wired mic stand</span></li>
+        <li><input type="checkbox"><span>Wired mic</span></li>
+        <li><input type="checkbox"><span>Mic cables (XLR) + receiver power adapter<span class="chk-note">needs a 110V outlet, at the console</span></span></li>
+        <li><input type="checkbox"><span>AA batteries<span class="chk-note">for the wireless mics</span></span></li>
+        <li><input type="checkbox"><span>MusicMan plug (110V)</span></li>
+        <li><input type="checkbox"><span>iPad mini</span></li>
+        <li><input type="checkbox"><span>3.5mm → dual-XLR (L/R) adapter<span class="chk-note">MusicMan's audio out, into the PA</span></span></li>
+        <li><input type="checkbox"><span>Pole nodes ×2<span class="chk-note">yes, these ride here — not in the Lights Box</span></span></li>
+      </ul>
+      <div class="confirm" style="margin-top:12px">
+        <span class="confirm-flag">Add to kit</span>
+        <p>Long Cat6 cable (~100 ft) for the video extender run — not in the photographed inventory. Pack it with this case.</p>
+      </div>
+    </div>
+    <div class="case-card">
+      <div class="case-title">Lights Box</div>
+      <ul class="chk-list">
+        <li><input type="checkbox"><span>PAR lights ×4<span class="chk-note">2 per pole, battery — no cable</span></span></li>
+        <li><input type="checkbox"><span>Pin spots ×2<span class="chk-note">1 per pole</span></span></li>
+        <li><input type="checkbox"><span>Stage wash bars ×2<span class="chk-note">1 per pole</span></span></li>
+        <li><input type="checkbox"><span>Anker Solix C300 ×2<span class="chk-note">1 per pole</span></span></li>
+        <li><input type="checkbox"><span>110V extension cords ×2<span class="chk-note">Solix → pinspot, up the pole</span></span></li>
+        <li><input type="checkbox"><span>Long DMX cables ×2<span class="chk-note">1 per pole — Wash Bar (bottom) up to the top cluster</span></span></li>
+        <li><input type="checkbox"><span>Short DMX cables ×8<span class="chk-note">Node→Wash Bar, plus jumpers within the top cluster</span></span></li>
+        <li><input type="checkbox"><span>LED pixel-strip snakes ×2<span class="chk-note">1 per pole, 5-way splitter</span></span></li>
+        <li><input type="checkbox"><span>12V node power cables ×2<span class="chk-note">Solix → Pole Node</span></span></li>
+      </ul>
+    </div>
+    <div class="case-card">
+      <div class="case-title">Light Stand Case</div>
+      <ul class="chk-list">
+        <li><input type="checkbox"><span>Speaker stands ×2</span></li>
+        <li><input type="checkbox"><span>Light stands ×2</span></li>
+        <li><input type="checkbox"><span>Extension bars ×2</span></li>
+        <li><input type="checkbox"><span>6&quot; PVC tube, 4 LED modules</span></li>
+      </ul>
+      <div class="case-title" style="margin-top:16px">Loose / Separate</div>
+      <ul class="chk-list">
+        <li><input type="checkbox"><span>Expedition EZ-Up<span class="chk-note">big canopy — stage backdrop + backstage/prep area</span></span></li>
+        <li><input type="checkbox"><span>Projector<span class="chk-note">own battery, but bring power adapter</span></span></li>
+        <li><input type="checkbox"><span>Screen + inflator</span></li>
+        <li><input type="checkbox"><span>Video extender kit<span class="chk-note">HDMI-over-Cat6 balun pair, console ↔ projector</span></span></li>
+        <li><input type="checkbox"><span>Generator<span class="chk-note">backup only, if no shore power</span></span></li>
+        <li><input type="checkbox"><span>Gas can</span></li>
+        <li><input type="checkbox"><span>PA: Fender Venue<span class="chk-note">stands live in the Light Stand Case</span></span></li>
+        <li><input type="checkbox"><span>General 110V extension cords<span class="chk-note">console/screen/projector/PA — separate from the 2 pole cords in the Lights Box</span></span></li>
+        <li><input type="checkbox"><span>Camera</span></li>
+        <li><input type="checkbox"><span>Folding table<span class="chk-note">the console table — Music Man Box + PA controls sit here</span></span></li>
+        <li><input type="checkbox"><span>Small step stool<span class="chk-note">for reaching the pole fixtures to aim/adjust them</span></span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-hdr"><span class="section-num">2</span><h2>Per-Pole Assembly</h2></div>
+  <div class="section-note">Both poles are identical. Finish one completely before starting the second — working on both at once is how cables get crossed.</div>
+
+  <div class="chain-block">
+    <div class="chain-label">DMX Chain (per pole) — bottom of pole → top of pole</div>
+    <div class="chain">
+      <span class="link">NODE</span><span class="arrow">→<br><span style="font-size:9px;letter-spacing:1px">short</span></span>
+      <span class="link">WASH BAR</span><span class="arrow" style="color:var(--amber);font-weight:700">→<br><span style="font-size:9px;letter-spacing:1px">LONG, up pole</span></span>
+      <span class="link">PINSPOT</span><span class="arrow">→<br><span style="font-size:9px;letter-spacing:1px">short</span></span>
+      <span class="link">PAR</span><span class="arrow">→<br><span style="font-size:9px;letter-spacing:1px">short</span></span>
+      <span class="link">PAR</span>
+    </div>
+    <p style="font-size:12.5px;color:var(--ink-dim);margin-top:12px">Wash Bar sits at the bottom of the pole with the Node. The long cable carries the signal up the pole to the Pinspot/PAR/PAR cluster at the top, where short cables link the three.</p>
+  </div>
+
+  <ol class="steps">
+    <li><div class="step-body"><span class="step-title">Raise the pole to full extension</span>at its marked position. Extend fully before mounting anything — the pixel strip receivers only line up with the strips' magnets at full extension.</div></li>
+    <li><div class="step-body"><span class="step-title">Set the Solix C300</span>at the base. Confirm it's charged and powered on before connecting anything to it.</div></li>
+    <li><div class="step-body"><span class="step-title">Power the Node</span>run the 12V cable from the Solix's DC output into the Pole Node.</div></li>
+    <li><div class="step-body"><span class="step-title">Connect the pixel snake</span>plug the snake into the Node's aircraft connector. Match each of the 5 numbered tails to its numbered strip — number to number. Velcro the bundle near the Node's power port so nothing hangs loose.</div></li>
+    <li><div class="step-body"><span class="step-title">Wire the DMX chain</span>Node → Wash Bar → Pinspot → PAR → PAR, per the diagram above.</div></li>
+    <li><div class="step-body"><span class="step-title">Power the fixtures</span>see the power map below — wash bar and pinspot both draw off the Solix, PARs are battery-only.</div></li>
+    <li><div class="step-body"><span class="step-title">Mount &amp; aim</span><strong>Wash bar</strong> — bottom of the pole, on its hook, secured with a wingnut, general stage coverage. <strong>Pinspot + both PARs</strong> — top of the pole, same hook + wingnut mounting; PARs wash the stage generally, the pinspot is a tight aim at dead center, dad/kid standing height. The 5 pixel strips (2 stage-facing, 3 audience-facing) snap on via magnet mounts into their receivers — if one doesn't land, check the pole is fully extended before assuming something's broken.</div></li>
+  </ol>
+
+  <div class="chain-label" style="margin:20px 0 8px">Fixture Power Map</div>
+  <div class="power-grid">
+    <div class="power-card"><div class="fixture">Wash Bar <span style="color:var(--ink-dim);font-weight:400">(bottom)</span></div><div class="source">Solix AC / inverter output, direct</div></div>
+    <div class="power-card"><div class="fixture">Pinspot <span style="color:var(--ink-dim);font-weight:400">(top)</span></div><div class="source">110V extension cord, Solix AC → up the pole</div></div>
+    <div class="power-card battery"><div class="fixture">PAR ×2 <span style="color:var(--ink-dim);font-weight:400">(top)</span></div><div class="source">Battery — confirm charged, no cable</div></div>
+  </div>
+</section>
+
+<section>
+  <div class="section-hdr"><span class="section-num">3</span><h2>Site Layout</h2></div>
+  <div class="layout-options">
+    <div class="opt-card"><span class="opt-badge">A</span><div><div class="opt-title">In the audience, close to stage</div><div class="opt-body">Both poles sit in the audience area, near the stage.</div></div></div>
+    <div class="opt-card"><span class="opt-badge">B</span><div><div class="opt-title">On the stage/audience line</div><div class="opt-body">Both poles sit on the boundary line between stage and audience, spread apart from each other.</div></div></div>
+  </div>
+  <p class="layout-note">Pick whichever fits the site. Either way, fixture aim stays the same: PARs and wash bars wash the stage generally, pinspots hit dead center at dad/kid standing height.</p>
+  <p class="layout-note"><strong>EZ-Up</strong> — the big Expedition EZ-Up is the stage backdrop and the backstage/prep area behind it, not a console tent. Raise it early; the console table sets up separately. <strong>Screen</strong> faces the seating area with a clear, reasonably short projector throw — the ~100ft Cat6 run covers the rest of the distance back to the console, so the console doesn't need to be anywhere near the projector. <strong>PA</strong> speakers go on stands, spread apart, facing the crowd. No fixed distances beyond that — read the site and adjust.</p>
+</section>
+
+<section>
+  <div class="section-hdr"><span class="section-num">4</span><h2>Power</h2></div>
+  <div class="safety">
+    <span class="safety-icon">⚠</span>
+    <p><strong>Screen inflator needs continuous power</strong> — not a one-time inflate-and-disconnect. It stays plugged in and running the whole time the screen needs to stay up, or it sags/collapses.</p>
+  </div>
+  <div class="power-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="power-card"><div class="fixture">Shore power vs. generator</div><div class="source">Use shore power if the site has it. Generator only comes out as backup, with no shore power available.</div></div>
+    <div class="power-card"><div class="fixture">Music Man Box</div><div class="source">Needs power at the console, from shore/generator.</div></div>
+    <div class="power-card"><div class="fixture">Projector</div><div class="source">Has its own battery, but plug it in when power's available — don't rely on battery for a full show.</div></div>
+    <div class="power-card"><div class="fixture">Video extender</div><div class="source">Needs power at one end only — console or projector side, whichever's more convenient.</div></div>
+  </div>
+</section>
+
+<section>
+  <div class="section-hdr"><span class="section-num">5</span><h2>PA / Audio Setup — Fender Venue</h2></div>
+  <div class="section-note">The Venue is the hub — everything else plugs into it.</div>
+  <div class="chain-block">
+    <div class="hub-label">→ INTO THE VENUE →</div>
+    <div class="signal-grid">
+      <div class="signal-card"><div class="src">Wireless Mic Rx (2CH)</div><div class="via-arrow">↓</div><div class="via">2× XLR</div></div>
+      <div class="signal-card"><div class="src">Wired Mic</div><div class="via-arrow">↓</div><div class="via">XLR</div></div>
+      <div class="signal-card"><div class="src">MusicMan (Pi out)</div><div class="via-arrow">↓</div><div class="via">3.5mm → dual-XLR</div></div>
+      <div class="signal-card"><div class="src">Phone</div><div class="via-arrow">↓</div><div class="via">Bluetooth</div></div>
+    </div>
+  </div>
+  <ol class="steps">
+    <li><div class="step-body"><span class="step-title">Speakers on stands</span>disconnect both speakers from the Venue head unit, set on stands spread apart, facing the crowd.</div></li>
+    <li><div class="step-body"><span class="step-title">Wireless receiver</span>power it at the console, pair the 2 wireless mics.</div></li>
+    <li><div class="step-body"><span class="step-title">Cable everything in</span>wired mic, wireless receiver, and MusicMan adapter cable into the Venue per the chart above.</div></li>
+    <li><div class="step-body"><span class="step-title">Bluetooth</span>pair a phone if it'll be used.</div></li>
+    <li><div class="step-body"><span class="step-title">Power last</span>leave the Venue off until every source above is connected.</div></li>
+  </ol>
+</section>
+
+<div class="divider-row"><div class="line"></div><div class="txt">Setup</div><div class="line"></div></div>
+
+<section>
+  <div class="section-hdr"><span class="section-num">6</span><h2>Setup Order</h2></div>
+  <ol class="steps">
+    <li><div class="step-body"><span class="step-title">Site prep</span>walk the site, confirm the fire circle, mark pole / EZ-Up / screen / PA positions.</div></li>
+    <li><div class="step-body"><span class="step-title">Raise the EZ-Up</span>it's the stage backdrop and backstage/prep area, not a console tent. The console table sets up separately, later.</div></li>
+    <li><div class="step-body"><span class="step-title">Check for shore power</span>if none, position the generator downwind/away from seating, confirm gas, start it, let it settle before loading anything onto it.</div></li>
+    <li><div class="step-body"><span class="step-title">Set up the folding table</span>where the console will go, under/near the EZ-Up. Everything in the Music Man Box and the PA controls end up here.</div></li>
+    <li><div class="step-body"><span class="step-title">Position the screen</span>facing the seating area.</div></li>
+    <li><div class="step-body"><span class="step-title">Inflate the screen</span>plug in the inflator and confirm it's actually running continuously before moving on — it stays plugged in and blowing the whole show, not a one-time inflate. Don't walk away and unplug it thinking it's done.</div></li>
+    <li><div class="step-body"><span class="step-title">Position the projector</span>reasonably short, clear throw to the screen.</div></li>
+    <li><div class="step-body"><span class="step-title">Run the long Cat6 cable</span>from the projector back to the console.</div></li>
+    <li><div class="step-body"><span class="step-title">Connect the video/HDMI extender</span>a pair of small boxes — one end plugs into the projector's HDMI input, the other into the console's HDMI output, with the long Cat6 running between them. Power whichever end is more convenient — only one end needs power.</div></li>
+    <li><div class="step-body"><span class="step-title">Set up each pole</span>full per-pole assembly (Section 2), one pole completely before starting the second. Use the step stool to reach the fixtures for aiming — don't aim from the ground by eye.</div></li>
+    <li><div class="step-body"><span class="step-title">Set up the PA (Fender Venue)</span>full sequence above: speakers on stands, wireless receiver powered and paired, everything cabled in. Leave the Venue itself off until every source is connected.</div></li>
+    <li><div class="step-body"><span class="step-title">Set up the Music Man Box</span>on the console table: Pi unit, Stream Deck, remote, iPad mini, wired mic + stand, wireless Rx (power + pair the 2 wireless mics, fresh AA batteries), MusicMan cable into the Venue.</div></li>
+    <li><div class="step-body"><span class="step-title">Power on</span>shore/generator first, then the Venue, then Solix units, MusicMan unit last.</div></li>
+    <li><div class="step-body"><span class="step-title">Verify connectivity</span>Pi status light: amber (booting) → blue (running) → <strong style="color:var(--sage)">green</strong> once both poles check in. Not green usually means a loose cable, not a real failure — worth a look before assuming the worst.</div></li>
+    <li><div class="step-body"><span class="step-title">Walk the Show Flow, live, on the console</span>step through every entry from the start, confirming each one actually fires the right music/light/video before the audience shows up. The best way to catch a loose cable or wrong setting while it's still easy to fix.</div></li>
+    <li><div class="step-body"><span class="step-title">Hand off</span>to the show operator for a final check of lights, sound, and display before the show starts.</div></li>
+  </ol>
+</section>
+
+<div class="divider-row"><div class="line"></div><div class="txt">Breakdown</div><div class="line"></div></div>
+
+<section>
+  <div class="section-hdr"><span class="section-num">7</span><h2>Breakdown Order</h2></div>
+
+  <div class="safety">
+    <span class="safety-icon">⚠</span>
+    <p><strong>Shut the Pi down before touching its power.</strong> Press the power button once and wait for the status light to go <strong>solid white</strong> — that's a few seconds, not instant — before unplugging anything. White means it actually finished shutting down; cutting power earlier risks corrupting the SD card.</p>
+  </div>
+
+  <ol class="steps">
+    <li><div class="step-body"><span class="step-title">Pack the Music Man Box</span>mics off, batteries out if it'll sit a while, everything back in its case slots.</div></li>
+    <li><div class="step-body"><span class="step-title">Power down each pole</span>fixtures off, then Node, then Solix. Disconnect in reverse: PAR→PAR, PAR→Pinspot, Pinspot→Wash Bar, Wash Bar→Node.</div></li>
+    <li><div class="step-body"><span class="step-title">Coil every cable individually</span>not as one tangled bundle — the fastest way to turn a quick teardown into a slow one next time.</div></li>
+    <li><div class="step-body"><span class="step-title">Lower and pack each pole</span>fixtures and pixel strips secured so nothing swings loose in the case.</div></li>
+    <li><div class="step-body"><span class="step-title">PA, screen, EZ-Up</span>down in that order.</div></li>
+    <li><div class="step-body"><span class="step-title">Generator</span>let it cool before packing; confirm the gas can is sealed.</div></li>
+    <li><div class="step-body"><span class="step-title">Final sweep</span>walk the site for anything left behind before loading the truck.</div></li>
+  </ol>
+</section>
+
+<footer>
+  MusicMan Field Setup &amp; Breakdown — companion to WIRING_GUIDE.md and MusicMan_Manual.html.
+</footer>
