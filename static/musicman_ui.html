@@ -45,6 +45,7 @@
   .left { display: flex; flex-direction: column; border-right: 2px solid var(--border); overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .now-playing { padding: 14px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
   .section-label { font-size: 9px; color: var(--text-dim); letter-spacing: 4px; font-family: 'Share Tech Mono', monospace; margin-bottom: 10px; }
+  .games-primary-label { font-size: 20px; font-weight: 800; letter-spacing: 2px; font-family: 'Barlow Condensed', sans-serif; margin-bottom: 10px; }
   .track-title { font-size: 18px; font-weight: 700; color: var(--amber); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .track-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
   .progress-bar { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; margin: 10px 0 4px; }
@@ -592,6 +593,128 @@
     <!-- ── ENTRIES TAB ── -->
     <div class="page" id="page-games">
 
+      <!-- TIMER / STOPWATCH — kept at the top and side-by-side so both are
+           reachable without scrolling on a smaller screen (iPad) mid-show. -->
+      <div class="games-section" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
+        <div>
+          <!-- COUNTDOWN TIMER -->
+          <div class="games-primary-label" style="color:var(--amber)">⏱ COUNTDOWN TIMER</div>
+          <!-- Preset recall -->
+          <div class="games-row" style="margin-bottom:10px">
+            <select id="timerPresetSelectGames" class="games-select" style="flex:1">
+              <option value="">— saved presets —</option>
+            </select>
+            <button class="games-btn" onclick="consoleLoadPreset('timerPresetSelectGames')" style="border-color:var(--amber-dim);color:var(--amber)">LOAD</button>
+            <button class="games-btn" onclick="consoleSavePreset('timerPresetSelectGames')">SAVE</button>
+          </div>
+          <div class="timer-display" id="cdDisplay" style="font-size:88px;line-height:1;margin-bottom:10px">3:00</div>
+          <div class="timer-btns">
+            <button class="btn-timer start" id="cdStartBtn" onclick="cdToggle()">&#9654; START</button>
+            <button class="btn-timer set" onclick="cdShow()" title="Show timer on display without starting">&#9645; SET</button>
+            <button class="btn-timer set" id="cdHideBtn" onclick="cdHideToggle()" title="Show/hide timer on display">&#10005; HIDE</button>
+            <button class="btn-timer reset" onclick="cdReset()">&#8634; RESET</button>
+          </div>
+          <div class="games-row" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+            <span class="games-label">DURATION</span>
+            <input id="cdMins" type="number" min="0" max="99" value="3" class="games-input" style="width:52px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--amber)" oninput="cdMarkDirty()">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--text-dim)">:</span>
+            <input id="cdSecs2" type="number" min="0" max="59" value="0" class="games-input" style="width:52px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--amber)" oninput="cdMarkDirty()">
+            <button id="cdSetBtn" class="games-btn" onclick="cdSetDuration()" style="border-color:var(--amber-dim);color:var(--text-dim)">SET</button>
+          </div>
+          <div class="games-row">
+            <span class="games-label">START SND</span>
+            <select id="cdStartAudio" class="games-select" style="flex:1" onchange="cdSave()"><option value="">— none —</option></select>
+            <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">dur</span>
+            <input id="cdStartDuration" type="number" min="0" max="999" value="0" class="games-input" style="width:44px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--amber)" onchange="cdSave()" title="Play duration in seconds (0 = auto, plays whole file)">
+            <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">fade</span>
+            <input id="cdStartFade" type="number" min="0" max="60" value="3" class="games-input" style="width:44px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--amber)" onchange="cdSave()">
+            <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">s</span>
+          </div>
+          <div class="games-row">
+            <span class="games-label">LOOP SND</span>
+            <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+              <input type="checkbox" id="cdStartLoop" onchange="cdSave()" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
+              <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Loop start sound</span>
+            </label>
+          </div>
+          <div class="games-row">
+            <span class="games-label">END SND</span>
+            <select id="cdEndAudio" class="games-select" style="flex:1" onchange="cdSave()"><option value="">— none —</option></select>
+          </div>
+          <div class="games-row">
+            <span class="games-label">END DISP</span>
+            <select id="cdEndDisplay" class="games-select" style="flex:1" onchange="cdSave()"><option value="">— none —</option></select>
+          </div>
+          <div class="games-row">
+            <span class="games-label">DISPLAY</span>
+            <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+              <input type="checkbox" id="cdShowDisplay" onchange="cdSave()" style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
+              <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Show countdown on screen</span>
+            </label>
+          </div>
+          <div class="games-row" style="margin-bottom:12px">
+            <span class="games-label">END ANIM</span>
+            <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+              <input type="checkbox" id="cdShowEndAnim" onchange="cdSave()" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
+              <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Show end animation on screen</span>
+            </label>
+          </div>
+          <div class="games-row" style="margin-bottom:12px">
+            <span class="games-label">LED STRIPS</span>
+            <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+              <input type="checkbox" id="cdCountdownLeds" onchange="cdSave()" style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
+              <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Yellow→red countdown fill on strips</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <!-- STOPWATCH -->
+          <div class="games-primary-label" style="color:var(--green)">⏱ STOPWATCH</div>
+          <!-- Spacer row matches the Countdown Timer's preset-recall row above so both
+               big numeral displays line up at the same height regardless of column height. -->
+          <div class="games-row" style="margin-bottom:10px;visibility:hidden" aria-hidden="true">
+            <select class="games-select" style="flex:1"></select>
+            <button class="games-btn">LOAD</button>
+          </div>
+          <div class="timer-display" id="swDisplay" style="font-size:88px;line-height:1;color:var(--green);text-shadow:0 0 20px #3CB96A44;margin-bottom:10px">0:00.0</div>
+          <div class="timer-btns">
+            <button class="btn-timer start" id="swStartBtn" onclick="swToggle()" style="background:var(--green);border-color:var(--green)">&#9654; START</button>
+            <button class="btn-timer set" onclick="swShow()" title="Show stopwatch on display without starting">&#9645; SET</button>
+            <button class="btn-timer set" id="swHideBtn" onclick="swHideToggle()" title="Show/hide stopwatch on display">&#10005; HIDE</button>
+            <button class="btn-timer reset" onclick="swReset()">&#8634; RESET</button>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px">
+            <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px;font-weight:700">RECORD RACE TIME</div>
+            <div class="games-row" style="flex-wrap:wrap">
+              <select id="gameSelect" class="games-select" style="flex:1;min-width:130px" onchange="renderLeaderboard()">
+                <option value="">— select game —</option>
+              </select>
+              <button class="games-btn" onclick="gtNewGame()">+ NEW</button>
+              <button class="games-btn" onclick="gtClear()">CLEAR</button>
+              <button class="games-btn danger" onclick="gtDelete()">DEL</button>
+            </div>
+            <div class="games-row" style="margin-top:4px">
+              <input id="gtLabel" type="text" placeholder="Runner name…" class="games-input" style="flex:1" autocomplete="off">
+              <button class="games-btn primary" onclick="gtRecord()">&#9203; RECORD</button>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);font-weight:700">🏆 RANKINGS</div>
+              <button id="lbSortBtn" onclick="lbToggleSort()" style="font-size:10px;letter-spacing:1px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text-dim)">&#9650; FASTEST FIRST</button>
+            </div>
+            <div id="leaderboard" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+              <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;padding:16px;text-align:center;letter-spacing:2px">SELECT A GAME TO VIEW TIMES</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="games-btn" onclick="gtShowOnScreen()" style="flex:1;border-color:var(--amber-dim);color:var(--amber);font-size:13px;padding:9px">&#128250; SHOW SCORES</button>
+              <button class="games-btn" onclick="fetch('/api/games/display/hide',{method:'POST'}).catch(()=>{});showAlert('SCORES HIDDEN',1500)" style="border-color:var(--border);color:var(--text-dim);font-size:13px;padding:9px" title="Hides just the scores overlay -- whatever else is on screen stays put">&#10005; HIDE</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- GAME WALK-UPS -->
       <div class="games-section" id="ge-section">
         <div class="section-label">🎮 GAME WALK-UPS</div>
@@ -604,9 +727,9 @@
         <div id="gl-ui-config-list" style="min-height:28px"></div>
       </div>
 
-      <!-- HEAD TO HEAD -->
+      <!-- SCOREBOARD (Head to Head internally) -->
       <div class="games-section">
-        <div class="section-label">🏆 HEAD TO HEAD</div>
+        <div class="section-label">🏆 SCOREBOARD</div>
         <div id="h2hGameList" style="margin-bottom:8px"></div>
         <div id="h2hContestantRows"></div>
         <div class="games-row" id="h2hMultiplierRow" style="display:none;margin-top:8px;gap:6px">
@@ -619,125 +742,6 @@
         <div class="games-row" id="h2hActionRow" style="display:none;margin-top:10px;gap:8px">
           <button class="games-btn" onclick="h2hResetScores()" style="border-color:var(--rust,#c0392b);color:var(--rust,#c0392b)">RESET SCORES</button>
           <button class="games-btn" onclick="h2hDeclareWinner()" style="border-color:var(--amber-dim);color:var(--amber)">🏆 DECLARE WINNER</button>
-        </div>
-      </div>
-
-      <!-- COUNTDOWN TIMER -->
-      <div class="games-section">
-        <div class="section-label">⏱ COUNTDOWN TIMER</div>
-        <!-- Preset recall -->
-        <div class="games-row" style="margin-bottom:10px">
-          <select id="timerPresetSelectGames" class="games-select" style="flex:1">
-            <option value="">— saved presets —</option>
-          </select>
-          <button class="games-btn" onclick="consoleLoadPreset('timerPresetSelectGames')" style="border-color:var(--amber-dim);color:var(--amber)">LOAD</button>
-          <button class="games-btn" onclick="consoleSavePreset('timerPresetSelectGames')">SAVE</button>
-        </div>
-        <div class="games-row">
-          <span class="games-label">DURATION</span>
-          <input id="cdMins" type="number" min="0" max="99" value="3" class="games-input" style="width:52px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--amber)" oninput="cdMarkDirty()">
-          <span style="font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--text-dim)">:</span>
-          <input id="cdSecs2" type="number" min="0" max="59" value="0" class="games-input" style="width:52px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--amber)" oninput="cdMarkDirty()">
-          <button id="cdSetBtn" class="games-btn" onclick="cdSetDuration()" style="border-color:var(--amber-dim);color:var(--text-dim)">SET</button>
-        </div>
-        <div class="games-row">
-          <span class="games-label">START SND</span>
-          <select id="cdStartAudio" class="games-select" style="flex:1" onchange="cdSave()"><option value="">— none —</option></select>
-          <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">dur</span>
-          <input id="cdStartDuration" type="number" min="0" max="999" value="0" class="games-input" style="width:44px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--amber)" onchange="cdSave()" title="Play duration in seconds (0 = auto, plays whole file)">
-          <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">fade</span>
-          <input id="cdStartFade" type="number" min="0" max="60" value="3" class="games-input" style="width:44px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--amber)" onchange="cdSave()">
-          <span style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">s</span>
-        </div>
-        <div class="games-row">
-          <span class="games-label">LOOP SND</span>
-          <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
-            <input type="checkbox" id="cdStartLoop" onchange="cdSave()" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
-            <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Loop start sound</span>
-          </label>
-        </div>
-        <div class="games-row">
-          <span class="games-label">END SND</span>
-          <select id="cdEndAudio" class="games-select" style="flex:1" onchange="cdSave()"><option value="">— none —</option></select>
-        </div>
-        <div class="games-row">
-          <span class="games-label">END DISP</span>
-          <select id="cdEndDisplay" class="games-select" style="flex:1" onchange="cdSave()"><option value="">— none —</option></select>
-        </div>
-        <div class="games-row">
-          <span class="games-label">DISPLAY</span>
-          <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
-            <input type="checkbox" id="cdShowDisplay" onchange="cdSave()" style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
-            <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Show countdown on screen</span>
-          </label>
-        </div>
-        <div class="games-row" style="margin-bottom:12px">
-          <span class="games-label">END ANIM</span>
-          <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
-            <input type="checkbox" id="cdShowEndAnim" onchange="cdSave()" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
-            <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Show end animation on screen</span>
-          </label>
-        </div>
-        <div class="games-row" style="margin-bottom:12px">
-          <span class="games-label">LED STRIPS</span>
-          <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
-            <input type="checkbox" id="cdCountdownLeds" onchange="cdSave()" style="width:16px;height:16px;cursor:pointer;accent-color:var(--amber)">
-            <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Yellow→red countdown fill on strips</span>
-          </label>
-        </div>
-        <div class="timer-display" id="cdDisplay" style="font-size:88px;line-height:1;margin-bottom:10px">3:00</div>
-        <div class="timer-btns">
-          <button class="btn-timer start" id="cdStartBtn" onclick="cdToggle()">&#9654; START</button>
-          <button class="btn-timer set" onclick="cdShow()" title="Show timer on display without starting">&#9645; SET</button>
-          <button class="btn-timer set" id="cdHideBtn" onclick="cdHideToggle()" title="Show/hide timer on display">&#10005; HIDE</button>
-          <button class="btn-timer reset" onclick="cdReset()">&#8634; RESET</button>
-        </div>
-      </div>
-
-      <!-- STOPWATCH -->
-      <div class="games-section">
-        <div class="section-label">⏱ STOPWATCH</div>
-        <div class="games-row" style="margin-bottom:12px">
-          <span class="games-label">DISPLAY</span>
-          <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
-            <input type="checkbox" id="swShowDisplay" style="width:16px;height:16px;cursor:pointer;accent-color:var(--green)">
-            <span style="font-size:12px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">Show on screen</span>
-          </label>
-        </div>
-        <div class="timer-display" id="swDisplay" style="font-size:88px;line-height:1;color:var(--green);text-shadow:0 0 20px #3CB96A44;margin-bottom:10px">0:00.0</div>
-        <div class="timer-btns">
-          <button class="btn-timer start" id="swStartBtn" onclick="swToggle()" style="background:var(--green);border-color:var(--green)">&#9654; START</button>
-          <button class="btn-timer reset" onclick="swReset()">&#8634; RESET</button>
-        </div>
-        <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px">
-          <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px;font-weight:700">RECORD RACE TIME</div>
-          <div class="games-row" style="flex-wrap:wrap">
-            <select id="gameSelect" class="games-select" style="flex:1;min-width:130px" onchange="renderLeaderboard()">
-              <option value="">— select game —</option>
-            </select>
-            <button class="games-btn" onclick="gtNewGame()">+ NEW</button>
-            <button class="games-btn" onclick="gtClear()">CLEAR</button>
-            <button class="games-btn danger" onclick="gtDelete()">DEL</button>
-          </div>
-          <div class="games-row" style="margin-top:4px">
-            <input id="gtLabel" type="text" placeholder="Runner name…" class="games-input" style="flex:1" autocomplete="off">
-            <button class="games-btn primary" onclick="gtRecord()">&#9203; RECORD</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- RANKINGS -->
-      <div class="games-section">
-        <div class="section-label">🏆 RANKINGS</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-          <button id="lbSortBtn" onclick="lbToggleSort()" style="font-size:10px;letter-spacing:1px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text-dim)">&#9650; FASTEST FIRST</button>
-        </div>
-        <div id="leaderboard" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden">
-          <div style="color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;padding:16px;text-align:center;letter-spacing:2px">SELECT A GAME TO VIEW TIMES</div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="games-btn" onclick="gtShowOnScreen()" style="flex:1;border-color:var(--amber-dim);color:var(--amber);font-size:13px;padding:9px">&#128250; SHOW SCORES</button>
-          <button class="games-btn" onclick="fetch('/api/games/display/hide',{method:'POST'}).catch(()=>{});showAlert('SCORES HIDDEN',1500)" style="border-color:var(--border);color:var(--text-dim);font-size:13px;padding:9px" title="Hides just the scores overlay -- whatever else is on screen stays put">&#10005; HIDE</button>
         </div>
       </div>
 
@@ -1694,7 +1698,7 @@ function wledTuneInput(param, value) {
 }
 
 let timerRunning=false, timerSecs=180, timerInterval=null, timerDuration=180, timerPresetName='';
-let timerOnDisplay=false, cdOnDisplay=false;
+let timerOnDisplay=false, cdOnDisplay=false, swOnDisplay=false;
 function _setTimerOnDisplay(val) {
   timerOnDisplay=val;
   const b=document.getElementById('timerHideBtn');
@@ -1703,6 +1707,11 @@ function _setTimerOnDisplay(val) {
 function _setCdOnDisplay(val) {
   cdOnDisplay=val;
   const b=document.getElementById('cdHideBtn');
+  if(b) b.textContent = val ? '✕ HIDE' : '■ SHOW';
+}
+function _setSwOnDisplay(val) {
+  swOnDisplay=val;
+  const b=document.getElementById('swHideBtn');
   if(b) b.textContent = val ? '✕ HIDE' : '■ SHOW';
 }
 function toggleTimer() {
@@ -1790,7 +1799,7 @@ function showTimer() {
       timerSecs = d.timer.seconds_remaining;
       renderTimer();
     }
-    _setTimerOnDisplay(true); _setCdOnDisplay(false);
+    _setTimerOnDisplay(true); _setCdOnDisplay(false); _setSwOnDisplay(false);
   }).catch(()=>{});
 }
 function timerHideToggle() {
@@ -2305,7 +2314,7 @@ function cdShow() {
       cdSecs = d.countdown.seconds_remaining;
       renderCd();
     }
-    _setCdOnDisplay(true); _setTimerOnDisplay(false);
+    _setCdOnDisplay(true); _setTimerOnDisplay(false); _setSwOnDisplay(false);
   }).catch(()=>{});
 }
 function cdHideToggle() {
@@ -2325,8 +2334,8 @@ function swToggle() {
     swInterval=setInterval(renderSw,100);
     document.getElementById('swStartBtn').textContent='⏸ STOP';
     document.getElementById('swStartBtn').classList.add('running');
-    const disp=document.getElementById('swShowDisplay').checked?1:0;
-    fetch('/api/stopwatch/start?display='+disp).catch(()=>{});
+    _setSwOnDisplay(true); _setTimerOnDisplay(false); _setCdOnDisplay(false);
+    fetch('/api/stopwatch/start').catch(()=>{});
   } else {
     clearInterval(swInterval); swElapsedMs=Date.now()-swStartMs; swRunning=false;
     renderSw();
@@ -2342,6 +2351,17 @@ function swReset() {
   document.getElementById('swStartBtn').textContent='▶ START';
   document.getElementById('swStartBtn').classList.remove('running');
   fetch('/api/stopwatch/reset').catch(()=>{});
+}
+function swShow() {
+  fetch('/api/stopwatch/show').catch(()=>{});
+  _setSwOnDisplay(true); _setTimerOnDisplay(false); _setCdOnDisplay(false);
+}
+function swHideToggle() {
+  if (swOnDisplay) {
+    fetch('/api/timer/hide').then(()=>{ _setSwOnDisplay(false); }).catch(()=>{});
+  } else {
+    swShow();
+  }
 }
 
 function renderSw() {
@@ -3935,13 +3955,14 @@ function initWebSocket() {
         document.getElementById('timerDisplay').classList.remove('warning');
         document.getElementById('timerDisplay').classList.add('expired');
         if (document.getElementById('cdDisplay')) document.getElementById('cdDisplay').style.color='var(--red)';
-        _setTimerOnDisplay(false); _setCdOnDisplay(false);
+        _setTimerOnDisplay(false); _setCdOnDisplay(false); _setSwOnDisplay(false);
         showAlert('🚨 TIME IS UP!', 5000);
       }
 
-      else if (event === 'timer_show')    { _setTimerOnDisplay(true);  _setCdOnDisplay(false); }
-      else if (event === 'countdown_show'){ _setCdOnDisplay(true);  _setTimerOnDisplay(false); }
-      else if (event === 'timer_hide')    { _setTimerOnDisplay(false); _setCdOnDisplay(false); }
+      else if (event === 'timer_show')    { _setTimerOnDisplay(true);  _setCdOnDisplay(false); _setSwOnDisplay(false); }
+      else if (event === 'countdown_show'){ _setCdOnDisplay(true);  _setTimerOnDisplay(false); _setSwOnDisplay(false); }
+      else if (event === 'stopwatch_show'){ _setSwOnDisplay(true);  _setTimerOnDisplay(false); _setCdOnDisplay(false); }
+      else if (event === 'timer_hide')    { _setTimerOnDisplay(false); _setCdOnDisplay(false); _setSwOnDisplay(false); }
 
       else if (event === 'stopwatch_state') {
         const wasRun = swRunning;

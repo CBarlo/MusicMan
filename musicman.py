@@ -1171,7 +1171,6 @@ stopwatch_state = {
     'running': False,
     'start_ms': None,
     'elapsed_ms': 0,
-    'show_on_display': False,
 }
 
 # Persisted "what's currently happening" — unlike the show_step WS broadcast
@@ -1427,18 +1426,6 @@ GAME_TYPES = {
             {'key': 'intro_entry',   'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
         ],
     },
-    'feud': {
-        'label': 'Family Feud',
-        'icon': '📋',
-        'controller_route': '/games/feud',
-        'display_route': '/games/feud/display',
-        'schema': [
-            {'key': 'question_set',  'type': 'text',   'label': 'Question Set Name', 'placeholder': 'e.g. AG Survey 2025'},
-            {'key': 'team_a',        'type': 'text',   'label': 'Team A Name', 'placeholder': 'e.g. Broken Arrow'},
-            {'key': 'team_b',        'type': 'text',   'label': 'Team B Name', 'placeholder': 'e.g. Wahoka'},
-            {'key': 'target_score',  'type': 'number', 'label': 'Target Score', 'default': 200},
-        ],
-    },
     'musical_chairs': {
         'label': 'Musical Chairs',
         'icon': '🪑',
@@ -1481,25 +1468,6 @@ GAME_TYPES = {
              'options': [{'value': 'asc', 'label': 'Fastest wins'}, {'value': 'desc', 'label': 'Longest wins'}]},
         ],
     },
-    'countdown_game': {
-        'label': 'Countdown Timer',
-        'icon': '⏲️',
-        'controller_route': '/games/countdown',
-        'display_route': '/games/countdown/display',
-        # Same shape as Timed Competition, wired to the countdown timer
-        # instead of the stopwatch -- an Intro Game Entry (or fallback
-        # screen) fires on GO LIVE, this config's own duration loads into
-        # the one shared timer_state, and the remote/Console controllers
-        # auto-enter timer mode. No results/ranking here -- a countdown is
-        # a shared clock, not a per-runner comparison.
-        'schema': [
-            {'key': 'intro_entry',       'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
-            {'key': 'fallback_headline', 'type': 'text',   'label': 'Screen Headline (used if no Game Entry above)'},
-            {'key': 'fallback_text',     'type': 'text',   'label': 'Screen Text'},
-            {'key': 'fallback_image',    'type': 'select', 'label': 'Screen Image',           'source': 'display_images'},
-            {'key': 'duration', 'type': 'number', 'label': 'Duration (seconds)', 'default': 180},
-        ],
-    },
     'trivia': {
         'label': 'Trivia',
         'icon': '❓',
@@ -1515,17 +1483,6 @@ GAME_TYPES = {
             {'key': 'correct_sfx',     'type': 'select', 'label': 'Correct Answer SFX (optional)',   'source': 'audio'},
             {'key': 'incorrect_sfx',   'type': 'select', 'label': 'Incorrect Answer SFX (optional)', 'source': 'audio'},
             {'key': 'questions',       'type': 'list',   'label': 'Questions'},
-        ],
-    },
-    'baby_photo': {
-        'label': 'Baby Photo',
-        'icon': '👶',
-        'controller_route': '/games/baby_photo',
-        'display_route': '/games/baby_photo/display',
-        'schema': [
-            {'key': 'auto_advance',    'type': 'bool',   'label': 'Auto-advance photos', 'default': True},
-            {'key': 'display_secs',    'type': 'number', 'label': 'Seconds per photo', 'default': 8},
-            {'key': 'multiple_choice', 'type': 'bool',   'label': 'Multiple-choice mode', 'default': False},
         ],
     },
 }
@@ -4299,9 +4256,19 @@ def api_stopwatch_start():
     if not stopwatch_state['running']:
         stopwatch_state['running'] = True
         stopwatch_state['start_ms'] = int(time.time() * 1000) - stopwatch_state['elapsed_ms']
-        stopwatch_state['show_on_display'] = request.args.get('display', '0') == '1'
+        # Unconditional show on start, matching Countdown's own start behavior —
+        # display visibility is otherwise controlled only by SHOW/HIDE, never
+        # implied by running state, so this is the one deliberate exception.
+        broadcast('stopwatch_show', {'running': True, 'start_ms': stopwatch_state['start_ms']})
         broadcast('stopwatch_state', stopwatch_state)
         log.info("Stopwatch started")
+    return jsonify({'ok': True, 'stopwatch': stopwatch_state})
+
+@app.route('/api/stopwatch/show')
+def api_stopwatch_show():
+    """Show the current stopwatch value on the display without starting it."""
+    broadcast('stopwatch_show', {'running': False, 'elapsed_ms': stopwatch_state['elapsed_ms']})
+    log.info("Stopwatch shown (not started)")
     return jsonify({'ok': True, 'stopwatch': stopwatch_state})
 
 @app.route('/api/stopwatch/stop')
@@ -4806,28 +4773,6 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
                 threading.Thread(target=_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
         return ctrl_url, ''
 
-    if game_type_id == 'countdown_game':
-        cfg_data, _ = _countdowngame_config_data(config_id)
-
-        # Fresh session every GO LIVE, same contract as everything above --
-        # loads this config's own duration into the one shared timer_state
-        # rather than resuming whatever the last skit/event left it at.
-        duration = int(cfg_data.get('duration') or 180)
-        timer_state['duration']          = duration
-        timer_state['seconds_remaining'] = duration
-        timer_state['running']           = False
-        timer_state['paused']            = False
-        timer_state['expired']           = False
-        timer_state['warning_fired']     = False
-        broadcast('timer_state', timer_state)
-
-        if not skip_intro:
-            if cfg_data.get('intro_entry'):
-                threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
-            elif cfg_data.get('fallback_headline') or cfg_data.get('fallback_text') or cfg_data.get('fallback_image'):
-                threading.Thread(target=_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
-        return ctrl_url, ''
-
     disp_base = gt.get('display_route', f'/games/{game_type_id}')
     disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
     _current_live_game['disp_url'] = disp_url
@@ -4943,19 +4888,6 @@ def games_timedcomp():
     return send_from_directory(STATIC_DIR, 'games_timedcomp.html')
 
 def _timedcomp_config_data(config_id):
-    if not config_id:
-        return {}, ''
-    match = next((c for c in load_game_configs() if c['id'] == config_id), None)
-    if not match:
-        return {}, ''
-    return (match.get('data') or {}), match.get('name', '')
-
-@app.route('/games/countdown')
-@app.route('/games/countdown/display')
-def games_countdown():
-    return send_from_directory(STATIC_DIR, 'games_countdown.html')
-
-def _countdowngame_config_data(config_id):
     if not config_id:
         return {}, ''
     match = next((c for c in load_game_configs() if c['id'] == config_id), None)

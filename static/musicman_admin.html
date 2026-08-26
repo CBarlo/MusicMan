@@ -1395,7 +1395,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                     <option value="game">🎮 Launch Game</option>
                     <option value="shell_game">⛺ Shell Game</option>
                     <option value="walkup_game_entry">🎲 Game Entry Walk-Up</option>
-                    <option value="head_to_head">🏆 Head to Head</option>
+                    <option value="head_to_head">🏆 Scoreboard</option>
                   </optgroup>
                   <optgroup label="FLOW">
                     <option value="wait">⏳ Wait (seconds)</option>
@@ -1705,25 +1705,25 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           </div>
         </div>
 
-      <!-- ── HEAD TO HEAD ── -->
+      <!-- ── SCOREBOARD (Head to Head internally) ── -->
       <div class="page-header" style="margin-top:32px;display:flex;align-items:flex-start;justify-content:space-between">
         <div>
-          <h2>🏆 HEAD TO HEAD</h2>
+          <h2>🏆 SCOREBOARD</h2>
           <p>LIVE 2–6 CONTESTANT SCOREBOARD — OPERATOR PRESSES +/− DURING THE GAME</p>
         </div>
-        <button class="btn btn-primary" onclick="h2hNew()">+ NEW HEAD TO HEAD</button>
+        <button class="btn btn-primary" onclick="h2hNew()">+ NEW SCOREBOARD</button>
       </div>
       <div class="split">
         <div>
           <div class="roles-grid" id="h2h-grid"></div>
         </div>
         <div>
-          <div id="h2h-editor-placeholder" class="editor-placeholder">← Select a game or + NEW HEAD TO HEAD</div>
+          <div id="h2h-editor-placeholder" class="editor-placeholder">← Select a game or + NEW SCOREBOARD</div>
           <div id="h2h-editor" style="display:none">
             <div class="editor-panel">
               <div class="editor-title">
                 <span style="font-size:20px">🏆</span>
-                <span id="h2h-editor-title">HEAD TO HEAD</span>
+                <span id="h2h-editor-title">SCOREBOARD</span>
                 <button class="btn btn-secondary btn-sm" onclick="collapseH2hEditor()" style="margin-left:auto" title="Collapse">✕</button>
               </div>
 
@@ -4519,7 +4519,7 @@ const STEP_LABELS = {
   display_circle:'⬡ Circle Display', display_role:'★ Role Display',
   saved_slide:'📋 Saved Slide', slide:'📋 Custom Slide', slide_clear:'✕ Clear Slide',
   game:'🎮 Launch Game', shell_game:'⛺ Shell Game',
-  vs_card:'⚔ VS Card', viz:'🎛 Visualization', viz_hide:'✕ Stop Viz', head_to_head:'🏆 Head to Head'
+  vs_card:'⚔ VS Card', viz:'🎛 Visualization', viz_hide:'✕ Stop Viz', head_to_head:'🏆 Scoreboard'
 };
 
 // Cached lists for dropdowns — populated at init
@@ -4758,7 +4758,7 @@ function stepParamHtml(step) {
   if (a === 'head_to_head') {
     const opts = savedHeadToHead.length
       ? savedHeadToHead.map(g => `<option value="${escHtml(g.id)}" ${step.head_to_head_id===g.id?'selected':''}>${escHtml(g.name)}</option>`).join('')
-      : '<option value="">— no Head to Head games saved yet —</option>';
+      : '<option value="">— no Scoreboards saved yet —</option>';
     return `<select class="step-param">${opts}</select>`;
   }
   // no-param actions
@@ -5902,7 +5902,7 @@ function renderH2HGrid() {
   const grid = document.getElementById('h2h-grid');
   if (!grid) return;
   if (!savedHeadToHead.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace;padding:12px 0">NO HEAD TO HEAD GAMES YET — CLICK + NEW HEAD TO HEAD</div>';
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace;padding:12px 0">NO SCOREBOARDS YET — CLICK + NEW SCOREBOARD</div>';
     return;
   }
   grid.innerHTML = savedHeadToHead.map(g => {
@@ -5922,7 +5922,7 @@ function h2hNew() {
   _selectedH2hId = null;
   document.getElementById('h2h-editor-placeholder').style.display = 'none';
   document.getElementById('h2h-editor').style.display = '';
-  document.getElementById('h2h-editor-title').textContent = 'NEW HEAD TO HEAD';
+  document.getElementById('h2h-editor-title').textContent = 'NEW SCOREBOARD';
   document.getElementById('h2h-name').value = '';
   document.getElementById('h2h-intro-entry').value     = '';
   document.getElementById('h2h-correct-sfx').value     = '';
@@ -5949,7 +5949,7 @@ function selectH2H(id) {
   renderH2HGrid();
   document.getElementById('h2h-editor-placeholder').style.display = 'none';
   document.getElementById('h2h-editor').style.display = '';
-  document.getElementById('h2h-editor-title').textContent = g.name || 'HEAD TO HEAD';
+  document.getElementById('h2h-editor-title').textContent = g.name || 'SCOREBOARD';
   document.getElementById('h2h-name').value = g.name || '';
   document.getElementById('h2h-intro-entry').value     = g.intro_game_entry_id || '';
   document.getElementById('h2h-correct-sfx').value     = g.correct_sfx || '';
@@ -6152,7 +6152,7 @@ async function saveH2H() {
 
 async function deleteH2H() {
   if (!_selectedH2hId) return;
-  if (!confirm('Delete this Head to Head game? Scores will be lost.')) return;
+  if (!confirm('Delete this Scoreboard? Scores will be lost.')) return;
   try {
     const r = await fetch(`/api/head_to_head/${_selectedH2hId}`, { method: 'DELETE' });
     if ((await r.json()).ok) {
@@ -6895,11 +6895,11 @@ async function _renderGlTriviaEditor(container, dataObj) {
     <div class="section-divider"></div>
     <div class="card-title">TEAM SCOREBOARD</div>
     <div>
-      <label class="field-label">LINK HEAD TO HEAD GAME (OPTIONAL) <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— shows team names/scores on screen; operator gets Head to Head's own +/− and multiplier controls instead of Correct/Incorrect below</span></label>
+      <label class="field-label">LINK SCOREBOARD (OPTIONAL) <span style="font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— shows team names/scores on screen; operator gets the Scoreboard's own +/− and multiplier controls instead of Correct/Incorrect below</span></label>
       <select id="glf-h2h_game_id" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px">${h2hOpts}</select>
     </div>
     <div class="section-divider"></div>
-    <div class="card-title">CORRECT / INCORRECT <span id="glt-ci-ignored-note" style="display:${h2hLinked?'inline':'none'};font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— this game's theme overrides whatever's set on the linked Head to Head game above, so its +/− buttons use these instead of its own</span></div>
+    <div class="card-title">CORRECT / INCORRECT <span id="glt-ci-ignored-note" style="display:${h2hLinked?'inline':'none'};font-size:10px;font-weight:400;letter-spacing:0;color:var(--text-dim)">— this game's theme overrides whatever's set on the linked Scoreboard above, so its +/− buttons use these instead of its own</span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div>
         <label class="field-label">CORRECT SCENE</label>

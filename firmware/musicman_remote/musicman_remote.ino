@@ -168,6 +168,21 @@ bool haveSeenStopwatchState   = false;
 bool lastSeenTimerRunning = false;
 bool haveSeenTimerState   = false;
 
+// Separate from lastSeenTimerRunning/haveSeenTimerState above -- those reset
+// every time menuLevel leaves LEVEL_TIMER (they only track wake-while-already-
+// there), so they can't detect a timer starting while the MC is elsewhere,
+// e.g. Show Flow. This pair persists across screens so a skit's timer step
+// can pull the remote to the Timer screen no matter where it currently is.
+bool lastSeenTimerRunningGlobal = false;
+bool haveSeenTimerRunningGlobal = false;
+
+// Same pattern, for the stopwatch -- Console's own plain Stopwatch widget
+// (GAMES tab) drives the exact same /api/stopwatch/* state the Timed
+// Competition screen already controls, so starting it from Console should
+// pull the remote there too, not just leave it as a read-only footer number.
+bool lastSeenStopwatchRunningGlobal = false;
+bool haveSeenStopwatchRunningGlobal = false;
+
 enum ConnState { CONN_OK, CONN_RECONNECTING, CONN_OFFLINE };
 ConnState connState = CONN_OFFLINE;
 
@@ -474,12 +489,6 @@ void updateMenuLevelForLiveGame() {
       // so the live_game type alone is enough to know this game is up.
       menuLevel = LEVEL_GAME_TIMEDCOMP;
       enteredGame = true;
-    } else if (liveGameTypeId == "countdown_game") {
-      // Reuses the existing standalone Timer screen entirely -- it already
-      // drives the same shared /api/timer/* state this game type loads its
-      // duration into, so there's nothing game-specific to render.
-      menuLevel = LEVEL_TIMER;
-      enteredGame = true;
     }
     // if it became something else / empty, don't force-navigate the user away
     if (enteredGame) {
@@ -500,6 +509,48 @@ void updateMenuLevelForLiveGame() {
       beepConfirm();
     }
   }
+
+  // A timer starting should pull the MC to the Timer screen even when it
+  // wasn't launched as its own "live game" -- e.g. a skit's show-flow step
+  // just starting the shared timer, with liveGameTypeId never changing at
+  // all. Edge-triggered on running flipping false->true so it only fires
+  // once per start, and skipped while genuinely in a different live game so
+  // it doesn't steal focus from Trivia/Chairs/Timed Competition mid-play.
+  bool inOtherLiveGame = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
+                           || menuLevel == LEVEL_GAME_TIMEDCOMP);
+  if (timerRunning && !lastSeenTimerRunningGlobal && haveSeenTimerRunningGlobal
+      && !inOtherLiveGame && menuLevel != LEVEL_TIMER) {
+    menuLevel = LEVEL_TIMER;
+    if (!screenAwake) {
+      screenAwake = true;
+      M5.Axp.SetLDO2(true);
+      lastActivity = millis();
+    }
+    beepConfirm();
+  }
+  lastSeenTimerRunningGlobal = timerRunning;
+  haveSeenTimerRunningGlobal = true;
+
+  // Same treatment for the stopwatch, consistent with the timer above --
+  // Console's plain Stopwatch widget shares state with the Timed Competition
+  // screen (both hit /api/stopwatch/*), so starting it from Console pulls
+  // the remote to the same interactive controls a Timed Competition game
+  // would, rather than leaving it on whatever screen it was already showing
+  // with only the read-only footer number.
+  bool inOtherLiveGame2 = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
+                            || menuLevel == LEVEL_TIMER);
+  if (stopwatchRunning && !lastSeenStopwatchRunningGlobal && haveSeenStopwatchRunningGlobal
+      && !inOtherLiveGame2 && menuLevel != LEVEL_GAME_TIMEDCOMP) {
+    menuLevel = LEVEL_GAME_TIMEDCOMP;
+    if (!screenAwake) {
+      screenAwake = true;
+      M5.Axp.SetLDO2(true);
+      lastActivity = millis();
+    }
+    beepConfirm();
+  }
+  lastSeenStopwatchRunningGlobal = stopwatchRunning;
+  haveSeenStopwatchRunningGlobal = true;
 }
 
 // Wakes the screen for a meaningful change WITHIN an already-live game --

@@ -527,4 +527,24 @@ The M5 remote's boot screen showed a 120×120 raster logo converted from the Bro
 
 ---
 
-*Last updated: August 2026 — Phase 15*
+## Phase 16 — Games Library Cleanup, Scoreboard Rename, Timer/Stopwatch Consistency
+
+### Games Library: Removed Unbuilt and Redundant Game Types
+Chris flagged that "Baby Photo" and "Family Feud" showed up as Game Types with nothing actually behind them — confirmed both were schema-only stubs with no controller page and no Flask route at all (a click on GO LIVE would have 404'd), so they were removed outright rather than fixed. Separately, "Countdown Timer" as a Game Type was fully built (real controller page, real launch path) but duplicated the Skit Timer system with none of its richness — no start sound, no warning, no expiry, just a bare duration set straight into the shared timer state. Chris's call: timers don't belong in the Games Library at all, since a timer is something you'd want to load *into* a game, not a game itself. Removed the `countdown_game` type, its `/games/countdown` routes, and `games_countdown.html` entirely — the Skit Timer + Presets system (Admin's TIMER section) is now the one place to build a named, reusable timer. Confirmed zero saved configs existed for any of the three removed types before deleting.
+
+### Head to Head → Scoreboard
+Renamed every user-facing "Head to Head" label to "Scoreboard" across Console, Admin, and the Manual, for clarity — internal identifiers (`/api/head_to_head/*` routes, `h2h*` variable and function names) were deliberately left alone since renaming those is a much larger, purely-internal refactor with no user-facing benefit.
+
+### Console Games Tab: Timer/Stopwatch Consolidated and Made Consistent
+The Countdown Timer, Stopwatch, and the Rankings/leaderboard that Stopwatch's Record Race Time feeds were all separated by other sections and required scrolling to reach on an iPad mid-show. Moved all three to the top of the tab, Countdown Timer and Stopwatch now side by side (auto-wrapping to stacked on narrow screens) with Rankings living inside the Stopwatch column right below Record Race Time, where its data actually comes from.
+
+Gave Stopwatch the same SET/HIDE display controls Countdown Timer already had, replacing its old plain "Show on Screen" checkbox that only took effect at start time with no way to reveal/hide independently afterward. This needed real backend work: `stopwatch_state` lost its `show_on_display` field, `/api/stopwatch/start` now unconditionally broadcasts a `stopwatch_show` event on start (matching Countdown's own always-show-on-start behavior) and a new `/api/stopwatch/show` route shows the current value without starting — HIDE reuses the same generic `/api/timer/hide` broadcast every other timer/countdown/stopwatch surface already shares. Verified live via curl against the real Pi: SET, START, STOP, and RESET each logged correctly and produced the right state transitions.
+
+Also reordered Countdown Timer's own layout — its big numeral and START/SET/HIDE/RESET buttons were buried below eight rows of sound/display settings, while Stopwatch (with no settings) showed its numeral and buttons immediately. Moved Countdown's numeral+buttons up to right after the preset-recall row, matching Stopwatch's structure, and gave both section headers a much larger, bolder, color-matched treatment (amber for Countdown, green for Stopwatch) instead of the same tiny 9px label used everywhere else — these are primary show-running controls, not a settings sub-section.
+
+### Remote: Timer Auto-Jump Now Covers the Stopwatch Too
+Reported live: starting the Stopwatch from Console showed a live number in the remote's read-only footer strip, but the remote never switched to the actual interactive stopwatch screen the way it already did for the Skit Timer (see Phase 15/this same session's earlier timer auto-jump work). Root cause was scope, not a bug — that auto-jump only ever watched `timerRunning`. Since Console's Stopwatch widget and the Timed Competition screen's controls both already hit the exact same `/api/stopwatch/*` endpoints and shared state, extending the identical edge-triggered pattern to `stopwatchRunning` → `LEVEL_GAME_TIMEDCOMP` was a straight, safe copy of the existing timer logic, with the "don't steal focus" guard swapped accordingly (skips Trivia/Chairs/an active Skit Timer countdown, not itself).
+
+---
+
+*Last updated: August 2026 — Phase 16*

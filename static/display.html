@@ -1725,22 +1725,27 @@ function handleCountdownState(data) {
   if (!data.running && sec <= 0) hideChronoOverlay('countdown');
 }
 
+// Visibility for the stopwatch is controlled only by the explicit
+// stopwatch_show broadcast (SET/START) and the generic timer_hide (HIDE) --
+// exactly the same contract Countdown already uses -- so this only updates
+// the frozen number when STOP lands while already visible, never touches
+// visibility itself.
 function handleStopwatchState(data) {
-  if (data.running && data.show_on_display) {
-    showChronoOverlay('stopwatch', {start_ms: data.start_ms}, 'stopwatch');
-  } else if (!data.running && _chronoSource === 'stopwatch') {
-    clearInterval(_swInterval);
-    if (data.elapsed_ms) {
-      const elapsed = data.elapsed_ms / 1000;
-      const m = Math.floor(elapsed / 60);
-      const s = Math.floor(elapsed % 60);
-      const t = Math.floor((elapsed % 1) * 10);
-      timerNum.textContent = m > 0
-        ? m + ':' + String(s).padStart(2, '0') + '.' + t
-        : s + '.' + t;
-    }
-    if (_timerVisible) setTimeout(() => hideChronoOverlay('stopwatch'), 3000);
-  }
+  if (!_timerVisible || _chronoSource !== 'stopwatch' || data.running) return;
+  clearInterval(_swInterval);
+  const elapsed = (data.elapsed_ms || 0) / 1000;
+  const m = Math.floor(elapsed / 60);
+  const s = Math.floor(elapsed % 60);
+  const t = Math.floor((elapsed % 1) * 10);
+  timerNum.textContent = m > 0
+    ? m + ':' + String(s).padStart(2, '0') + '.' + t
+    : s + '.' + t;
+}
+
+function _freezeSwNum(elapsedMs) {
+  const elapsed = (elapsedMs || 0) / 1000;
+  const m = Math.floor(elapsed / 60), s = Math.floor(elapsed % 60), t = Math.floor((elapsed % 1) * 10);
+  timerNum.textContent = m > 0 ? m + ':' + String(s).padStart(2, '0') + '.' + t : s + '.' + t;
 }
 
 // ── WEBSOCKET ─────────────────────────────────────────────────────────────────
@@ -1837,6 +1842,16 @@ function connectWS() {
       else if (msg.event === 'countdown_show')    { showChronoOverlay('countdown', {seconds: data.seconds}, 'countdown'); }
       else if (msg.event === 'countdown_state')   { handleCountdownState(data); }
       else if (msg.event === 'countdown_expired') { hideChronoOverlay('countdown'); }
+      else if (msg.event === 'stopwatch_show') {
+        if (data.running) { showChronoOverlay('stopwatch', {start_ms: data.start_ms}, 'stopwatch'); }
+        else {
+          _chronoMode = 'stopwatch'; _chronoSource = 'stopwatch'; _timerVisible = true;
+          clearInterval(_swInterval);
+          timerNum.style.color = '#3CB96A'; chronoLabel.textContent = 'ELAPSED';
+          _freezeSwNum(data.elapsed_ms);
+          layerTimer.style.opacity = '1';
+        }
+      }
       else if (msg.event === 'stopwatch_state')   { handleStopwatchState(data); }
       else if (msg.event === 'viz_show')    { hideGameFrame(); hideChronoOverlay(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); if (data.scene === 'crowd') showCrowdViz(data.settings); else showMusicViz(data.settings); }
       else if (msg.event === 'viz_hide')    { hideViz(); }
