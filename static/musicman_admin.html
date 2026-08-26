@@ -307,6 +307,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
     <div class="nav-item" data-tab="vs-cards" onclick="switchTab('vs-cards')">⚔ VS Cards</div>
     <div class="nav-item" data-tab="game-entries" onclick="switchTab('game-entries')">🎯 Game Entries</div>
     <div class="nav-item" data-tab="games" onclick="openGamesTab()">🎮 Games</div>
+    <div class="nav-item" data-tab="karaoke" onclick="switchTab('karaoke')">🎤 Karaoke</div>
     <div class="nav-divider"></div>
     <div class="sidebar-section">LIVE</div>
     <div class="nav-item" data-tab="music-viz" onclick="switchTab('music-viz')">🎛 Visualizations</div>
@@ -1397,6 +1398,9 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                     <option value="walkup_game_entry">🎲 Game Entry Walk-Up</option>
                     <option value="head_to_head">🏆 Scoreboard</option>
                   </optgroup>
+                  <optgroup label="KARAOKE">
+                    <option value="karaoke">🎤 Karaoke Song</option>
+                  </optgroup>
                   <optgroup label="FLOW">
                     <option value="wait">⏳ Wait (seconds)</option>
                   </optgroup>
@@ -1652,6 +1656,125 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div class="btn-row" style="gap:8px">
                 <button class="btn btn-primary" onclick="saveGameEntry()">✓ SAVE ENTRY</button>
                 <button class="btn" id="ge-delete-btn" onclick="deleteGameEntry()" style="border-color:var(--rust,#c0392b);color:var(--rust,#c0392b);background:var(--rust-dim,#2d0a0a)">✕ DELETE</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-karaoke">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2>KARAOKE</h2>
+          <p>SONGS WITH SYNCED LYRICS — INSTRUMENTAL + VOCAL GUIDE TRACKS PROCESSED OFFLINE, THEN UPLOADED HERE</p>
+        </div>
+        <button class="btn btn-primary" onclick="addKaraokeSong()">+ ADD SONG</button>
+      </div>
+      <div class="split">
+        <div>
+          <div class="roles-grid" id="kk-grid"></div>
+        </div>
+        <div>
+          <div id="kk-editor-placeholder" class="editor-placeholder">← Select a song to edit</div>
+          <div id="kk-editor" style="display:none">
+            <div class="editor-panel">
+              <div class="editor-title">
+                <span id="kk-editor-title">SONG</span>
+                <button class="btn btn-secondary btn-sm" onclick="collapseKaraokeEditor()" style="margin-left:auto" title="Collapse">✕</button>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div>
+                  <label>TITLE</label>
+                  <input type="text" id="kk-title" placeholder="e.g. Sweet Caroline">
+                </div>
+                <div>
+                  <label>ARTIST</label>
+                  <input type="text" id="kk-artist" placeholder="e.g. Neil Diamond">
+                </div>
+              </div>
+              <div id="kk-duration-display" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+
+              <div class="section-divider"></div>
+              <div class="card-title">AUDIO — FROM THE OFFLINE PROCESSING SCRIPT</div>
+              <div class="asset-slots">
+                <div>
+                  <div class="asset-slot" id="kkslot-instrumental" onclick="document.getElementById('kkfile-instrumental').click()" style="position:relative">
+                    <div class="slot-status" id="kkstatus-instrumental"></div>
+                    <input type="file" id="kkfile-instrumental" accept="audio/*" onchange="uploadKaraokeAsset('instrumental', this.files[0])">
+                    <div class="asset-slot-icon">🎹</div>
+                    <div class="asset-slot-label">INSTRUMENTAL</div>
+                    <div class="asset-slot-file empty" id="kkfile-label-instrumental">No file</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="asset-slot" id="kkslot-vocals" onclick="document.getElementById('kkfile-vocals').click()" style="position:relative">
+                    <div class="slot-status" id="kkstatus-vocals"></div>
+                    <input type="file" id="kkfile-vocals" accept="audio/*" onchange="uploadKaraokeAsset('vocals', this.files[0])">
+                    <div class="asset-slot-icon">🎙️</div>
+                    <div class="asset-slot-label">VOCAL GUIDE</div>
+                    <div class="asset-slot-file empty" id="kkfile-label-vocals">No file</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+              <div class="card-title">OPTIONAL WALK-UP <span style="font-size:10px;font-weight:400;color:var(--text-dim);letter-spacing:0">shown before the song starts — skipped entirely if left empty</span></div>
+              <div style="margin-top:8px">
+                <div class="asset-slot asset-slot-wide" id="kkslot-animation" onclick="document.getElementById('kkfile-animation').click()">
+                  <input type="file" id="kkfile-animation" accept="video/*" onchange="uploadKaraokeAsset('animation', this.files[0])">
+                  <div class="slot-status-inline" id="kkstatus-animation"></div>
+                  <div class="asset-slot-icon">🎬</div>
+                  <div style="flex:1">
+                    <div class="asset-slot-label">WALK-UP VIDEO</div>
+                    <div class="asset-slot-file empty" id="kkfile-label-animation">No file</div>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:8px">
+                <div class="asset-slot asset-slot-wide" id="kkslot-logo" onclick="document.getElementById('kkfile-logo').click()">
+                  <input type="file" id="kkfile-logo" accept="image/*" onchange="uploadKaraokeAsset('logo', this.files[0])">
+                  <div class="slot-status-inline" id="kkstatus-logo"></div>
+                  <div class="asset-slot-icon">🖼</div>
+                  <div style="flex:1">
+                    <div class="asset-slot-label">WALK-UP IMAGE <span style="font-size:10px;font-weight:400;color:var(--text-dim);letter-spacing:0">used if no video</span></div>
+                    <div class="asset-slot-file empty" id="kkfile-label-logo">No file</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+              <div class="card-title">LIGHTING</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div>
+                  <label>WALK-UP SCENE</label>
+                  <select id="kk-walkup-scene" style="width:100%">
+                    <option value="">— none —</option>
+                  </select>
+                </div>
+                <div>
+                  <label>SONG SCENE</label>
+                  <select id="kk-song-scene" style="width:100%">
+                    <option value="">— none —</option>
+                  </select>
+                  <div style="font-size:10px;color:var(--muted);margin-top:3px">Fires when singing starts</div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div class="card-title" style="margin-bottom:0">LYRICS</div>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('kk-lyrics-file').click()" style="margin-left:auto">📁 IMPORT JSON</button>
+                <input type="file" id="kk-lyrics-file" accept=".json" style="display:none" onchange="kkImportLyrics(this.files[0])">
+                <button class="btn btn-secondary btn-sm" onclick="kkAddLyricLine()">+ LINE</button>
+              </div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Timestamp is seconds from the start of the song. Import the JSON produced by <code>scripts/karaoke_process.py</code>, then touch up any lines here.</div>
+              <div id="kk-lyrics-rows" style="max-height:320px;overflow-y:auto"></div>
+
+              <div class="btn-row" style="gap:8px;margin-top:14px">
+                <button class="btn btn-primary" onclick="saveKaraokeSong()">✓ SAVE SONG</button>
+                <button class="btn" id="kk-delete-btn" onclick="deleteKaraokeSong()" style="border-color:var(--rust,#c0392b);color:var(--rust,#c0392b);background:var(--rust-dim,#2d0a0a)">✕ DELETE</button>
               </div>
             </div>
           </div>
@@ -2424,6 +2547,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await loadShowFlowTemplates();
   await loadPoleNodes();
   await sgLoadThemes();
+  await loadKaraokeSongs();
 });
 
 // ── TABS ───────────────────────────────────────────────────────────────────
@@ -2441,6 +2565,7 @@ function switchTab(name) {
   if (name === 'slides')        { admRenderFields(); loadSavedSlides(); }
   if (name === 'vs-cards')      loadVsCards();
   if (name === 'game-entries')  loadGameEntries();
+  if (name === 'karaoke')       loadKaraokeSongs();
   if (name === 'music-viz')     loadMusicViz();
 }
 
@@ -3371,6 +3496,183 @@ async function deleteGameEntry() {
 }
 
 
+// ── KARAOKE ────────────────────────────────────────────────────────────────
+let karaokeSongs = [];
+let selectedKaraokeId = null;
+let _kkEditLyrics = [];
+
+async function loadKaraokeSongs() {
+  try { karaokeSongs = await fetch('/api/karaoke').then(r => r.json()); } catch(e) { karaokeSongs = []; }
+  renderKaraokeGrid();
+  if (selectedKaraokeId) populateKaraokeEditor(selectedKaraokeId);
+}
+
+function renderKaraokeGrid() {
+  const grid = document.getElementById('kk-grid');
+  if (!grid) return;
+  if (!karaokeSongs.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace;padding:12px 0">NO SONGS YET — CLICK + ADD SONG</div>';
+    return;
+  }
+  grid.innerHTML = karaokeSongs.map(s => {
+    const sel = s.id === selectedKaraokeId ? ' selected' : '';
+    const ready = (s.assets?.instrumental && s.assets?.vocals) ? '🟢' : '🟡';
+    return `<div class="circle-card${sel}" onclick="selectKaraokeSong('${s.id}')">
+      <div class="scene-card-icon">🎤 ${ready}</div>
+      <div class="scene-card-name">${escHtml(s.title || 'Untitled')}</div>
+      <div class="scene-card-desc">${escHtml(s.artist || '')}</div>
+    </div>`;
+  }).join('');
+}
+
+function addKaraokeSong() {
+  const id = 'karaoke_' + Date.now();
+  karaokeSongs.push({ id, title: 'New Song', artist: '', assets: {}, lyrics: [] });
+  selectKaraokeSong(id);
+  renderKaraokeGrid();
+  setTimeout(() => { const f = document.getElementById('kk-title'); if (f) { f.focus(); f.select(); } }, 50);
+}
+
+function selectKaraokeSong(id) {
+  selectedKaraokeId = id;
+  renderKaraokeGrid();
+  populateKaraokeEditor(id);
+}
+
+function collapseKaraokeEditor() {
+  selectedKaraokeId = null;
+  document.getElementById('kk-editor').style.display = 'none';
+  document.getElementById('kk-editor-placeholder').style.display = '';
+  renderKaraokeGrid();
+}
+
+function populateKaraokeEditor(id) {
+  const s = karaokeSongs.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('kk-editor-placeholder').style.display = 'none';
+  document.getElementById('kk-editor').style.display = 'block';
+  document.getElementById('kk-editor-title').textContent = (s.title || 'SONG').toUpperCase();
+  document.getElementById('kk-title').value  = s.title  || '';
+  document.getElementById('kk-artist').value = s.artist || '';
+  document.getElementById('kk-duration-display').textContent =
+    s.duration ? `Duration: ${Math.floor(s.duration/60)}:${String(Math.round(s.duration%60)).padStart(2,'0')} (measured from the uploaded instrumental)` : '';
+  const assets = s.assets || {};
+  setSlotFile('kk', 'instrumental', assets.instrumental || '');
+  setSlotFile('kk', 'vocals',       assets.vocals       || '');
+  setSlotFile('kk', 'animation',    assets.animation    || '');
+  setSlotFile('kk', 'logo',         assets.logo         || '');
+  const wsel = document.getElementById('kk-walkup-scene'); if (wsel) wsel.value = s.walkup_scene || '';
+  const ssel = document.getElementById('kk-song-scene');   if (ssel) ssel.value = s.song_scene   || '';
+  _kkEditLyrics = (s.lyrics || []).map(l => ({ t: l.t, text: l.text }));
+  renderKkLyricsRows();
+}
+
+async function uploadKaraokeAsset(assetType, file) {
+  if (!file || !selectedKaraokeId) return;
+  setSlotUploading('kk', assetType, true);
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type', 'karaoke');
+  fd.append('id',   selectedKaraokeId);
+  fd.append('asset', assetType);
+  try {
+    const res  = await fetch('/api/admin/upload', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.ok) {
+      const fname = getUploadedFilename(data, file.name);
+      const s = karaokeSongs.find(x => x.id === selectedKaraokeId);
+      if (s) { if (!s.assets) s.assets = {}; s.assets[assetType] = fname; }
+      setSlotFile('kk', assetType, fname);
+      if (assetType === 'instrumental') await loadKaraokeSongs();  // pick up the server-measured duration
+      renderKaraokeGrid();
+      toast('Uploaded', 'ok');
+    } else { toast('Upload failed', 'err'); }
+  } catch(e) { toast('Upload failed', 'err'); }
+  setSlotUploading('kk', assetType, false);
+  document.getElementById('kkfile-' + assetType).value = '';
+}
+
+function kkImportLyrics(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      _kkEditLyrics = parsed.map(l => ({ t: parseFloat(l.t) || 0, text: String(l.text || '') }));
+      renderKkLyricsRows();
+      toast(`Imported ${_kkEditLyrics.length} lines`, 'ok');
+    } catch(e) { toast('Could not parse that JSON file', 'err'); }
+  };
+  reader.readAsText(file);
+  document.getElementById('kk-lyrics-file').value = '';
+}
+
+function kkAddLyricLine() {
+  const lastT = _kkEditLyrics.length ? _kkEditLyrics[_kkEditLyrics.length - 1].t + 3 : 0;
+  _kkEditLyrics.push({ t: lastT, text: '' });
+  renderKkLyricsRows();
+}
+
+function kkRemoveLyricLine(i) {
+  _kkEditLyrics.splice(i, 1);
+  renderKkLyricsRows();
+}
+
+function kkUpdateLyricLine(i, field, val) {
+  if (!_kkEditLyrics[i]) return;
+  _kkEditLyrics[i][field] = field === 't' ? (parseFloat(val) || 0) : val;
+}
+
+function renderKkLyricsRows() {
+  const c = document.getElementById('kk-lyrics-rows');
+  if (!c) return;
+  if (!_kkEditLyrics.length) {
+    c.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:1px;padding:8px 0">No lyrics yet — import a JSON file or add lines manually.</div>';
+    return;
+  }
+  c.innerHTML = _kkEditLyrics.map((l, i) => `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+      <input type="number" step="0.1" value="${l.t}" oninput="kkUpdateLyricLine(${i},'t',this.value)"
+        style="width:64px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--amber);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:5px">
+      <input type="text" value="${escHtml(l.text)}" oninput="kkUpdateLyricLine(${i},'text',this.value)"
+        style="flex:1;font-size:13px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:5px 8px">
+      <button onclick="kkRemoveLyricLine(${i})" style="background:none;border:none;color:var(--rust,#c0392b);cursor:pointer;font-size:14px;padding:2px 6px">✕</button>
+    </div>`).join('');
+}
+
+async function saveKaraokeSong() {
+  if (!selectedKaraokeId) return;
+  const data = {
+    id: selectedKaraokeId,
+    title:  document.getElementById('kk-title').value.trim() || 'Untitled',
+    artist: document.getElementById('kk-artist').value.trim(),
+    walkup_scene: document.getElementById('kk-walkup-scene').value || null,
+    song_scene:   document.getElementById('kk-song-scene').value   || null,
+    lyrics: _kkEditLyrics.filter(l => l.text.trim()).sort((a,b) => a.t - b.t),
+  };
+  try {
+    const res = await fetch('/api/admin/karaoke', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+    const r = await res.json();
+    if (r.ok) { toast('Song saved', 'ok'); await loadKaraokeSongs(); }
+    else toast('Save failed', 'err');
+  } catch(e) { toast('Save failed', 'err'); }
+}
+
+async function deleteKaraokeSong() {
+  if (!selectedKaraokeId) return;
+  const s = karaokeSongs.find(x => x.id === selectedKaraokeId);
+  if (!confirm(`Delete "${s?.title || 'this song'}"?`)) return;
+  try {
+    await fetch('/api/admin/karaoke/' + selectedKaraokeId, { method:'DELETE' });
+    toast('Song deleted', 'ok');
+    selectedKaraokeId = null;
+    document.getElementById('kk-editor').style.display = 'none';
+    document.getElementById('kk-editor-placeholder').style.display = '';
+    await loadKaraokeSongs();
+  } catch(e) { toast('Delete failed', 'err'); }
+}
+
+
 // ── SOUNDS ─────────────────────────────────────────────────────────────────
 let currentPreviewItem = null;
 
@@ -4104,7 +4406,7 @@ const SCENE_DEFAULTS = [
 
 // ── Populate walkup lighting scene dropdowns ─────────────────────────────────
 function populateSceneSelects() {
-  const ids = ['c-walkup-scene','c-stage-scene','r-walkup-scene','r-stage-scene','ge-walkup-scene','ge-stage-scene','vsc-walkup-scene','vsc-stage-scene','h2h-correct-scene','h2h-incorrect-scene'];
+  const ids = ['c-walkup-scene','c-stage-scene','r-walkup-scene','r-stage-scene','ge-walkup-scene','ge-stage-scene','vsc-walkup-scene','vsc-stage-scene','h2h-correct-scene','h2h-incorrect-scene','kk-walkup-scene','kk-song-scene'];
   ids.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
@@ -4519,7 +4821,8 @@ const STEP_LABELS = {
   display_circle:'⬡ Circle Display', display_role:'★ Role Display',
   saved_slide:'📋 Saved Slide', slide:'📋 Custom Slide', slide_clear:'✕ Clear Slide',
   game:'🎮 Launch Game', shell_game:'⛺ Shell Game',
-  vs_card:'⚔ VS Card', viz:'🎛 Visualization', viz_hide:'✕ Stop Viz', head_to_head:'🏆 Scoreboard'
+  vs_card:'⚔ VS Card', viz:'🎛 Visualization', viz_hide:'✕ Stop Viz', head_to_head:'🏆 Scoreboard',
+  karaoke:'🎤 Karaoke Song'
 };
 
 // Cached lists for dropdowns — populated at init
@@ -4587,6 +4890,10 @@ function stepParamHtml(step) {
   if (a === 'walkup_game_entry') {
     const opts = gameEntries.map(e => `<option value="${escHtml(e.id)}" ${step.game_entry_id===e.id?'selected':''}>${escHtml((e.emoji||'🎲')+' '+e.name)}</option>`).join('');
     return `<select class="step-param">${opts || '<option value="">— no game entries —</option>'}</select>`;
+  }
+  if (a === 'karaoke') {
+    const opts = karaokeSongs.map(s => `<option value="${escHtml(s.id)}" ${step.karaoke_id===s.id?'selected':''}>${escHtml(s.title)}${s.artist?' — '+escHtml(s.artist):''}</option>`).join('');
+    return `<select class="step-param">${opts || '<option value="">— no karaoke songs —</option>'}</select>`;
   }
   if (a === 'audio_fade') return `<input class="step-param" type="number" placeholder="seconds" value="${step.duration||3}" min="1" step="0.5" style="width:100px"> <span style="font-size:11px;color:var(--text-dim)">sec</span>`;
   if (a === 'wait')       return `<input class="step-param" type="number" placeholder="seconds" value="${step.seconds||1}" min="0.5" step="0.5" style="width:100px"> <span style="font-size:11px;color:var(--text-dim)">sec</span>`;
@@ -4774,6 +5081,7 @@ function collectStepValue(row, action) {
   if (action === 'walkup_circle')      return { circle_id:     val };
   if (action === 'walkup_role')        return { role_id:       val };
   if (action === 'walkup_game_entry')  return { game_entry_id: val };
+  if (action === 'karaoke')            return { karaoke_id:    val };
   if (action === 'audio_fade')     return { duration:  parseFloat(val)||3 };
   if (action === 'wait')           return { seconds:   parseFloat(val)||1 };
   if (action === 'display_image') {
@@ -4988,6 +5296,7 @@ function addMacroStep() {
   else if (type === 'walkup_circle')     step.circle_id     = circles.length     ? circles[0].id     : '';
   else if (type === 'walkup_role')       step.role_id       = roles.length       ? roles[0].id       : '';
   else if (type === 'walkup_game_entry') step.game_entry_id = gameEntries.length ? gameEntries[0].id : '';
+  else if (type === 'karaoke')           step.karaoke_id    = karaokeSongs.length ? karaokeSongs[0].id : '';
   else if (type === 'audio_fade')    step.duration  = 3;
   else if (type === 'wait')          step.seconds   = 1;
   else if (type === 'display_image') { step.file = displayImageList[0] || ''; step.duration = 3; }

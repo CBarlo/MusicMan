@@ -547,4 +547,28 @@ Reported live: starting the Stopwatch from Console showed a live number in the r
 
 ---
 
-*Last updated: August 2026 — Phase 16*
+## Phase 17 — Karaoke
+
+A new activity type: sing-along songs with lyrics synced on HDMI, driven by an offline processing pipeline rather than anything built by hand per song.
+
+### Why not straight karaoke
+Chris tested pulling a karaoke track off YouTube and hand-aligning it against the real song in DaVinci Resolve — workable, but slow and one-off per song. The actual ask: real audio (not a stripped-down karaoke instrumental), an on-screen lyric display synced to it, and the original vocal independently volume-controllable as a guide track — built once per song ahead of time, then just picked and played on show night.
+
+### The offline pipeline
+Proved out live against a real purchased MP3 (Neil Diamond's "Sweet Caroline") before writing any app code: `demucs` (two-stems mode) splits a song into an instrumental and an isolated vocal track in under 20 seconds on a Mac; `openai-whisper`, run against that isolated vocal stem specifically (not the full mix — music behind the singer would otherwise confuse the transcription), produces word-level timestamps with no lyrics website needed at all — the words come straight from the audio. Grouping words into karaoke display lines is a simple gap-detection heuristic (a >0.6s pause between words reads as a line break). Against the real test song: 34 lines, essentially word-for-word correct, one merged line and one misheard word as the entire correction list, produced end-to-end in under two minutes including model load time.
+
+This became `scripts/karaoke_process.py` — a standalone CLI Chris runs on his own Mac (`python3.11 -m venv` + `pip install openai-whisper demucs`; PyTorch didn't have wheels yet for very new Python releases at the time this was built, hence pinning 3.11 specifically). Deliberately does not run on the Pi — vocal separation and speech transcription are real compute, and a Pi 4B has no business attempting either live. Output per song: `instrumental.mp3`, `vocals.mp3`, `lyrics.json` — uploaded into Admin's new Karaoke tab afterward.
+
+### Why two separate audio files, not one
+The vocal guide needing independent live volume control (turn it up for a shy singer, down for someone who's got it) meant the instrumental and vocal genuinely have to be two simultaneously-playing, separately-mixed tracks — not one file with volume automation baked in. The instrumental rides the existing music channel (`pygame.mixer.music`), so the console's existing MUSIC volume slider controls it for free, same as any playlist track. The vocal guide needed its own channel that can never get stolen by an SFX firing mid-song, so the mixer now reserves channel 0 exclusively for it (`pygame.mixer.set_reserved(1)`) at init time, excluded from the normal SFX auto-allocation pool entirely.
+
+### The feature itself
+New `config['karaoke_songs']` list, following the exact same shape/conventions as Game Entries (optional walk-up video/image + a walk-up lighting scene, plus a new "song scene" that fires when the singing actually starts) so nothing new had to be invented for that half. Admin gets a Karaoke tab: upload the three processed files, an editable line-by-line lyrics table (import the JSON, then hand-touch-up the rare bad line/word), and the usual save/delete. Console gets its own Karaoke tab — pick a song, hit play, a Now Singing panel shows a live vocal-guide volume slider and a stop button. Display gets a new full-screen lyric overlay: previous line fading above, current line huge and glowing, next line waiting below, synced to playback the same server-sends-start-time / client-interpolates way the Skit Timer and Stopwatch already work — no per-frame network chatter, just one broadcast at play time.
+
+Karaoke songs are also a full Show Flow / macro step type now (`karaoke` action), so a song can be dropped straight into a show's run-of-show like any walk-up or game.
+
+Verified live end-to-end against the real Pi: created a temporary song entry directly in config.yaml (Admin's create route is auth-gated) with the real processed Sweet Caroline files, fired `/api/karaoke/<id>/play`, confirmed via `/api/state` that both the instrumental and vocal channels were actually running in sync with the correct start time and full 34-line lyric set attached, exercised the vocal volume endpoint, confirmed a clean stop, then removed the test entry and diff-confirmed config.yaml matched its pre-test state exactly.
+
+---
+
+*Last updated: August 2026 — Phase 17*

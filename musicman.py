@@ -388,10 +388,17 @@ def websocket(ws):
 
 # ── AUDIO ENGINE ──
 def _init_mixer(retries=5, delay=2):
+    global _karaoke_vocal_channel
     for attempt in range(1, retries + 1):
         try:
             pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
             pygame.mixer.set_num_channels(8)
+            # Reserve channel 0 exclusively for the karaoke vocal guide track --
+            # set_reserved() excludes it from Sound.play()'s automatic channel
+            # pool, so a KILL ALL/SFX fire mid-song can never grab it out from
+            # under a live karaoke performance.
+            pygame.mixer.set_reserved(1)
+            _karaoke_vocal_channel = pygame.mixer.Channel(0)
             log.info("pygame mixer initialised")
             return
         except Exception as e:
@@ -1172,6 +1179,28 @@ stopwatch_state = {
     'start_ms': None,
     'elapsed_ms': 0,
 }
+
+# ── KARAOKE ──
+# Instrumental plays through the normal music channel (pygame.mixer.music) --
+# same as any playlist track, so the existing MUSIC volume slider controls it
+# for free. The vocal guide needs to play *simultaneously* with independent
+# volume, which pygame.mixer.music can't do (single stream) -- it gets its
+# own reserved Sound channel instead, carved out of the mixer's channel pool
+# so a Kill-All/SFX firing mid-song can never steal it out from under a live
+# karaoke performance.
+karaoke_state = {
+    'playing':      False,
+    'song_id':      None,
+    'title':        '',
+    'start_ms':     None,
+    'duration':     0,
+    'lyrics':       [],
+    'vocal_volume': 80,
+}
+_karaoke_stop_event = threading.Event()
+# _karaoke_vocal_channel itself is assigned inside _init_mixer() (below), which
+# runs at module load before this point -- redeclaring it here would clobber
+# that assignment back to nothing.
 
 # Persisted "what's currently happening" — unlike the show_step WS broadcast
 # (a fire-and-forget event, missed entirely by any client that wasn't
@@ -2386,6 +2415,108 @@ def fire_game_entry(entry_id, reveal_url=None):
             daemon=True
         ).start()
     log.info(f"Game entry fired: {item.get('name')}")
+
+
+# ════════════════════════════════════════════
+# KARAOKE
+# ════════════════════════════════════════════
+_karaoke_session = 0  # bumped on every play/stop so a stale auto-stop watcher from a
+                      # superseded song can never stop the one that replaced it
+
+def fire_karaoke_song(song_id):
+    """Play a karaoke song: instrumental through the normal music channel
+    (so the existing MUSIC volume slider controls it), vocal guide through
+    its own reserved channel with independent volume, lyrics synced on
+    display via the shared start_ms + client-side interpolation pattern
+    already used for the skit timer/stopwatch."""
+    global _karaoke_session
+    song = next((s for s in config.get('karaoke_songs', []) if s['id'] == song_id), None)
+    if not song:
+        log.error(f"Karaoke song not found: {song_id}")
+        return
+    _karaoke_session += 1
+    my_session = _karaoke_session
+    song_dir = ASSETS_DIR / 'karaoke' / song_id
+    instrumental = song_dir / 'instrumental.mp3'
+    vocals       = song_dir / 'vocals.mp3'
+    if not instrumental.exists() or not vocals.exists():
+        log.error(f"Karaoke song {song_id} missing audio (instrumental/vocals not uploaded)")
+        return
+
+    assets = song.get('assets', {})
+    walkup_scene = song.get('walkup_scene')
+    song_scene   = song.get('song_scene')
+    has_walkup   = bool(assets.get('animation') or assets.get('animation_intro') or assets.get('logo'))
+    walkup_duration = 4 if has_walkup else 0
+
+    def _start_playback():
+        if _karaoke_session != my_session:
+            return  # superseded before the walkup finished
+        if song_scene:
+            threading.Thread(target=wled_set_scene, args=(song_scene,), daemon=True).start()
+        try:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load(str(instrumental))
+            pygame.mixer.music.set_volume(audio_state.get('volume', 80) / 100)
+            pygame.mixer.music.play()
+            vocal_sound = pygame.mixer.Sound(str(vocals))
+            _karaoke_vocal_channel.set_volume(karaoke_state['vocal_volume'] / 100)
+            _karaoke_vocal_channel.play(vocal_sound)
+        except Exception as e:
+            log.error(f"Karaoke playback error for {song_id}: {e}")
+            return
+        karaoke_state['playing']  = True
+        karaoke_state['song_id']  = song_id
+        karaoke_state['title']    = song.get('title', '')
+        karaoke_state['start_ms'] = int(time.time() * 1000)
+        karaoke_state['duration'] = song.get('duration', 0)
+        karaoke_state['lyrics']   = song.get('lyrics', [])
+        broadcast('karaoke_state', karaoke_state)
+        _ensure_display_for('display_karaoke', dict(karaoke_state))
+        log.info(f"Karaoke started: {song.get('title')}")
+
+        duration = song.get('duration', 0)
+        if duration > 0:
+            def _auto_stop(ev=_karaoke_stop_event, sess=my_session):
+                if ev.wait(timeout=duration + 1):
+                    return
+                if _karaoke_session == sess:
+                    stop_karaoke()
+            threading.Thread(target=_auto_stop, daemon=True).start()
+
+    if has_walkup:
+        if walkup_scene:
+            threading.Thread(target=wled_set_scene, args=(walkup_scene,), daemon=True).start()
+        karaoke_base = ASSETS_DIR / 'karaoke'
+        anim       = _versioned_walkup_file(karaoke_base, song_id, assets.get('animation', ''))
+        anim_intro = _versioned_walkup_file(karaoke_base, song_id, assets.get('animation_intro', ''))
+        walkup_payload = {
+            'title':  song.get('title', ''),
+            'artist': song.get('artist', ''),
+            'animation':       f'/assets/karaoke/{song_id}/{anim}'       if anim       else '',
+            'animation_intro': f'/assets/karaoke/{song_id}/{anim_intro}' if anim_intro else '',
+            'logo':            f'/assets/karaoke/{song_id}/{assets["logo"]}' if assets.get('logo') else '',
+        }
+        _ensure_display_for('display_karaoke_walkup', walkup_payload)
+        threading.Timer(walkup_duration, _start_playback).start()
+    else:
+        _start_playback()
+
+def stop_karaoke():
+    """Stop whatever karaoke song is currently playing, if any."""
+    global _karaoke_session
+    _karaoke_session += 1
+    _karaoke_stop_event.set()
+    _karaoke_stop_event.clear()
+    pygame.mixer.music.stop()
+    if _karaoke_vocal_channel:
+        _karaoke_vocal_channel.stop()
+    karaoke_state['playing']  = False
+    karaoke_state['song_id']  = None
+    karaoke_state['start_ms'] = None
+    broadcast('karaoke_state', karaoke_state)
+    _ensure_display_for('display_standby', {})
+    log.info("Karaoke stopped")
 
 
 # ════════════════════════════════════════════
@@ -3839,6 +3970,7 @@ def api_state():
         'timer':      timer_state,
         'countdown':  countdown_state,
         'stopwatch':  stopwatch_state,
+        'karaoke':    karaoke_state,
         'playlist':   playlist_state,
         'scene':      current_scene,
         'active_toggle_scenes': sorted(_active_toggle_scenes),
@@ -6162,7 +6294,7 @@ def _broadcast_timer_display(filename):
     else:
         _ensure_display_for('display_step', {'image': f'/assets/display/{filename}'})
 
-_AUDIO_ACTIONS = {'music', 'play_playlist', 'audio_stop', 'audio_fade', 'walkup_circle', 'walkup_role', 'walkup_game_entry'}
+_AUDIO_ACTIONS = {'music', 'play_playlist', 'audio_stop', 'audio_fade', 'walkup_circle', 'walkup_role', 'walkup_game_entry', 'karaoke'}
 
 def execute_macro(macro, cancel=None, show_flow_idx=None):
     global config, current_slide, _viz_scene
@@ -6279,6 +6411,11 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                 if entry_id:
                     _navigate_home_if_needed()
                     threading.Thread(target=fire_game_entry, kwargs={'entry_id': entry_id}, daemon=True).start()
+            elif action == 'karaoke':
+                song_id = step.get('karaoke_id', '')
+                if song_id:
+                    _navigate_home_if_needed()
+                    threading.Thread(target=fire_karaoke_song, args=(song_id,), daemon=True).start()
             elif action == 'wait':
                 if cancel.wait(timeout=float(step.get('seconds', 1))):
                     log.info(f"Macro {macro.get('id')} cancelled during wait")
@@ -6547,6 +6684,14 @@ def api_upload():
                ('walkup.mp3'     if asset_type == 'walkup_music'    else
                 'walkup.mp4'     if asset_type == 'animation'       else
                 'walkup_intro.mp4' if asset_type == 'animation_intro' else f.filename)
+    elif target_type == 'karaoke' and target_id:
+        _logo_ext = Path(f.filename).suffix.lower() or '.png'
+        dest = ASSETS_DIR / 'karaoke' / target_id / \
+               ('instrumental.mp3'   if asset_type == 'instrumental'     else
+                'vocals.mp3'         if asset_type == 'vocals'           else
+                ('logo' + _logo_ext) if asset_type == 'logo'             else
+                'walkup.mp4'         if asset_type == 'animation'        else
+                'walkup_intro.mp4'   if asset_type == 'animation_intro'  else f.filename)
     elif target_type == 'macro' and target_id:
         ext  = Path(f.filename).suffix.lower() or '.png'
         dest = ASSETS_DIR / 'macros' / target_id / ('display_image' + ext)
@@ -6685,6 +6830,23 @@ def api_upload():
             save_config(cfg)
             config = cfg
             log.info(f"Config updated: game_entry {target_id}.assets.{asset_type} = {stored_name}")
+    elif target_type == 'karaoke' and target_id:
+        songs = cfg.get('karaoke_songs', [])
+        song = next((s for s in songs if s['id'] == target_id), None)
+        if song:
+            if 'assets' not in song:
+                song['assets'] = {}
+            song['assets'][asset_type] = stored_name
+            if asset_type == 'instrumental':
+                # Drive the auto-stop watcher off the real track length rather
+                # than asking Chris to type it in by hand.
+                try:
+                    song['duration'] = round(pygame.mixer.Sound(str(dest)).get_length(), 1)
+                except Exception as e:
+                    log.warning(f"Karaoke duration probe failed for {target_id}: {e}")
+            save_config(cfg)
+            config = cfg
+            log.info(f"Config updated: karaoke {target_id}.assets.{asset_type} = {stored_name}")
     elif target_type == 'macro' and target_id:
         macros_list = cfg.get('macros', [])
         macro = next((m for m in macros_list if m['id'] == target_id), None)
@@ -6723,7 +6885,9 @@ def api_asset_clear():
     if not all([target_type, target_id, asset_type]):
         return jsonify({'ok': False, 'error': 'Missing fields'})
     cfg = load_config()
-    list_key = 'game_entries' if target_type == 'game_entry' else target_type + 's'
+    list_key = ('game_entries' if target_type == 'game_entry' else
+                'karaoke_songs' if target_type == 'karaoke' else
+                target_type + 's')
     collection = cfg.get(list_key, [])
     item = next((x for x in collection if x['id'] == target_id), None)
     if not item:
@@ -6881,6 +7045,60 @@ def api_delete_game_entry(entry_id):
     if entry_dir.exists():
         _shutil.rmtree(str(entry_dir), ignore_errors=True)
     return jsonify({'ok': True})
+
+# ── KARAOKE ──
+@app.route('/api/karaoke')
+def api_get_karaoke_songs():
+    return jsonify(config.get('karaoke_songs', []))
+
+@app.route('/api/admin/karaoke', methods=['POST'])
+def api_save_karaoke_song():
+    data = request.get_json()
+    cfg  = load_config()
+    songs    = cfg.get('karaoke_songs', [])
+    existing = next((s for s in songs if s['id'] == data.get('id')), None)
+    if existing:
+        existing.update(data)
+    else:
+        songs.append(data)
+    cfg['karaoke_songs'] = songs
+    save_config(cfg)
+    global config
+    config = cfg
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/karaoke/<song_id>', methods=['DELETE'])
+def api_delete_karaoke_song(song_id):
+    cfg = load_config()
+    cfg['karaoke_songs'] = [s for s in cfg.get('karaoke_songs', []) if s['id'] != song_id]
+    save_config(cfg)
+    global config
+    config = cfg
+    import shutil as _shutil
+    song_dir = ASSETS_DIR / 'karaoke' / song_id
+    if song_dir.exists():
+        _shutil.rmtree(str(song_dir), ignore_errors=True)
+    return jsonify({'ok': True})
+
+@app.route('/api/karaoke/<song_id>/play', methods=['POST'])
+def api_karaoke_play(song_id):
+    threading.Thread(target=fire_karaoke_song, args=(song_id,), daemon=True).start()
+    return jsonify({'ok': True})
+
+@app.route('/api/karaoke/stop', methods=['POST'])
+def api_karaoke_stop():
+    threading.Thread(target=stop_karaoke, daemon=True).start()
+    return jsonify({'ok': True})
+
+@app.route('/api/karaoke/vocal_volume', methods=['POST'])
+def api_karaoke_vocal_volume():
+    data = request.get_json() or {}
+    v = max(0, min(150, int(data.get('volume', 80))))
+    karaoke_state['vocal_volume'] = v
+    if _karaoke_vocal_channel:
+        _karaoke_vocal_channel.set_volume(v / 100)
+    broadcast('karaoke_state', karaoke_state)
+    return jsonify({'ok': True, 'vocal_volume': v})
 
 # ── SYSTEM ──
 @app.route('/api/system/status')

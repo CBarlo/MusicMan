@@ -340,6 +340,7 @@
       <div class="page-tab" onclick="showPage('viz',this);loadVizTab()">VIZ</div>
       <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('games',this);loadGamesOnlyTab()">GAMES</div>
+      <div class="page-tab" onclick="showPage('karaoke',this);loadKaraokeTab()">KARAOKE</div>
       <div class="tab-sep"></div>
       <div class="page-tab" onclick="showPage('lights',this);loadLightsTab()">LIGHTS</div>
       <div class="page-tab" onclick="showPage('wifi',this);loadWifi()">WIFI</div>
@@ -794,6 +795,29 @@
       </div>
 
     </div><!-- /page-games -->
+
+    <!-- ── KARAOKE TAB ── -->
+    <div class="page" id="page-karaoke">
+
+      <!-- NOW PLAYING -->
+      <div class="games-section" id="kk-now-playing" style="display:none">
+        <div class="section-label">🎤 NOW SINGING</div>
+        <div id="kk-now-title" style="font-size:22px;font-weight:800;color:var(--amber);margin-bottom:10px"></div>
+        <div class="games-row" style="margin-bottom:10px">
+          <span class="games-label">VOCAL GUIDE</span>
+          <input id="kk-vocal-vol" type="range" min="0" max="150" value="80" style="flex:1" oninput="kkVocalVolLive(this.value)" onchange="kkSetVocalVolume(this.value)">
+          <span id="kk-vocal-vol-val" style="width:36px;text-align:right;font-family:'Share Tech Mono',monospace;color:var(--amber)">80</span>
+        </div>
+        <button class="games-btn danger" style="width:100%;padding:12px" onclick="kkStop()">⏹ STOP SONG</button>
+      </div>
+
+      <!-- SONG LIBRARY -->
+      <div class="games-section">
+        <div class="section-label">🎤 KARAOKE LIBRARY</div>
+        <div class="walkup-grid" id="kkGrid"></div>
+      </div>
+
+    </div><!-- /page-karaoke -->
 
     <!-- ── LIGHTS TAB ── -->
     <div class="page" id="page-lights">
@@ -2000,6 +2024,80 @@ function fireGameEntry(e) {
   const assets = e.assets || {};
   document.getElementById('trackSub').textContent = walkupSongLabel(assets) || '—';
   _startProgress(((e.walkup || {}).duration || 30) * 1000);
+}
+
+// ── KARAOKE TAB ───────────────────────────────────────────────────────────────
+let karaokeSongsCache = [];
+
+async function loadKaraokeTab() {
+  try { karaokeSongsCache = await fetch('/api/karaoke').then(r => r.json()); } catch(e) { karaokeSongsCache = []; }
+  buildKaraokeGrid();
+  try {
+    const s = await fetch('/api/state').then(r => r.json());
+    if (s.karaoke) kkApplyState(s.karaoke);
+  } catch(e) {}
+}
+
+function buildKaraokeGrid() {
+  const grid = document.getElementById('kkGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (!karaokeSongsCache.length) {
+    grid.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:8px">NO SONGS YET — ADD SOME IN ADMIN → KARAOKE</div>';
+    return;
+  }
+  karaokeSongsCache.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'walkup-btn';
+    btn.id = 'kk-' + s.id;
+    btn.innerHTML = `<div class="walkup-circle" style="background:#5A4FCF33;border-color:#5A4FCF">🎤</div>
+      <div class="walkup-name">${escHtml(s.title)}</div>
+      <div class="walkup-song">${escHtml(s.artist || '')}</div>`;
+    btn.onclick = () => kkPlay(s);
+    grid.appendChild(btn);
+  });
+}
+
+function kkPlay(song) {
+  fetch('/api/karaoke/' + song.id + '/play', {method:'POST'}).catch(()=>{});
+  document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.remove('playing'));
+  const btn = document.getElementById('kk-' + song.id);
+  if (btn) btn.classList.add('playing');
+  document.getElementById('kk-now-playing').style.display = '';
+  document.getElementById('kk-now-title').textContent = song.title + (song.artist ? ' — ' + song.artist : '');
+}
+
+function kkStop() {
+  fetch('/api/karaoke/stop', {method:'POST'}).catch(()=>{});
+  document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.remove('playing'));
+  document.getElementById('kk-now-playing').style.display = 'none';
+}
+
+function kkVocalVolLive(v) {
+  document.getElementById('kk-vocal-vol-val').textContent = v;
+}
+let _kkVolDebounce = null;
+function kkSetVocalVolume(v) {
+  clearTimeout(_kkVolDebounce);
+  _kkVolDebounce = setTimeout(() => {
+    fetch('/api/karaoke/vocal_volume', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({volume: parseInt(v)})}).catch(()=>{});
+  }, 150);
+}
+
+function kkApplyState(k) {
+  const npEl = document.getElementById('kk-now-playing');
+  if (!npEl) return;
+  if (k.playing) {
+    npEl.style.display = '';
+    document.getElementById('kk-now-title').textContent = k.title || '';
+    document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.toggle('playing', b.id === 'kk-' + k.song_id));
+  } else {
+    npEl.style.display = 'none';
+    document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.remove('playing'));
+  }
+  const volEl = document.getElementById('kk-vocal-vol');
+  if (volEl && k.vocal_volume != null) { volEl.value = k.vocal_volume; kkVocalVolLive(k.vocal_volume); }
 }
 
 // ── GAMES TAB ─────────────────────────────────────────────────────────────────
@@ -3981,6 +4079,8 @@ function initWebSocket() {
           renderSw();
         }
       }
+
+      else if (event === 'karaoke_state') { kkApplyState(data); }
 
       else if (event === 'games_state') {
         _gamesData = data;

@@ -559,6 +559,34 @@
     color: #fff; text-align: center; max-width: 88vw;
   }
 
+  /* ── KARAOKE ────────────────────────────────────────────────── */
+  #layer-karaoke {
+    position: fixed; inset: 0; z-index: 12;
+    opacity: 0; pointer-events: none;
+    transition: opacity .7s ease;
+    background: radial-gradient(ellipse at 50% 40%, rgba(245,166,35,.08) 0%, #060504 70%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 4vh 6vw; text-align: center;
+  }
+  #layer-karaoke.karaoke-active { opacity: 1; pointer-events: auto; }
+  #kk-heading {
+    font-size: 1.8vw; letter-spacing: .3em; color: rgba(255,255,255,.4); font-weight: 700;
+    text-transform: uppercase; margin-bottom: 1.5vw;
+  }
+  #kk-title {
+    font-size: 3.4vw; font-weight: 900; letter-spacing: .05em; color: #F5A623;
+    text-shadow: 0 0 3vw #F5A62344; margin-bottom: .6vw;
+  }
+  #kk-artist { font-size: 1.6vw; color: rgba(255,255,255,.5); letter-spacing: .1em; margin-bottom: 5vh; }
+  #kk-line-prev { font-size: 2.2vw; color: rgba(255,255,255,.28); font-weight: 700; margin-bottom: 1.6vw; min-height: 2.6vw; transition: opacity .3s ease; }
+  #kk-line-current {
+    font-size: 4.6vw; font-weight: 900; letter-spacing: .02em; color: #fff;
+    text-shadow: 0 0 2.5vw #F5A62366; min-height: 5.6vw; line-height: 1.2;
+    transition: opacity .25s ease;
+  }
+  #kk-line-next { font-size: 2.2vw; color: rgba(255,255,255,.28); font-weight: 700; margin-top: 1.6vw; min-height: 2.6vw; transition: opacity .3s ease; }
+  #kk-walkup-view #kk-line-prev, #kk-walkup-view #kk-line-current, #kk-walkup-view #kk-line-next { display: none; }
+
   /* ── VIZ LAYERS ─────────────────────────────────────────────── */
   #layer-viz-music, #layer-viz-crowd {
     position: fixed;
@@ -612,6 +640,16 @@
   <div id="lb-game-name" style="font-size:3.5vw;font-weight:900;letter-spacing:0.18em;text-transform:uppercase;color:#F5A623;text-shadow:0 0 4vw #F5A62344;text-align:center;margin-bottom:0.6vw"></div>
   <div id="lb-sort-label" style="font-size:1.4vw;letter-spacing:0.45em;color:rgba(255,255,255,0.35);margin-bottom:3.5vw;font-weight:600">FASTEST TIMES</div>
   <div id="lb-rows" style="width:100%;max-width:72vw"></div>
+</div>
+
+<!-- KARAOKE OVERLAY -->
+<div id="layer-karaoke">
+  <div id="kk-heading">Now Singing</div>
+  <div id="kk-title"></div>
+  <div id="kk-artist"></div>
+  <div id="kk-line-prev"></div>
+  <div id="kk-line-current"></div>
+  <div id="kk-line-next"></div>
 </div>
 
 <!-- SLIDE LAYER -->
@@ -1270,7 +1308,7 @@ let _bandQrCounter   = 0;
 let _bandQrFadeEvery = 6;
 
 async function showBandSlideshow(data) {
-  hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow();
+  hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke();
   hideSlide(); hideLeaderboard();
   standbyActive = false;
   clearInterval(_bandSlideTimer);
@@ -1533,7 +1571,7 @@ function hideH2HWinner() {
 function showH2H(data) {
   hideSlide();
   hideLeaderboard();
-  hideH2HWinner(); hideBandSlideshow();
+  hideH2HWinner(); hideBandSlideshow(); hideKaraoke();
 
   const contestants = data.contestants || [];
   layerH2h.setAttribute('data-count', String(contestants.length));
@@ -1650,6 +1688,54 @@ function showLeaderboard(data) {
 function hideLeaderboard() {
   layerLb.style.opacity = '0';
   layerLb.style.pointerEvents = 'none';
+}
+
+// ── KARAOKE ─────────────────────────────────────────────────────────────────
+const layerKaraoke = document.getElementById('layer-karaoke');
+let _kkLyrics = [], _kkStartMs = null, _kkInterval = null, _kkLastLineIdx = -1;
+
+function showKaraokeWalkup(data) {
+  hideSlide();
+  clearInterval(_kkInterval);
+  _kkLyrics = []; _kkStartMs = null; _kkLastLineIdx = -1;
+  layerKaraoke.classList.add('karaoke-active', 'kk-walkup-view');
+  document.getElementById('kk-heading').textContent = 'Now Singing';
+  document.getElementById('kk-title').textContent  = data.title  || '';
+  document.getElementById('kk-artist').textContent = data.artist || '';
+}
+
+function showKaraoke(data) {
+  hideSlide();
+  layerKaraoke.classList.remove('kk-walkup-view');
+  layerKaraoke.classList.add('karaoke-active');
+  document.getElementById('kk-heading').textContent = 'Now Singing';
+  document.getElementById('kk-title').textContent  = data.title || '';
+  document.getElementById('kk-artist').textContent = '';
+  _kkLyrics      = data.lyrics || [];
+  _kkStartMs     = data.start_ms || Date.now();
+  _kkLastLineIdx = -1;
+  clearInterval(_kkInterval);
+  _kkInterval = setInterval(_updateKaraokeLyrics, 150);
+  _updateKaraokeLyrics();
+}
+
+function _updateKaraokeLyrics() {
+  if (!_kkLyrics.length) return;
+  const elapsed = (Date.now() - _kkStartMs) / 1000;
+  let idx = -1;
+  for (let i = 0; i < _kkLyrics.length; i++) {
+    if (_kkLyrics[i].t <= elapsed) idx = i; else break;
+  }
+  if (idx === _kkLastLineIdx) return;
+  _kkLastLineIdx = idx;
+  document.getElementById('kk-line-prev').textContent    = idx > 0 ? _kkLyrics[idx - 1].text : '';
+  document.getElementById('kk-line-current').textContent = idx >= 0 ? _kkLyrics[idx].text : '';
+  document.getElementById('kk-line-next').textContent    = idx + 1 < _kkLyrics.length ? _kkLyrics[idx + 1].text : '';
+}
+
+function hideKaraoke() {
+  layerKaraoke.classList.remove('karaoke-active', 'kk-walkup-view');
+  clearInterval(_kkInterval);
 }
 
 // ── CHRONO OVERLAY (countdown + stopwatch) ────────────────────────────────────
@@ -1804,17 +1890,20 @@ function connectWS() {
 
       if      (msg.event === 'preload_assets')    { preloadAssets(data.urls); }
       else if (msg.event === 'walkup_preload')    { preloadWalkupVideo(data); }
-      else if (msg.event === 'display_walkup')    { if (!_gamePreloading) hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showWalkup(data); }
-      else if (msg.event === 'display_step')      { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showStep(data); }
-      else if (msg.event === 'display_animation') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showTitleVideo(data); }
-      else if (msg.event === 'display_clear')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); blackout(); }
-      else if (msg.event === 'display_standby')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showStandby(); }
-      else if (msg.event === 'display_slide')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showSlide(data); }
+      else if (msg.event === 'display_walkup')    { if (!_gamePreloading) hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showWalkup(data); }
+      else if (msg.event === 'display_step')      { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showStep(data); }
+      else if (msg.event === 'display_animation') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showTitleVideo(data); }
+      else if (msg.event === 'display_clear')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); blackout(); }
+      else if (msg.event === 'display_standby')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showStandby(); }
+      else if (msg.event === 'display_slide')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showSlide(data); }
       else if (msg.event === 'display_slide_clear') { hideSlide(); }
       else if (msg.event === 'display_band_slideshow_start') { showBandSlideshow(data); }
-      else if (msg.event === 'display_band_slideshow_stop')  { hideBandSlideshow(); }
-      else if (msg.event === 'display_vs_card')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showVsCard(data); }
-      else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); showLeaderboard(data); }
+      else if (msg.event === 'display_band_slideshow_stop')  { hideBandSlideshow(); hideKaraoke(); }
+      else if (msg.event === 'display_vs_card')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showVsCard(data); }
+      else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showLeaderboard(data); }
+      else if (msg.event === 'display_karaoke_walkup') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraokeWalkup(data); }
+      else if (msg.event === 'display_karaoke')        { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraoke(data); }
+      else if (msg.event === 'karaoke_state') { if (!data.playing) hideKaraoke(); }
       else if (msg.event === 'display_leaderboard_hide') { hideLeaderboard(); }
       else if (msg.event === 'display_h2h')       { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showH2H(data); }
       else if (msg.event === 'h2h_score')         { updateH2HScore(data); }
@@ -1827,13 +1916,13 @@ function connectWS() {
         if (!data.url || data.url === '/display' || data.url.startsWith('/display?')) {
           hideGameFrame();
         } else {
-          hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow();
+          hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke();
           showGameFrame(data.url);
         }
       }
       else if (msg.event === 'display_preload_game') { preloadGameFrame(data.url); }
       else if (msg.event === 'display_reveal_game')  {
-        hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow();
+        hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke();
         revealGameFrame(data.url);
       }
       else if (msg.event === 'timer_show')        { showChronoOverlay('countdown', {seconds: data.seconds || 0}, 'skit'); }
@@ -1855,7 +1944,7 @@ function connectWS() {
         }
       }
       else if (msg.event === 'stopwatch_state')   { handleStopwatchState(data); }
-      else if (msg.event === 'viz_show')    { hideGameFrame(); hideChronoOverlay(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); if (data.scene === 'crowd') showCrowdViz(data.settings); else showMusicViz(data.settings); }
+      else if (msg.event === 'viz_show')    { hideGameFrame(); hideChronoOverlay(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); if (data.scene === 'crowd') showCrowdViz(data.settings); else showMusicViz(data.settings); }
       else if (msg.event === 'viz_hide')    { hideViz(); }
       else if (msg.event === 'viz_music')   { _eqReceive(data); }
       else if (msg.event === 'viz_crowd')   { _crowdReceive(data); }
