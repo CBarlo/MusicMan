@@ -517,4 +517,14 @@ Reported live: after switching songs on the console mid-testing, pressing START 
 
 ---
 
-*Last updated: August 2026 — Phase 14*
+## Phase 15 — Toggleable Lighting Scenes, Remote Boot Screen
+
+### Toggleable Lighting Scenes
+Every scene button worked the same way: firing one was exclusive, switching the whole "current look" and clearing every other button's active state. That doesn't fit a case Chris wanted — independent on/off toggles for PARs, Wash, and Spotlights that can overlap (Wash on AND PARs on at the same time), not a single current look. Added an opt-in `toggleable` flag per scene (checkbox in Admin's scene editor); scenes without it keep today's exclusive behavior exactly as before. A toggleable scene's first tap fires it and adds it to a server-tracked `_active_toggle_scenes` set; the second tap calls a new `wled_set_scene(id, off=True)` mode that blackouts only the WLED zones, DMX fixtures, and poles *that scene itself* owns (zeroing just its channels, cancelling its DMX animation if one was running) — everything else, including other toggle scenes, is untouched. State broadcasts as `scene_toggle_changed` over the existing WebSocket, and `/api/state` exposes `active_toggle_scenes` so a reconnecting screen resyncs correctly, same self-heal pattern the trivia lobby already uses. Console's scene buttons show toggleable scenes with a dashed border (solid when on) and toggle independently of every other button, exclusive or toggle. Verified live: created a temporary test scene directly in config.yaml (Admin's own create route is auth-gated), confirmed the log showed `Scene applied: test_toggle_par` on the first tap and `Scene applied: test_toggle_par (off)` on the second, confirmed `/api/state` tracked the on/off transition correctly, then removed the test scene and diff-confirmed config.yaml matched its pre-test state exactly.
+
+### Remote Boot Screen
+The M5 remote's boot screen showed a 120×120 raster logo converted from the Broken Arrow Expedition badge PDF, which looked rough on the small TFT. Replaced with simple text ("MUSICMAN REMOTE" / "booting...") drawn directly, and deleted the now-unused 14,400-entry logo array (`boot_logo.h`) — freed about 29KB of flash.
+
+---
+
+*Last updated: August 2026 — Phase 15*

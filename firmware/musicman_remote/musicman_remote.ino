@@ -59,7 +59,6 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include "boot_logo.h"
 
 // Off-screen frame buffer for drawScreen(). Drawing straight to M5.Lcd was
 // visibly janky -- every redraw did a full fillScreen(BLACK) on the live
@@ -933,8 +932,14 @@ int getBatteryPct() {
 // ── DISPLAY ──────────────────────────────────────────────────────────────
 void drawBootLogo() {
   M5.Lcd.fillScreen(BLACK);
-  M5.Lcd.pushImage((240 - BOOT_LOGO_WIDTH) / 2, (135 - BOOT_LOGO_HEIGHT) / 2,
-                    BOOT_LOGO_WIDTH, BOOT_LOGO_HEIGHT, boot_logo);
+  M5.Lcd.setTextColor(0xFD20);   // amber -- same accent as the live menu header
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.setCursor(22, 50);
+  M5.Lcd.print("MUSICMAN REMOTE");
+  M5.Lcd.setTextColor(0x8410);   // dim gray -- same as other secondary/status text
+  M5.Lcd.setTextSize(1);
+  M5.Lcd.setCursor(88, 78);
+  M5.Lcd.print("booting...");
 }
 
 // Returns the number of lines actually printed, so callers can position

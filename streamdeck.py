@@ -77,6 +77,7 @@ state = {
     'active_circle':   None,
     'active_role':     None,
     'active_scene':    None,
+    'active_toggle_scenes': set(),  # ids of toggleable scenes currently ON
     'audio_playing':   False,
     'audio_paused':    False,
     'timer_running':   False,
@@ -1035,6 +1036,14 @@ def on_ws_message(ws_app, message):
 
         elif event == 'scene_changed':
             state['active_scene'] = data.get('scene')
+            changed = True
+
+        elif event == 'scene_toggle_changed':
+            sid = data.get('scene')
+            if data.get('active'):
+                state['active_toggle_scenes'].add(sid)
+            else:
+                state['active_toggle_scenes'].discard(sid)
             changed = True
 
         elif event == 'audio_state':

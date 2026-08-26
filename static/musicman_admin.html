@@ -1077,6 +1077,10 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <label>DESCRIPTION</label>
               <input type="text" id="sc-desc" placeholder="Short description for the operator">
 
+              <label style="display:flex;align-items:center;gap:4px;font-size:10px;letter-spacing:1px;cursor:pointer;margin-top:6px">
+                <input type="checkbox" id="sc-toggleable"> TOGGLEABLE — tap to turn on, tap again to turn this scene's own fixtures off. Independent of every other scene (won't clear or get cleared by them). For standalone looks like "PARs" or "Wash" rather than full-stage exclusive scenes.
+              </label>
+
               <div class="section-divider"></div>
               <div class="card-title">WLED LIGHTS</div>
               <div id="sc-zones-container"></div>
@@ -4136,7 +4140,7 @@ function renderSceneGrid() {
     const sel = s.id === selectedSceneId ? ' selected' : '';
     const zCount = Object.keys(s.zones || {}).length;
     return `<div class="scene-card${sel}" onclick="selectScene('${s.id}')">
-      <div class="scene-card-icon">${s.icon || '✦'}</div>
+      <div class="scene-card-icon">${s.icon || '✦'}${s.toggleable ? ' <span title="Toggleable" style="font-size:11px;opacity:0.7">⇄</span>' : ''}</div>
       <div class="scene-card-name">${escHtml(s.name)}</div>
       <div class="scene-card-desc">${zCount ? zCount+' zone'+(zCount>1?'s':'') : escHtml(s.desc||'')}</div>
     </div>`;
@@ -4160,6 +4164,8 @@ async function populateSceneEditor(id) {
   document.getElementById('sc-icon').value = s.icon || '';
   document.getElementById('sc-icon-display').textContent = s.icon || '✦';
   document.getElementById('sc-desc').value = s.desc || '';
+  const _toggleCb = document.getElementById('sc-toggleable');
+  if (_toggleCb) _toggleCb.checked = !!s.toggleable;
   const _psel = document.getElementById('sc-wled-preset-sel');
   // Restore saved preset — keep existing polled options if present, otherwise inject a stub
   if (s.wled_preset) {
@@ -4384,6 +4390,7 @@ async function saveScene() {
   const data = { id, name,
     icon:  document.getElementById('sc-icon').value.trim() || '✦',
     desc:  document.getElementById('sc-desc').value.trim(),
+    toggleable: document.getElementById('sc-toggleable')?.checked || false,
     zones: collectZones(),
     poles: collectPoles(),
     dmx:   collectSceneDmx(),

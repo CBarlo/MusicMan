@@ -97,6 +97,8 @@
   .scene-btn { height: 46px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .scene-btn:hover { background: var(--bg3); }
   .scene-btn.active { border-color: var(--amber); background: var(--amber-dim); color: var(--amber); box-shadow: 0 0 12px #F5A62333; }
+  .scene-btn.toggleable { border-style: dashed; }
+  .scene-btn.toggleable.active { border-style: solid; }
   .scene-btn[draggable=true] { cursor: grab; }
   .scene-btn[draggable=true]:active { cursor: grabbing; }
   .scene-btn.drag-over { border-color: var(--amber); opacity: 0.6; outline: 2px dashed var(--amber); }
@@ -2530,8 +2532,14 @@ async function gtDelete() {
 }
 
 function setScene(name,btn) {
-  document.querySelectorAll('.scene-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn.dataset.toggleable) {
+    // Optimistic — actual truth comes back over WS as scene_toggle_changed,
+    // so a second tap before that lands still reflects what was just clicked.
+    document.querySelectorAll(`[data-scene-id="${name}"]`).forEach(b=>b.classList.toggle('active'));
+  } else {
+    document.querySelectorAll('.scene-btn:not(.toggleable)').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  }
   fetch('/api/lights/scene', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({name})}).catch(()=>{});
 }
@@ -3249,8 +3257,9 @@ async function buildSceneGrid(){
     grid.innerHTML='';
     list.forEach((s)=>{
       const btn=document.createElement('button');
-      btn.className='scene-btn';
+      btn.className='scene-btn'+(s.toggleable?' toggleable':'');
       btn.dataset.sceneId=s.id;
+      btn.dataset.toggleable=s.toggleable?'1':'';
       btn.innerHTML=`<span class="scene-icon">${s.icon||'✦'}</span> ${escHtml((s.name||s.id).toUpperCase())}`;
       btn.onclick=()=>setScene(s.id,btn);
       if(gridId==='sceneGrid') _sceneAddDrag(btn);
@@ -3561,8 +3570,13 @@ function initWebSocket() {
     fetch('/api/state').then(r => r.json()).then(s => {
       if (s.playlist) updatePlaylistStatus(s.playlist);
       if (s.scene) {
-        document.querySelectorAll('.scene-btn').forEach(b => {
+        document.querySelectorAll('.scene-btn:not(.toggleable)').forEach(b => {
           b.classList.toggle('active', b.dataset.sceneId === s.scene);
+        });
+      }
+      if (s.active_toggle_scenes) {
+        document.querySelectorAll('.scene-btn.toggleable').forEach(b => {
+          b.classList.toggle('active', s.active_toggle_scenes.includes(b.dataset.sceneId));
         });
       }
       if (s.audio && s.audio.volume != null) {
@@ -3833,24 +3847,33 @@ function initWebSocket() {
       }
 
       else if (event === 'scene_changed') {
+        // Only ever fired for non-toggleable scenes — toggle scenes track
+        // their own on/off state independently via scene_toggle_changed and
+        // must not be cleared just because a different exclusive scene fired.
         const sceneId = data.scene;
-        document.querySelectorAll('.scene-btn').forEach(b => {
+        document.querySelectorAll('.scene-btn:not(.toggleable)').forEach(b => {
           b.classList.toggle('active', b.dataset.sceneId === sceneId);
+        });
+      }
+
+      else if (event === 'scene_toggle_changed') {
+        document.querySelectorAll(`[data-scene-id="${data.scene}"]`).forEach(b => {
+          b.classList.toggle('active', !!data.active);
         });
       }
 
       else if (event === 'scenes_updated') {
         // Scene library changed (added/edited/deleted/reordered) from Admin —
         // rebuild the grid without a page refresh, preserving whichever
-        // scene is currently marked active.
-        const activeBtn = document.querySelector('.scene-btn.active');
-        const activeId  = activeBtn ? activeBtn.dataset.sceneId : null;
+        // exclusive scene is active plus every toggle scene's own on/off state.
+        const activeBtn  = document.querySelector('.scene-btn.active:not(.toggleable)');
+        const activeId   = activeBtn ? activeBtn.dataset.sceneId : null;
+        const toggleIds  = [...document.querySelectorAll('.scene-btn.toggleable.active')].map(b => b.dataset.sceneId);
         buildSceneGrid().then(() => {
-          if (activeId) {
-            document.querySelectorAll('.scene-btn').forEach(b => {
-              b.classList.toggle('active', b.dataset.sceneId === activeId);
-            });
-          }
+          document.querySelectorAll('.scene-btn').forEach(b => {
+            const id = b.dataset.sceneId;
+            b.classList.toggle('active', id === activeId || toggleIds.includes(id));
+          });
         });
       }
 

@@ -422,7 +422,8 @@ _sfx_channel   = None   # active pygame Channel for the current SFX
 _sfx_cache     = {}    # filepath → pygame.mixer.Sound (load once, reuse)
 _SFX_CACHE_MAX = 50
 _startup_id    = uuid.uuid4().hex[:8]  # changes on every service restart
-current_scene  = None   # id of last activated scene
+current_scene  = None   # id of last activated (non-toggleable) scene
+_active_toggle_scenes = set()  # ids of toggleable scenes currently ON
 _scene_apply_epoch = 0  # incremented on every wled_set_scene() call; background
                          # WLED/DMX/preset senders check this right before their
                          # HTTP request and skip if a newer call has since started —
@@ -1722,8 +1723,14 @@ def _prewarm_ip_cache():
     for h in hosts:
         threading.Thread(target=_do_resolve_ip, args=(h,), daemon=True).start()
 
-def wled_set_scene(scene_id):
-    """Apply a lighting scene to all WLED devices."""
+def wled_set_scene(scene_id, off=False):
+    """Apply a lighting scene to all WLED devices.
+
+    off=True is used for toggleable scenes' second tap: instead of applying
+    the scene's configured look, it blackouts just the zones/fixtures/poles
+    *this scene* owns, leaving everything else (other toggle scenes, manual
+    control) untouched.
+    """
     global _scene_apply_epoch
     _scene_apply_epoch += 1
     my_epoch = _scene_apply_epoch
@@ -1763,6 +1770,13 @@ def wled_set_scene(scene_id):
         except Exception as e:
             _invalidate_ip(ip)
             log.warning(f"WLED {device_id} unreachable: {e}")
+    def _zone_args(zone_cfg):
+        # off=True blackouts this zone instead of applying its configured
+        # look — send_zone already derives 'on' from brightness>0.
+        if off:
+            return ('solid', None, 0, 50)
+        return (zone_cfg.get('effect', 'solid'), zone_cfg.get('color'),
+                zone_cfg.get('brightness', 75), zone_cfg.get('speed', 50))
     threads = []
     for zone_key, zone_cfg in zones.items():
         if '_pole' in zone_key:
@@ -1775,22 +1789,14 @@ def wled_set_scene(scene_id):
                                if s['name'] == seg_name), 0)
                 t = threading.Thread(
                     target=send_zone,
-                    args=(device_id, seg_id,
-                          zone_cfg.get('effect', 'solid'),
-                          zone_cfg.get('color'),
-                          zone_cfg.get('brightness', 75),
-                          zone_cfg.get('speed', 50)),
+                    args=(device_id, seg_id) + _zone_args(zone_cfg),
                     daemon=True
                 )
                 threads.append(t)
         else:
             t = threading.Thread(
                 target=send_zone,
-                args=(zone_key, 0,
-                      zone_cfg.get('effect', 'solid'),
-                      zone_cfg.get('color'),
-                      zone_cfg.get('brightness', 75),
-                      zone_cfg.get('speed', 50)),
+                args=(zone_key, 0) + _zone_args(zone_cfg),
                 daemon=True
             )
             threads.append(t)
@@ -1804,7 +1810,7 @@ def wled_set_scene(scene_id):
         from SolixBLE.states import LightStatus
         _ls_map = {'off': LightStatus.OFF, 'low': LightStatus.LOW, 'high': LightStatus.HIGH, 'sos': LightStatus.SOS}
         for pole_label, mode in scene.get('poles', {}).items():
-            ls = _ls_map.get((mode or '').lower())
+            ls = LightStatus.OFF if off else _ls_map.get((mode or '').lower())
             if ls is None:
                 continue
             addr = next((u['address'] for u in config.get('battery_units', []) if u['label'] == pole_label), None)
@@ -1883,8 +1889,12 @@ def wled_set_scene(scene_id):
             node = _nodes_by_id.get(node_id)
             if not node or not node.get('ip'):
                 continue
+            # off=True: blackout just the channels this scene owns, same
+            # channel count so dim_mask/fixture lookup below still lines up.
+            send_vals = ({fid: [0] * len(ch) for fid, ch in fixtures_vals.items()}
+                         if off else fixtures_vals)
             threading.Thread(target=_apply_dmx_node,
-                              args=(node_id, fixtures_vals, node, _fixture_types),
+                              args=(node_id, send_vals, node, _fixture_types),
                               daemon=True).start()
 
     # Cancel any running DMX animation, then start a new one if this scene defines one
@@ -1897,7 +1907,7 @@ def wled_set_scene(scene_id):
     # moment, instead of node 2 waiting for node 1's HTTP call to finish.
     wled_preset = scene.get('wled_preset')
     wled_preset_by_node = scene.get('wled_preset_by_node') or {}
-    if wled_preset is not None or wled_preset_by_node:
+    if not off and (wled_preset is not None or wled_preset_by_node):
         _pole_nodes = config.get('pole_nodes', [])
         def _fire_one(ip, ps):
             if _scene_apply_epoch != my_epoch:
@@ -1914,9 +1924,11 @@ def wled_set_scene(scene_id):
                 continue
             threading.Thread(target=_fire_one, args=(ip, ps), daemon=True).start()
 
-    # Start DMX animation loop if scene defines one
+    # Start DMX animation loop if scene defines one (off=True already
+    # cancelled any running animation above via _dmx_anim_stop; it never
+    # starts a new one)
     dmx_anim = scene.get('dmx_animation')
-    if dmx_anim and dmx_anim.get('frames'):
+    if not off and dmx_anim and dmx_anim.get('frames'):
         transition_s = (dmx_anim.get('interval_ms') or 400) / 1000.0
         frames       = dmx_anim['frames']
         nodes_map    = {n['id']: n for n in config.get('pole_nodes', [])}
@@ -2059,10 +2071,16 @@ def wled_set_scene(scene_id):
 
         threading.Thread(target=_run_dmx_anim, daemon=True).start()
 
-    global current_scene
-    current_scene = scene_id
-    log.info(f"Scene applied: {scene_id}")
-    broadcast('scene_changed', {'scene': scene_id})
+    log.info(f"Scene applied: {scene_id}{' (off)' if off else ''}")
+    # Toggleable scenes don't participate in the single exclusive
+    # current_scene / scene_changed mechanism — the /api/lights/scene route
+    # tracks their on/off state separately (_active_toggle_scenes) and
+    # broadcasts scene_toggle_changed instead, so firing one doesn't clear
+    # every other scene button's active state on other screens.
+    if not off and not scene.get('toggleable'):
+        global current_scene
+        current_scene = scene_id
+        broadcast('scene_changed', {'scene': scene_id})
 
 def wled_set_color(device_id, color, brightness=75, seg_id=0):
     """Set a specific WLED device to a solid color."""
@@ -3866,6 +3884,7 @@ def api_state():
         'stopwatch':  stopwatch_state,
         'playlist':   playlist_state,
         'scene':      current_scene,
+        'active_toggle_scenes': sorted(_active_toggle_scenes),
         'circle':     current_circle,
         'slide':      current_slide,
         'viz_scene':  _viz_scene,
@@ -5443,6 +5462,16 @@ def api_lights_scene():
         name = (request.get_json(silent=True) or {}).get('name', 'campfire')
     else:
         name = request.args.get('name', 'campfire')
+    scene = next((s for s in config.get('scenes', []) if s['id'] == name), None)
+    if scene and scene.get('toggleable'):
+        turning_on = name not in _active_toggle_scenes
+        if turning_on:
+            _active_toggle_scenes.add(name)
+        else:
+            _active_toggle_scenes.discard(name)
+        threading.Thread(target=wled_set_scene, args=(name,), kwargs={'off': not turning_on}, daemon=True).start()
+        broadcast('scene_toggle_changed', {'scene': name, 'active': turning_on})
+        return jsonify({'ok': True, 'scene': name, 'toggleable': True, 'active': turning_on})
     threading.Thread(target=wled_set_scene, args=(name,), daemon=True).start()
     return jsonify({'ok': True, 'scene': name})
 
@@ -5883,6 +5912,7 @@ def api_delete_scene():
     cfg['scenes'] = [s for s in cfg.get('scenes', []) if s['id'] != scene_id]
     save_config(cfg)
     config = cfg
+    _active_toggle_scenes.discard(scene_id)
     broadcast('scenes_updated', {})
     return jsonify({'ok': True})
 
