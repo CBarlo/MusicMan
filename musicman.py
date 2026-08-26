@@ -4581,7 +4581,7 @@ def api_games_display():
         times = sorted(entries, key=lambda t: t.get('score', 0), reverse=True)
     else:
         times = sorted(entries, key=lambda t: t.get('ms', 0), reverse=(sort == 'desc'))
-    _ensure_display_for('display_leaderboard', {'game': game, 'times': times, 'score_mode': is_score})
+    _ensure_display_for('display_leaderboard', {'game': game, 'times': times, 'score_mode': is_score, 'sort': sort})
     return jsonify({'ok': True})
 
 @app.route('/api/games/display/hide', methods=['POST'])

@@ -610,7 +610,7 @@
 <!-- LEADERBOARD OVERLAY -->
 <div id="layer-leaderboard" style="position:fixed;inset:0;z-index:8;pointer-events:none;opacity:0;transition:opacity 0.7s ease;background:#060504;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4vw 8vw">
   <div id="lb-game-name" style="font-size:3.5vw;font-weight:900;letter-spacing:0.18em;text-transform:uppercase;color:#F5A623;text-shadow:0 0 4vw #F5A62344;text-align:center;margin-bottom:0.6vw"></div>
-  <div style="font-size:1.4vw;letter-spacing:0.45em;color:rgba(255,255,255,0.35);margin-bottom:3.5vw;font-weight:600">FASTEST TIMES</div>
+  <div id="lb-sort-label" style="font-size:1.4vw;letter-spacing:0.45em;color:rgba(255,255,255,0.35);margin-bottom:3.5vw;font-weight:600">FASTEST TIMES</div>
   <div id="lb-rows" style="width:100%;max-width:72vw"></div>
 </div>
 
@@ -1624,6 +1624,8 @@ function showLeaderboard(data) {
   const game  = data.game  || '';
   const times = data.times || [];
   document.getElementById('lb-game-name').textContent = game.toUpperCase();
+  document.getElementById('lb-sort-label').textContent =
+    data.score_mode ? 'TOP SCORES' : (data.sort === 'desc' ? 'LONGEST TIMES' : 'FASTEST TIMES');
   document.getElementById('lb-rows').innerHTML = times.slice(0, 8).map((t, i) => {
     const tot   = t.ms / 1000;
     const m     = Math.floor(tot / 60);
