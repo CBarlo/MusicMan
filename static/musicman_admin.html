@@ -1671,6 +1671,26 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         </div>
         <button class="btn btn-primary" onclick="addKaraokeSong()">+ ADD SONG</button>
       </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">PERFORMANCE FRAME</div>
+        <p style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px">
+          Decorative border shown around every karaoke lobby and performance. Upload your own to theme it per camp — a plain default border shows automatically if you don't.
+        </p>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div id="kk-frame-thumb" style="width:80px;height:52px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+            <span style="font-size:22px;color:var(--text-dim)">🖼</span>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div id="kk-frame-name" style="font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">— using default border —</div>
+            <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:3px">PNG with transparency works best</div>
+          </div>
+          <button onclick="document.getElementById('kk-frame-file').click()" class="btn btn-secondary btn-sm">UPLOAD</button>
+          <input type="file" id="kk-frame-file" accept="image/*" style="display:none" onchange="uploadKaraokeFrame(this.files[0])">
+          <button onclick="clearKaraokeFrame()" class="btn btn-secondary btn-sm" id="kk-frame-clear-btn" style="display:none">✕ CLEAR</button>
+        </div>
+      </div>
+
       <div class="split">
         <div>
           <div class="roles-grid" id="kk-grid"></div>
@@ -3505,6 +3525,47 @@ async function loadKaraokeSongs() {
   try { karaokeSongs = await fetch('/api/karaoke').then(r => r.json()); } catch(e) { karaokeSongs = []; }
   renderKaraokeGrid();
   if (selectedKaraokeId) populateKaraokeEditor(selectedKaraokeId);
+  loadKaraokeFrame();
+}
+
+async function loadKaraokeFrame() {
+  try {
+    const d = await fetch('/api/karaoke/frame').then(r => r.json());
+    const thumb = document.getElementById('kk-frame-thumb');
+    const name  = document.getElementById('kk-frame-name');
+    const clearBtn = document.getElementById('kk-frame-clear-btn');
+    if (d.frame_url) {
+      thumb.innerHTML = `<img src="${d.frame_url}" style="width:100%;height:100%;object-fit:cover">`;
+      name.textContent = 'Custom border uploaded';
+      clearBtn.style.display = '';
+    } else {
+      thumb.innerHTML = '<span style="font-size:22px;color:var(--text-dim)">🖼</span>';
+      name.textContent = '— using default border —';
+      clearBtn.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+async function uploadKaraokeFrame(file) {
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type', 'karaoke_frame');
+  try {
+    const res = await fetch('/api/admin/upload', {method:'POST', body:fd});
+    const d = await res.json();
+    if (d.ok) { toast('Frame uploaded', 'ok'); await loadKaraokeFrame(); }
+    else toast('Upload failed', 'err');
+  } catch(e) { toast('Upload failed', 'err'); }
+  document.getElementById('kk-frame-file').value = '';
+}
+
+async function clearKaraokeFrame() {
+  try {
+    await fetch('/api/admin/karaoke_frame/clear', {method:'POST'});
+    toast('Cleared — back to default border', 'ok');
+    await loadKaraokeFrame();
+  } catch(e) { toast('Clear failed', 'err'); }
 }
 
 function renderKaraokeGrid() {

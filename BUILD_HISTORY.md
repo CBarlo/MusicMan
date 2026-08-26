@@ -569,6 +569,17 @@ Karaoke songs are also a full Show Flow / macro step type now (`karaoke` action)
 
 Verified live end-to-end against the real Pi: created a temporary song entry directly in config.yaml (Admin's create route is auth-gated) with the real processed Sweet Caroline files, fired `/api/karaoke/<id>/play`, confirmed via `/api/state` that both the instrumental and vocal channels were actually running in sync with the correct start time and full 34-line lyric set attached, exercised the vocal volume endpoint, confirmed a clean stop, then removed the test entry and diff-confirmed config.yaml matched its pre-test state exactly.
 
+### Lobby, Audio Sync Fix, and a Themeable Performance Frame
+Live feedback after the first real run surfaced three things worth a second pass:
+
+**Lobby, not straight into singing.** Picking a song used to fire audio immediately. Now it mirrors Trivia's own walkup-then-lobby shape exactly: picking a song brings up a lobby (title/artist, optional walk-up video/scene first) and waits there — singing itself only starts on an explicit **START SINGING** press from Console (`start_karaoke_singing()`, a new step split out of what used to be one function). A show never launches straight into a song again, whether it was picked directly or reached via a macro/Show Flow step.
+
+**Vocal guide lagging the beat.** Reported live: the vocal track sounded like it was "waiting on the words on screen." Root cause — `pygame.mixer.Sound()` fully decodes an entire file synchronously, and that decode was happening *after* the instrumental had already started playing via `pygame.mixer.music.play()`, guaranteeing a real, audible gap between the two starting. Fixed by decoding the vocal track during the lobby instead — while the operator is reading the title/artist, with time to spare — so by the time START SINGING is pressed, the two `.play()` calls fire back to back with nothing but Python bytecode between them.
+
+**Themeable performance frame.** The full-screen lyric layer had two problems: its background wasn't fully opaque (a gradient with partial-alpha color stops let whatever was on screen underneath show through), and it had no visual framing at all. Fixed the opacity by giving the layer a solid base color with the gradient as a decorative tint on top, wrapped the lyric text in a proper card, and added a global, per-camp-themeable performance frame — Admin gets an upload slot (any image, ideally PNG with transparency) that shows around every karaoke lobby/performance, with a plain CSS double-border shown automatically when nothing's been uploaded.
+
+While testing this live, a real risk surfaced: live backend tests were run directly against the production config.yaml at the same time Chris was independently creating a real song entry through Admin's own UI, and a blind backup/restore step used for test cleanup briefly clobbered that concurrent edit. Caught by checking the actual file contents rather than trusting the restore succeeded, then fixed by surgically removing only the test entry rather than reverting the whole file — worth remembering that "back up, test, restore" isn't safe against genuinely concurrent writers, only against your own sequential test.
+
 ---
 
 *Last updated: August 2026 — Phase 17*

@@ -564,11 +564,39 @@
     position: fixed; inset: 0; z-index: 12;
     opacity: 0; pointer-events: none;
     transition: opacity .7s ease;
-    background: radial-gradient(ellipse at 50% 40%, rgba(245,166,35,.08) 0%, #060504 70%);
+    /* Solid color FIRST, gradient tint on top -- the gradient's own color
+       stops are partly transparent (rgba alpha < 1), so without an opaque
+       base underneath, whatever was on screen before this layer showed
+       through the middle of the screen instead of being fully replaced. */
+    background-color: #060504;
+    background-image: radial-gradient(ellipse at 50% 40%, rgba(245,166,35,.10) 0%, transparent 70%);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 4vh 6vw; text-align: center;
   }
   #layer-karaoke.karaoke-active { opacity: 1; pointer-events: auto; }
+
+  /* Uploaded per-camp border graphic (full-bleed, decorative, never
+     intercepts input) -- falls back to a plain CSS double-border look
+     (below) when nothing's been uploaded. */
+  #kk-frame-img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    pointer-events: none; z-index: 1; display: none;
+  }
+  #layer-karaoke.kk-has-frame #kk-frame-img { display: block; }
+  #layer-karaoke:not(.kk-has-frame)::before {
+    content: ''; position: absolute; inset: 3vh 3vw; z-index: 1; pointer-events: none;
+    border: 2px solid rgba(245,166,35,.3); border-radius: 3px;
+  }
+  #layer-karaoke:not(.kk-has-frame)::after {
+    content: ''; position: absolute; inset: 4.2vh 4.2vw; z-index: 1; pointer-events: none;
+    border: 1px solid rgba(245,166,35,.16); border-radius: 2px;
+  }
+
+  #kk-card {
+    position: relative; z-index: 2;
+    background: rgba(0,0,0,.6); border-radius: 20px; backdrop-filter: blur(6px);
+    padding: 3.5vh 5vw; max-width: 84vw;
+  }
   #kk-heading {
     font-size: 1.8vw; letter-spacing: .3em; color: rgba(255,255,255,.4); font-weight: 700;
     text-transform: uppercase; margin-bottom: 1.5vw;
@@ -585,7 +613,14 @@
     transition: opacity .25s ease;
   }
   #kk-line-next { font-size: 2.2vw; color: rgba(255,255,255,.28); font-weight: 700; margin-top: 1.6vw; min-height: 2.6vw; transition: opacity .3s ease; }
-  #kk-walkup-view #kk-line-prev, #kk-walkup-view #kk-line-current, #kk-walkup-view #kk-line-next { display: none; }
+  #kk-walkup-view #kk-line-prev, #kk-walkup-view #kk-line-current, #kk-walkup-view #kk-line-next,
+  #kk-lobby-view  #kk-line-prev, #kk-lobby-view  #kk-line-current, #kk-lobby-view  #kk-line-next { display: none; }
+  #kk-lobby-hint {
+    display: none; font-size: 1.7vw; letter-spacing: .15em; color: rgba(245,166,35,.85);
+    font-weight: 700; margin-top: 2vh; animation: kk-pulse 1.6s ease-in-out infinite;
+  }
+  #kk-lobby-view #kk-lobby-hint { display: block; }
+  @keyframes kk-pulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
 
   /* ── VIZ LAYERS ─────────────────────────────────────────────── */
   #layer-viz-music, #layer-viz-crowd {
@@ -644,12 +679,16 @@
 
 <!-- KARAOKE OVERLAY -->
 <div id="layer-karaoke">
-  <div id="kk-heading">Now Singing</div>
-  <div id="kk-title"></div>
-  <div id="kk-artist"></div>
-  <div id="kk-line-prev"></div>
-  <div id="kk-line-current"></div>
-  <div id="kk-line-next"></div>
+  <img id="kk-frame-img" alt="">
+  <div id="kk-card">
+    <div id="kk-heading">Now Singing</div>
+    <div id="kk-title"></div>
+    <div id="kk-artist"></div>
+    <div id="kk-line-prev"></div>
+    <div id="kk-line-current"></div>
+    <div id="kk-line-next"></div>
+    <div id="kk-lobby-hint">🎤 GET READY TO SING</div>
+  </div>
 </div>
 
 <!-- SLIDE LAYER -->
@@ -1691,23 +1730,51 @@ function hideLeaderboard() {
 }
 
 // ── KARAOKE ─────────────────────────────────────────────────────────────────
-const layerKaraoke = document.getElementById('layer-karaoke');
+const layerKaraoke  = document.getElementById('layer-karaoke');
+const kkFrameImg    = document.getElementById('kk-frame-img');
 let _kkLyrics = [], _kkStartMs = null, _kkInterval = null, _kkLastLineIdx = -1;
+let _kkLastFrameUrl = null;
+
+// Uploaded per-camp border image, or the plain CSS double-border default
+// when nothing's been uploaded (kk-has-frame class toggles which shows).
+function _kkApplyFrame(frameUrl) {
+  if (frameUrl) {
+    if (frameUrl !== _kkLastFrameUrl) kkFrameImg.src = frameUrl;
+    layerKaraoke.classList.add('kk-has-frame');
+  } else {
+    layerKaraoke.classList.remove('kk-has-frame');
+  }
+  _kkLastFrameUrl = frameUrl;
+}
 
 function showKaraokeWalkup(data) {
   hideSlide();
   clearInterval(_kkInterval);
   _kkLyrics = []; _kkStartMs = null; _kkLastLineIdx = -1;
   layerKaraoke.classList.add('karaoke-active', 'kk-walkup-view');
+  _kkApplyFrame(data.frame_url);
   document.getElementById('kk-heading').textContent = 'Now Singing';
+  document.getElementById('kk-title').textContent  = data.title  || '';
+  document.getElementById('kk-artist').textContent = data.artist || '';
+}
+
+function showKaraokeLobby(data) {
+  hideSlide();
+  clearInterval(_kkInterval);
+  _kkLyrics = []; _kkStartMs = null; _kkLastLineIdx = -1;
+  layerKaraoke.classList.remove('kk-walkup-view');
+  layerKaraoke.classList.add('karaoke-active', 'kk-lobby-view');
+  _kkApplyFrame(data.frame_url);
+  document.getElementById('kk-heading').textContent = 'Up Next';
   document.getElementById('kk-title').textContent  = data.title  || '';
   document.getElementById('kk-artist').textContent = data.artist || '';
 }
 
 function showKaraoke(data) {
   hideSlide();
-  layerKaraoke.classList.remove('kk-walkup-view');
+  layerKaraoke.classList.remove('kk-walkup-view', 'kk-lobby-view');
   layerKaraoke.classList.add('karaoke-active');
+  _kkApplyFrame(data.frame_url);
   document.getElementById('kk-heading').textContent = 'Now Singing';
   document.getElementById('kk-title').textContent  = data.title || '';
   document.getElementById('kk-artist').textContent = '';
@@ -1734,7 +1801,7 @@ function _updateKaraokeLyrics() {
 }
 
 function hideKaraoke() {
-  layerKaraoke.classList.remove('karaoke-active', 'kk-walkup-view');
+  layerKaraoke.classList.remove('karaoke-active', 'kk-walkup-view', 'kk-lobby-view');
   clearInterval(_kkInterval);
 }
 
@@ -1902,6 +1969,7 @@ function connectWS() {
       else if (msg.event === 'display_vs_card')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showVsCard(data); }
       else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showLeaderboard(data); }
       else if (msg.event === 'display_karaoke_walkup') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraokeWalkup(data); }
+      else if (msg.event === 'display_karaoke_lobby')  { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraokeLobby(data); }
       else if (msg.event === 'display_karaoke')        { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraoke(data); }
       else if (msg.event === 'karaoke_state') { if (!data.playing) hideKaraoke(); }
       else if (msg.event === 'display_leaderboard_hide') { hideLeaderboard(); }

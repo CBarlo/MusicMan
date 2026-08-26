@@ -801,14 +801,17 @@
 
       <!-- NOW PLAYING -->
       <div class="games-section" id="kk-now-playing" style="display:none">
-        <div class="section-label">🎤 NOW SINGING</div>
+        <div class="section-label" id="kk-now-label">🎤 UP NEXT</div>
         <div id="kk-now-title" style="font-size:22px;font-weight:800;color:var(--amber);margin-bottom:10px"></div>
         <div class="games-row" style="margin-bottom:10px">
           <span class="games-label">VOCAL GUIDE</span>
           <input id="kk-vocal-vol" type="range" min="0" max="150" value="80" style="flex:1" oninput="kkVocalVolLive(this.value)" onchange="kkSetVocalVolume(this.value)">
           <span id="kk-vocal-vol-val" style="width:36px;text-align:right;font-family:'Share Tech Mono',monospace;color:var(--amber)">80</span>
         </div>
-        <button class="games-btn danger" style="width:100%;padding:12px" onclick="kkStop()">⏹ STOP SONG</button>
+        <div style="display:flex;gap:8px">
+          <button class="games-btn primary" id="kk-start-btn" style="flex:1;padding:12px;display:none" onclick="kkStartSinging()">▶ START SINGING</button>
+          <button class="games-btn danger" style="flex:1;padding:12px" onclick="kkStop()">⏹ STOP SONG</button>
+        </div>
       </div>
 
       <!-- SONG LIBRARY -->
@@ -2028,6 +2031,7 @@ function fireGameEntry(e) {
 
 // ── KARAOKE TAB ───────────────────────────────────────────────────────────────
 let karaokeSongsCache = [];
+let _kkCurrentSongId = null;
 
 async function loadKaraokeTab() {
   try { karaokeSongsCache = await fetch('/api/karaoke').then(r => r.json()); } catch(e) { karaokeSongsCache = []; }
@@ -2059,18 +2063,21 @@ function buildKaraokeGrid() {
 }
 
 function kkPlay(song) {
+  // Brings the song up to its lobby (title/artist on screen) -- singing
+  // itself waits for an explicit START SINGING press, same as Trivia's
+  // walkup-then-lobby-then-Start-Game shape. kkApplyState (via the
+  // karaoke_state broadcast that follows) is what actually updates this
+  // panel; this call is fire-and-forget.
   fetch('/api/karaoke/' + song.id + '/play', {method:'POST'}).catch(()=>{});
-  document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.remove('playing'));
-  const btn = document.getElementById('kk-' + song.id);
-  if (btn) btn.classList.add('playing');
-  document.getElementById('kk-now-playing').style.display = '';
-  document.getElementById('kk-now-title').textContent = song.title + (song.artist ? ' — ' + song.artist : '');
+}
+
+function kkStartSinging() {
+  if (!_kkCurrentSongId) return;
+  fetch('/api/karaoke/' + _kkCurrentSongId + '/start_singing', {method:'POST'}).catch(()=>{});
 }
 
 function kkStop() {
   fetch('/api/karaoke/stop', {method:'POST'}).catch(()=>{});
-  document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.remove('playing'));
-  document.getElementById('kk-now-playing').style.display = 'none';
 }
 
 function kkVocalVolLive(v) {
@@ -2088,10 +2095,15 @@ function kkSetVocalVolume(v) {
 function kkApplyState(k) {
   const npEl = document.getElementById('kk-now-playing');
   if (!npEl) return;
-  if (k.playing) {
+  _kkCurrentSongId = k.song_id || null;
+  const startBtn = document.getElementById('kk-start-btn');
+  const labelEl  = document.getElementById('kk-now-label');
+  if (k.playing || k.lobby) {
     npEl.style.display = '';
-    document.getElementById('kk-now-title').textContent = k.title || '';
+    document.getElementById('kk-now-title').textContent = k.title + (k.artist ? ' — ' + k.artist : '');
     document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.toggle('playing', b.id === 'kk-' + k.song_id));
+    if (labelEl) labelEl.textContent = k.playing ? '🎤 NOW SINGING' : '🎤 UP NEXT';
+    if (startBtn) startBtn.style.display = k.lobby ? '' : 'none';
   } else {
     npEl.style.display = 'none';
     document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.remove('playing'));
