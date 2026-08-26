@@ -46,6 +46,7 @@
   .now-playing { padding: 14px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); }
   .section-label { font-size: 9px; color: var(--text-dim); letter-spacing: 4px; font-family: 'Share Tech Mono', monospace; margin-bottom: 10px; }
   .games-primary-label { font-size: 20px; font-weight: 800; letter-spacing: 2px; font-family: 'Barlow Condensed', sans-serif; margin-bottom: 10px; }
+  .games-timer-card { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: var(--surface); }
   .track-title { font-size: 18px; font-weight: 700; color: var(--amber); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .track-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
   .progress-bar { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; margin: 10px 0 4px; }
@@ -596,7 +597,7 @@
       <!-- TIMER / STOPWATCH — kept at the top and side-by-side so both are
            reachable without scrolling on a smaller screen (iPad) mid-show. -->
       <div class="games-section" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
-        <div>
+        <div class="games-timer-card">
           <!-- COUNTDOWN TIMER -->
           <div class="games-primary-label" style="color:var(--amber)">⏱ COUNTDOWN TIMER</div>
           <!-- Preset recall -->
@@ -668,7 +669,7 @@
           </div>
         </div>
 
-        <div>
+        <div class="games-timer-card">
           <!-- STOPWATCH -->
           <div class="games-primary-label" style="color:var(--green)">⏱ STOPWATCH</div>
           <!-- Spacer row matches the Countdown Timer's preset-recall row above so both
@@ -679,7 +680,7 @@
           </div>
           <div class="timer-display" id="swDisplay" style="font-size:88px;line-height:1;color:var(--green);text-shadow:0 0 20px #3CB96A44;margin-bottom:10px">0:00.0</div>
           <div class="timer-btns">
-            <button class="btn-timer start" id="swStartBtn" onclick="swToggle()" style="background:var(--green);border-color:var(--green)">&#9654; START</button>
+            <button class="btn-timer start" id="swStartBtn" onclick="swToggle()">&#9654; START</button>
             <button class="btn-timer set" onclick="swShow()" title="Show stopwatch on display without starting">&#9645; SET</button>
             <button class="btn-timer set" id="swHideBtn" onclick="swHideToggle()" title="Show/hide stopwatch on display">&#10005; HIDE</button>
             <button class="btn-timer reset" onclick="swReset()">&#8634; RESET</button>
