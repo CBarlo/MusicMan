@@ -58,16 +58,23 @@ def slugify(title: str) -> str:
     return slug or 'song'
 
 
+SEPARATION_MODEL = 'htdemucs_ft'  # fine-tuned model -- noticeably fewer gating/dropout
+                                    # artifacts in the isolated vocal than the plain
+                                    # 'htdemucs' default, at the cost of ~4x runtime
+                                    # (it ensembles 4 sub-models). Worth it here since
+                                    # this is an offline batch step, not live.
+
 def separate_vocals(input_path: Path, work_dir: Path) -> tuple[Path, Path]:
     """Run demucs (two-stems vocals) on the input file. Returns
     (instrumental_wav, vocals_wav)."""
-    print(f"[1/3] Separating vocals from instrumental ({input_path.name})...")
+    print(f"[1/3] Separating vocals from instrumental ({input_path.name}) -- "
+          f"using {SEPARATION_MODEL}, this is the slow step, be patient...")
     subprocess.run(
-        [sys.executable, '-m', 'demucs', '--two-stems=vocals',
+        [sys.executable, '-m', 'demucs', '--two-stems=vocals', '-n', SEPARATION_MODEL,
          '-o', str(work_dir), str(input_path)],
         check=True,
     )
-    stem_dir = work_dir / 'htdemucs' / input_path.stem
+    stem_dir = work_dir / SEPARATION_MODEL / input_path.stem
     return stem_dir / 'no_vocals.wav', stem_dir / 'vocals.wav'
 
 
