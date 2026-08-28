@@ -97,7 +97,7 @@ const unsigned long AUTO_POWEROFF_AFTER_MS = 10UL * 60 * 1000;
 
 // ── MENU MODEL ───────────────────────────────────────────────────────────
 enum MenuLevel { LEVEL_CATEGORY, LEVEL_SHOWFLOW, LEVEL_SFX, LEVEL_CIRCLES, LEVEL_ROLES, LEVEL_TIMER,
-                 LEVEL_GAME_CHAIRS, LEVEL_GAME_TRIVIA, LEVEL_GAME_TIMEDCOMP };
+                 LEVEL_GAME_CHAIRS, LEVEL_GAME_TRIVIA, LEVEL_GAME_TIMEDCOMP, LEVEL_KARAOKE };
 MenuLevel menuLevel = LEVEL_CATEGORY;
 
 const char* CATEGORY_NAMES[] = {"SHOW FLOW", "SFX", "CIRCLES", "ROLES", "TIMER"};
@@ -152,6 +152,21 @@ String triviaAnswer   = "";
 
 bool chairsLive    = false;
 bool chairsPlaying = false;
+
+// Karaoke isn't a GAME_TYPES game (no liveGameTypeId of its own) -- it's its
+// own state branch in /api/state, same shape as the timer/stopwatch below,
+// so it gets the same "pulls focus from anywhere while live" treatment
+// rather than the liveGameTypeId edge-detect chairs/trivia use.
+bool   karaokeLive    = false;
+bool   karaokePlaying = false;
+bool   karaokeMuted   = false;
+String karaokeTitle   = "";
+String karaokeArtist  = "";
+bool lastSeenKaraokeLiveGlobal = false;
+bool haveSeenKaraokeLiveGlobal = false;
+bool lastSeenKaraokePlaying = false;
+bool lastSeenKaraokeMuted   = false;
+bool haveSeenKaraokeState   = false;
 
 // Tracks in-game changes (question advanced, answer revealed, chairs
 // started/stopped) so the screen wakes for those too -- updateMenuLevelForLiveGame()
@@ -222,6 +237,7 @@ void fireTimerToggleDisplay();
 void fireTimerReset();
 void fireStopwatchToggle();
 void fireStopwatchReset();
+void fireKaraokeMuteToggle();
 void updateMenuLevelForLiveGame();
 void updateGameStateWake();
 void handleStepChange();
@@ -383,6 +399,13 @@ bool fetchRemoteState() {
   JsonObject stopwatch = doc["stopwatch"];
   stopwatchRunning   = stopwatch["running"] | false;
   stopwatchElapsedMs = stopwatch["elapsed_ms"] | 0;
+
+  JsonObject karaoke = doc["karaoke"];
+  karaokeLive    = karaoke["live"] | false;
+  karaokePlaying = karaoke["playing"] | false;
+  karaokeMuted   = karaoke["vocal_muted"] | false;
+  karaokeTitle   = String((const char*)(karaoke["title"] | ""));
+  karaokeArtist  = String((const char*)(karaoke["artist"] | ""));
 
   if (doc["trivia"].is<JsonObject>()) {
     triviaLive = true;
@@ -551,6 +574,33 @@ void updateMenuLevelForLiveGame() {
   }
   lastSeenStopwatchRunningGlobal = stopwatchRunning;
   haveSeenStopwatchRunningGlobal = true;
+
+  // Karaoke going live pulls focus the same way, and likewise backs off if
+  // the MC is genuinely mid-game elsewhere (Trivia/Chairs/Timer/Timed Comp) --
+  // whichever of these got there first keeps the screen until its own
+  // side-long backs out, rather than the two fighting over it.
+  //
+  // Also pulls on the device's very FIRST poll if karaoke is *already* live
+  // at that point (haveSeenKaraokeLiveGlobal still false) -- e.g. a reboot/
+  // reflash while a song is already playing. The plain edge-trigger below
+  // only catches false->true transitions and would otherwise never fire for
+  // a state that was already true the first time this device ever looked.
+  bool inOtherLiveGame3 = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
+                            || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_TIMEDCOMP);
+  bool karaokeJustWentLive     = karaokeLive && !lastSeenKaraokeLiveGlobal && haveSeenKaraokeLiveGlobal;
+  bool karaokeAlreadyLiveAtBoot = karaokeLive && !haveSeenKaraokeLiveGlobal;
+  if ((karaokeJustWentLive || karaokeAlreadyLiveAtBoot)
+      && !inOtherLiveGame3 && menuLevel != LEVEL_KARAOKE) {
+    menuLevel = LEVEL_KARAOKE;
+    if (!screenAwake) {
+      screenAwake = true;
+      M5.Axp.SetLDO2(true);
+      lastActivity = millis();
+    }
+    beepConfirm();
+  }
+  lastSeenKaraokeLiveGlobal = karaokeLive;
+  haveSeenKaraokeLiveGlobal = true;
 }
 
 // Wakes the screen for a meaningful change WITHIN an already-live game --
@@ -616,6 +666,22 @@ void updateGameStateWake() {
     }
   } else {
     haveSeenTimerState = false;
+  }
+
+  if (menuLevel == LEVEL_KARAOKE && karaokeLive) {
+    bool changed = haveSeenKaraokeState &&
+                   (karaokePlaying != lastSeenKaraokePlaying || karaokeMuted != lastSeenKaraokeMuted);
+    lastSeenKaraokePlaying = karaokePlaying;
+    lastSeenKaraokeMuted   = karaokeMuted;
+    haveSeenKaraokeState   = true;
+    if (changed && !screenAwake) {
+      screenAwake = true;
+      M5.Axp.SetLDO2(true);
+      lastActivity = millis();
+      beepConfirm();
+    }
+  } else {
+    haveSeenKaraokeState = false;
   }
 }
 
@@ -688,6 +754,7 @@ void moveSelection(int delta) {
     case LEVEL_GAME_TRIVIA: break;
     case LEVEL_GAME_CHAIRS: break;
     case LEVEL_GAME_TIMEDCOMP: break;
+    case LEVEL_KARAOKE: break;
   }
 }
 
@@ -804,6 +871,14 @@ void fireStopwatchReset() {
   else    { beepFail(); showToast("STOPWATCH ACTION FAILED"); }
 }
 
+void fireKaraokeMuteToggle() {
+  bool ok = false;
+  httpPostJson("/api/karaoke/vocal_mute_toggle", "{}", &ok);
+  lastActivity = millis();
+  if (ok) { beepConfirm(); fetchRemoteState(); }
+  else    { beepFail(); showToast("KARAOKE ACTION FAILED"); }
+}
+
 // ── INPUT ────────────────────────────────────────────────────────────────
 // Short vs. long press, both resolved on release. wasReleasefor(ms) sets the
 // Button object's internal hold-time threshold as a SIDE EFFECT (see
@@ -890,6 +965,12 @@ void handleButtons() {
       // EVERY runner, so it needs to be the fast, no-friction gesture.
       if      (frontShort) fireStopwatchToggle();
       else if (sideShort)  fireStopwatchReset();
+      break;
+    case LEVEL_KARAOKE:
+      // One job: mute/unmute the vocal guide so the MC can drop it out to
+      // hear the crowd sing, then bring it back for effect. Either press
+      // does it -- there's nothing else on this screen to disambiguate.
+      if (frontShort || frontLong) fireKaraokeMuteToggle();
       break;
     case LEVEL_GAME_TRIVIA:
       // Correct/incorrect scoring lives at Console/the trivia controller now
@@ -1099,6 +1180,7 @@ void drawScreen() {
     case LEVEL_GAME_CHAIRS: screenBuf.print("MUSICAL CHAIRS - LIVE");  break;
     case LEVEL_GAME_TRIVIA: screenBuf.print("TRIVIA - LIVE");          break;
     case LEVEL_GAME_TIMEDCOMP: screenBuf.print("TIMED COMPETITION");   break;
+    case LEVEL_KARAOKE:     screenBuf.print("KARAOKE - LIVE");         break;
   }
   screenBuf.setTextColor(0x8410);
   screenBuf.setCursor(200, 2);
@@ -1193,6 +1275,32 @@ void drawScreen() {
       screenBuf.print("SIDE = RESET   HOLD SIDE = BACK");
       break;
     }
+    case LEVEL_KARAOKE: {
+      screenBuf.setTextColor(karaokePlaying ? 0x07E0 : 0xFD20);
+      screenBuf.setCursor(4, 18);
+      screenBuf.print(karaokePlaying ? "NOW SINGING" : "WAITING FOR SONG");
+
+      if (karaokeTitle.length() > 0) {
+        screenBuf.setTextColor(WHITE);
+        printWrapped(karaokeTitle, 4, 34, 33, 2);
+        if (karaokeArtist.length() > 0) {
+          screenBuf.setTextColor(0x8410);
+          screenBuf.setCursor(4, 62);
+          screenBuf.print(karaokeArtist);
+        }
+      }
+
+      screenBuf.setTextColor(karaokeMuted ? 0xF800 : 0x07E0);
+      screenBuf.setTextSize(2);
+      screenBuf.setCursor(4, 80);
+      screenBuf.print(karaokeMuted ? "VOCALS MUTED" : "VOCALS ON");
+      screenBuf.setTextSize(1);
+
+      screenBuf.setTextColor(0xC618);
+      screenBuf.setCursor(4, 118);
+      screenBuf.print("FRONT = TOGGLE MUTE   HOLD SIDE = BACK");
+      break;
+    }
     case LEVEL_GAME_TRIVIA: {
       // The answer is a host cheat-sheet -- shown on the remote the instant
       // the question is live, regardless of "revealed". "Revealed" only
@@ -1241,7 +1349,7 @@ void drawScreen() {
   // silently drift from what's on screen (e.g. Console fires a step while
   // the MC is browsing SFX).
   bool gameMode = (menuLevel == LEVEL_GAME_CHAIRS || menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_TIMER
-                    || menuLevel == LEVEL_GAME_TIMEDCOMP);
+                    || menuLevel == LEVEL_GAME_TIMEDCOMP || menuLevel == LEVEL_KARAOKE);
   if (!gameMode) {
     if (millis() < toastUntil) {
       screenBuf.fillRect(0, 118, 240, 17, 0x2965);

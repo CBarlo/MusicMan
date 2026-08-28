@@ -42,6 +42,10 @@ __pycache__/
 *.pyd
 .venv/
 venv/
+scripts/karaoke_venv/
+
+# ── Karaoke Tool output (personal + copyright; never commit) ──
+karaoke_tool_output/
 
 # ── macOS ──
 .DS_Store

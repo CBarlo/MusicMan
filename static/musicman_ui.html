@@ -123,9 +123,11 @@
   .page { display: none; flex: 1; overflow-y: auto; padding: 16px; }
   .page.active { display: block; }
   .walkup-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .walkup-grid.kk-grid-disabled { opacity: .35; pointer-events: none; }
   .walkup-btn { height: 80px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: all .2s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px; position: relative; overflow: hidden; }
   .walkup-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,.4); }
   .walkup-btn.playing { animation: walkupGlow .8s infinite alternate; }
+  .walkup-btn.selected { border-color: var(--amber, #F5A623); background: rgba(245,166,35,.12); }
   @keyframes walkupGlow { from { box-shadow: 0 0 10px var(--glow-color, transparent); } to { box-shadow: 0 0 25px var(--glow-color, transparent); } }
   .walkup-circle { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; margin-bottom: 2px; }
   .walkup-name { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-align: center; line-height: 1.1; }
@@ -134,6 +136,7 @@
   .walkup-display-btn:hover { opacity: 1; border-color: var(--amber); color: var(--amber); }
   .sfx-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
   .sfx-btn { height: 54px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: background .1s, transform .1s; display: flex; align-items: center; justify-content: center; padding: 4px 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .5px; color: var(--text); text-align: center; line-height: 1.2; word-break: break-word; hyphens: auto; }
+  #memesGrid .sfx-btn.playing, #graphicsGrid .sfx-btn.playing { border-color: var(--amber, #F5A623); box-shadow: 0 0 10px rgba(245,166,35,.5); }
   .sfx-btn:hover { background: var(--bg3); box-shadow: 0 0 12px rgba(0,0,0,.5); }
   .sfx-btn:active { transform: scale(.95); }
   .sfx-btn.fire { border-color: var(--rust); color: var(--rust); }
@@ -282,6 +285,21 @@
         <button class="btn-transport" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Display cleared',1500)" style="flex:1;font-size:10px;letter-spacing:1px">&#9723; CLEAR</button>
       </div>
       <button onclick="killAll()" style="width:100%;margin-top:8px;height:42px;border-radius:8px;border:2px solid #c0392b;background:#2d0a0a;color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;cursor:pointer">&#9760; KILL ALL</button>
+
+      <!-- Quick karaoke transport -- only shown while Karaoke is live, so
+           it's reachable from any tab without a trip to the KARAOKE tab. -->
+      <div id="lpKaraokeBar" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div class="section-label">🎤 KARAOKE <span id="lpKkTitle" style="color:var(--text-dim);font-weight:400;letter-spacing:0;text-transform:none"></span></div>
+        <div class="transport" style="margin-top:6px">
+          <button class="btn-transport danger" id="lpKkStopBtn" onclick="kkStopSong()">&#9632; STOP SONG</button>
+          <button class="btn-transport" id="lpKkPauseBtn" onclick="kkPauseResume()">&#9208; PAUSE</button>
+        </div>
+        <div class="transport" style="margin-top:6px">
+          <button class="btn-transport" id="lpKkFadeBtn" onclick="kkFadeOut()" style="font-size:10px;letter-spacing:1px">&#8595; FADE OUT</button>
+          <button class="btn-transport danger" id="lpKkEndBtn" onclick="kkEnd()" style="font-size:10px;letter-spacing:1px">&#10005; END KARAOKE</button>
+        </div>
+      </div>
+
       <div class="vol-row">
         <span class="vol-label">MUSIC</span>
         <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="80" oninput="updateVol(this.value)">
@@ -335,7 +353,7 @@
     </div>
     <div class="page-tabs-bottom">
       <div class="page-tab" onclick="showPage('slides',this);loadSlidesTab()">SLIDES</div>
-      <div class="page-tab" onclick="showPage('memes',this);buildMemesGrid()">MEMES</div>
+      <div class="page-tab" onclick="showPage('memes',this);buildMemesGrid()">MEMES/GRAPHICS</div>
       <div class="page-tab" onclick="showPage('vscards',this);loadVsCardsConsole()">VS CARDS</div>
       <div class="page-tab" onclick="showPage('viz',this);loadVizTab()">VIZ</div>
       <div class="tab-sep"></div>
@@ -440,15 +458,20 @@
       </div>
     </div>
 
-    <!-- ── MEMES TAB ── -->
+    <!-- ── MEMES/GRAPHICS TAB ── -->
     <div class="page" id="page-memes">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">🎬 MEMES — TAP TO FIRE ON THE PROJECTOR</div>
+        <div style="font-size:10px;letter-spacing:3px;color:var(--text-dim);font-weight:700">🎬 MEMES/GRAPHICS — TAP TO FIRE ON THE PROJECTOR</div>
         <button onclick="buildMemesGrid()" style="font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-weight:700;font-family:'Barlow Condensed',sans-serif">↺</button>
       </div>
       <button onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Projector cleared',1500)"
         style="margin-bottom:10px;background:var(--surface);border:1px solid var(--border2);color:var(--text-dim);padding:6px 16px;border-radius:6px;font-size:11px;letter-spacing:2px;cursor:pointer;font-weight:700">&#x2715; CLEAR PROJECTOR</button>
+
+      <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin-bottom:6px">MEMES</div>
       <div class="sfx-grid" id="memesGrid"></div>
+
+      <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin:16px 0 6px">GRAPHICS &amp; OTHER — UNTAGGED</div>
+      <div class="sfx-grid" id="graphicsGrid"></div>
     </div>
 
     <!-- ── VS CARDS TAB ── -->
@@ -799,25 +822,41 @@
     <!-- ── KARAOKE TAB ── -->
     <div class="page" id="page-karaoke">
 
-      <!-- NOW PLAYING -->
-      <div class="games-section" id="kk-now-playing" style="display:none">
-        <div class="section-label" id="kk-now-label">🎤 UP NEXT</div>
-        <div id="kk-now-title" style="font-size:22px;font-weight:800;color:var(--amber);margin-bottom:10px"></div>
-        <div class="games-row" style="margin-bottom:10px">
+      <!-- GO LIVE -->
+      <div class="games-section" id="kk-go-live-section">
+        <div class="section-label">🎤 KARAOKE</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5">Fires the walk-up. Once it settles into the lobby, pick a song below to start singing — same as a game: go live, then start it.</div>
+        <button class="games-btn primary" style="width:100%;padding:14px;font-size:14px" onclick="kkGoLive()">⚡ GO LIVE</button>
+      </div>
+
+      <!-- SONG ACTION CARD -- content rewritten by kkApplyState() as the
+           song moves through selected -> revealed -> counting down -> playing -->
+      <div class="games-section" id="kk-action-card" style="display:none">
+        <div class="section-label" id="kk-action-label">🎤 SELECTED</div>
+        <div id="kk-action-title" style="font-size:22px;font-weight:800;color:var(--amber);margin-bottom:10px"></div>
+        <div class="games-row" id="kk-vocal-row" style="margin-bottom:10px;display:none">
           <span class="games-label">VOCAL GUIDE</span>
           <input id="kk-vocal-vol" type="range" min="0" max="150" value="80" style="flex:1" oninput="kkVocalVolLive(this.value)" onchange="kkSetVocalVolume(this.value)">
           <span id="kk-vocal-vol-val" style="width:36px;text-align:right;font-family:'Share Tech Mono',monospace;color:var(--amber)">80</span>
+          <button class="games-btn" id="kk-mute-btn" style="padding:6px 10px;font-size:11px" onclick="kkToggleVocalMute()">🔇 MUTE</button>
         </div>
-        <div style="display:flex;gap:8px">
-          <button class="games-btn primary" id="kk-start-btn" style="flex:1;padding:12px;display:none" onclick="kkStartSinging()">▶ START SINGING</button>
-          <button class="games-btn danger" style="flex:1;padding:12px" onclick="kkStop()">⏹ STOP SONG</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="games-btn primary" id="kk-reveal-btn" style="flex:1;min-width:120px;padding:12px;display:none" onclick="kkReveal()">👁 REVEAL SONG</button>
+          <button class="games-btn primary" id="kk-start-btn" style="flex:1;min-width:120px;padding:12px;display:none;background:#3ecf6a" onclick="kkStart()">▶ START</button>
+          <button class="games-btn primary" id="kk-pauseplay-btn" style="flex:1;min-width:120px;padding:12px;display:none" onclick="kkPauseResume()">⏸ PAUSE</button>
+          <button class="games-btn" id="kk-restart-btn" style="flex:1;min-width:120px;padding:12px;display:none" onclick="kkRestart()">↺ START OVER</button>
+          <button class="games-btn danger" id="kk-stop-btn" style="flex:1;min-width:120px;padding:12px;display:none" onclick="kkStopSong()">⏹ STOP SONG</button>
         </div>
       </div>
 
       <!-- SONG LIBRARY -->
       <div class="games-section">
-        <div class="section-label">🎤 KARAOKE LIBRARY</div>
-        <div class="walkup-grid" id="kkGrid"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="section-label" style="margin-bottom:0">🎤 PICK A SONG</div>
+          <button class="games-btn danger" id="kk-end-btn" style="display:none;font-size:11px;padding:5px 12px" onclick="kkEnd()">✕ END KARAOKE</button>
+        </div>
+        <div id="kk-grid-hint" style="font-size:11px;letter-spacing:1.5px;color:var(--amber,#F5A623);margin-bottom:8px">⚡ PRESS GO LIVE ABOVE FIRST — SONGS ARE LOCKED UNTIL THEN</div>
+        <div class="walkup-grid kk-grid-disabled" id="kkGrid"></div>
       </div>
 
     </div><!-- /page-karaoke -->
@@ -2030,8 +2069,13 @@ function fireGameEntry(e) {
 }
 
 // ── KARAOKE TAB ───────────────────────────────────────────────────────────────
+// Flow mirrors a game: GO LIVE (walk-up fires, lobby comes up) -- pick a
+// song (local selection only, no server call) -- REVEAL (title/artist show
+// on screen) -- START (GET READY / 3-2-1 count-off, then singing begins).
 let karaokeSongsCache = [];
-let _kkCurrentSongId = null;
+let _kkCurrentSongId  = null;   // authoritative, from the server (revealed/counting/playing)
+let _kkSelectedSongId = null;   // local-only pick, before REVEAL is pressed
+let _kkLastState      = {};
 
 async function loadKaraokeTab() {
   try { karaokeSongsCache = await fetch('/api/karaoke').then(r => r.json()); } catch(e) { karaokeSongsCache = []; }
@@ -2055,29 +2099,96 @@ function buildKaraokeGrid() {
     btn.className = 'walkup-btn';
     btn.id = 'kk-' + s.id;
     btn.innerHTML = `<div class="walkup-circle" style="background:#5A4FCF33;border-color:#5A4FCF">🎤</div>
-      <div class="walkup-name">${escHtml(s.title)}</div>
-      <div class="walkup-song">${escHtml(s.artist || '')}</div>`;
-    btn.onclick = () => kkPlay(s);
+      <div class="walkup-name" style="color:#fff">${escHtml(s.title)}</div>
+      <div class="walkup-song" style="color:#B3A8E8">${escHtml(s.artist || '')}</div>`;
+    btn.onclick = () => kkSelect(s);
     grid.appendChild(btn);
   });
 }
 
-function kkPlay(song) {
-  // Brings the song up to its lobby (title/artist on screen) -- singing
-  // itself waits for an explicit START SINGING press, same as Trivia's
-  // walkup-then-lobby-then-Start-Game shape. kkApplyState (via the
-  // karaoke_state broadcast that follows) is what actually updates this
-  // panel; this call is fire-and-forget.
-  fetch('/api/karaoke/' + song.id + '/play', {method:'POST'}).catch(()=>{});
+function kkGoLive() {
+  // Fires the shared walk-up and brings up the lobby, no song picked yet --
+  // same shape as a game's GO LIVE. kkApplyState (via the karaoke_state
+  // broadcast that follows) is what actually updates this panel.
+  fetch('/api/karaoke/live', {method:'POST'}).catch(()=>{});
 }
 
-function kkStartSinging() {
+function kkSelect(song) {
+  // Picking a song from the grid is local only -- REVEAL is the actual
+  // server action that puts it on screen. Locked once something's already
+  // revealed (changing your mind mid-reveal/countdown/singing goes through
+  // STOP SONG first).
+  if (_kkLastState.revealed) return;
+  _kkSelectedSongId = song.id;
+  renderKkActionCard();
+}
+
+async function kkReveal() {
+  if (!_kkSelectedSongId) return;
+  try {
+    const d = await fetch('/api/karaoke/' + _kkSelectedSongId + '/reveal', {method:'POST'}).then(r => r.json());
+    if (!d.ok) showAlert(d.error || 'Reveal failed');
+  } catch (e) { showAlert('Reveal failed -- check the connection'); }
+}
+
+async function kkStart() {
   if (!_kkCurrentSongId) return;
-  fetch('/api/karaoke/' + _kkCurrentSongId + '/start_singing', {method:'POST'}).catch(()=>{});
+  try {
+    const d = await fetch('/api/karaoke/' + _kkCurrentSongId + '/start', {method:'POST'}).then(r => r.json());
+    if (!d.ok) showAlert(d.error || 'Start failed');
+  } catch (e) { showAlert('Start failed -- check the connection'); }
 }
 
-function kkStop() {
-  fetch('/api/karaoke/stop', {method:'POST'}).catch(()=>{});
+function kkPauseResume() {
+  fetch('/api/karaoke/' + (_kkLastState.paused ? 'resume' : 'pause'), {method:'POST'}).catch(()=>{});
+}
+
+async function kkRestart() {
+  if (!_kkCurrentSongId) return;
+  try {
+    const d = await fetch('/api/karaoke/' + _kkCurrentSongId + '/restart', {method:'POST'}).then(r => r.json());
+    if (!d.ok) showAlert(d.error || 'Restart failed');
+  } catch (e) { showAlert('Restart failed -- check the connection'); }
+}
+
+function kkStopSong() {
+  // Stops/cancels whatever's happening with the current song and returns
+  // to the (still-live) lobby, ready to pick another.
+  fetch('/api/karaoke/stop_song', {method:'POST'}).catch(()=>{});
+}
+
+function kkEnd() {
+  // Fully exits Karaoke.
+  fetch('/api/karaoke/end', {method:'POST'}).catch(()=>{});
+}
+
+function kkFadeOut() {
+  // Ramps volume down over a few seconds then stops -- a gentler way to cut
+  // a rendition short than an abrupt STOP SONG.
+  fetch('/api/karaoke/fade_out', {method:'POST'}).then(r => r.json()).then(d => {
+    if (!d.ok) showAlert(d.error || 'Fade out failed');
+  }).catch(()=>{});
+}
+
+// Mirrors the Karaoke tab's own action card in the left pane's persistent
+// sidebar, so STOP/PAUSE/FADE/END are reachable from any tab mid-show
+// instead of needing a trip to the KARAOKE tab first.
+function _renderLpKaraokeBar(k) {
+  const bar = document.getElementById('lpKaraokeBar');
+  if (!bar) return;
+  if (!k.live) { bar.style.display = 'none'; return; }
+  bar.style.display = '';
+  const titleEl = document.getElementById('lpKkTitle');
+  if (titleEl) titleEl.textContent = k.title ? ('— ' + k.title) : '';
+  const stopBtn  = document.getElementById('lpKkStopBtn');
+  const pauseBtn = document.getElementById('lpKkPauseBtn');
+  const fadeBtn  = document.getElementById('lpKkFadeBtn');
+  if (stopBtn)  stopBtn.style.display  = (k.revealed || k.counting_down || k.playing) ? '' : 'none';
+  if (pauseBtn) {
+    pauseBtn.style.display = k.playing ? '' : 'none';
+    pauseBtn.textContent   = k.paused ? '▶ RESUME' : '⏸ PAUSE';
+  }
+  if (fadeBtn) fadeBtn.style.display = (k.playing && !k.paused) ? '' : 'none';
 }
 
 function kkVocalVolLive(v) {
@@ -2092,24 +2203,82 @@ function kkSetVocalVolume(v) {
   }, 150);
 }
 
+function kkToggleVocalMute() {
+  fetch('/api/karaoke/vocal_mute_toggle', {method:'POST'}).catch(()=>{});
+}
+
 function kkApplyState(k) {
-  const npEl = document.getElementById('kk-now-playing');
-  if (!npEl) return;
+  _renderLpKaraokeBar(k || {});
+  if (!document.getElementById('kk-action-card')) return;
+  _kkLastState     = k || {};
   _kkCurrentSongId = k.song_id || null;
-  const startBtn = document.getElementById('kk-start-btn');
-  const labelEl  = document.getElementById('kk-now-label');
-  if (k.playing || k.lobby) {
-    npEl.style.display = '';
-    document.getElementById('kk-now-title').textContent = k.title + (k.artist ? ' — ' + k.artist : '');
-    document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.toggle('playing', b.id === 'kk-' + k.song_id));
-    if (labelEl) labelEl.textContent = k.playing ? '🎤 NOW SINGING' : '🎤 UP NEXT';
-    if (startBtn) startBtn.style.display = k.lobby ? '' : 'none';
-  } else {
-    npEl.style.display = 'none';
-    document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => b.classList.remove('playing'));
-  }
+  if (k.song_id) _kkSelectedSongId = k.song_id;
+  // Nothing chosen server-side (freshly live, or just came back from STOP
+  // SONG) -- drop any stale local pick from before.
+  else if (!k.revealed && !k.counting_down && !k.playing) _kkSelectedSongId = null;
+
+  const goLiveSection = document.getElementById('kk-go-live-section');
+  const endBtn        = document.getElementById('kk-end-btn');
+  const grid           = document.getElementById('kkGrid');
+  const gridHint       = document.getElementById('kk-grid-hint');
+  if (goLiveSection) goLiveSection.style.display = k.live ? 'none' : '';
+  if (endBtn)        endBtn.style.display        = k.live ? '' : 'none';
+  if (gridHint)      gridHint.style.display      = k.live ? 'none' : '';
+  // Locked once revealed -- picking a different song mid-reveal/countdown/
+  // singing would fight with what's already committed on screen.
+  if (grid) grid.classList.toggle('kk-grid-disabled', !k.live || !!k.revealed);
+
+  document.querySelectorAll('#kkGrid .walkup-btn').forEach(b => {
+    b.classList.toggle('playing',  !!k.playing && b.id === 'kk-' + k.song_id);
+    b.classList.toggle('selected', !k.revealed && b.id === 'kk-' + _kkSelectedSongId);
+  });
+
+  renderKkActionCard();
+
   const volEl = document.getElementById('kk-vocal-vol');
   if (volEl && k.vocal_volume != null) { volEl.value = k.vocal_volume; kkVocalVolLive(k.vocal_volume); }
+}
+
+function renderKkActionCard() {
+  const k         = _kkLastState;
+  const card      = document.getElementById('kk-action-card');
+  const label     = document.getElementById('kk-action-label');
+  const titleEl   = document.getElementById('kk-action-title');
+  const volRow    = document.getElementById('kk-vocal-row');
+  const revealBtn    = document.getElementById('kk-reveal-btn');
+  const startBtn     = document.getElementById('kk-start-btn');
+  const pausePlayBtn = document.getElementById('kk-pauseplay-btn');
+  const restartBtn   = document.getElementById('kk-restart-btn');
+  const stopBtn      = document.getElementById('kk-stop-btn');
+  if (!card) return;
+
+  if (!k.live || !_kkSelectedSongId) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  const song   = karaokeSongsCache.find(s => s.id === _kkSelectedSongId);
+  const title  = k.title  || (song ? song.title  : '');
+  const artist = k.artist || (song ? song.artist : '');
+  titleEl.textContent = title + (artist ? ' — ' + artist : '');
+
+  volRow.style.display       = k.playing ? '' : 'none';
+  revealBtn.style.display    = (!k.revealed && !k.playing) ? '' : 'none';
+  startBtn.style.display     = (k.revealed && !k.counting_down && !k.playing) ? '' : 'none';
+  pausePlayBtn.style.display = k.playing ? '' : 'none';
+  pausePlayBtn.textContent   = k.paused ? '▶ PLAY' : '⏸ PAUSE';
+  const muteBtn = document.getElementById('kk-mute-btn');
+  if (muteBtn) {
+    muteBtn.textContent = k.vocal_muted ? '🔊 UNMUTE' : '🔇 MUTE';
+    muteBtn.style.background = k.vocal_muted ? 'var(--red,#c0392b)' : '';
+  }
+  restartBtn.style.display   = k.playing ? '' : 'none';
+  stopBtn.style.display      = (k.revealed || k.counting_down || k.playing) ? '' : 'none';
+
+  if (k.playing)            label.textContent = '🎤 NOW SINGING';
+  else if (k.counting_down) label.textContent = '⏱ GET READY...';
+  else if (k.revealed)      label.textContent = '👁 REVEALED';
+  else                      label.textContent = '🎤 SELECTED';
 }
 
 // ── GAMES TAB ─────────────────────────────────────────────────────────────────
@@ -3278,24 +3447,28 @@ async function buildDisplayGrid() {
   });
 }
 
-async function buildMemesGrid() {
-  let files = [];
-  try { files = await fetch('/api/display/list').then(r => r.json()); } catch(e) {}
-  const grid = document.getElementById('memesGrid');
+let _currentMemeFile = null;
+
+function _syncMemeButtonState() {
+  document.querySelectorAll('#memesGrid .sfx-btn, #graphicsGrid .sfx-btn').forEach(b => {
+    b.classList.toggle('playing', !!_currentMemeFile && b.dataset.filename === _currentMemeFile);
+  });
+}
+
+async function _renderFireableDisplayGrid(gridId, orderKey, files, emptyMsg) {
+  const grid = document.getElementById(gridId);
   if (!grid) return;
-  const VIDEO_EXTS = new Set(['.mp4','.webm','.mov','.ogv','.gif']);
-  let videos = files.filter(f => VIDEO_EXTS.has(f.slice(f.lastIndexOf('.')).toLowerCase()));
   grid.innerHTML = '';
-  if (!videos.length) {
-    grid.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:8px">NO VIDEOS — UPLOAD IN ADMIN → DISPLAY TAB</div>';
+  if (!files.length) {
+    grid.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:8px">' + emptyMsg + '</div>';
     return;
   }
 
   // Apply saved order — synced server-side, same as SFX/Display
   let savedOrder = [];
-  try { savedOrder = (await fetch('/api/console_order/memes').then(r => r.json())).order || []; } catch(e) {}
+  try { savedOrder = (await fetch('/api/console_order/' + orderKey).then(r => r.json())).order || []; } catch(e) {}
   if (savedOrder.length) {
-    videos = [...videos].sort((a, b) => {
+    files = [...files].sort((a, b) => {
       const ai = savedOrder.indexOf(a);
       const bi = savedOrder.indexOf(b);
       if (ai === -1) return 1;
@@ -3304,55 +3477,94 @@ async function buildMemesGrid() {
     });
   }
 
-  let _memesDragSrc = null;
+  let _dragSrc = null;
 
-  videos.forEach(f => {
+  const MEME_VIDEO_EXTS = new Set(['.mp4','.webm','.mov','.ogv']);
+  files.forEach(f => {
     const label = f.replace(/\.[^.]+$/, '').replace(/_/g, ' ').toUpperCase().slice(0, 14);
+    const isVid = MEME_VIDEO_EXTS.has(f.slice(f.lastIndexOf('.')).toLowerCase());
+    // Tags aren't limited to video-like files anymore, so a static image
+    // meme needs its own direct thumbnail instead of always hitting the
+    // video-frame endpoint (which 404s for anything that isn't a video).
+    const thumbSrc = isVid ? '/api/display/thumb/' + encodeURIComponent(f) : '/assets/display/' + encodeURIComponent(f);
     const btn = document.createElement('button');
     btn.className = 'sfx-btn';
     btn.dataset.filename = f;
-    btn.innerHTML = '<img src="/api/display/thumb/' + encodeURIComponent(f) + '" '
+    btn.innerHTML = '<img src="' + thumbSrc + '" '
       + 'style="width:36px;height:22px;object-fit:cover;border-radius:3px;margin-bottom:2px" '
       + 'onerror="this.outerHTML=\'<span class=&quot;sfx-icon&quot;>🎬</span>\'">' + label;
     btn.style.flexDirection = 'column';
     btn.draggable = true;
 
     btn.onclick = () => {
-      fetch('/api/display/show_file?file=' + encodeURIComponent(f)).catch(() => {});
+      // Toggle: pressing the SAME file again while it's live kills it and
+      // reverts to whatever was up before, instead of needing a separate
+      // stop control or waiting out the rest of the clip.
+      if (_currentMemeFile === f) {
+        fetch('/api/display/stop_meme').catch(() => {});
+      } else {
+        fetch('/api/display/show_file?file=' + encodeURIComponent(f)).catch(() => {});
+      }
       btn.style.transform = 'scale(0.95)';
       setTimeout(() => btn.style.transform = '', 120);
     };
 
     btn.addEventListener('dragstart', e => {
-      _memesDragSrc = btn;
+      _dragSrc = btn;
       e.dataTransfer.effectAllowed = 'move';
       setTimeout(() => btn.style.opacity = '0.4', 0);
     });
     btn.addEventListener('dragend', () => {
       btn.style.opacity = '';
-      document.querySelectorAll('#memesGrid .sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
+      grid.querySelectorAll('.sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
       const order = [...grid.querySelectorAll('.sfx-btn')].map(b => b.dataset.filename);
-      _saveConsoleOrder('memes', order);
+      _saveConsoleOrder(orderKey, order);
     });
     btn.addEventListener('dragover', e => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      document.querySelectorAll('#memesGrid .sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
-      if (btn !== _memesDragSrc) btn.classList.add('sfx-drag-over');
+      grid.querySelectorAll('.sfx-btn').forEach(b => b.classList.remove('sfx-drag-over'));
+      if (btn !== _dragSrc) btn.classList.add('sfx-drag-over');
     });
     btn.addEventListener('drop', e => {
       e.preventDefault();
-      if (_memesDragSrc && _memesDragSrc !== btn) {
+      if (_dragSrc && _dragSrc !== btn) {
         const kids = [...grid.children];
-        const si = kids.indexOf(_memesDragSrc);
+        const si = kids.indexOf(_dragSrc);
         const di = kids.indexOf(btn);
-        if (si < di) grid.insertBefore(_memesDragSrc, btn.nextSibling);
-        else grid.insertBefore(_memesDragSrc, btn);
+        if (si < di) grid.insertBefore(_dragSrc, btn.nextSibling);
+        else grid.insertBefore(_dragSrc, btn);
       }
     });
 
     grid.appendChild(btn);
   });
+}
+
+async function buildMemesGrid() {
+  let files = [];
+  let tags  = {};
+  try { files = await fetch('/api/display/list').then(r => r.json()); } catch(e) {}
+  try { tags  = await fetch('/api/display/tags').then(r => r.json()); } catch(e) {}
+
+  // Tagged "Meme" (any casing) instead of "every video/gif in the whole
+  // Display library" -- the file-type filter didn't actually narrow
+  // anything down, since most of Display's videos/gifs aren't memes.
+  const memeFiles = files.filter(f => (tags[f] || []).some(t => t.toLowerCase() === 'meme'));
+  // Logos, screens, and other one-off graphics that aren't tagged anything --
+  // still fireable from Console without needing to go into Admin.
+  const graphicFiles = files.filter(f => !(tags[f] || []).length);
+
+  await _renderFireableDisplayGrid('memesGrid', 'memes', memeFiles,
+    'NO MEMES TAGGED YET — TAG FILES "MEME" IN ADMIN → DISPLAY');
+  await _renderFireableDisplayGrid('graphicsGrid', 'graphics', graphicFiles,
+    'NO UNTAGGED GRAPHICS — EVERYTHING IN DISPLAY IS TAGGED');
+
+  try {
+    const s = await fetch('/api/state').then(r => r.json());
+    _currentMemeFile = (s.meme && s.meme.playing) ? s.meme.file : null;
+  } catch (e) {}
+  _syncMemeButtonState();
 }
 
 async function buildMacroGrid() {
@@ -4012,7 +4224,7 @@ function initWebSocket() {
         // Another device dragged a new order into SFX/Memes/Display — pick it
         // up live instead of only on next tab open.
         if (data.kind === 'sfx')     buildSfxGrid();
-        else if (data.kind === 'memes')   buildMemesGrid();
+        else if (data.kind === 'memes' || data.kind === 'graphics') buildMemesGrid();
         else if (data.kind === 'display') buildDisplayGrid();
       }
 
@@ -4093,6 +4305,7 @@ function initWebSocket() {
       }
 
       else if (event === 'karaoke_state') { kkApplyState(data); }
+      else if (event === 'meme_state') { _currentMemeFile = data.playing ? data.file : null; _syncMemeButtonState(); }
 
       else if (event === 'games_state') {
         _gamesData = data;

@@ -567,7 +567,8 @@
     /* Solid color FIRST, gradient tint on top -- the gradient's own color
        stops are partly transparent (rgba alpha < 1), so without an opaque
        base underneath, whatever was on screen before this layer showed
-       through the middle of the screen instead of being fully replaced. */
+       through the middle of the screen instead of being fully replaced.
+       Only actually visible when there's no walk-up video/frame covering it. */
     background-color: #060504;
     background-image: radial-gradient(ellipse at 50% 40%, rgba(245,166,35,.10) 0%, transparent 70%);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -575,26 +576,44 @@
   }
   #layer-karaoke.karaoke-active { opacity: 1; pointer-events: auto; }
 
-  /* Uploaded per-camp border graphic (full-bleed, decorative, never
-     intercepts input) -- falls back to a plain CSS double-border look
-     (below) when nothing's been uploaded. */
+  /* Per-song walk-up video -- plays once (no loop) and, since nothing
+     resets its currentTime or restarts it, simply holds displaying its
+     last frame once it ends. That held frame is "the frame" the lyrics
+     sit on top of, same idea as a circle/role walkup, just held instead
+     of handed off to something else. */
+  #kk-video {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    pointer-events: none; z-index: 1; display: none;
+  }
+  #layer-karaoke.kk-has-video #kk-video { display: block; }
+
+  /* Uploaded per-camp border graphic -- shown only when a song has no
+     walk-up video of its own; falls back further to a plain CSS
+     double-border when nothing's been uploaded either. */
   #kk-frame-img {
     position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
     pointer-events: none; z-index: 1; display: none;
   }
-  #layer-karaoke.kk-has-frame #kk-frame-img { display: block; }
-  #layer-karaoke:not(.kk-has-frame)::before {
+  #layer-karaoke.kk-has-frame:not(.kk-has-video) #kk-frame-img { display: block; }
+  #layer-karaoke:not(.kk-has-frame):not(.kk-has-video)::before {
     content: ''; position: absolute; inset: 3vh 3vw; z-index: 1; pointer-events: none;
     border: 2px solid rgba(245,166,35,.3); border-radius: 3px;
   }
-  #layer-karaoke:not(.kk-has-frame)::after {
+  #layer-karaoke:not(.kk-has-frame):not(.kk-has-video)::after {
     content: ''; position: absolute; inset: 4.2vh 4.2vw; z-index: 1; pointer-events: none;
     border: 1px solid rgba(245,166,35,.16); border-radius: 2px;
   }
 
   #kk-card {
     position: relative; z-index: 2;
-    background: rgba(0,0,0,.6); border-radius: 20px; backdrop-filter: blur(6px);
+    /* No backdrop-filter here on purpose -- blur is a genuinely expensive
+       GPU op, and it recomposites every time the text underneath changes,
+       i.e. on every single lyric line. This card shares the Pi with the
+       actual audio playback (same box runs the kiosk browser and the
+       Python/pygame mixer), so a per-line GPU spike is exactly the kind of
+       thing that can starve the audio thread at exactly the wrong moments.
+       A plain solid/opaque background costs effectively nothing to repaint. */
+    background: rgba(10,8,6,.82); border-radius: 20px;
     padding: 3.5vh 5vw; max-width: 84vw;
   }
   #kk-heading {
@@ -613,14 +632,43 @@
     transition: opacity .25s ease;
   }
   #kk-line-next { font-size: 2.2vw; color: rgba(255,255,255,.28); font-weight: 700; margin-top: 1.6vw; min-height: 2.6vw; transition: opacity .3s ease; }
-  #kk-walkup-view #kk-line-prev, #kk-walkup-view #kk-line-current, #kk-walkup-view #kk-line-next,
-  #kk-lobby-view  #kk-line-prev, #kk-lobby-view  #kk-line-current, #kk-lobby-view  #kk-line-next { display: none; }
+
+  /* Duet lines -- tagged per-line in Admin, not detected automatically.
+     Singer A keeps the existing brand amber so untagged/solo songs and "A"
+     read the same; singer B gets a cool contrasting blue so the two voices
+     are unmistakable at a glance; BOTH blends the two glows for a
+     together-line instead of picking one. Prev/next stay at the same dim
+     opacity as the untagged style, just tinted, so the upcoming singer is
+     visible a line ahead. */
+  #kk-line-current.kk-singer-a { color: #F5A623; text-shadow: 0 0 2.5vw #F5A62366; }
+  #kk-line-current.kk-singer-b { color: #4FC3F7; text-shadow: 0 0 2.5vw #4FC3F766; }
+  #kk-line-current.kk-singer-both { color: #fff; text-shadow: 0 0 1.6vw #F5A623aa, 0 0 2.6vw #4FC3F7aa; }
+  #kk-line-prev.kk-singer-a, #kk-line-next.kk-singer-a { color: rgba(245,166,35,.45); }
+  #kk-line-prev.kk-singer-b, #kk-line-next.kk-singer-b { color: rgba(79,195,247,.45); }
+  #kk-line-prev.kk-singer-both, #kk-line-next.kk-singer-both { color: rgba(255,255,255,.4); }
+  .kk-lobby-view #kk-line-prev, .kk-lobby-view #kk-line-current, .kk-lobby-view #kk-line-next { display: none; }
   #kk-lobby-hint {
     display: none; font-size: 1.7vw; letter-spacing: .15em; color: rgba(245,166,35,.85);
     font-weight: 700; margin-top: 2vh; animation: kk-pulse 1.6s ease-in-out infinite;
   }
-  #kk-lobby-view #kk-lobby-hint { display: block; }
+  .kk-lobby-view #kk-lobby-hint { display: block; }
   @keyframes kk-pulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+
+  /* No song revealed yet (fresh GO LIVE) -- just the walk-up video/frame,
+     no card/text over it at all, so it can actually be judged on its own
+     against whatever framing is baked into the video/frame graphic. */
+  .kk-blank-lobby #kk-card { display: none; }
+
+  /* GET READY / 3-2-1 count-off, shown between REVEAL and the song actually
+     starting -- bigger than even the current-lyric-line text since this is
+     the one moment the whole room's eyes are on a single number. */
+  #kk-countdown {
+    display: none; font-size: 9vw; font-weight: 900; color: #F5A623;
+    text-shadow: 0 0 4vw #F5A62366; letter-spacing: .05em; line-height: 1;
+  }
+  .kk-countdown-view #kk-countdown { display: block; }
+  .kk-countdown-view #kk-line-prev, .kk-countdown-view #kk-line-current,
+  .kk-countdown-view #kk-line-next, .kk-countdown-view #kk-lobby-hint { display: none; }
 
   /* ── VIZ LAYERS ─────────────────────────────────────────────── */
   #layer-viz-music, #layer-viz-crowd {
@@ -679,6 +727,7 @@
 
 <!-- KARAOKE OVERLAY -->
 <div id="layer-karaoke">
+  <video id="kk-video" muted playsinline></video>
   <img id="kk-frame-img" alt="">
   <div id="kk-card">
     <div id="kk-heading">Now Singing</div>
@@ -687,7 +736,8 @@
     <div id="kk-line-prev"></div>
     <div id="kk-line-current"></div>
     <div id="kk-line-next"></div>
-    <div id="kk-lobby-hint">🎤 GET READY TO SING</div>
+    <div id="kk-lobby-hint">GET READY TO SING</div>
+    <div id="kk-countdown"></div>
   </div>
 </div>
 
@@ -939,6 +989,18 @@ function _ensureTitleAudioGraph(titleVideo) {
   } catch (e) { /* Web Audio unavailable — falls back to unboosted element volume */ }
 }
 
+// A meme ending over a walk-up doesn't need the walk-up re-fired -- it was
+// never actually torn down underneath (display_animation's hide-chain never
+// touches layerWalkup), just covered by this now-opaque layer. Fading this
+// back out is the whole "revert" -- no restart, no re-triggered video/name
+// reveal, nothing else needs to change.
+function _clearMemeOverlay() {
+  const titleVideo = document.getElementById('title-video');
+  layerTitle.style.transition = 'opacity 0.5s ease';
+  layerTitle.style.opacity    = '0';
+  if (titleVideo) titleVideo.pause();
+}
+
 function showTitleVideo(data) {
   const videoUrl = data.video || '';
   if (!videoUrl) return;
@@ -958,7 +1020,10 @@ function showTitleVideo(data) {
   titleVideo.loop    = loopVideo;
   titleVideo.muted   = (data.muted === false) ? false : true;
   titleVideo.onended = holdFrame ? () => { titleVideo.pause(); }
-                     : autoRevert ? () => { showStandby(); }
+                     // The server decides what "revert" actually means --
+                     // whatever was showing before this fired, not always
+                     // standby -- and re-broadcasts it once told this ended.
+                     : autoRevert ? () => { fetch('/api/display/meme_ended', {method:'POST'}).catch(() => {}); }
                      : null;
 
   _ensureTitleAudioGraph(titleVideo);
@@ -1732,11 +1797,13 @@ function hideLeaderboard() {
 // ── KARAOKE ─────────────────────────────────────────────────────────────────
 const layerKaraoke  = document.getElementById('layer-karaoke');
 const kkFrameImg    = document.getElementById('kk-frame-img');
-let _kkLyrics = [], _kkStartMs = null, _kkInterval = null, _kkLastLineIdx = -1;
-let _kkLastFrameUrl = null;
+const kkVideo       = document.getElementById('kk-video');
+let _kkLyrics = [], _kkStartMs = null, _kkInterval = null, _kkLastLineIdx = -1, _kkCountdownInterval = null;
+let _kkLastFrameUrl = null, _kkLastVideoUrl = null;
 
 // Uploaded per-camp border image, or the plain CSS double-border default
 // when nothing's been uploaded (kk-has-frame class toggles which shows).
+// A song's own walk-up video (below) takes priority over both.
 function _kkApplyFrame(frameUrl) {
   if (frameUrl) {
     if (frameUrl !== _kkLastFrameUrl) kkFrameImg.src = frameUrl;
@@ -1747,33 +1814,82 @@ function _kkApplyFrame(frameUrl) {
   _kkLastFrameUrl = frameUrl;
 }
 
-function showKaraokeWalkup(data) {
+// Plays once (loop=false) and, since nothing seeks or restarts it once
+// ended, simply keeps displaying its last rendered frame -- that's what
+// becomes "the frame" the lyric card sits on top of.
+function _kkApplyVideo(videoUrl) {
+  if (videoUrl) {
+    layerKaraoke.classList.add('kk-has-video');
+    if (videoUrl !== _kkLastVideoUrl) {
+      kkVideo.loop = false;
+      kkVideo.onended = () => kkVideo.pause();
+      kkVideo.src = videoUrl;
+      kkVideo.currentTime = 0;
+      kkVideo.play().catch(() => {});
+    }
+  } else {
+    layerKaraoke.classList.remove('kk-has-video');
+    kkVideo.removeAttribute('src');
+  }
+  _kkLastVideoUrl = videoUrl;
+}
+
+// Walk-up video (if any) + lobby land in one immediate reveal, same shape
+// as a circle/role walkup -- no separate timed "play video, then switch to
+// lobby" step. The video plays behind the card and holds on its last frame
+// for the rest of the lobby AND straight through into singing.
+function showKaraokeLobby(data) {
   hideSlide();
   clearInterval(_kkInterval);
+  clearInterval(_kkCountdownInterval);
   _kkLyrics = []; _kkStartMs = null; _kkLastLineIdx = -1;
-  layerKaraoke.classList.add('karaoke-active', 'kk-walkup-view');
+  layerKaraoke.classList.remove('kk-countdown-view');
+  layerKaraoke.classList.add('karaoke-active', 'kk-lobby-view');
+  layerKaraoke.classList.toggle('kk-blank-lobby', !data.title);
+  _kkApplyVideo(data.video_url);
   _kkApplyFrame(data.frame_url);
-  document.getElementById('kk-heading').textContent = 'Now Singing';
+  // No card/text at all until a song is actually revealed -- just the
+  // walk-up video/frame on its own (see .kk-blank-lobby above). A specific
+  // song's title/artist shows here once REVEAL is pressed (see
+  // reveal_karaoke_song in musicman.py), still ahead of the count-off/singing.
+  document.getElementById('kk-heading').textContent = data.title ? 'Up Next' : '';
   document.getElementById('kk-title').textContent  = data.title  || '';
   document.getElementById('kk-artist').textContent = data.artist || '';
 }
 
-function showKaraokeLobby(data) {
+function showKaraokeCountdown(data) {
   hideSlide();
   clearInterval(_kkInterval);
-  _kkLyrics = []; _kkStartMs = null; _kkLastLineIdx = -1;
-  layerKaraoke.classList.remove('kk-walkup-view');
-  layerKaraoke.classList.add('karaoke-active', 'kk-lobby-view');
+  layerKaraoke.classList.remove('kk-lobby-view');
+  layerKaraoke.classList.add('karaoke-active', 'kk-countdown-view');
+  _kkApplyVideo(data.video_url);
   _kkApplyFrame(data.frame_url);
-  document.getElementById('kk-heading').textContent = 'Up Next';
+  document.getElementById('kk-heading').textContent = 'Get Ready';
   document.getElementById('kk-title').textContent  = data.title  || '';
   document.getElementById('kk-artist').textContent = data.artist || '';
+
+  const startMs   = data.countdown_start_ms || Date.now();
+  const totalSecs = data.countdown_seconds || 4;
+  const el = document.getElementById('kk-countdown');
+  const tick = () => {
+    const remaining = totalSecs - (Date.now() - startMs) / 1000;
+    const n = Math.ceil(remaining);
+    el.textContent = n > 3 ? 'GET READY' : (n > 0 ? String(n) : '');
+  };
+  tick();
+  clearInterval(_kkCountdownInterval);
+  _kkCountdownInterval = setInterval(tick, 100);
 }
 
 function showKaraoke(data) {
   hideSlide();
-  layerKaraoke.classList.remove('kk-walkup-view', 'kk-lobby-view');
+  clearInterval(_kkCountdownInterval);
+  layerKaraoke.classList.remove('kk-lobby-view', 'kk-countdown-view');
   layerKaraoke.classList.add('karaoke-active');
+  // The video (if any) is already playing/held from the lobby -- only
+  // re-apply if this is a fresh page load/reconnect that skipped straight
+  // to the singing state and never saw the lobby event.
+  _kkApplyVideo(data.video_url);
   _kkApplyFrame(data.frame_url);
   document.getElementById('kk-heading').textContent = 'Now Singing';
   document.getElementById('kk-title').textContent  = data.title || '';
@@ -1781,9 +1897,29 @@ function showKaraoke(data) {
   _kkLyrics      = data.lyrics || [];
   _kkStartMs     = data.start_ms || Date.now();
   _kkLastLineIdx = -1;
+  // Wipe whatever the previous song left on screen right now, rather than
+  // rely on the tick loop's "line index changed" diff to notice -- if the
+  // new song's first computed index also happens to be -1 (its first line
+  // hasn't started yet), that diff sees no change and the old song's last
+  // lyric lines would otherwise sit there until the new song's first real
+  // line arrives.
+  const elPrev = document.getElementById('kk-line-prev');
+  const elCur  = document.getElementById('kk-line-current');
+  const elNext = document.getElementById('kk-line-next');
+  elPrev.textContent = ''; elCur.textContent = ''; elNext.textContent = '';
+  _kkSetSingerClass(elPrev, ''); _kkSetSingerClass(elCur, ''); _kkSetSingerClass(elNext, '');
   clearInterval(_kkInterval);
   _kkInterval = setInterval(_updateKaraokeLyrics, 150);
   _updateKaraokeLyrics();
+}
+
+// Applies (or clears) the duet color class for one line's <div> based on its
+// tagged singer -- 'A'/'B'/'BOTH' from Admin, or untagged for a solo song.
+function _kkSetSingerClass(el, singer) {
+  el.classList.remove('kk-singer-a', 'kk-singer-b', 'kk-singer-both');
+  if (singer === 'A')    el.classList.add('kk-singer-a');
+  else if (singer === 'B')    el.classList.add('kk-singer-b');
+  else if (singer === 'BOTH') el.classList.add('kk-singer-both');
 }
 
 function _updateKaraokeLyrics() {
@@ -1795,14 +1931,21 @@ function _updateKaraokeLyrics() {
   }
   if (idx === _kkLastLineIdx) return;
   _kkLastLineIdx = idx;
-  document.getElementById('kk-line-prev').textContent    = idx > 0 ? _kkLyrics[idx - 1].text : '';
-  document.getElementById('kk-line-current').textContent = idx >= 0 ? _kkLyrics[idx].text : '';
-  document.getElementById('kk-line-next').textContent    = idx + 1 < _kkLyrics.length ? _kkLyrics[idx + 1].text : '';
+  const elPrev = document.getElementById('kk-line-prev');
+  const elCur  = document.getElementById('kk-line-current');
+  const elNext = document.getElementById('kk-line-next');
+  elPrev.textContent = idx > 0 ? _kkLyrics[idx - 1].text : '';
+  elCur.textContent  = idx >= 0 ? _kkLyrics[idx].text : '';
+  elNext.textContent = idx + 1 < _kkLyrics.length ? _kkLyrics[idx + 1].text : '';
+  _kkSetSingerClass(elPrev, idx > 0 ? _kkLyrics[idx - 1].singer : '');
+  _kkSetSingerClass(elCur,  idx >= 0 ? _kkLyrics[idx].singer : '');
+  _kkSetSingerClass(elNext, idx + 1 < _kkLyrics.length ? _kkLyrics[idx + 1].singer : '');
 }
 
 function hideKaraoke() {
-  layerKaraoke.classList.remove('karaoke-active', 'kk-walkup-view', 'kk-lobby-view');
+  layerKaraoke.classList.remove('karaoke-active', 'kk-lobby-view', 'kk-countdown-view', 'kk-blank-lobby');
   clearInterval(_kkInterval);
+  clearInterval(_kkCountdownInterval);
 }
 
 // ── CHRONO OVERLAY (countdown + stopwatch) ────────────────────────────────────
@@ -1968,10 +2111,24 @@ function connectWS() {
       else if (msg.event === 'display_band_slideshow_stop')  { hideBandSlideshow(); hideKaraoke(); }
       else if (msg.event === 'display_vs_card')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showVsCard(data); }
       else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showLeaderboard(data); }
-      else if (msg.event === 'display_karaoke_walkup') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraokeWalkup(data); }
-      else if (msg.event === 'display_karaoke_lobby')  { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraokeLobby(data); }
-      else if (msg.event === 'display_karaoke')        { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraoke(data); }
-      else if (msg.event === 'karaoke_state') { if (!data.playing) hideKaraoke(); }
+      else if (msg.event === 'display_karaoke_lobby')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraokeLobby(data); }
+      else if (msg.event === 'display_karaoke_countdown') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraokeCountdown(data); }
+      else if (msg.event === 'display_karaoke')           { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraoke(data); }
+      else if (msg.event === 'karaoke_state') {
+        if (!data.live && !data.revealed && !data.counting_down && !data.playing) { hideKaraoke(); }
+        else if (data.playing) {
+          // PAUSE freezes the lyric line right where it is; RESUME shifts
+          // start_ms forward by the pause length server-side, so restarting
+          // the interval off the fresh start_ms picks up exactly on time
+          // instead of jumping ahead by however long the pause lasted.
+          _kkStartMs = data.start_ms || _kkStartMs;
+          clearInterval(_kkInterval);
+          if (!data.paused) {
+            _kkInterval = setInterval(_updateKaraokeLyrics, 150);
+            _updateKaraokeLyrics();
+          }
+        }
+      }
       else if (msg.event === 'display_leaderboard_hide') { hideLeaderboard(); }
       else if (msg.event === 'display_h2h')       { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showH2H(data); }
       else if (msg.event === 'h2h_score')         { updateH2HScore(data); }
@@ -1980,6 +2137,7 @@ function connectWS() {
       else if (msg.event === 'display_h2h_winner') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showH2HWinner(data); }
       else if (msg.event === 'timer_hide')        { hideChronoOverlay(); }
       else if (msg.event === 'display_reload')    { location.href = '/display?v=' + Date.now(); }
+      else if (msg.event === 'display_meme_cleared') { _clearMemeOverlay(); }
       else if (msg.event === 'display_navigate')  {
         if (!data.url || data.url === '/display' || data.url.startsWith('/display?')) {
           hideGameFrame();

@@ -34,6 +34,7 @@ from logging.handlers import RotatingFileHandler
 import requests
 import socket
 import pygame
+import pygame.sndarray
 from pathlib import Path
 from mutagen.mp3  import MP3  as MutagenMP3
 from mutagen.wave import WAVE as MutagenWAV
@@ -115,6 +116,16 @@ def _collect_show_flow_assets(cfg):
         a = ge.get('assets', {}); geid = ge['id']; d = ASSETS_DIR / 'game_entries'
         if a.get('animation_intro'): _add(f"/assets/game_entries/{geid}/{_versioned_walkup_file(d, geid, a['animation_intro'])}")
         if a.get('animation'):       _add(f"/assets/game_entries/{geid}/{_versioned_walkup_file(d, geid, a['animation'])}")
+    # Any video a macro plays via a display_anim step -- e.g. the Council
+    # Reveal's video -- same "fires right up" treatment as walkup videos.
+    # Deliberately NOT the Memes/Graphics library: those are fired ad hoc
+    # from Console rather than scripted into a macro, so preloading the
+    # whole library would just be wasted bandwidth/memory for files that
+    # may never get played this show.
+    for m in cfg.get('macros', []):
+        for step in m.get('steps', []):
+            if step.get('action') == 'display_anim' and step.get('file'):
+                _add(f"/assets/display/{step['file']}")
     return urls
 
 
@@ -302,9 +313,17 @@ def _navigate_home_if_needed():
         broadcast('display_navigate', {'url': '/display'})
         _display_url = '/display'
 
-def _ensure_display_for(event, data, delay=1.2):
-    """Send a display event, navigating home first if not on display.html."""
-    global _display_url
+_last_display_state = {'event': None, 'data': None}  # see api_display_show_file()/stop_meme
+
+def _ensure_display_for(event, data, delay=1.2, remember=True):
+    """Send a display event, navigating home first if not on display.html.
+
+    remember=False for something transient (a Display/Memes video or image
+    fired over whatever else was up) that shouldn't itself become the thing
+    a later "back to what was there" reverts to -- see _last_display_state,
+    which always holds the last *remembered* event/data, i.e. effectively
+    "what was showing right before the current transient thing fired"."""
+    global _display_url, _last_display_state
     # Every non-game display event (walkup, slide, standby, H2H, ...) goes
     # through here -- the one shared choke point outside the game-iframe path
     # itself. Clearing 'revealed' here means a WS-reconnect self-heal (see
@@ -314,6 +333,8 @@ def _ensure_display_for(event, data, delay=1.2):
     # _launch_game() call.
     if _current_live_game.get('revealed'):
         _current_live_game['revealed'] = False
+    if remember:
+        _last_display_state = {'event': event, 'data': data}
     with _display_url_lock:
         needs_nav = _display_url != '/display'
         if needs_nav:
@@ -388,17 +409,27 @@ def websocket(ws):
 
 # ── AUDIO ENGINE ──
 def _init_mixer(retries=5, delay=2):
-    global _karaoke_vocal_channel
+    global _karaoke_vocal_channel, _karaoke_instrumental_channel
     for attempt in range(1, retries + 1):
         try:
             pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
             pygame.mixer.set_num_channels(8)
-            # Reserve channel 0 exclusively for the karaoke vocal guide track --
-            # set_reserved() excludes it from Sound.play()'s automatic channel
-            # pool, so a KILL ALL/SFX fire mid-song can never grab it out from
-            # under a live karaoke performance.
-            pygame.mixer.set_reserved(1)
-            _karaoke_vocal_channel = pygame.mixer.Channel(0)
+            # Reserve channels 0-1 exclusively for karaoke (instrumental +
+            # vocal guide) -- set_reserved() excludes them from Sound.play()'s
+            # automatic channel pool, so a KILL ALL/SFX fire mid-song can
+            # never grab either one out from under a live performance.
+            #
+            # Both tracks play via Channel.play(Sound) rather than mixing
+            # pygame.mixer.music (streaming) for one and a Channel for the
+            # other -- those are two genuinely separate subsystems inside
+            # SDL_mixer with their own buffering/timing, and running them
+            # simultaneously was reported live as the vocal "halting," even
+            # though the source files themselves were independently verified
+            # sample-accurate against the original track. Using the same
+            # Channel-based path for both puts them on identical timing.
+            pygame.mixer.set_reserved(2)
+            _karaoke_instrumental_channel = pygame.mixer.Channel(0)
+            _karaoke_vocal_channel        = pygame.mixer.Channel(1)
             log.info("pygame mixer initialised")
             return
         except Exception as e:
@@ -1135,6 +1166,17 @@ def set_volume(v):
     """Set music volume 0-100."""
     audio_state['volume'] = int(v)
     pygame.mixer.music.set_volume(int(v) / 100)
+    # Karaoke's instrumental/vocal don't play through mixer.music (see
+    # _begin_karaoke_playback), so they need their own hook here to keep
+    # responding to the same MUSIC slider while a song is live -- this is
+    # the overall level for the whole karaoke mix; the vocal guide's own
+    # balance slider (vocal_volume) still applies on top of it, see
+    # _karaoke_vocal_target_volume.
+    if karaoke_state.get('playing'):
+        if _karaoke_instrumental_channel:
+            _karaoke_instrumental_channel.set_volume(int(v) / 100)
+        if _karaoke_vocal_channel:
+            _karaoke_vocal_channel.set_volume(_karaoke_vocal_target_volume())
     broadcast('audio_state', audio_state)
 
 def set_sfx_volume(v):
@@ -1189,16 +1231,23 @@ stopwatch_state = {
 # so a Kill-All/SFX firing mid-song can never steal it out from under a live
 # karaoke performance.
 karaoke_state = {
-    'playing':      False,
-    'lobby':        False,  # song picked, title/artist showing, singing not started yet
-    'song_id':      None,
-    'title':        '',
-    'artist':       '',
-    'start_ms':     None,
-    'duration':     0,
-    'lyrics':       [],
-    'vocal_volume': 80,
-    'frame_url':    '',
+    'live':               False,  # GO LIVE pressed -- walk-up fired, song grid live, no song picked yet
+    'revealed':           False,  # a song's title/artist is up on screen, not singing yet
+    'counting_down':      False,  # GET READY / 3-2-1 in progress
+    'playing':            False,
+    'paused':             False,
+    'song_id':            None,
+    'title':              '',
+    'artist':             '',
+    'start_ms':           None,
+    'countdown_start_ms': None,
+    'countdown_seconds':  0,
+    'duration':           0,
+    'lyrics':             [],
+    'vocal_volume':       80,
+    'vocal_muted':        False,  # MC's remote MUTE toggle -- hear the crowd sing unassisted
+    'frame_url':          '',
+    'video_url':          '',
 }
 _karaoke_stop_event = threading.Event()
 # _karaoke_vocal_channel itself is assigned inside _init_mixer() (below), which
@@ -1609,6 +1658,20 @@ _IP_RESOLVE_TTL      = 60    # a pole reconnecting to the AP after a power blip 
                               # survive on its own, see _invalidate_ip() for the
                               # faster path (a failed send invalidates immediately
                               # rather than waiting out the TTL)
+_IP_RESOLVE_DEAD_FALLBACK = '203.0.113.254'  # RFC 5737 TEST-NET-3 -- reserved,
+                              # guaranteed non-routable. Cached (see below) in
+                              # place of the raw hostname for a node that has
+                              # never once resolved, so every subsequent send to
+                              # it fails fast against a literal IP (bounded by
+                              # that call's own timeout=) instead of handing
+                              # requests.post() an unresolved hostname it then
+                              # has to re-attempt resolving itself on every
+                              # single call -- confirmed live (2026-08-27) as
+                              # the actual cause of two permanently-unreachable
+                              # poles dragging down the whole Pi: each of those
+                              # internal re-resolution attempts measured up to
+                              # ~8s, uncapped by any timeout, repeating every
+                              # few seconds for as long as the poles stayed down.
 
 def _do_resolve_ip(hostname):
     try:
@@ -1636,9 +1699,12 @@ def _resolve_ip_once(hostname):
     kicked off to refresh it. Only a hostname with NO cache entry at all
     blocks the caller — see _prewarm_ip_cache(), which resolves every
     known pole/WLED hostname once at startup so that cold-blocking case
-    never happens on a live show. Falls back to the original hostname if
-    resolution fails, so callers behave the same as passing the hostname
-    straight through to requests.post()."""
+    never happens on a live show. Falls back to _IP_RESOLVE_DEAD_FALLBACK
+    (a non-routable literal IP) if resolution fails, so a permanently
+    unreachable node fails every caller's connection fast and bounded by
+    that caller's own timeout=, instead of handing back the raw hostname
+    and leaving every future call to pay its own slow internal resolution
+    attempt against a dead name."""
     if not hostname:
         return hostname
     cached = _ip_resolve_cache.get(hostname)
@@ -1657,16 +1723,22 @@ def _resolve_ip_once(hostname):
     # _do_resolve_ip() only ever wrote the cache on success, so a
     # persistently-down node left nothing behind to short-circuit later
     # calls, and every one of them paid the same ~8s cost as the first.
-    # Caching the fallback here too (same value already being returned)
-    # means only the very first call ever blocks; every call after that
-    # takes the normal non-blocking cached-return-plus-background-refresh
-    # path, same as a node that resolved successfully.
+    # Caching a fallback here too means only the very first call ever
+    # blocks; every call after that takes the normal non-blocking
+    # cached-return-plus-background-refresh path, same as a node that
+    # resolved successfully. That fallback is a dead, non-routable IP
+    # (_IP_RESOLVE_DEAD_FALLBACK), not the raw hostname -- handing callers
+    # back the unresolved hostname string meant every one of their
+    # requests.post() calls re-attempted the same slow resolution
+    # internally, unbounded by any timeout= they set. A literal IP has
+    # nothing left to resolve, so the connection attempt fails fast and
+    # bounded instead.
     try:
         ip = socket.gethostbyname(hostname)
     except Exception:
         with _ip_resolve_lock:
-            _ip_resolve_cache[hostname] = (hostname, time.time())
-        return hostname
+            _ip_resolve_cache[hostname] = (_IP_RESOLVE_DEAD_FALLBACK, time.time())
+        return _IP_RESOLVE_DEAD_FALLBACK
     with _ip_resolve_lock:
         _ip_resolve_cache[hostname] = (ip, time.time())
     return ip
@@ -1694,6 +1766,34 @@ def _invalidate_ip(hostname):
     if cached:
         ip, _ = cached
         _ip_resolve_cache[hostname] = (ip, 0)
+
+_dmx_node_fail = {}   # hostname -> [consecutive_fail_count, last_attempt_ts]
+_DMX_FAIL_THRESHOLD = 3    # this many misses in a row before backing off
+_DMX_BACKOFF_SECONDS = 30  # ...and then only retry once per this interval
+
+def _dmx_should_skip(hostname):
+    """True if this pole node has failed enough times recently that a DMX
+    send should be skipped outright rather than paying another blocking
+    connect-timeout (2s, per send, per node -- and every scene apply sends
+    to every node, twice, for the straggler-resend). Confirmed live
+    (2026-08-27) that firing a scene with both poles disconnected queued up
+    several seconds of blocked sender threads on every single scene
+    change, which is most of what a macro actually does -- not itself the
+    thread the display broadcast runs on, but real, measured system load
+    stacking up call after call for a node that was already known to be
+    down. This makes a persistently-unreachable node cheap to keep skipping
+    instead of retried at full frequency forever."""
+    fails, last = _dmx_node_fail.get(hostname, (0, 0))
+    if fails < _DMX_FAIL_THRESHOLD:
+        return False
+    return (time.time() - last) < _DMX_BACKOFF_SECONDS
+
+def _dmx_record_result(hostname, ok):
+    if ok:
+        _dmx_node_fail[hostname] = (0, time.time())
+    else:
+        fails, _ = _dmx_node_fail.get(hostname, (0, 0))
+        _dmx_node_fail[hostname] = (fails + 1, time.time())
 
 def _prewarm_ip_cache():
     """Resolve every configured pole-node/WLED hostname once, up front, in
@@ -1837,11 +1937,15 @@ def wled_set_scene(scene_id, off=False):
                       for f in payload_raw]
             hostname = node['ip']
             def _post():
+                if _dmx_should_skip(hostname):
+                    return
                 try:
                     requests.post(f"http://{_resolve_ip_once(hostname)}/dmx",
                                   json={'fixtures': scaled}, timeout=2)
+                    _dmx_record_result(hostname, True)
                 except Exception as e:
                     _invalidate_ip(hostname)
+                    _dmx_record_result(hostname, False)
                     log.warning(f"Pole node {node_id} DMX error: {e}")
             _post()
             # A DMX animation loop cancelled by this same scene-apply can have
@@ -1976,11 +2080,17 @@ def wled_set_scene(scene_id, off=False):
             _inflight_lock = threading.Lock()
 
             def _send_one(node, payload, node_id, hostname):
+                if _dmx_should_skip(hostname):
+                    with _inflight_lock:
+                        _inflight.discard(node_id)
+                    return
                 try:
                     requests.post(f"http://{node['ip']}/dmx",
                                   json={'fixtures': payload}, timeout=2)
+                    _dmx_record_result(hostname, True)
                 except Exception:
                     _invalidate_ip(hostname)
+                    _dmx_record_result(hostname, False)
                 finally:
                     with _inflight_lock:
                         _inflight.discard(node_id)
@@ -2256,6 +2366,14 @@ def fire_walkup(circle_id=None, role_id=None, show_flow_idx=None):
     if next_preload:
         display_payload['next_preload'] = next_preload
 
+    # fire_walkup() broadcasts display_walkup directly rather than through
+    # _ensure_display_for() (its own nav-then-broadcast timing here is
+    # bespoke -- music/video need to start together, see play_music() below),
+    # so it has to record this itself for a later meme/Display fire to know
+    # what to revert back to (see _end_meme()).
+    global _last_display_state
+    _last_display_state = {'event': 'display_walkup', 'data': display_payload}
+
     def play_music():
         if music_file.exists() and music_file.is_file():
             vol_trim = walkup_cfg.get('volume_trim', 100)
@@ -2423,163 +2541,403 @@ def fire_game_entry(entry_id, reveal_url=None):
 # ════════════════════════════════════════════
 # KARAOKE
 # ════════════════════════════════════════════
-_karaoke_session = 0  # bumped on every play/stop so a stale auto-stop watcher from a
-                      # superseded song can never stop the one that replaced it
-_karaoke_preloaded = {}  # song_id -> pre-decoded pygame.mixer.Sound for the vocal guide,
-                          # built during the lobby so start_karaoke_singing() never
-                          # has to decode on the critical path (see _show_lobby below)
+_karaoke_session = 0  # bumped on every song start/stop so a stale auto-stop
+                      # watcher from a superseded song can never stop the one
+                      # that replaced it
+_karaoke_pause_started_ms = None
+_KARAOKE_COUNTDOWN_SECONDS = 4  # 1s "Get Ready" + 3, 2, 1
 
-def fire_karaoke_song(song_id):
-    """Bring a karaoke song up to its LOBBY -- title/artist on screen, singing
-    not started yet -- same shape as Trivia's walkup-then-lobby reveal.
-    Actually starting the vocals/lyrics is a separate, explicit operator
-    action (start_karaoke_singing) so a show never launches straight into
-    singing the instant a song is picked."""
+def fire_karaoke_live():
+    """GO LIVE for the whole Karaoke segment -- same shape as a game's Go
+    Live: fires the shared walk-up video/scene and brings up a generic
+    lobby, no song picked yet. Picking and starting a specific song is a
+    separate, later operator action (start_karaoke_song) -- songs are
+    picked live from Console rather than each being launched individually
+    with their own walk-up (Chris: "each song doesn't need a walkup video
+    and lights, just Karaoke as a part of the show")."""
     global _karaoke_session
+    _karaoke_session += 1
+    system_cfg   = config.get('system', {})
+    walkup_scene = system_cfg.get('karaoke_walkup_scene')
+    song_scene   = system_cfg.get('karaoke_song_scene')
+    if walkup_scene:
+        threading.Thread(target=wled_set_scene, args=(walkup_scene,), daemon=True).start()
+    if song_scene and song_scene != walkup_scene:
+        threading.Thread(target=wled_set_scene, args=(song_scene,), daemon=True).start()
+
+    karaoke_state['live']              = True
+    karaoke_state['revealed']          = False
+    karaoke_state['counting_down']     = False
+    karaoke_state['playing']           = False
+    karaoke_state['song_id']           = None
+    karaoke_state['title']             = ''
+    karaoke_state['artist']            = ''
+    karaoke_state['start_ms']          = None
+    karaoke_state['countdown_start_ms'] = None
+    karaoke_state['duration']          = 0
+    karaoke_state['lyrics']            = []
+    karaoke_state['video_url']         = _karaoke_walkup_video_url(bust=int(time.time() * 1000))
+    karaoke_state['frame_url']         = _karaoke_frame_url()
+    broadcast('karaoke_state', karaoke_state)
+    _ensure_display_for('display_karaoke_lobby', dict(karaoke_state))
+    log.info("Karaoke: live")
+
+def reveal_karaoke_song(song_id):
+    """Operator picks a song from the live Karaoke lobby and reveals its
+    title/artist on screen. Singing hasn't started yet -- that's the
+    separate START press (start_karaoke_song).
+
+    Returns None on success, or an error message string on failure -- lets
+    the route actually tell the operator when this silently does nothing,
+    instead of a button press with zero feedback either way."""
+    global _karaoke_session
+    if not karaoke_state.get('live'):
+        log.warning(f"Karaoke reveal ignored: not live ({song_id})")
+        return "Karaoke isn't live -- press GO LIVE first"
     song = next((s for s in config.get('karaoke_songs', []) if s['id'] == song_id), None)
     if not song:
         log.error(f"Karaoke song not found: {song_id}")
-        return
-    _karaoke_session += 1
-    my_session = _karaoke_session
+        return "That song isn't in the library anymore -- refresh the page"
     song_dir = ASSETS_DIR / 'karaoke' / song_id
     if not (song_dir / 'instrumental.mp3').exists() or not (song_dir / 'vocals.mp3').exists():
         log.error(f"Karaoke song {song_id} missing audio (instrumental/vocals not uploaded)")
-        return
+        return f"\"{song.get('title')}\" is missing its audio files"
+    _karaoke_session += 1
+    karaoke_state['revealed']      = True
+    karaoke_state['counting_down'] = False
+    karaoke_state['playing']       = False
+    karaoke_state['song_id']       = song_id
+    karaoke_state['title']         = song.get('title', '')
+    karaoke_state['artist']        = song.get('artist', '')
+    karaoke_state['duration']      = song.get('duration', 0)
+    karaoke_state['lyrics']        = song.get('lyrics', [])
+    karaoke_state['start_ms']      = None
+    broadcast('karaoke_state', karaoke_state)
+    _ensure_display_for('display_karaoke_lobby', dict(karaoke_state))
+    log.info(f"Karaoke revealed: {song.get('title')}")
+    return None
 
-    assets = song.get('assets', {})
-    walkup_scene = song.get('walkup_scene')
-    has_walkup   = bool(assets.get('animation') or assets.get('animation_intro') or assets.get('logo'))
-    walkup_duration = 4 if has_walkup else 0
+def _load_karaoke_sound(path, start_time=0.0):
+    """Loads a karaoke audio file as a pygame Sound, optionally skipping the
+    first start_time seconds -- a song's WALK-UP TIMING-style START field,
+    same idea as a circle/role walk-up's own START (SEC). pygame's
+    Channel/Sound playback (unlike pygame.mixer.music) has no built-in seek,
+    so the skip is done by slicing the already-decoded sample array before
+    handing it back as a Sound -- entirely in memory, the file on disk is
+    never touched, so there's nothing to undo and no reprocessing needed to
+    change the number later."""
+    sound = pygame.mixer.Sound(str(path))
+    if start_time and start_time > 0:
+        freq = pygame.mixer.get_init()[0]
+        arr = pygame.sndarray.array(sound)
+        start_frame = int(start_time * freq)
+        if 0 < start_frame < len(arr):
+            sound = pygame.sndarray.make_sound(arr[start_frame:])
+    return sound
 
-    def _show_lobby():
-        if _karaoke_session != my_session:
-            return  # superseded before the walkup finished
-        karaoke_state['playing']  = False
-        karaoke_state['lobby']    = True
-        karaoke_state['song_id']  = song_id
-        karaoke_state['title']    = song.get('title', '')
-        karaoke_state['artist']   = song.get('artist', '')
-        karaoke_state['start_ms'] = None
-        karaoke_state['duration'] = song.get('duration', 0)
-        karaoke_state['lyrics']   = song.get('lyrics', [])
-        karaoke_state['frame_url'] = _karaoke_frame_url()
-        broadcast('karaoke_state', karaoke_state)
-        _ensure_display_for('display_karaoke_lobby', dict(karaoke_state))
-        log.info(f"Karaoke lobby: {song.get('title')}")
+def start_karaoke_song(song_id):
+    """Operator starts the revealed song: shows a GET READY / 3-2-1
+    count-off, then starts the instrumental/vocal/lyrics right as it
+    finishes. Only proceeds if this song is still the one currently
+    revealed -- guards against a stale button press after the operator
+    picked something else.
 
-        # pygame.mixer.Sound() fully decodes the whole file synchronously --
-        # for a multi-minute mp3 on a Pi 4B that's real, audible time (100s of
-        # ms). Doing that decode *after* the instrumental has already started
-        # (the old code) meant the vocal guide always started measurably
-        # after the beat, reported live as "the vocals are waiting on the
-        # words on the screen." Decoding here instead, during the lobby
-        # while the operator is reading the title/artist, means by the time
-        # START SINGING is actually pressed the Sound is already sitting in
-        # memory ready to go -- start_karaoke_singing() then only has to fire
-        # two already-prepared .play() calls back to back.
-        def _preload():
-            try:
-                sound = pygame.mixer.Sound(str(song_dir / 'vocals.mp3'))
-                if _karaoke_session == my_session:
-                    _karaoke_preloaded[song_id] = sound
-            except Exception as e:
-                log.warning(f"Karaoke vocal preload failed for {song_id}: {e}")
-        threading.Thread(target=_preload, daemon=True).start()
-
-    if has_walkup:
-        if walkup_scene:
-            threading.Thread(target=wled_set_scene, args=(walkup_scene,), daemon=True).start()
-        karaoke_base = ASSETS_DIR / 'karaoke'
-        anim       = _versioned_walkup_file(karaoke_base, song_id, assets.get('animation', ''))
-        anim_intro = _versioned_walkup_file(karaoke_base, song_id, assets.get('animation_intro', ''))
-        walkup_payload = {
-            'title':  song.get('title', ''),
-            'artist': song.get('artist', ''),
-            'animation':       f'/assets/karaoke/{song_id}/{anim}'       if anim       else '',
-            'animation_intro': f'/assets/karaoke/{song_id}/{anim_intro}' if anim_intro else '',
-            'logo':            f'/assets/karaoke/{song_id}/{assets["logo"]}' if assets.get('logo') else '',
-            'frame_url':       _karaoke_frame_url(),
-        }
-        _ensure_display_for('display_karaoke_walkup', walkup_payload)
-        threading.Timer(walkup_duration, _show_lobby).start()
-    else:
-        _show_lobby()
-
-def start_karaoke_singing(song_id):
-    """Explicit operator action: leave the lobby and actually start the
-    instrumental + vocal guide + lyric display. Only proceeds if this song
-    is still the one currently sitting in the lobby -- guards against a
-    stale button press after the operator picked something else."""
+    Returns None on success, or an error message string on failure."""
     global _karaoke_session
-    if karaoke_state.get('song_id') != song_id or not karaoke_state.get('lobby'):
-        log.warning(f"Karaoke start_singing ignored: {song_id} is not the current lobby song")
-        return
+    if not karaoke_state.get('revealed') or karaoke_state.get('song_id') != song_id:
+        log.warning(f"Karaoke start ignored: {song_id} is not the currently-revealed song")
+        return "That song isn't the one currently revealed -- try REVEAL again"
     song = next((s for s in config.get('karaoke_songs', []) if s['id'] == song_id), None)
     if not song:
-        return
+        return "That song isn't in the library anymore -- refresh the page"
+    song_dir = ASSETS_DIR / 'karaoke' / song_id
+    if not (song_dir / 'instrumental.mp3').exists() or not (song_dir / 'vocals.mp3').exists():
+        log.error(f"Karaoke song {song_id} missing audio (instrumental/vocals not uploaded)")
+        return f"\"{song.get('title')}\" is missing its audio files"
     _karaoke_session += 1
     my_session = _karaoke_session
-    song_dir     = ASSETS_DIR / 'karaoke' / song_id
-    instrumental = song_dir / 'instrumental.mp3'
-    vocals       = song_dir / 'vocals.mp3'
-    song_scene   = song.get('song_scene')
 
-    if song_scene:
-        threading.Thread(target=wled_set_scene, args=(song_scene,), daemon=True).start()
     try:
-        # Get everything that takes real time (file opens, decode) done
-        # *before* either .play() call, so the two calls that actually start
-        # sound fire back to back with nothing but Python bytecode between
-        # them -- decoding here instead (the old code) put a real,
-        # audible gap between the instrumental starting and the vocal guide
-        # starting, reported live as the vocals lagging the beat.
-        vocal_sound = _karaoke_preloaded.pop(song_id, None)
-        if vocal_sound is None:
-            log.warning(f"Karaoke vocal for {song_id} wasn't preloaded in time -- decoding now (may cause a brief sync gap)")
-            vocal_sound = pygame.mixer.Sound(str(vocals))
-        pygame.mixer.music.stop()
-        pygame.mixer.music.load(str(instrumental))
-        pygame.mixer.music.set_volume(audio_state.get('volume', 80) / 100)
-        _karaoke_vocal_channel.set_volume(karaoke_state['vocal_volume'] / 100)
-        pygame.mixer.music.play()
+        # Decode now, during the count-off, so the moment the countdown
+        # actually hits zero (_begin_karaoke_playback) only has to fire two
+        # already-prepared .play() calls back to back -- same reasoning as
+        # the old lobby-preload: pygame.mixer.Sound() decode is ~100s of ms
+        # for a multi-minute mp3, real audible time if eaten *after* the
+        # count-off instead of during it.
+        start_time         = song.get('start_time', 0)
+        instrumental_sound = _load_karaoke_sound(song_dir / 'instrumental.mp3', start_time)
+        vocal_sound        = _load_karaoke_sound(song_dir / 'vocals.mp3', start_time)
+    except Exception as e:
+        log.error(f"Karaoke decode failed for {song_id}: {e}")
+        return "Could not play that song's audio -- check the files in Admin"
+
+    # Decode takes real time (100s of ms) -- if a STOP/END/different REVEAL
+    # landed while this was in flight, _karaoke_session has already moved on.
+    # Without this check, a cancelled countdown could still overwrite the
+    # newer state right as decode finishes, silently reviving something the
+    # operator already stopped.
+    if _karaoke_session != my_session:
+        log.info(f"Karaoke start for {song_id} superseded during decode, aborting")
+        return "Cancelled by a newer action"
+
+    karaoke_state['counting_down']      = True
+    karaoke_state['countdown_start_ms'] = int(time.time() * 1000)
+    karaoke_state['countdown_seconds']  = _KARAOKE_COUNTDOWN_SECONDS
+    broadcast('karaoke_state', karaoke_state)
+    _ensure_display_for('display_karaoke_countdown', dict(karaoke_state))
+    log.info(f"Karaoke counting down: {song.get('title')}")
+
+    def _after_countdown(ev=_karaoke_stop_event, sess=my_session):
+        if ev.wait(timeout=_KARAOKE_COUNTDOWN_SECONDS):
+            return  # cancelled -- STOP SONG/END pressed mid-countdown
+        if _karaoke_session == sess:
+            _begin_karaoke_playback(song, instrumental_sound, vocal_sound, sess)
+    threading.Thread(target=_after_countdown, daemon=True).start()
+    return None
+
+def _karaoke_vocal_target_volume():
+    """Effective vocal-channel gain: the master (Console left-pane) volume
+    slider times the vocal guide's own balance slider, so pulling the master
+    down brings the whole karaoke mix down together instead of leaving the
+    vocal guide at whatever it was -- the balance slider stays a relative
+    "how loud is the guide vocal vs. the instrumental" control on top of
+    that, not a second independent absolute level. Muted always wins."""
+    if karaoke_state.get('vocal_muted'):
+        return 0
+    return (audio_state.get('volume', 80) / 100) * (karaoke_state.get('vocal_volume', 80) / 100)
+
+def _begin_karaoke_playback(song, instrumental_sound, vocal_sound, my_session):
+    """Actually start the instrumental/vocal/lyrics -- called once the GET
+    READY count-off finishes. Both tracks play via Channel.play(Sound) --
+    NOT one via pygame.mixer.music and the other via a Channel, which is
+    what older code did. Mixing those two genuinely separate SDL_mixer
+    subsystems was reported live as the vocal audibly halting/lagging
+    throughout playback, even though the source files were independently
+    confirmed sample-accurate against the original track outside the app --
+    putting both tracks on the identical Channel-based timing path is the
+    actual fix."""
+    try:
+        pygame.mixer.music.stop()  # silence any regular background music karaoke is replacing
+        karaoke_state['vocal_muted'] = False  # fresh start -- always unmuted, before the volume calc below reads it
+        _karaoke_instrumental_channel.set_volume(audio_state.get('volume', 80) / 100)
+        _karaoke_vocal_channel.set_volume(_karaoke_vocal_target_volume())
+        _karaoke_instrumental_channel.play(instrumental_sound)
         _karaoke_vocal_channel.play(vocal_sound)
     except Exception as e:
-        log.error(f"Karaoke playback error for {song_id}: {e}")
+        log.error(f"Karaoke playback error: {e}")
         return
-    karaoke_state['playing']  = True
-    karaoke_state['lobby']    = False
-    karaoke_state['start_ms'] = int(time.time() * 1000)
+
+    karaoke_state['counting_down'] = False
+    karaoke_state['playing']       = True
+    karaoke_state['paused']        = False
+    # Backdate start_ms by the song's START offset (if any) rather than
+    # touching the lyrics' own timestamps or the audio files -- elapsed
+    # time (now - start_ms) then already reads as "start_time seconds in"
+    # the instant playback begins, which is exactly where the sliced audio
+    # actually is, so the existing lyric-timing and auto-stop-at-duration
+    # logic below both need zero further changes to stay correct.
+    karaoke_state['start_ms']      = int(time.time() * 1000) - int(song.get('start_time', 0) * 1000)
     broadcast('karaoke_state', karaoke_state)
     _ensure_display_for('display_karaoke', dict(karaoke_state))
     log.info(f"Karaoke started: {song.get('title')}")
 
     duration = song.get('duration', 0)
     if duration > 0:
+        # Polls rather than a single fixed-length sleep so a PAUSE mid-song
+        # doesn't get baked into the countdown -- start_ms itself shifts
+        # forward by however long a pause lasted (see resume_karaoke_song),
+        # so elapsed time here always reflects actual *playing* time, and a
+        # pause just stalls this check indefinitely instead of needing its
+        # own bookkeeping.
         def _auto_stop(ev=_karaoke_stop_event, sess=my_session):
-            if ev.wait(timeout=duration + 1):
-                return
-            if _karaoke_session == sess:
-                stop_karaoke()
+            while True:
+                if ev.wait(timeout=1):
+                    return  # cancelled
+                if _karaoke_session != sess:
+                    return
+                if karaoke_state.get('paused'):
+                    continue
+                elapsed = (time.time() * 1000 - karaoke_state['start_ms']) / 1000
+                if elapsed >= duration:
+                    stop_karaoke_song()
+                    return
         threading.Thread(target=_auto_stop, daemon=True).start()
 
-def stop_karaoke():
-    """Stop whatever karaoke song is currently playing or sitting in the lobby, if any."""
+def toggle_karaoke_vocal_mute():
+    """MC's remote MUTE button -- drops the vocal guide to silence so the MC
+    can hear the crowd sing unassisted, then brings it back for effect.
+    Doesn't touch the vocal_volume slider's remembered level, just whether
+    that level is actually being applied to the channel right now."""
+    if not karaoke_state.get('playing'):
+        return
+    karaoke_state['vocal_muted'] = not karaoke_state.get('vocal_muted')
+    if _karaoke_vocal_channel:
+        _karaoke_vocal_channel.set_volume(_karaoke_vocal_target_volume())
+    broadcast('karaoke_state', karaoke_state)
+    log.info(f"Karaoke: vocal {'muted' if karaoke_state['vocal_muted'] else 'unmuted'}")
+
+def pause_karaoke_song():
+    """Freeze the instrumental/vocal channels in place -- resume_karaoke_song
+    picks up from exactly here, lyrics included."""
+    global _karaoke_pause_started_ms
+    if not karaoke_state.get('playing') or karaoke_state.get('paused'):
+        return
+    if _karaoke_instrumental_channel:
+        _karaoke_instrumental_channel.pause()
+    if _karaoke_vocal_channel:
+        _karaoke_vocal_channel.pause()
+    karaoke_state['paused'] = True
+    _karaoke_pause_started_ms = int(time.time() * 1000)
+    broadcast('karaoke_state', karaoke_state)
+    log.info("Karaoke: paused")
+
+def resume_karaoke_song():
+    """Unfreeze the channels and shift start_ms forward by however long the
+    pause lasted, so the elapsed-time math the display/auto-stop both use
+    (Date.now() - start_ms) picks up exactly where it left off instead of
+    the lyrics/auto-stop timer jumping ahead by the pause duration."""
+    if not karaoke_state.get('playing') or not karaoke_state.get('paused'):
+        return
+    if _karaoke_instrumental_channel:
+        _karaoke_instrumental_channel.unpause()
+    if _karaoke_vocal_channel:
+        _karaoke_vocal_channel.unpause()
+    paused_for = int(time.time() * 1000) - _karaoke_pause_started_ms
+    karaoke_state['start_ms'] += paused_for
+    karaoke_state['paused']    = False
+    broadcast('karaoke_state', karaoke_state)
+    log.info("Karaoke: resumed")
+
+def restart_karaoke_song(song_id):
+    """START OVER -- immediately restarts the current song from the top,
+    audio and lyrics both, no count-off (this is a live correction, not a
+    fresh reveal -- the operator wants it back on track right now, not
+    after another GET READY).
+
+    Returns None on success, or an error message string on failure."""
+    global _karaoke_session
+    if karaoke_state.get('song_id') != song_id or not karaoke_state.get('revealed'):
+        log.warning(f"Karaoke restart ignored: {song_id} is not the current song")
+        return "That's not the song currently up"
+    song = next((s for s in config.get('karaoke_songs', []) if s['id'] == song_id), None)
+    if not song:
+        return "That song isn't in the library anymore -- refresh the page"
+    song_dir = ASSETS_DIR / 'karaoke' / song_id
+    if not (song_dir / 'instrumental.mp3').exists() or not (song_dir / 'vocals.mp3').exists():
+        log.error(f"Karaoke song {song_id} missing audio (instrumental/vocals not uploaded)")
+        return f"\"{song.get('title')}\" is missing its audio files"
+    _karaoke_session += 1
+    my_session = _karaoke_session
+    _karaoke_stop_event.set()
+    _karaoke_stop_event.clear()
+    if _karaoke_instrumental_channel:
+        _karaoke_instrumental_channel.stop()
+    if _karaoke_vocal_channel:
+        _karaoke_vocal_channel.stop()
+    try:
+        start_time         = song.get('start_time', 0)
+        instrumental_sound = _load_karaoke_sound(song_dir / 'instrumental.mp3', start_time)
+        vocal_sound        = _load_karaoke_sound(song_dir / 'vocals.mp3', start_time)
+    except Exception as e:
+        log.error(f"Karaoke decode failed for {song_id}: {e}")
+        return "Could not play that song's audio -- check the files in Admin"
+    if _karaoke_session != my_session:
+        log.info(f"Karaoke restart for {song_id} superseded during decode, aborting")
+        return "Cancelled by a newer action"
+    _begin_karaoke_playback(song, instrumental_sound, vocal_sound, my_session)
+    return None
+
+def stop_karaoke_song():
+    """Stop/cancel whatever's happening with the current song (revealed,
+    counting down, or playing) and return to the Karaoke lobby -- still
+    live, walk-up frame still up, ready to pick the next song."""
+    global _karaoke_session
+    _karaoke_session += 1
+    _karaoke_stop_event.set()
+    _karaoke_stop_event.clear()
+    if _karaoke_instrumental_channel:
+        _karaoke_instrumental_channel.stop()
+    if _karaoke_vocal_channel:
+        _karaoke_vocal_channel.stop()
+    karaoke_state['revealed']           = False
+    karaoke_state['counting_down']      = False
+    karaoke_state['playing']            = False
+    karaoke_state['paused']             = False
+    karaoke_state['vocal_muted']        = False
+    karaoke_state['song_id']            = None
+    karaoke_state['title']              = ''
+    karaoke_state['artist']             = ''
+    karaoke_state['lyrics']             = []
+    karaoke_state['duration']           = 0
+    karaoke_state['start_ms']           = None
+    karaoke_state['countdown_start_ms'] = None
+    broadcast('karaoke_state', karaoke_state)
+    if karaoke_state.get('live'):
+        _ensure_display_for('display_karaoke_lobby', dict(karaoke_state))
+    log.info("Karaoke: song stopped, back to lobby")
+
+def fade_out_karaoke_song(fade_seconds=3.0, steps=20):
+    """Ramp the currently playing song down to silence over fade_seconds,
+    then stop it and return to the lobby -- a gentler way to cut off a
+    rendition that's gone sideways than an abrupt STOP SONG, without either
+    waiting out the rest of the track or a jarring instant cut.
+
+    Returns None on success, or an error message string on failure."""
+    if not karaoke_state.get('playing'):
+        return "Nothing is currently playing"
+    my_session      = _karaoke_session
+    start_instr_vol = _karaoke_instrumental_channel.get_volume() if _karaoke_instrumental_channel else 0
+    start_vocal_vol = _karaoke_vocal_channel.get_volume()        if _karaoke_vocal_channel        else 0
+
+    def _fade():
+        for i in range(1, steps + 1):
+            # Fires (and is immediately re-cleared) by STOP/END/RESTART --
+            # bail rather than keep ramping volume for a song that's already
+            # gone, same guard convention as _after_countdown above.
+            if _karaoke_stop_event.wait(timeout=fade_seconds / steps):
+                return
+            if _karaoke_session != my_session:
+                return
+            frac = 1 - (i / steps)
+            if _karaoke_instrumental_channel:
+                _karaoke_instrumental_channel.set_volume(start_instr_vol * frac)
+            if _karaoke_vocal_channel:
+                _karaoke_vocal_channel.set_volume(start_vocal_vol * frac)
+        if _karaoke_session == my_session:
+            stop_karaoke_song()
+
+    threading.Thread(target=_fade, daemon=True).start()
+    log.info("Karaoke: fading out")
+    return None
+
+def end_karaoke():
+    """Fully exit Karaoke -- stop whatever's playing and drop out of the
+    live/lobby state entirely, back to standby."""
     global _karaoke_session
     _karaoke_session += 1
     _karaoke_stop_event.set()
     _karaoke_stop_event.clear()
     pygame.mixer.music.stop()
+    if _karaoke_instrumental_channel:
+        _karaoke_instrumental_channel.stop()
     if _karaoke_vocal_channel:
         _karaoke_vocal_channel.stop()
-    _karaoke_preloaded.clear()  # drop any decoded-but-never-sung vocal track (abandoned lobby)
-    karaoke_state['playing']  = False
-    karaoke_state['lobby']    = False
-    karaoke_state['song_id']  = None
-    karaoke_state['start_ms'] = None
+    karaoke_state['live']               = False
+    karaoke_state['revealed']           = False
+    karaoke_state['counting_down']      = False
+    karaoke_state['playing']            = False
+    karaoke_state['paused']             = False
+    karaoke_state['vocal_muted']        = False
+    karaoke_state['song_id']            = None
+    karaoke_state['title']              = ''
+    karaoke_state['artist']             = ''
+    karaoke_state['lyrics']             = []
+    karaoke_state['duration']           = 0
+    karaoke_state['start_ms']           = None
+    karaoke_state['countdown_start_ms'] = None
     broadcast('karaoke_state', karaoke_state)
     _ensure_display_for('display_standby', {})
-    log.info("Karaoke stopped")
+    log.info("Karaoke: ended")
 
 
 # ════════════════════════════════════════════
@@ -3984,14 +4342,48 @@ def api_display_set_mute():
     save_config(cfg)
     return jsonify({'ok': True, 'muted': meta.get('muted', True), 'gain': meta.get('gain', 1.0)})
 
+_meme_state = {'playing': False, 'file': None}  # Console button toggle + Display auto-revert both key off this
+
+def _end_meme():
+    """Shared by the manual STOP (Console re-pressing the same meme button)
+    and the natural end-of-video case (display.html's own onended, once the
+    video finishes on its own) -- both just mean "put back whatever was
+    showing before this fired."
+
+    A walk-up (circle/role) needs special handling: display_animation's own
+    hide-chain never actually tears down layer-walkup while a meme plays
+    over it -- the walk-up video just sits there, still frozen on its last
+    frame, underneath the now-opaque meme layer. Re-broadcasting
+    display_walkup to "restore" it would instead replay the whole walk-up
+    from scratch (video restart, name reveal, the works), which read as the
+    walk-up firing all over again. It only needs uncovering, not re-firing --
+    a lightweight display_meme_cleared just fades the meme layer back out.
+
+    Anything else (a slide, standby, ...) genuinely was torn down when the
+    meme took over, so those still go through the normal re-broadcast."""
+    global _meme_state
+    if not _meme_state.get('playing'):
+        return
+    _meme_state = {'playing': False, 'file': None}
+    broadcast('meme_state', _meme_state)
+    if _last_display_state.get('event') == 'display_walkup':
+        broadcast('display_meme_cleared', {})
+    elif _last_display_state.get('event'):
+        _ensure_display_for(_last_display_state['event'], _last_display_state['data'])
+    else:
+        _ensure_display_for('display_standby', {})
+
 @app.route('/api/display/show_file')
 def api_display_show_file():
     """Show an image or video from assets/display/ on the projector."""
+    global _meme_state
     filename = request.args.get('file', '')
     if not filename:
         return jsonify({'ok': False, 'error': 'missing file'}), 400
     ext = Path(filename).suffix.lower()
     video_exts = {'.mp4', '.webm', '.mov', '.ogv'}
+    _meme_state = {'playing': True, 'file': filename}
+    broadcast('meme_state', _meme_state)
     if ext in video_exts:
         global current_slide
         current_slide = {}
@@ -4006,11 +4398,29 @@ def api_display_show_file():
                 gain = meta.get('gain', 1.0)
         else:
             gain = meta.get('gain', 1.0)
+        # remember=False -- this is the transient thing playing OVER whatever
+        # was there, not itself something to revert back to later.
         _ensure_display_for('display_animation',
                              {'video': f'/assets/display/{filename}', 'muted': muted, 'loop': False, 'gain': gain,
-                              'auto_revert': True})
+                              'auto_revert': True}, remember=False)
     else:
-        _ensure_display_for('display_step', {'image': f'/assets/display/{filename}'})
+        _ensure_display_for('display_step', {'image': f'/assets/display/{filename}'}, remember=False)
+    return jsonify({'ok': True})
+
+@app.route('/api/display/stop_meme')
+def api_display_stop_meme():
+    """Manual kill -- Console re-pressing the same meme button it just fired,
+    or an explicit BACK press. No-ops quietly if nothing's playing."""
+    _end_meme()
+    return jsonify({'ok': True})
+
+@app.route('/api/display/meme_ended', methods=['POST'])
+def api_display_meme_ended():
+    """display.html calls this itself once a meme video finishes on its own
+    (native 'ended' event) -- keeps server-side _meme_state (and therefore
+    Console's button) in sync with what actually happened, and triggers the
+    same revert-to-what-was-there-before as a manual stop."""
+    _end_meme()
     return jsonify({'ok': True})
 
 @app.route('/static/<path:filename>')
@@ -4034,6 +4444,7 @@ def api_state():
         'countdown':  countdown_state,
         'stopwatch':  stopwatch_state,
         'karaoke':    karaoke_state,
+        'meme':       _meme_state,
         'playlist':   playlist_state,
         'scene':      current_scene,
         'active_toggle_scenes': sorted(_active_toggle_scenes),
@@ -4105,6 +4516,7 @@ def api_remote_state():
         'live_game': live_game,
         'timer': timer_state,
         'stopwatch': stopwatch,
+        'karaoke': karaoke_state,
         **game_live,
     })
 
@@ -6475,10 +6887,11 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                     _navigate_home_if_needed()
                     threading.Thread(target=fire_game_entry, kwargs={'entry_id': entry_id}, daemon=True).start()
             elif action == 'karaoke':
-                song_id = step.get('karaoke_id', '')
-                if song_id:
-                    _navigate_home_if_needed()
-                    threading.Thread(target=fire_karaoke_song, args=(song_id,), daemon=True).start()
+                # Fires the shared Karaoke walk-up and brings up the lobby --
+                # songs are picked live from Console afterward, not chosen
+                # ahead of time in the step (see fire_karaoke_live).
+                _navigate_home_if_needed()
+                threading.Thread(target=fire_karaoke_live, daemon=True).start()
             elif action == 'wait':
                 if cancel.wait(timeout=float(step.get('seconds', 1))):
                     log.info(f"Macro {macro.get('id')} cancelled during wait")
@@ -6714,6 +7127,60 @@ def api_config_save():
     log.info("Config saved and reloaded")
     return jsonify({'ok': True})
 
+def _ensure_video_faststart(path: Path):
+    """Remux a video in place so its moov atom (the index the browser needs
+    before it can start decoding anything) sits at the front of the file
+    instead of the end -- the default most camera/editing-app exports
+    produce, not something anyone here ever set up on purpose. A moov atom
+    left at the end forces the browser to download the ENTIRE file before
+    playback can start at all; confirmed live (2026-08-27) as the cause of
+    walkup/macro videos silently falling back to standby after display.html's
+    fixed load timeout elapsed, on a show night, for no reason tied to
+    anything actually changed in the show itself.
+
+    Runs automatically at upload/USB-import time so this never needs to be
+    caught and fixed by hand again. Stream-copy only (-c copy) -- no
+    re-encoding, no quality change, audio untouched, just the container
+    layout. Verifies the remux (moov now precedes mdat, duration unchanged)
+    before replacing the original; leaves the original completely untouched
+    on any failure, and never raises -- a failed optimization must not fail
+    the upload itself."""
+    if path.suffix.lower() not in _VIDEO_EXTS_PY or not path.exists():
+        return
+    tmp = None
+    try:
+        data = path.read_bytes()
+        moov, mdat = data.find(b'moov'), data.find(b'mdat')
+        if moov == -1 or mdat == -1 or moov < mdat:
+            return  # already front-loaded, or not a container we recognize -- leave alone
+        orig_dur = float(subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', str(path)],
+            capture_output=True, text=True, check=True, timeout=15,
+        ).stdout.strip())
+        tmp = path.with_name(path.stem + '.faststarttmp' + path.suffix)
+        subprocess.run(
+            ['ffmpeg', '-y', '-v', 'error', '-i', str(path), '-c', 'copy', '-movflags', '+faststart', str(tmp)],
+            check=True, timeout=120,
+        )
+        new_data = tmp.read_bytes()
+        if not new_data or new_data.find(b'moov') > new_data.find(b'mdat'):
+            raise RuntimeError('remux did not move moov to the front')
+        new_dur = float(subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', str(tmp)],
+            capture_output=True, text=True, check=True, timeout=15,
+        ).stdout.strip())
+        if abs(new_dur - orig_dur) > 0.5:
+            raise RuntimeError(f'duration mismatch: {orig_dur}s -> {new_dur}s')
+        tmp.replace(path)
+        log.info(f"Faststart-remuxed on upload: {path.name}")
+    except Exception as e:
+        log.warning(f"Faststart remux failed for {path.name}, kept original as-is: {e}")
+        if tmp is not None:
+            try: tmp.unlink(missing_ok=True)
+            except Exception: pass
+
 # ── ADMIN — FILE UPLOAD ──
 @app.route('/api/admin/upload', methods=['POST'])
 def api_upload():
@@ -6748,13 +7215,29 @@ def api_upload():
                 'walkup.mp4'     if asset_type == 'animation'       else
                 'walkup_intro.mp4' if asset_type == 'animation_intro' else f.filename)
     elif target_type == 'karaoke' and target_id:
-        _logo_ext = Path(f.filename).suffix.lower() or '.png'
-        dest = ASSETS_DIR / 'karaoke' / target_id / \
-               ('instrumental.mp3'   if asset_type == 'instrumental'     else
-                'vocals.mp3'         if asset_type == 'vocals'           else
-                ('logo' + _logo_ext) if asset_type == 'logo'             else
-                'walkup.mp4'         if asset_type == 'animation'        else
-                'walkup_intro.mp4'   if asset_type == 'animation_intro'  else f.filename)
+        if asset_type == 'original':
+            # The real, unsplit song -- reference-only for the lyrics editor's
+            # preview player. Two independently-encoded MP3s (instrumental/
+            # vocals) never seek to exactly the same true position for the
+            # same requested time, which made scrubbing them together for
+            # timing checks unreliable; a single file has nothing to drift
+            # against. Keeps its own extension (whatever format was uploaded)
+            # rather than being forced to mp3 like instrumental/vocals are.
+            _orig_dir = ASSETS_DIR / 'karaoke' / target_id
+            _orig_ext = Path(f.filename).suffix.lower() or '.mp3'
+            if _orig_dir.exists():
+                for old in _orig_dir.glob('original.*'):
+                    old.unlink()
+            dest = _orig_dir / ('original' + _orig_ext)
+        else:
+            dest = ASSETS_DIR / 'karaoke' / target_id / \
+                   ('instrumental.mp3'   if asset_type == 'instrumental'     else
+                    'vocals.mp3'         if asset_type == 'vocals'           else f.filename)
+    elif target_type == 'karaoke_walkup':
+        # Global, not per-song -- one walk-up video shared by the whole
+        # Karaoke feature, since songs are picked from within it rather
+        # than each being fired individually with its own walk-up.
+        dest = ASSETS_DIR / 'karaoke' / 'walkup.mp4'
     elif target_type == 'karaoke_frame':
         # Global, not per-song -- the decorative border shown around the
         # lyrics on every karaoke performance, themeable per camp.
@@ -6832,6 +7315,7 @@ def api_upload():
         return jsonify({'ok': False, 'error': 'Unknown target type'}), 400
     dest.parent.mkdir(parents=True, exist_ok=True)
     f.save(str(dest))
+    _ensure_video_faststart(dest)
     stored_name = dest.name  # use the actual saved filename (logo.png, walkup.mp3, etc.)
     log.info(f"File uploaded: {dest}")
 
@@ -6926,6 +7410,11 @@ def api_upload():
         save_config(cfg)
         config = cfg
         log.info(f"Config updated: system.karaoke_frame = {stored_name}")
+    elif target_type == 'karaoke_walkup':
+        cfg.setdefault('system', {})['karaoke_walkup_video'] = stored_name
+        save_config(cfg)
+        config = cfg
+        log.info(f"Config updated: system.karaoke_walkup_video = {stored_name}")
     elif target_type == 'macro' and target_id:
         macros_list = cfg.get('macros', [])
         macro = next((m for m in macros_list if m['id'] == target_id), None)
@@ -7159,19 +7648,63 @@ def api_delete_karaoke_song(song_id):
         _shutil.rmtree(str(song_dir), ignore_errors=True)
     return jsonify({'ok': True})
 
-@app.route('/api/karaoke/<song_id>/play', methods=['POST'])
-def api_karaoke_play(song_id):
-    threading.Thread(target=fire_karaoke_song, args=(song_id,), daemon=True).start()
+@app.route('/api/karaoke/live', methods=['POST'])
+def api_karaoke_live():
+    threading.Thread(target=fire_karaoke_live, daemon=True).start()
     return jsonify({'ok': True})
 
-@app.route('/api/karaoke/<song_id>/start_singing', methods=['POST'])
-def api_karaoke_start_singing(song_id):
-    threading.Thread(target=start_karaoke_singing, args=(song_id,), daemon=True).start()
+@app.route('/api/karaoke/<song_id>/reveal', methods=['POST'])
+def api_karaoke_reveal(song_id):
+    # Runs synchronously (it's just fast dict/file checks, no real work) so
+    # a validation failure can actually be reported back instead of the
+    # button silently doing nothing -- the old fire-and-forget thread always
+    # returned ok:true regardless of what actually happened.
+    error = reveal_karaoke_song(song_id)
+    if error:
+        return jsonify({'ok': False, 'error': error}), 400
     return jsonify({'ok': True})
 
-@app.route('/api/karaoke/stop', methods=['POST'])
-def api_karaoke_stop():
-    threading.Thread(target=stop_karaoke, daemon=True).start()
+@app.route('/api/karaoke/<song_id>/start', methods=['POST'])
+def api_karaoke_start(song_id):
+    # Synchronous -- only the decode (~100s of ms) happens inline; the 4s
+    # count-off itself is still its own background thread, unaffected.
+    error = start_karaoke_song(song_id)
+    if error:
+        return jsonify({'ok': False, 'error': error}), 400
+    return jsonify({'ok': True})
+
+@app.route('/api/karaoke/pause', methods=['POST'])
+def api_karaoke_pause():
+    threading.Thread(target=pause_karaoke_song, daemon=True).start()
+    return jsonify({'ok': True})
+
+@app.route('/api/karaoke/resume', methods=['POST'])
+def api_karaoke_resume():
+    threading.Thread(target=resume_karaoke_song, daemon=True).start()
+    return jsonify({'ok': True})
+
+@app.route('/api/karaoke/<song_id>/restart', methods=['POST'])
+def api_karaoke_restart(song_id):
+    error = restart_karaoke_song(song_id)
+    if error:
+        return jsonify({'ok': False, 'error': error}), 400
+    return jsonify({'ok': True})
+
+@app.route('/api/karaoke/stop_song', methods=['POST'])
+def api_karaoke_stop_song():
+    threading.Thread(target=stop_karaoke_song, daemon=True).start()
+    return jsonify({'ok': True})
+
+@app.route('/api/karaoke/fade_out', methods=['POST'])
+def api_karaoke_fade_out():
+    error = fade_out_karaoke_song()
+    if error:
+        return jsonify({'ok': False, 'error': error}), 400
+    return jsonify({'ok': True})
+
+@app.route('/api/karaoke/end', methods=['POST'])
+def api_karaoke_end():
+    threading.Thread(target=end_karaoke, daemon=True).start()
     return jsonify({'ok': True})
 
 @app.route('/api/karaoke/vocal_volume', methods=['POST'])
@@ -7179,10 +7712,19 @@ def api_karaoke_vocal_volume():
     data = request.get_json() or {}
     v = max(0, min(150, int(data.get('volume', 80))))
     karaoke_state['vocal_volume'] = v
+    # If muted (see toggle_karaoke_vocal_mute), the slider still remembers
+    # where to land once unmuted -- _karaoke_vocal_target_volume() returns 0
+    # while muted regardless of this value, so it doesn't audibly change
+    # anything until unmuted.
     if _karaoke_vocal_channel:
-        _karaoke_vocal_channel.set_volume(v / 100)
+        _karaoke_vocal_channel.set_volume(_karaoke_vocal_target_volume())
     broadcast('karaoke_state', karaoke_state)
     return jsonify({'ok': True, 'vocal_volume': v})
+
+@app.route('/api/karaoke/vocal_mute_toggle', methods=['POST'])
+def api_karaoke_vocal_mute_toggle():
+    threading.Thread(target=toggle_karaoke_vocal_mute, daemon=True).start()
+    return jsonify({'ok': True})
 
 def _karaoke_frame_url():
     frame = config.get('system', {}).get('karaoke_frame')
@@ -7195,9 +7737,48 @@ def _karaoke_frame_url():
     except OSError:
         return ''
 
-@app.route('/api/karaoke/frame')
-def api_karaoke_frame():
-    return jsonify({'frame_url': _karaoke_frame_url()})
+def _karaoke_walkup_video_url(bust=None):
+    if not config.get('system', {}).get('karaoke_walkup_video'):
+        return ''
+    video_path = ASSETS_DIR / 'karaoke' / 'walkup.mp4'
+    try:
+        mtime = int(video_path.stat().st_mtime)
+        url = f'/assets/karaoke/walkup.mp4?v={mtime}'
+        # display.html only restarts the video when this URL actually
+        # changes (so a re-broadcast of the same lobby state, e.g. a vocal
+        # volume tweak, doesn't yank the video back to frame 0 mid-viewing).
+        # The mtime alone is identical across repeat GO LIVE presses since
+        # it's the same file -- fire_karaoke_live() passes a fresh `bust`
+        # value so each real GO LIVE genuinely looks like a new URL and
+        # actually replays, instead of silently doing nothing after the
+        # first press.
+        if bust is not None:
+            url += f'&t={bust}'
+        return url
+    except OSError:
+        return ''
+
+@app.route('/api/karaoke/settings')
+def api_karaoke_settings():
+    system_cfg = config.get('system', {})
+    return jsonify({
+        'frame_url':       _karaoke_frame_url(),
+        'walkup_video_url': _karaoke_walkup_video_url(),
+        'walkup_scene':    system_cfg.get('karaoke_walkup_scene', ''),
+        'song_scene':      system_cfg.get('karaoke_song_scene', ''),
+    })
+
+@app.route('/api/admin/karaoke/settings', methods=['POST'])
+def api_karaoke_settings_save():
+    data = request.get_json() or {}
+    cfg = load_config()
+    system_cfg = cfg.setdefault('system', {})
+    system_cfg['karaoke_walkup_scene'] = data.get('walkup_scene') or None
+    system_cfg['karaoke_song_scene']   = data.get('song_scene') or None
+    save_config(cfg)
+    global config
+    config = cfg
+    return jsonify({'ok': True})
 
 @app.route('/api/admin/karaoke_frame/clear', methods=['POST'])
 def api_karaoke_frame_clear():
@@ -7212,6 +7793,18 @@ def api_karaoke_frame_clear():
             old = frame_dir / ('frame' + old_ext)
             if old.exists():
                 old.unlink()
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/karaoke_walkup/clear', methods=['POST'])
+def api_karaoke_walkup_clear():
+    cfg = load_config()
+    cfg.get('system', {}).pop('karaoke_walkup_video', None)
+    save_config(cfg)
+    global config
+    config = cfg
+    video_path = ASSETS_DIR / 'karaoke' / 'walkup.mp4'
+    if video_path.exists():
+        video_path.unlink()
     return jsonify({'ok': True})
 
 # ── SYSTEM ──
@@ -7808,6 +8401,7 @@ def api_usb_import():
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest_path = dest_dir / src_path.name
     _shutil.copy2(str(src_path), str(dest_path))
+    _ensure_video_faststart(dest_path)
     log.info(f'USB import: {src_path.name} → assets/{dest_key}/')
     return jsonify({'ok': True, 'name': src_path.name, 'dest': dest_key})
 
@@ -8357,6 +8951,50 @@ def api_set_sfx_tags():
     save_config(cfg)
     return jsonify({'ok': True, 'tags': sfx_tags})
 
+# Same tagging pattern as sfx_tags above, for assets/display/ -- built
+# specifically so Memes can be "files tagged Meme" instead of "every video/
+# gif in the whole Display library regardless of what it actually is",
+# which was the entire complaint (too much to wade through, filtering by
+# file type wasn't narrowing anything down).
+@app.route('/api/display/tags')
+def api_get_display_tags():
+    return jsonify(load_config().get('display_tags', {}))
+
+@app.route('/api/display/categories')
+def api_get_display_categories():
+    tags = load_config().get('display_tags', {})
+    all_tags = sorted({t for tag_list in tags.values() for t in tag_list}, key=str.lower)
+    return jsonify(all_tags)
+
+def _normalize_display_tag(tag, known_tags):
+    tag = tag.strip()
+    for existing in known_tags:
+        if existing.lower() == tag.lower():
+            return existing
+    return tag
+
+@app.route('/api/admin/display/tags', methods=['POST'])
+def api_set_display_tags():
+    data = request.json or {}
+    filename = (data.get('file') or '').strip()
+    if not filename:
+        return jsonify({'ok': False, 'error': 'file required'}), 400
+    raw_tags = data.get('tags') or []
+    cfg = load_config()
+    display_tags = cfg.setdefault('display_tags', {})
+    known = sorted({t for tag_list in display_tags.values() for t in tag_list}, key=str.lower)
+    clean_tags = []
+    for t in raw_tags:
+        t = _normalize_display_tag(t, known)
+        if t and t not in clean_tags:
+            clean_tags.append(t)
+    if clean_tags:
+        display_tags[filename] = clean_tags
+    else:
+        display_tags.pop(filename, None)
+    save_config(cfg)
+    return jsonify({'ok': True, 'tags': display_tags})
+
 # ── FILE MANAGEMENT ──
 @app.route('/api/admin/file/delete', methods=['POST'])
 def api_file_delete():
@@ -8452,6 +9090,7 @@ def api_file_rename():
         old_thumb = _video_thumb_path(old_name)
         if old_thumb.exists():
             old_thumb.rename(_video_thumb_path(new_name))
+    global config
     if file_type == 'sfx':
         # sfx_tags is keyed by filename -- a rename that doesn't move the tag
         # entry along with it silently orphans the tags under a name that no
@@ -8462,7 +9101,16 @@ def api_file_rename():
         if old_name in sfx_tags:
             sfx_tags[new_name] = sfx_tags.pop(old_name)
             save_config(cfg)
-            global config
+            config = cfg
+    if file_type == 'display':
+        # Same reasoning as sfx_tags above -- display_tags is what the Memes
+        # tab actually filters on now, so losing the tag on rename would
+        # silently drop the file back out of Memes.
+        cfg = load_config()
+        display_tags = cfg.get('display_tags', {})
+        if old_name in display_tags:
+            display_tags[new_name] = display_tags.pop(old_name)
+            save_config(cfg)
             config = cfg
     log.info(f"Renamed {file_type} file: {old_name} → {new_name}")
     return jsonify({'ok': True, 'name': new_name})
