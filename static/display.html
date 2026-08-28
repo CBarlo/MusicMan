@@ -1814,10 +1814,33 @@ function _kkApplyFrame(frameUrl) {
   _kkLastFrameUrl = frameUrl;
 }
 
+// Same mute+gain pattern as the macro title-video graph (_ensureTitleAudioGraph)
+// -- a separate Web Audio graph since a MediaElementSource can only ever be
+// created once per <video> element, so this can't share the title video's.
+let _kkVideoAudioCtx = null, _kkVideoGainNode = null, _kkVideoSourceNode = null;
+function _kkEnsureVideoAudioGraph() {
+  if (_kkVideoAudioCtx) return;
+  try {
+    _kkVideoAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    _kkVideoSourceNode = _kkVideoAudioCtx.createMediaElementSource(kkVideo);
+    _kkVideoGainNode = _kkVideoAudioCtx.createGain();
+    _kkVideoSourceNode.connect(_kkVideoGainNode).connect(_kkVideoAudioCtx.destination);
+  } catch (e) { /* Web Audio unavailable -- falls back to unboosted element volume */ }
+}
+function _kkApplyVideoSound(muted, gain) {
+  kkVideo.muted = muted !== false;
+  if (!kkVideo.muted) {
+    _kkEnsureVideoAudioGraph();
+    if (_kkVideoAudioCtx && _kkVideoAudioCtx.state === 'suspended') _kkVideoAudioCtx.resume().catch(() => {});
+    if (_kkVideoGainNode) _kkVideoGainNode.gain.value = (typeof gain === 'number' && gain > 0) ? gain : 1.0;
+  }
+}
+
 // Plays once (loop=false) and, since nothing seeks or restarts it once
 // ended, simply keeps displaying its last rendered frame -- that's what
 // becomes "the frame" the lyric card sits on top of.
-function _kkApplyVideo(videoUrl) {
+function _kkApplyVideo(videoUrl, muted, gain) {
+  _kkApplyVideoSound(muted, gain);
   if (videoUrl) {
     layerKaraoke.classList.add('kk-has-video');
     if (videoUrl !== _kkLastVideoUrl) {
@@ -1846,7 +1869,7 @@ function showKaraokeLobby(data) {
   layerKaraoke.classList.remove('kk-countdown-view');
   layerKaraoke.classList.add('karaoke-active', 'kk-lobby-view');
   layerKaraoke.classList.toggle('kk-blank-lobby', !data.title);
-  _kkApplyVideo(data.video_url);
+  _kkApplyVideo(data.video_url, data.video_muted, data.video_gain);
   _kkApplyFrame(data.frame_url);
   // No card/text at all until a song is actually revealed -- just the
   // walk-up video/frame on its own (see .kk-blank-lobby above). A specific
@@ -1862,7 +1885,7 @@ function showKaraokeCountdown(data) {
   clearInterval(_kkInterval);
   layerKaraoke.classList.remove('kk-lobby-view');
   layerKaraoke.classList.add('karaoke-active', 'kk-countdown-view');
-  _kkApplyVideo(data.video_url);
+  _kkApplyVideo(data.video_url, data.video_muted, data.video_gain);
   _kkApplyFrame(data.frame_url);
   document.getElementById('kk-heading').textContent = 'Get Ready';
   document.getElementById('kk-title').textContent  = data.title  || '';
@@ -1889,7 +1912,7 @@ function showKaraoke(data) {
   // The video (if any) is already playing/held from the lobby -- only
   // re-apply if this is a fresh page load/reconnect that skipped straight
   // to the singing state and never saw the lobby event.
-  _kkApplyVideo(data.video_url);
+  _kkApplyVideo(data.video_url, data.video_muted, data.video_gain);
   _kkApplyFrame(data.frame_url);
   document.getElementById('kk-heading').textContent = 'Now Singing';
   document.getElementById('kk-title').textContent  = data.title || '';

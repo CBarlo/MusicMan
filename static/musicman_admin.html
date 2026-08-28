@@ -692,10 +692,11 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
       </div>
       <!-- Normalization -->
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <span style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--text-dim)">◉ VOLUME NORMALIZATION</span>
           <span id="norm-last-run" style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">NEVER RUN</span>
         </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px">Covers everything actually played live: Music library, SFX, Circle/Role/Game Entry walkup audio, and Karaoke instrumental + vocal tracks. Karaoke's preview-only ORIGINAL SONG is skipped on purpose — it's never played during the show.</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <button id="norm-all-btn" class="btn btn-secondary" style="flex:1;font-size:11px;letter-spacing:1px" onclick="startNormalize('all')">⚡ NORMALIZE ALL</button>
           <button id="norm-new-btn" class="btn btn-secondary" style="flex:1;font-size:11px;letter-spacing:1px" onclick="startNormalize('new')">✦ NORMALIZE NEW <span id="norm-new-badge" style="display:none"></span></button>
@@ -1467,9 +1468,13 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <div id="sf-macro-fields">
             <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Pick a macro to add to the show flow, then give it a display name and color for the Stream Deck.</div>
             <label class="field-label">MACRO</label>
-            <select id="sf-macro-select" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;margin-bottom:10px">
+            <select id="sf-macro-select" onchange="sfMacroChanged()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;margin-bottom:10px">
               <option value="">— select a macro —</option>
             </select>
+            <label id="sf-flip-circles-wrap" style="display:none;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);margin-bottom:10px;cursor:pointer">
+              <input id="sf-flip-circles" type="checkbox" style="width:16px;height:16px;cursor:pointer">
+              Flip console to CIRCLES when this fires?
+            </label>
           </div>
 
           <!-- GAME fields -->
@@ -1729,6 +1734,19 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <option value="">— none —</option>
             </select>
             <div style="font-size:10px;color:var(--muted);margin-top:3px">Fires at the same moment as Walk-Up Scene</div>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0">
+            <input type="checkbox" id="kk-walkup-muted" checked onchange="kkWalkupMutedChanged()" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+            <span style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">MUTE VIDEO (uncheck to play its own audio)</span>
+          </label>
+          <div id="kk-walkup-vol-row" style="display:none;align-items:center;gap:8px;margin-top:10px">
+            <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px;min-width:50px">VOLUME</span>
+            <input type="range" id="kk-walkup-gain" min="25" max="400" value="100" style="flex:1"
+              oninput="document.getElementById('kk-walkup-gain-val').textContent=this.value+'%'"
+              onchange="saveKaraokeWalkupSettings()">
+            <span id="kk-walkup-gain-val" style="font-size:11px;font-family:'Share Tech Mono',monospace;color:var(--amber);min-width:40px;text-align:right">100%</span>
           </div>
         </div>
       </div>
@@ -3597,6 +3615,23 @@ async function loadKaraokeSettings() {
 
   const wsel = document.getElementById('kk-walkup-scene'); if (wsel) wsel.value = d.walkup_scene || '';
   const ssel = document.getElementById('kk-song-scene');   if (ssel) ssel.value = d.song_scene   || '';
+
+  const mutedEl = document.getElementById('kk-walkup-muted');
+  const gainEl  = document.getElementById('kk-walkup-gain');
+  const gainVal = document.getElementById('kk-walkup-gain-val');
+  if (mutedEl) mutedEl.checked = d.walkup_muted !== false;
+  const gainPct = Math.round((d.walkup_gain ?? 1.0) * 100);
+  if (gainEl)  gainEl.value = gainPct;
+  if (gainVal) gainVal.textContent = gainPct + '%';
+  const volRow = document.getElementById('kk-walkup-vol-row');
+  if (volRow) volRow.style.display = (mutedEl && !mutedEl.checked) ? 'flex' : 'none';
+}
+
+function kkWalkupMutedChanged() {
+  const muted = document.getElementById('kk-walkup-muted').checked;
+  const volRow = document.getElementById('kk-walkup-vol-row');
+  if (volRow) volRow.style.display = muted ? 'none' : 'flex';
+  saveKaraokeWalkupSettings();
 }
 
 async function uploadKaraokeFrame(file) {
@@ -3647,6 +3682,8 @@ async function saveKaraokeWalkupSettings() {
   const data = {
     walkup_scene: document.getElementById('kk-walkup-scene').value || null,
     song_scene:   document.getElementById('kk-song-scene').value   || null,
+    walkup_muted: document.getElementById('kk-walkup-muted').checked,
+    walkup_gain:  parseInt(document.getElementById('kk-walkup-gain').value, 10) / 100,
   };
   try {
     await fetch('/api/admin/karaoke/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
@@ -8321,6 +8358,35 @@ function sfSetType(type) {
   document.getElementById('sf-type-game-btn').className  = type === 'game'    ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
   document.getElementById('sf-type-vs-btn').className    = type === 'vs_card' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
   if (type === 'vs_card') _sfPopulateVsSelect();
+  if (type !== 'macro') {
+    document.getElementById('sf-flip-circles-wrap').style.display = 'none';
+    document.getElementById('sf-flip-circles').checked = false;
+  } else {
+    sfMacroChanged();
+  }
+}
+
+// "Involves the Log Keeper" == the selected macro's own steps walk up the
+// Log Keeper role. Matched by name (not id) since that's the identity Chris
+// actually manages -- the role's id is an opaque timestamp he'd never
+// reproduce if the role ever got recreated.
+function _macroInvolvesLogKeeper(macroId) {
+  const macro = macros.find(m => m.id === macroId);
+  if (!macro) return false;
+  const logKeeper = roles.find(r => (r.name || '').toLowerCase().includes('log keeper'));
+  if (!logKeeper) return false;
+  return (macro.steps || []).some(s => s.action === 'walkup_role' && s.role_id === logKeeper.id);
+}
+
+// Only shows the "flip to circles" checkbox at all when the picked macro
+// actually involves the Log Keeper -- keeps the option context-dependent
+// instead of a generic toggle sitting on every step regardless of relevance.
+function sfMacroChanged() {
+  const macroId = document.getElementById('sf-macro-select').value;
+  const wrap = document.getElementById('sf-flip-circles-wrap');
+  const involved = _macroInvolvesLogKeeper(macroId);
+  wrap.style.display = involved ? 'flex' : 'none';
+  if (!involved) document.getElementById('sf-flip-circles').checked = false;
 }
 
 async function sfGameTypeChanged() {
@@ -8368,6 +8434,8 @@ function sfEditStep(i) {
     document.getElementById('sf-vs-select').value = step.vs_card_id || '';
   } else {
     document.getElementById('sf-macro-select').value = step.macro_id || '';
+    sfMacroChanged();
+    document.getElementById('sf-flip-circles').checked = !!step.flip_to_circles;
   }
 
   document.getElementById('sf-picker-label').textContent      = 'EDIT STEP ' + (i + 1);
@@ -8392,6 +8460,8 @@ function sfCancelEdit() {
   document.getElementById('sf-step-name').value     = '';
   document.getElementById('sf-step-desc').value     = '';
   document.getElementById('sf-step-color').value    = '#F5A623';
+  document.getElementById('sf-flip-circles-wrap').style.display = 'none';
+  document.getElementById('sf-flip-circles').checked = false;
 }
 
 function confirmAddStep() {
@@ -8434,6 +8504,12 @@ function confirmAddStep() {
       color:    color || '#F5A623',
       macro_id: macroId,
     };
+    // Only ever persisted true when the macro genuinely involves the Log
+    // Keeper -- the checkbox is hidden (and reset) otherwise, but guard here
+    // too in case a macro got edited out from under an already-checked step.
+    if (_macroInvolvesLogKeeper(macroId) && document.getElementById('sf-flip-circles').checked) {
+      stepObj.flip_to_circles = true;
+    }
   }
 
   if (_sfEditingIndex >= 0) {

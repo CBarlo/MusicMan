@@ -1248,6 +1248,8 @@ karaoke_state = {
     'vocal_muted':        False,  # MC's remote MUTE toggle -- hear the crowd sing unassisted
     'frame_url':          '',
     'video_url':          '',
+    'video_muted':        True,  # walk-up video's own audio -- same mute+gain pattern as Display library videos
+    'video_gain':         1.0,
 }
 _karaoke_stop_event = threading.Event()
 # _karaoke_vocal_channel itself is assigned inside _init_mixer() (below), which
@@ -2300,6 +2302,11 @@ def _versioned_walkup_file(base_dir, item_id, filename):
 
 def fire_walkup(circle_id=None, role_id=None, show_flow_idx=None):
     """Fire a complete walk-up sequence for a circle or role."""
+    # Moving on to a walkup means leaving Karaoke, if it was live -- it used
+    # to just keep running underneath (still "live", possibly still
+    # playing) since nothing here ever told it to stop. no-ops instantly if
+    # Karaoke isn't live, so this is cheap on every normal walkup fire.
+    end_karaoke(show_standby=False)
     cfg = config  # use in-memory copy — eliminates SD card read on every walkup
     if circle_id:
         items = [c for c in cfg.get('circles', []) if c['id'] == circle_id]
@@ -2578,6 +2585,8 @@ def fire_karaoke_live():
     karaoke_state['lyrics']            = []
     karaoke_state['video_url']         = _karaoke_walkup_video_url(bust=int(time.time() * 1000))
     karaoke_state['frame_url']         = _karaoke_frame_url()
+    karaoke_state['video_muted']       = system_cfg.get('karaoke_walkup_muted', True)
+    karaoke_state['video_gain']        = system_cfg.get('karaoke_walkup_gain', 1.0)
     broadcast('karaoke_state', karaoke_state)
     _ensure_display_for('display_karaoke_lobby', dict(karaoke_state))
     log.info("Karaoke: live")
@@ -2910,9 +2919,20 @@ def fade_out_karaoke_song(fade_seconds=3.0, steps=20):
     log.info("Karaoke: fading out")
     return None
 
-def end_karaoke():
+def end_karaoke(show_standby=True):
     """Fully exit Karaoke -- stop whatever's playing and drop out of the
-    live/lobby state entirely, back to standby."""
+    live/lobby state entirely.
+
+    show_standby=False when something else (a walkup, a game, a new show
+    step) is about to take over the display right after this anyway --
+    forcing standby first would just be a wasted flash before the real
+    content shows. Those callers also rely on the leading no-op guard below:
+    they call this unconditionally on every fire, and most of the time
+    Karaoke isn't even live, so this needs to be a cheap, side-effect-free
+    no-op in that case rather than broadcasting/logging on every single
+    walkup."""
+    if not karaoke_state.get('live'):
+        return
     global _karaoke_session
     _karaoke_session += 1
     _karaoke_stop_event.set()
@@ -2936,7 +2956,8 @@ def end_karaoke():
     karaoke_state['start_ms']           = None
     karaoke_state['countdown_start_ms'] = None
     broadcast('karaoke_state', karaoke_state)
-    _ensure_display_for('display_standby', {})
+    if show_standby:
+        _ensure_display_for('display_standby', {})
     log.info("Karaoke: ended")
 
 
@@ -3012,9 +3033,12 @@ def _collect_norm_files(mode: str) -> list:
         if cutoff == 0 or f.stat().st_mtime > cutoff:
             files.append(f)
 
-    # Local assets: music library + per-circle + per-role (sfx intentionally excluded)
-    local_dirs = [ASSETS_DIR / 'music']
-    for base in (ASSETS_DIR / 'circles', ASSETS_DIR / 'roles'):
+    # Local assets: music library, SFX, per-circle/role/game-entry walkup
+    # audio -- everything actually heard live should come out at a
+    # consistent volume (2026-08-28: SFX and game entries used to be
+    # excluded here; Chris asked for genuinely everything).
+    local_dirs = [ASSETS_DIR / 'music', ASSETS_DIR / 'sfx']
+    for base in (ASSETS_DIR / 'circles', ASSETS_DIR / 'roles', ASSETS_DIR / 'game_entries'):
         if base.exists():
             local_dirs.extend(d for d in base.iterdir() if d.is_dir())
     for d in local_dirs:
@@ -3023,7 +3047,50 @@ def _collect_norm_files(mode: str) -> list:
                 if f.is_file() and f.suffix.lower() in _NORM_EXTS:
                     _add(f)
 
+    # Karaoke: instrumental + vocals only -- these are the tracks actually
+    # played live. "original" is preview-only (never played during the
+    # show, only used for scrubbing lyrics in Admin) and deliberately
+    # skipped so it isn't touched for no benefit.
+    karaoke_dir = ASSETS_DIR / 'karaoke'
+    if karaoke_dir.exists():
+        for song_dir in sorted(karaoke_dir.iterdir()):
+            if not song_dir.is_dir():
+                continue
+            for stem in ('instrumental', 'vocals'):
+                for f in sorted(song_dir.glob(stem + '.*')):
+                    if f.is_file() and f.suffix.lower() in _NORM_EXTS:
+                        _add(f)
+
     return files
+
+def _refresh_karaoke_durations():
+    """Loudnorm's linear-gain pass doesn't intentionally change a file's
+    length, but can shift it by a handful of milliseconds -- and karaoke's
+    stored duration (used only for the auto-stop timer, not lyric timing --
+    lyrics stay valid since nothing about WHERE content sits in the
+    timeline changes) needs to stay accurate after normalizing the
+    instrumental. Cheap and idempotent, so just always re-measure rather
+    than tracking which files actually changed mid-loop."""
+    global config
+    cfg = load_config()
+    changed = False
+    for song in cfg.get('karaoke_songs', []):
+        inst = (song.get('assets') or {}).get('instrumental')
+        if not inst:
+            continue
+        fp = ASSETS_DIR / 'karaoke' / song['id'] / inst
+        if not fp.exists():
+            continue
+        try:
+            new_dur = round(pygame.mixer.Sound(str(fp)).get_length(), 1)
+        except Exception:
+            continue
+        if new_dur != song.get('duration'):
+            song['duration'] = new_dur
+            changed = True
+    if changed:
+        save_config(cfg)
+        config = cfg
 
 def _run_normalization(mode: str):
     if not shutil.which('ffmpeg'):
@@ -3040,6 +3107,7 @@ def _run_normalization(mode: str):
             log.error(f"Normalize error {fp.name}: {e}")
             _normalize_state['errors'].append(fp.name)
         _normalize_state['done'] += 1
+    _refresh_karaoke_durations()
     NORM_STAMP.parent.mkdir(parents=True, exist_ok=True)
     NORM_STAMP.touch()
     _normalize_state.update({
@@ -4373,31 +4441,22 @@ def _end_meme():
     else:
         _ensure_display_for('display_standby', {})
 
-@app.route('/api/display/show_file')
-def api_display_show_file():
-    """Show an image or video from assets/display/ on the projector."""
-    global _meme_state
-    filename = request.args.get('file', '')
-    if not filename:
-        return jsonify({'ok': False, 'error': 'missing file'}), 400
+def _fire_display_asset(filename, gain_override=None):
+    """Show an image or video from assets/display/ on the projector --
+    shared by the Console MEMES/GRAPHICS grid and anything else that just
+    wants to put one specific Display file up (e.g. a circle/role's
+    generated walk-up still)."""
+    global _meme_state, current_slide
     ext = Path(filename).suffix.lower()
     video_exts = {'.mp4', '.webm', '.mov', '.ogv'}
     _meme_state = {'playing': True, 'file': filename}
     broadcast('meme_state', _meme_state)
     if ext in video_exts:
-        global current_slide
         current_slide = {}
         cfg = load_config()
         meta = cfg.get('display_file_meta', {}).get(filename, {})
         muted = meta.get('muted', True)
-        gain_param = request.args.get('gain')
-        if gain_param is not None:
-            try:
-                gain = float(gain_param)
-            except ValueError:
-                gain = meta.get('gain', 1.0)
-        else:
-            gain = meta.get('gain', 1.0)
+        gain = gain_override if gain_override is not None else meta.get('gain', 1.0)
         # remember=False -- this is the transient thing playing OVER whatever
         # was there, not itself something to revert back to later.
         _ensure_display_for('display_animation',
@@ -4405,7 +4464,124 @@ def api_display_show_file():
                               'auto_revert': True}, remember=False)
     else:
         _ensure_display_for('display_step', {'image': f'/assets/display/{filename}'}, remember=False)
+
+@app.route('/api/display/show_file')
+def api_display_show_file():
+    """Show an image or video from assets/display/ on the projector."""
+    filename = request.args.get('file', '')
+    if not filename:
+        return jsonify({'ok': False, 'error': 'missing file'}), 400
+    gain_param = request.args.get('gain')
+    gain_override = None
+    if gain_param is not None:
+        try:
+            gain_override = float(gain_param)
+        except ValueError:
+            gain_override = None
+    _fire_display_asset(filename, gain_override)
     return jsonify({'ok': True})
+
+def _generate_walkup_still(item_type, item):
+    """Extracts the last frame of a circle/role's walk-up video and saves
+    it as a real, tagged Display library file -- not a hidden cache -- so
+    it shows up wherever Display files already do (Admin, macros, Console)
+    instead of being a special-cased thing reachable only from one button.
+    Always animation_intro: confirmed live that none of the actual
+    circles/roles have a separate loop animation, so the intro's own final
+    frame is exactly what's left frozen on screen after a walk-up
+    naturally finishes playing -- there's nothing else it could mean here.
+
+    Regenerates in place under the same tracked filename (even across a
+    later rename) if the source video is newer than the last generated
+    still. Returns the filename on success, None if there's no video to
+    generate one from.
+    """
+    global config
+    assets = item.get('assets', {})
+    video_name = assets.get('animation_intro') or assets.get('animation')
+    if not video_name:
+        return None
+    subdir = 'circles' if item_type == 'circle' else 'roles'
+    video_path = ASSETS_DIR / subdir / item['id'] / video_name
+    if not video_path.exists():
+        return None
+
+    cfg = load_config()
+    tracked = cfg.setdefault('system', {}).setdefault('walkup_stills', {})
+    key = f"{item_type}:{item['id']}"
+    display_dir = ASSETS_DIR / 'display'
+    display_dir.mkdir(parents=True, exist_ok=True)
+
+    desired_name = f"{item.get('name', 'Untitled')} — Walkup Still.jpg"
+    existing_name = tracked.get(key)
+    if existing_name and existing_name != desired_name:
+        # Item was renamed since the still was last generated -- drop the
+        # stale file/tag under the old name rather than leaving an orphan.
+        old_path = display_dir / existing_name
+        if old_path.exists():
+            old_path.unlink()
+        cfg.get('display_tags', {}).pop(existing_name, None)
+
+    still_path = display_dir / desired_name
+    if still_path.exists() and still_path.stat().st_mtime >= video_path.stat().st_mtime:
+        return desired_name  # already current, no need to regenerate
+
+    ok = False
+    for seek in ('-0.5', '-2.0'):
+        subprocess.run(
+            ['ffmpeg', '-y', '-sseof', seek, '-i', str(video_path),
+             '-update', '1', '-frames:v', '1', str(still_path)],
+            capture_output=True, text=True, timeout=15,
+        )
+        if still_path.exists() and still_path.stat().st_size > 0:
+            ok = True
+            break
+    if not ok:
+        return None
+
+    tracked[key] = desired_name
+    display_tags = cfg.setdefault('display_tags', {})
+    known = sorted({t for tags in display_tags.values() for t in tags}, key=str.lower)
+    tag_label = _normalize_display_tag('Circles' if item_type == 'circle' else 'Roles', known)
+    display_tags[desired_name] = [tag_label]
+    save_config(cfg)
+    config = cfg
+    return desired_name
+
+@app.route('/api/walkup_still/<item_type>/<item_id>', methods=['POST'])
+def api_show_walkup_still(item_type, item_id):
+    """Generates (if missing/stale) and immediately fires a circle/role's
+    walk-up still -- one action, matching 'sometimes I need this up on
+    screen right now' rather than a separate generate-then-find-it-and-
+    fire-it two-step."""
+    if item_type not in ('circle', 'role'):
+        return jsonify({'ok': False, 'error': 'invalid type'}), 400
+    key_field = 'circles' if item_type == 'circle' else 'roles'
+    item = next((x for x in config.get(key_field, []) if x['id'] == item_id), None)
+    if not item:
+        return jsonify({'ok': False, 'error': 'not found'}), 404
+    filename = _generate_walkup_still(item_type, item)
+    if not filename:
+        return jsonify({'ok': False, 'error': 'No walk-up video uploaded for this one yet'}), 400
+    _fire_display_asset(filename)
+    return jsonify({'ok': True, 'filename': filename})
+
+@app.route('/api/walkup_still/<item_type>/<item_id>')
+def api_walkup_still_url(item_type, item_id):
+    """Ensures a circle/role's walk-up still exists (generating it if missing
+    or stale) and returns its URL, without firing anything to the display --
+    backs the preview tiles below the walk-up grid so a thumbnail shows up on
+    its own the first time that tab is opened, no button press needed."""
+    if item_type not in ('circle', 'role'):
+        return jsonify({'ok': False, 'error': 'invalid type'}), 400
+    key_field = 'circles' if item_type == 'circle' else 'roles'
+    item = next((x for x in config.get(key_field, []) if x['id'] == item_id), None)
+    if not item:
+        return jsonify({'ok': False, 'error': 'not found'}), 404
+    filename = _generate_walkup_still(item_type, item)
+    if not filename:
+        return jsonify({'ok': False, 'error': 'No walk-up video uploaded for this one yet'}), 400
+    return jsonify({'ok': True, 'url': f'/assets/display/{filename}'})
 
 @app.route('/api/display/stop_meme')
 def api_display_stop_meme():
@@ -5293,6 +5469,10 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
     does every state-reset step below (fresh question 1, wiped scoreboard, etc.)
     but skips walkup/fallback-screen/display-navigate entirely, since whatever's
     already showing just needs to be told the state, not sent anywhere new."""
+    # Launching a game means leaving Karaoke, if it was live -- see the matching
+    # comment in fire_walkup(). No-ops instantly if Karaoke isn't live.
+    end_karaoke(show_standby=False)
+
     gt = GAME_TYPES.get(game_type_id, {})
     ctrl_url = gt.get('controller_route', f'/games/{game_type_id}') + (f'?config={config_id}' if config_id else '')
 
@@ -6670,6 +6850,15 @@ def api_show_fire():
     global _macro_cancel
     _macro_cancel.set()
     _macro_cancel = threading.Event()
+    # Advancing to any show step means leaving Karaoke, if it was live -- covers
+    # macro/vs_card steps too, which fire_walkup/_launch_game's own hooks don't
+    # reach. No-ops instantly if Karaoke isn't live.
+    end_karaoke(show_standby=False)
+    # Context-dependent Console convenience: only ever set on a step whose
+    # macro walks up the Log Keeper (enforced in the admin editor), so this
+    # firing unconditionally here doesn't affect any other step type.
+    if entry.get('flip_to_circles'):
+        broadcast('console_flip_tab', {'tab': 'walkup'})
     if step_type == 'circle':
         target_id = entry.get('target_id', '')
         step_name = entry.get('name', target_id)
@@ -7355,6 +7544,8 @@ def api_upload():
             save_config(cfg)
             config = cfg
             log.info(f"Config updated: {target_id}.assets.{asset_type} = {stored_name}")
+            if asset_type in ('animation', 'animation_intro'):
+                _generate_walkup_still('circle', circle)
     elif target_type == 'role' and target_id:
         roles = cfg.get('roles', [])
         role = next((r for r in roles if r['id'] == target_id), None)
@@ -7373,6 +7564,8 @@ def api_upload():
             save_config(cfg)
             config = cfg
             log.info(f"Config updated: {target_id}.assets.{asset_type} = {stored_name}")
+            if asset_type in ('animation', 'animation_intro'):
+                _generate_walkup_still('role', role)
     elif target_type == 'game_entry' and target_id:
         entries = cfg.get('game_entries', [])
         entry = next((e for e in entries if e['id'] == target_id), None)
@@ -7707,6 +7900,31 @@ def api_karaoke_end():
     threading.Thread(target=end_karaoke, daemon=True).start()
     return jsonify({'ok': True})
 
+def _restore_karaoke_display():
+    """Re-shows whatever karaoke phase is currently live on the projector --
+    for when a graphic/meme got fired over it (a stray tap, most likely) and
+    needs dismissing back to the song. Re-derives the event fresh from the
+    live karaoke_state rather than replaying the last-remembered display
+    event/snapshot, since that snapshot can be stale by the time this is
+    pressed (a pause, or even a phase change, could've happened underneath
+    the graphic since it fired). Playback itself is untouched either way --
+    it never stopped, only the screen got covered."""
+    if not karaoke_state.get('live'):
+        return False
+    if karaoke_state.get('playing'):
+        _ensure_display_for('display_karaoke', dict(karaoke_state))
+    elif karaoke_state.get('counting_down'):
+        _ensure_display_for('display_karaoke_countdown', dict(karaoke_state))
+    else:
+        _ensure_display_for('display_karaoke_lobby', dict(karaoke_state))
+    return True
+
+@app.route('/api/karaoke/restore_display', methods=['POST'])
+def api_karaoke_restore_display():
+    if not _restore_karaoke_display():
+        return jsonify({'ok': False, 'error': 'Karaoke is not live'}), 400
+    return jsonify({'ok': True})
+
 @app.route('/api/karaoke/vocal_volume', methods=['POST'])
 def api_karaoke_vocal_volume():
     data = request.get_json() or {}
@@ -7766,6 +7984,8 @@ def api_karaoke_settings():
         'walkup_video_url': _karaoke_walkup_video_url(),
         'walkup_scene':    system_cfg.get('karaoke_walkup_scene', ''),
         'song_scene':      system_cfg.get('karaoke_song_scene', ''),
+        'walkup_muted':    system_cfg.get('karaoke_walkup_muted', True),
+        'walkup_gain':     system_cfg.get('karaoke_walkup_gain', 1.0),
     })
 
 @app.route('/api/admin/karaoke/settings', methods=['POST'])
@@ -7775,6 +7995,13 @@ def api_karaoke_settings_save():
     system_cfg = cfg.setdefault('system', {})
     system_cfg['karaoke_walkup_scene'] = data.get('walkup_scene') or None
     system_cfg['karaoke_song_scene']   = data.get('song_scene') or None
+    if 'walkup_muted' in data:
+        system_cfg['karaoke_walkup_muted'] = bool(data['walkup_muted'])
+    if 'walkup_gain' in data:
+        try:
+            system_cfg['karaoke_walkup_gain'] = max(0.25, min(4.0, float(data['walkup_gain'])))
+        except (TypeError, ValueError):
+            pass
     save_config(cfg)
     global config
     config = cfg
@@ -8521,6 +8748,8 @@ def api_usb_import_asset():
             elif asset_type in ('animation', 'animation_intro'):
                 circle['assets'][asset_type] = stored_name
             save_config(cfg); config = cfg
+            if asset_type in ('animation', 'animation_intro'):
+                _generate_walkup_still('circle', circle)
     elif target_type == 'role' and target_id:
         role = next((r for r in cfg.get('roles', []) if r['id'] == target_id), None)
         if role:
@@ -8532,6 +8761,8 @@ def api_usb_import_asset():
             elif asset_type in ('animation', 'animation_intro'):
                 role['assets'][asset_type] = stored_name
             save_config(cfg); config = cfg
+            if asset_type in ('animation', 'animation_intro'):
+                _generate_walkup_still('role', role)
     elif target_type == 'game_entry' and target_id:
         entry = next((e for e in cfg.get('game_entries', []) if e['id'] == target_id), None)
         if entry:
@@ -8597,18 +8828,10 @@ def api_audio_normalize():
 @app.route('/api/audio/normalize/status')
 def api_audio_normalize_status():
     s = dict(_normalize_state)
-    # Count new files when idle
-    if not s['running']:
-        cutoff = NORM_STAMP.stat().st_mtime if NORM_STAMP.exists() else 0
-        cnt = 0
-        for base in [ASSETS_DIR / 'music']:
-            if base.exists():
-                for f in base.iterdir():
-                    if f.is_file() and f.suffix.lower() in _NORM_EXTS and f.stat().st_mtime > cutoff:
-                        cnt += 1
-        s['new_count'] = cnt
-    else:
-        s['new_count'] = 0
+    # Count new files when idle -- reuses the same scan Normalize itself
+    # runs (music/SFX/circles/roles/game-entries/karaoke), so this badge
+    # can never drift out of sync with what NORMALIZE NEW actually does.
+    s['new_count'] = 0 if s['running'] else len(_collect_norm_files('new'))
     return jsonify(s)
 
 # ── CIRCLES AND ROLES API ──
@@ -8660,9 +8883,10 @@ def api_get_show_flow():
             # already-live game (e.g. to just check on it) always re-fired
             # /api/show/fire and re-ran _launch_game(), replaying its walkup
             # video every time instead of just opening its controller.
-            'type':           entry.get('type', 'macro'),
-            'game_type_id':   entry.get('game_type_id', ''),
-            'game_config_id': entry.get('game_config_id', ''),
+            'type':             entry.get('type', 'macro'),
+            'game_type_id':     entry.get('game_type_id', ''),
+            'game_config_id':   entry.get('game_config_id', ''),
+            'flip_to_circles':  entry.get('flip_to_circles', False),
         })
     return jsonify(result)
 
@@ -9419,16 +9643,47 @@ def _batt_cmd(addr, coro_fn):
         return False, str(e)
 
 
+_bt_reset_lock = None  # asyncio.Lock, created inside the battery event loop -- see _batt_scan_sem for the same per-loop init pattern
+
 async def _reset_bt_adapter():
-    """Restart BlueZ to recover from adapter I/O errors."""
-    log.warning('Battery: resetting Bluetooth adapter')
-    loop = _asyncio.get_event_loop()
-    await loop.run_in_executor(None, lambda: subprocess.run(
-        ['sudo', 'systemctl', 'restart', 'bluetooth'],
-        capture_output=True, timeout=20
-    ))
-    await _asyncio.sleep(5)
-    log.info('Battery: Bluetooth reset complete')
+    """Restart BlueZ to recover from adapter I/O errors.
+
+    Serialized, and never raises. Confirmed live (2026-08-28) as the actual
+    cause of a real ~20min outage: both poles hitting trouble around the
+    same time each independently called this concurrently -- and since
+    restarting Bluetooth necessarily breaks whichever pole was mid-scan/
+    connect at that moment, the OTHER pole's reset just handed this one a
+    fresh failure to react to, and vice versa, forever. A pole that finds a
+    reset already in flight now just waits for it to finish instead of
+    kicking off a redundant, overlapping one.
+
+    Also confirmed live: when the subprocess call itself failed (root cause
+    unclear -- observed as "cannot schedule new futures after shutdown"),
+    the exception used to escape uncaught from inside _monitor_unit's own
+    except-Exception handler, which killed BOTH poles' monitoring via
+    asyncio.gather() and forced the whole battery monitor to restart from
+    scratch every time -- explaining the repeated 'Battery monitor
+    crashed' / 'restarting in 30s' cycle. Catching it here means a failed
+    reset is just a logged warning for this one pole, not a global outage."""
+    global _bt_reset_lock
+    if _bt_reset_lock is None:
+        _bt_reset_lock = _asyncio.Lock()
+    if _bt_reset_lock.locked():
+        async with _bt_reset_lock:
+            return  # someone else's reset just finished -- that's good enough, don't pile on another
+    async with _bt_reset_lock:
+        log.warning('Battery: resetting Bluetooth adapter')
+        loop = _asyncio.get_event_loop()
+        try:
+            await loop.run_in_executor(None, lambda: subprocess.run(
+                ['sudo', 'systemctl', 'restart', 'bluetooth'],
+                capture_output=True, timeout=20
+            ))
+        except Exception as e:
+            log.error(f'Battery: Bluetooth adapter reset failed: {e}')
+            return
+        await _asyncio.sleep(5)
+        log.info('Battery: Bluetooth reset complete')
 
 
 _batt_scan_sem = None  # set to Semaphore(1) inside the event loop

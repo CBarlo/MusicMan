@@ -132,11 +132,20 @@
   .walkup-circle { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; margin-bottom: 2px; }
   .walkup-name { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-align: center; line-height: 1.1; }
   .walkup-song { font-size: 10px; color: var(--text-dim); text-align: center; font-family: 'Share Tech Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 0 4px; }
-  .walkup-display-btn { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--border2); background: var(--bg2); color: var(--text-dim); font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0.7; }
-  .walkup-display-btn:hover { opacity: 1; border-color: var(--amber); color: var(--amber); }
+  .asset-tiles-section { margin-top: 16px; }
+  .asset-tiles-heading { font-size: 11px; letter-spacing: 2px; color: var(--text-dim); font-weight: 700; margin: 14px 2px 8px; }
+  .asset-tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+  .asset-tile { position: relative; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; overflow: hidden; aspect-ratio: 1; transition: all .15s; }
+  .asset-tile:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.4); border-color: var(--amber); }
+  .asset-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .asset-tile.empty { cursor: default; opacity: .45; }
+  .asset-tile.empty:hover { transform: none; box-shadow: none; border-color: var(--border); }
+  .asset-tile-name { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(rgba(0,0,0,.78), transparent); color: #fff; font-size: 10px; font-weight: 700; text-align: center; padding: 4px 3px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+  .asset-tile-badge { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.78); font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-align: center; padding: 4px 2px; pointer-events: none; }
+  .asset-tile-badge.still { color: #6ec6ff; }
   .sfx-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
   .sfx-btn { height: 54px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: background .1s, transform .1s; display: flex; align-items: center; justify-content: center; padding: 4px 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .5px; color: var(--text); text-align: center; line-height: 1.2; word-break: break-word; hyphens: auto; }
-  #memesGrid .sfx-btn.playing, #graphicsGrid .sfx-btn.playing { border-color: var(--amber, #F5A623); box-shadow: 0 0 10px rgba(245,166,35,.5); }
+  #memesSections .sfx-btn.playing { border-color: var(--amber, #F5A623); box-shadow: 0 0 10px rgba(245,166,35,.5); }
   .sfx-btn:hover { background: var(--bg3); box-shadow: 0 0 12px rgba(0,0,0,.5); }
   .sfx-btn:active { transform: scale(.95); }
   .sfx-btn.fire { border-color: var(--rust); color: var(--rust); }
@@ -270,13 +279,32 @@
       <button id="activeGameBtn" class="btn-transport" style="display:none;width:100%;margin-top:8px;background:var(--amber-dim);border-color:var(--amber);color:var(--amber);font-weight:800" onclick="_openActiveGame()">🎮 OPEN GAME CONTROLS</button>
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
       <div class="progress-times"><span id="timeElapsed">0:00</span><span id="timeTotal">0:00</span></div>
-      <div class="transport">
+
+      <!-- Karaoke takes over this whole "what's playing + controls" area
+           while live, instead of living in its own separate section below --
+           regular music is already stopped server-side the moment Karaoke
+           starts, so there's never a real conflict to show both at once. -->
+      <div id="lpKaraokeBar" style="display:none">
+        <div class="transport">
+          <button class="btn-transport danger" id="lpKkStopBtn" onclick="kkStopSong()">&#9632; STOP SONG</button>
+          <button class="btn-transport" id="lpKkPauseBtn" onclick="kkPauseResume()">&#9208; PAUSE</button>
+        </div>
+        <div class="transport" style="margin-top:14px">
+          <button class="btn-transport" onclick="kkRestoreDisplay()" style="font-size:10px;letter-spacing:1px">&#128250; BACK ON SCREEN</button>
+        </div>
+        <div class="transport" style="margin-top:14px">
+          <button class="btn-transport" id="lpKkFadeBtn" onclick="kkFadeOut()" style="font-size:10px;letter-spacing:1px">&#8595; FADE OUT</button>
+          <button class="btn-transport danger" id="lpKkEndBtn" onclick="kkEnd()" style="font-size:10px;letter-spacing:1px">&#10005; END KARAOKE</button>
+        </div>
+      </div>
+
+      <div id="musicTransportRow1" class="transport">
         <button class="btn-transport danger" onclick="stopAll()">&#9632; STOP</button>
         <button class="btn-transport" onclick="fetch('/api/display/standby').catch(()=>{})" style="font-size:10px;letter-spacing:1px">&#9723; CLEAR DISPLAY</button>
         <button class="btn-transport" id="pauseBtn" onclick="togglePause()">&#9208; PAUSE</button>
         <button class="btn-transport" onclick="fadeOut()" style="font-size:10px;letter-spacing:1px">&#8595; FADE &amp; END</button>
       </div>
-      <div class="transport" style="margin-top:14px">
+      <div id="musicTransportRow2" class="transport" style="margin-top:14px">
         <button class="btn-transport" onclick="trackPrev()" style="flex:1">&#9664;&#9664; TRACK &minus;</button>
         <button class="btn-transport" onclick="trackNext()" style="flex:1">TRACK + &#9654;&#9654;</button>
       </div>
@@ -285,20 +313,6 @@
         <button class="btn-transport" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Display cleared',1500)" style="flex:1;font-size:10px;letter-spacing:1px">&#9723; CLEAR</button>
       </div>
       <button onclick="killAll()" style="width:100%;margin-top:8px;height:42px;border-radius:8px;border:2px solid #c0392b;background:#2d0a0a;color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;cursor:pointer">&#9760; KILL ALL</button>
-
-      <!-- Quick karaoke transport -- only shown while Karaoke is live, so
-           it's reachable from any tab without a trip to the KARAOKE tab. -->
-      <div id="lpKaraokeBar" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-        <div class="section-label">🎤 KARAOKE <span id="lpKkTitle" style="color:var(--text-dim);font-weight:400;letter-spacing:0;text-transform:none"></span></div>
-        <div class="transport" style="margin-top:6px">
-          <button class="btn-transport danger" id="lpKkStopBtn" onclick="kkStopSong()">&#9632; STOP SONG</button>
-          <button class="btn-transport" id="lpKkPauseBtn" onclick="kkPauseResume()">&#9208; PAUSE</button>
-        </div>
-        <div class="transport" style="margin-top:6px">
-          <button class="btn-transport" id="lpKkFadeBtn" onclick="kkFadeOut()" style="font-size:10px;letter-spacing:1px">&#8595; FADE OUT</button>
-          <button class="btn-transport danger" id="lpKkEndBtn" onclick="kkEnd()" style="font-size:10px;letter-spacing:1px">&#10005; END KARAOKE</button>
-        </div>
-      </div>
 
       <div class="vol-row">
         <span class="vol-label">MUSIC</span>
@@ -371,10 +385,12 @@
     <div class="page" id="page-walkup">
       <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Tap a circle to play their walk-up song, trigger their light show, and put their logo on the display.</div>
       <div class="walkup-grid" id="walkupGrid"></div>
+      <div class="asset-tiles-section" id="walkupStillsSection"></div>
     </div>
     <div class="page" id="page-roles">
       <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Tap a role to play their walk-up song and put their graphic on the display.</div>
       <div class="walkup-grid" id="rolesGrid"></div>
+      <div class="asset-tiles-section" id="rolesStillsSection"></div>
     </div>
     <div class="page" id="page-sfx">
       <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Tap a button to fire a sound effect. Plays on top of whatever is already playing.</div>
@@ -467,11 +483,7 @@
       <button onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Projector cleared',1500)"
         style="margin-bottom:10px;background:var(--surface);border:1px solid var(--border2);color:var(--text-dim);padding:6px 16px;border-radius:6px;font-size:11px;letter-spacing:2px;cursor:pointer;font-weight:700">&#x2715; CLEAR PROJECTOR</button>
 
-      <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin-bottom:6px">MEMES</div>
-      <div class="sfx-grid" id="memesGrid"></div>
-
-      <div style="font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin:16px 0 6px">GRAPHICS &amp; OTHER — UNTAGGED</div>
-      <div class="sfx-grid" id="graphicsGrid"></div>
+      <div id="memesSections"></div>
     </div>
 
     <!-- ── VS CARDS TAB ── -->
@@ -2170,16 +2182,96 @@ function kkFadeOut() {
   }).catch(()=>{});
 }
 
+function kkRestoreDisplay() {
+  // Re-shows whatever karaoke phase is currently live on the projector --
+  // for when a graphic/meme got fired over it (a stray tap, most likely)
+  // and needs to be dismissed back to the song, without touching playback,
+  // which never stopped underneath it either way.
+  fetch('/api/karaoke/restore_display', {method:'POST'}).then(r => r.json()).then(d => {
+    if (!d.ok) showAlert(d.error || 'Karaoke is not live', 2500);
+  }).catch(() => showAlert('Could not restore the karaoke display', 2500));
+}
+
 // Mirrors the Karaoke tab's own action card in the left pane's persistent
 // sidebar, so STOP/PAUSE/FADE/END are reachable from any tab mid-show
 // instead of needing a trip to the KARAOKE tab first.
+// Karaoke's own progress ticker -- mirrors _startProgress, but computed
+// from karaoke_state.start_ms (an absolute server timestamp, already
+// shifted forward by however long any pause lasted -- see
+// resume_karaoke_song) rather than "duration counted from right now",
+// since a page load/reconnect mid-song needs to show real elapsed time
+// immediately, not start over from 0:00.
+let _kkLpProgressInterval = null;
+function _kkLpTick(startMs, durationSecs) {
+  const elapsed = (Date.now() - startMs) / 1000;
+  const pct = durationSecs > 0 ? Math.min(elapsed / durationSecs * 100, 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('timeElapsed').textContent = fmtTime(Math.max(0, elapsed));
+}
+function _kkLpStopTicking() {
+  clearInterval(_kkLpProgressInterval);
+  _kkLpProgressInterval = null;
+}
+
+let _kkLpWasLive = false;
 function _renderLpKaraokeBar(k) {
-  const bar = document.getElementById('lpKaraokeBar');
+  const bar  = document.getElementById('lpKaraokeBar');
+  const row1 = document.getElementById('musicTransportRow1');
+  const row2 = document.getElementById('musicTransportRow2');
   if (!bar) return;
-  if (!k.live) { bar.style.display = 'none'; return; }
+
+  if (!k.live) {
+    bar.style.display = 'none';
+    if (row1) row1.style.display = '';
+    if (row2) row2.style.display = '';
+    if (_kkLpWasLive) {
+      // Karaoke owned the Now Playing card -- handing it back. Regular
+      // music's own audio_state broadcast (already fired server-side by
+      // whatever ended Karaoke) will immediately overwrite this with real
+      // track info if something else is actually playing; this is just the
+      // safe "nothing else is playing yet" default in the meantime.
+      _kkLpStopTicking();
+      document.getElementById('trackTitle').textContent = '— STANDBY —';
+      document.getElementById('trackSub').textContent   = 'Select a walk-up or press play';
+      document.getElementById('progressFill').style.width = '0%';
+      document.getElementById('timeElapsed').textContent = '0:00';
+      document.getElementById('timeTotal').textContent = '0:00';
+    }
+    _kkLpWasLive = false;
+    return;
+  }
   bar.style.display = '';
-  const titleEl = document.getElementById('lpKkTitle');
-  if (titleEl) titleEl.textContent = k.title ? ('— ' + k.title) : '';
+  if (row1) row1.style.display = 'none';
+  if (row2) row2.style.display = 'none';
+  _kkLpWasLive = true;
+
+  // Now Playing card reflects whatever Karaoke is actually doing, same
+  // "one shared now-playing surface" pattern SFX already overlays onto --
+  // regular music is already stopped server-side the moment Karaoke goes
+  // live, so there's nothing competing for this space.
+  document.getElementById('trackTitle').textContent = k.title ? k.title.toUpperCase() : 'KARAOKE';
+  document.getElementById('trackSub').textContent =
+    k.playing ? (k.artist || 'NOW SINGING')
+    : k.counting_down ? 'GET READY…'
+    : k.revealed ? (k.artist || 'REVEALED — press START')
+    : 'SELECT A SONG';
+
+  if (k.playing && k.start_ms) {
+    document.getElementById('timeTotal').textContent = k.duration > 0 ? fmtTime(k.duration) : '0:00';
+    if (!k.paused) {
+      _kkLpStopTicking();
+      _kkLpTick(k.start_ms, k.duration);
+      _kkLpProgressInterval = setInterval(() => _kkLpTick(k.start_ms, k.duration), 500);
+    } else {
+      _kkLpStopTicking();  // frozen in place at whatever it last showed
+    }
+  } else {
+    _kkLpStopTicking();
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('timeElapsed').textContent = '0:00';
+    document.getElementById('timeTotal').textContent = '0:00';
+  }
+
   const stopBtn  = document.getElementById('lpKkStopBtn');
   const pauseBtn = document.getElementById('lpKkPauseBtn');
   const fadeBtn  = document.getElementById('lpKkFadeBtn');
@@ -3104,13 +3196,13 @@ async function buildRolesGrid() {
     btn.style.borderColor = col + '55';
     const song = walkupSongLabel(r.assets);
     btn.innerHTML = `
-      <button class="walkup-display-btn" onclick="event.stopPropagation();sendToDisplay('role','${escHtml(r.id)}')" title="Show on display without playing the walk-up">📺</button>
       <div class="walkup-circle" style="background:${col}22;color:${col};border:1px solid ${col}66">★</div>
       <div class="walkup-name" style="color:${col}">${escHtml(r.name)}</div>
       <div class="walkup-song">${escHtml(song)}</div>`;
     btn.onclick = () => playRoleWalkup(r);
     grid.appendChild(btn);
   });
+  buildAssetTilesSection(roles, 'role', 'rolesStillsSection');
 }
 
 function playRoleWalkup(r) {
@@ -3157,14 +3249,54 @@ async function buildWalkupGrid() {
     btn.style.borderColor = (c.color || '#888888') + '55';
     const num = c.number || '';
     const song = walkupSongLabel(c.assets);
-    btn.innerHTML = `<button class="walkup-display-btn" onclick="event.stopPropagation();sendToDisplay('circle','${escHtml(c.id)}')" title="Show on display without playing the walk-up">📺</button><div class="walkup-circle" style="background:${c.color}22;color:${c.color};border:1px solid ${c.color}66">${num}</div><div class="walkup-name" style="color:${c.color}">${escHtml(c.name)}</div><div class="walkup-song">${escHtml(song)}</div>`;
+    btn.innerHTML = `<div class="walkup-circle" style="background:${c.color}22;color:${c.color};border:1px solid ${c.color}66">${num}</div><div class="walkup-name" style="color:${c.color}">${escHtml(c.name)}</div><div class="walkup-song">${escHtml(song)}</div>`;
     btn.onclick = () => playWalkup(c);
     grid.appendChild(btn);
   });
+  buildAssetTilesSection(circles, 'circle', 'walkupStillsSection');
 }
 
-function sendToDisplay(type, id) {
-  fetch(`/api/display/show?${type}=${encodeURIComponent(id)}`).catch(()=>{});
+// Below-the-walkups preview strip: separate from the walk-up trigger tiles on
+// purpose -- an overlay button sitting on/near a walk-up tile is a fat-finger
+// risk on a touch screen (miss it and you fire the whole walk-up sequence
+// instead). Tiles self-populate (calling the still endpoint generates it
+// server-side the first time, no separate "generate" step) and fire on tap
+// once their thumbnail has loaded in.
+function buildAssetTilesSection(items, type, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const stillable = items.filter(i => (i.assets || {}).animation_intro || (i.assets || {}).animation);
+
+  container.innerHTML = stillable.length
+    ? `<div class="asset-tiles-heading">🎬 WALK-UP STILLS — TAP TO SHOW</div><div class="asset-tile-grid" id="${containerId}-stills"></div>`
+    : '';
+
+  const stillsGrid = document.getElementById(containerId + '-stills');
+  if (!stillsGrid) return;
+  stillable.forEach(i => {
+    const tile = document.createElement('div');
+    tile.className = 'asset-tile empty';
+    tile.title = `Show ${i.name}'s walk-up still on the display`;
+    tile.innerHTML = `<div class="asset-tile-name">${escHtml(i.name)}</div><div class="asset-tile-badge still">STILL</div>`;
+    stillsGrid.appendChild(tile);
+    fetch(`/api/walkup_still/${type}/${encodeURIComponent(i.id)}`).then(r => r.json()).then(d => {
+      if (!d.ok || !d.url) return;
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.src = d.url;
+      tile.insertBefore(img, tile.firstChild);
+      tile.classList.remove('empty');
+      tile.onclick = () => sendWalkupStill(type, i.id);
+    }).catch(() => {});
+  });
+}
+
+// Generates (first time, or if the walk-up video's changed since) and
+// fires the frozen last frame of a circle/role's walk-up video.
+function sendWalkupStill(type, id) {
+  fetch(`/api/walkup_still/${type}/${encodeURIComponent(id)}`, {method:'POST'}).then(r => r.json()).then(d => {
+    if (!d.ok) showAlert(d.error || 'Could not generate that still', 2500);
+  }).catch(() => showAlert('Could not generate that still', 2500));
 }
 
 let progressAnim;
@@ -3450,7 +3582,7 @@ async function buildDisplayGrid() {
 let _currentMemeFile = null;
 
 function _syncMemeButtonState() {
-  document.querySelectorAll('#memesGrid .sfx-btn, #graphicsGrid .sfx-btn').forEach(b => {
+  document.querySelectorAll('#memesSections .sfx-btn').forEach(b => {
     b.classList.toggle('playing', !!_currentMemeFile && b.dataset.filename === _currentMemeFile);
   });
 }
@@ -3541,24 +3673,52 @@ async function _renderFireableDisplayGrid(gridId, orderKey, files, emptyMsg) {
   });
 }
 
+// One section per tag actually in use (Meme always first, since that's the
+// original/most-used case), plus a final untagged section -- a file tagged
+// with anything OTHER than "Meme" used to fall into neither grid (not Meme,
+// not untagged) and just silently disappear from Console. A file can
+// legitimately appear in more than one section if it carries more than one
+// tag (e.g. a Ranger card tagged both "Graphic" and "Rangers").
+function _memesSlug(tag) {
+  return tag.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+}
+
 async function buildMemesGrid() {
-  let files = [];
-  let tags  = {};
-  try { files = await fetch('/api/display/list').then(r => r.json()); } catch(e) {}
-  try { tags  = await fetch('/api/display/tags').then(r => r.json()); } catch(e) {}
+  let files      = [];
+  let tags       = {};
+  let categories = [];
+  try { files      = await fetch('/api/display/list').then(r => r.json()); } catch(e) {}
+  try { tags       = await fetch('/api/display/tags').then(r => r.json()); } catch(e) {}
+  try { categories = await fetch('/api/display/categories').then(r => r.json()); } catch(e) {}
 
-  // Tagged "Meme" (any casing) instead of "every video/gif in the whole
-  // Display library" -- the file-type filter didn't actually narrow
-  // anything down, since most of Display's videos/gifs aren't memes.
-  const memeFiles = files.filter(f => (tags[f] || []).some(t => t.toLowerCase() === 'meme'));
-  // Logos, screens, and other one-off graphics that aren't tagged anything --
-  // still fireable from Console without needing to go into Admin.
-  const graphicFiles = files.filter(f => !(tags[f] || []).length);
+  const wrap = document.getElementById('memesSections');
+  if (!wrap) return;
+  wrap.innerHTML = '';
 
-  await _renderFireableDisplayGrid('memesGrid', 'memes', memeFiles,
-    'NO MEMES TAGGED YET — TAG FILES "MEME" IN ADMIN → DISPLAY');
-  await _renderFireableDisplayGrid('graphicsGrid', 'graphics', graphicFiles,
-    'NO UNTAGGED GRAPHICS — EVERYTHING IN DISPLAY IS TAGGED');
+  const others = categories.filter(c => c.toLowerCase() !== 'meme').sort((a, b) => a.localeCompare(b));
+  const orderedTags = categories.some(c => c.toLowerCase() === 'meme') ? ['Meme', ...others] : others;
+
+  const addSection = (label, gridId, orderKey, sectionFiles, emptyMsg) => {
+    const heading = document.createElement('div');
+    heading.style.cssText = 'font-size:10px;letter-spacing:2px;color:var(--text-dim);font-weight:700;margin:16px 0 6px';
+    heading.textContent = label;
+    wrap.appendChild(heading);
+    const grid = document.createElement('div');
+    grid.className = 'sfx-grid';
+    grid.id = gridId;
+    wrap.appendChild(grid);
+    return _renderFireableDisplayGrid(gridId, orderKey, sectionFiles, emptyMsg);
+  };
+
+  for (const tag of orderedTags) {
+    const tagFiles = files.filter(f => (tags[f] || []).some(t => t.toLowerCase() === tag.toLowerCase()));
+    await addSection(tag.toUpperCase(), 'memesSection_' + _memesSlug(tag), 'display_tag_' + _memesSlug(tag),
+      tagFiles, `NO FILES TAGGED "${tag.toUpperCase()}"`);
+  }
+
+  const untaggedFiles = files.filter(f => !(tags[f] || []).length);
+  await addSection('UNTAGGED', 'memesSection_untagged', 'graphics',
+    untaggedFiles, 'NOTHING UNTAGGED — EVERYTHING IN DISPLAY IS TAGGED');
 
   try {
     const s = await fetch('/api/state').then(r => r.json());
@@ -3951,6 +4111,11 @@ function initWebSocket() {
         if (s.countdown.seconds_remaining !== undefined) { cdSecs = s.countdown.seconds_remaining; renderCd(); }
       }
       if (s.viz_scene !== undefined) vizConsoleUpdateStatus(s.viz_scene);
+      // Same gap as show_step/h2h below: the Now Playing card's karaoke bar
+      // only otherwise updates live, so a fresh load or reconnect mid-song
+      // (Karaoke tab never opened this session) left it stuck showing the
+      // standby transport instead of the actually-running song.
+      if (s.karaoke) kkApplyState(s.karaoke);
       if (s.stopwatch) {
         swRunning = !!s.stopwatch.running;
         swElapsedMs = s.stopwatch.elapsed_ms || 0;
@@ -4224,8 +4389,12 @@ function initWebSocket() {
         // Another device dragged a new order into SFX/Memes/Display — pick it
         // up live instead of only on next tab open.
         if (data.kind === 'sfx')     buildSfxGrid();
-        else if (data.kind === 'memes' || data.kind === 'graphics') buildMemesGrid();
+        else if (data.kind === 'graphics' || (data.kind || '').startsWith('display_tag_')) buildMemesGrid();
         else if (data.kind === 'display') buildDisplayGrid();
+      }
+
+      else if (event === 'console_flip_tab') {
+        navToPage(data.tab);
       }
 
       else if (event === 'show_step') {
