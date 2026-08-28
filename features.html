@@ -231,7 +231,11 @@
       </div>
       <div class="feat amber wide">
         <div class="feat-name">Walk-Up Pipeline</div>
-        <div class="feat-desc">Each walk-up fires simultaneously: entrance music starts → projector crossfades to the kid's card → lighting scene switches → animation plays on-screen → stage scene restores when audio ends. Configurable per-entry: music file, SFX, display animation, lighting scene, entrance duration. A 📺 Send to Display button on each Console tile pushes just the card/animation to the projector without triggering its music or lighting, for when the visual is wanted without the full entrance.</div>
+        <div class="feat-desc">Each walk-up fires simultaneously: entrance music starts → projector crossfades to the kid's card → lighting scene switches → animation plays on-screen → stage scene restores when audio ends. Configurable per-entry: music file, SFX, display animation, lighting scene, entrance duration.</div>
+      </div>
+      <div class="feat amber">
+        <div class="feat-name">Walk-Up Stills</div>
+        <div class="feat-desc">A frozen last-frame thumbnail of each circle/role's walk-up video, self-generated the first time the CIRCLES/ROLES tab loads — nothing to create or upload by hand. Shown in a dedicated strip below the walk-up buttons (never on the buttons themselves, to keep a stray tap from firing the whole entrance sequence) — tap one to put just that still up on the display. Each one also saves as a real, tagged Display library file, so it's pickable in any macro's Display Image step too.</div>
       </div>
       <div class="feat amber">
         <div class="feat-name">Game Entries</div>
@@ -282,7 +286,7 @@
       </div>
       <div class="feat blue">
         <div class="feat-name">MEMES/GRAPHICS Tab</div>
-        <div class="feat-desc">Two one-tap grids on the Console: files tagged "Meme" (via a 🏷 tag button on any Display file) on top, everything else untagged — logos, screens, other graphics — below. Tap again mid-play to kill it and revert to whatever was showing before (a walkup, a slide, standby), not always standby; a walkup specifically fades the overlay out rather than restarting itself. Each grid drag-to-reorders independently.</div>
+        <div class="feat-desc">One one-tap grid per tag actually in use in the Display library (via a 🏷 tag button on any Display file) — Meme first, then every other tag alphabetically, Untagged last. Every tag you create shows up as its own section automatically, no console-side setup. Tap again mid-play to kill it and revert to whatever was showing before (a walkup, a slide, standby), not always standby; a walkup specifically fades the overlay out rather than restarting itself. Each section drag-to-reorders independently.</div>
       </div>
       <div class="feat blue wide">
         <div class="feat-name">BAND Photo Slideshow</div>
@@ -414,7 +418,7 @@
       </div>
       <div class="feat rose">
         <div class="feat-name">Show Flow</div>
-        <div class="feat-desc">Ordered list of macro steps that runs the full show in sequence. Advance, skip, or reset from the Console. Saveable as named templates — load a whole show in one tap.</div>
+        <div class="feat-desc">Ordered list of macro steps that runs the full show in sequence. Advance, skip, or reset from the Console. Saveable as named templates — load a whole show in one tap. Steps that walk up the Log Keeper role can flip the Console to the CIRCLES tab automatically when they fire — a context-dependent option, not a generic one on every step.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">Show Flow Templates</div>
@@ -462,6 +466,14 @@
       <div class="feat green">
         <div class="feat-name">Synced Vocal Guide</div>
         <div class="feat-desc">Instrumental and vocal guide play on synchronized channels (not mixed subsystems, avoids drift). Guide has its own balance slider + MC-remote mute toggle; the master Console volume slider scales both together.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Auto-Ends on Show Advance</div>
+        <div class="feat-desc">Karaoke ends itself the instant you advance to a new Show Flow step, start a game, or fire a walk-up — no separate END KARAOKE press needed first, and no standby flash since whatever's coming next takes over the display immediately.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Back On Screen</div>
+        <div class="feat-desc">Re-shows whatever karaoke phase is currently live (lobby, countdown, or lyrics) on the projector without touching playback — recovers the display after a graphic/meme gets fired over it by a stray tap.</div>
       </div>
     </div>
   </div>

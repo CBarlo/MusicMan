@@ -956,6 +956,15 @@
     <li>Drag items in the left list to reorder. Click <kbd>SAVE SHOW FLOW</kbd> when done.</li>
   </ol>
 
+  <div class="callout callout-tip">
+    <div class="callout-title">Flip to Circles?</div>
+    When the Macro you pick walks up the <strong>Log Keeper</strong> role, a
+    <strong>Flip console to CIRCLES when this fires?</strong> checkbox appears — check it and the
+    Console automatically switches to the CIRCLES tab the instant that step fires, so the operator
+    is already looking at the right buttons for whatever comes next. The checkbox only shows up
+    for steps where it's actually relevant; it's not a generic option on every step.
+  </div>
+
   <div class="callout callout-warn">
     <div class="callout-title">Always save the Show Flow</div>
     The Show Flow requires you to click <kbd>SAVE SHOW FLOW</kbd> before your order is persisted.
@@ -1679,7 +1688,7 @@
     <tr><th>Section</th><th>What it is</th></tr>
     <tr><td>Now Playing</td><td>Track name and playback progress bar</td></tr>
     <tr><td>Transport Controls</td><td>STOP, CLEAR DISPLAY, PAUSE, FADE &amp; END, TRACK −/+, BAE LOGO, KILL ALL</td></tr>
-    <tr><td>Karaoke transport</td><td>Appears only while Karaoke is live: Stop Song, Pause/Resume, Fade Out, End Karaoke — reachable from any tab, not just KARAOKE</td></tr>
+    <tr><td>Karaoke transport</td><td>Appears only while Karaoke is live: Stop Song, Pause/Resume, 📺 Back On Screen, Fade Out, End Karaoke — reachable from any tab, not just KARAOKE. Karaoke also ends itself automatically the moment you advance to a new show step, start a game, or fire a walk-up, so there's nothing left running underneath by accident.</td></tr>
     <tr><td>Volume sliders</td><td>Music volume (top, also covers the karaoke vocal guide while a song is live) and SFX volume (bottom) — larger touch targets for iPad</td></tr>
     <tr><td>Mic Levels</td><td>Live dB bars for Pole A / Pole B — displayed in the top header bar when mics are active</td></tr>
     <tr><td>Timer panel</td><td>Skit timer — large digit display, START/PAUSE, RESET, SET, SHOW ON SCREEN; preset select + LOAD/SAVE</td></tr>
@@ -1696,7 +1705,7 @@
     <tr><td rowspan="2"><em>Audio</em></td><td><span class="tab">SFX</span></td><td>Sound effect library — one-tap triggers; plays on top of current music</td></tr>
     <tr><td><span class="tab">MUSIC</span></td><td>Music library browser</td></tr>
     <tr><td rowspan="4"><em>Screen</em></td><td><span class="tab">SLIDES</span></td><td>Live slide builder (two-column: saved slide grid on left, builder on right) + display images</td></tr>
-    <tr><td><span class="tab">MEMES/GRAPHICS</span></td><td>Two grids: files tagged "Meme" on top, everything else in the Display library (logos, screens, other graphics) below — both one-tap fireable, no Admin trip needed</td></tr>
+    <tr><td><span class="tab">MEMES/GRAPHICS</span></td><td>One grid per tag actually in use in the Display library (Meme first, then alphabetical, Untagged last) — every tag you've created shows up as its own section automatically, all one-tap fireable, no Admin trip needed</td></tr>
     <tr><td><span class="tab">VS CARDS</span></td><td>VS Card list — one tap fires the card to the display</td></tr>
     <tr><td><span class="tab">VIZ</span></td><td>Music Visualizer preset picker and Crowd Control slider</td></tr>
     <tr><td><em>Games</em></td><td><span class="tab">GAMES</span></td><td>Game walk-ups, game library, Scoreboards, countdown timer, stopwatch, rankings, shell game, sound levels</td></tr>
@@ -1754,6 +1763,16 @@
     <li>Tap the circle or role button. Their walk-up track starts, their logo appears on HDMI, and their lighting scene fires.</li>
     <li>The walk-up plays through its configured duration and fades automatically. To stop early: <kbd>FADE &amp; END</kbd> or <kbd>STOP</kbd>.</li>
   </ol>
+  <p>
+    Below the walk-up buttons, a <strong>🎬 WALK-UP STILLS</strong> strip shows a frozen last-frame
+    thumbnail of each circle/role's walk-up video — tap one to put just that still image up on the
+    display, with no music or lighting. Stills generate themselves automatically the first time this
+    strip loads (nothing to upload or create by hand), and they're deliberately kept off the walk-up
+    buttons themselves — a small button sitting on top of a walk-up tile is too easy to miss-tap and
+    fire the whole entrance sequence by accident. Every generated still is also saved as a real,
+    tagged (<em>Circles</em> / <em>Roles</em>) file in the Display library, so it's pickable in any
+    macro's Display Image step, not just from this strip.
+  </p>
 
   <h2 id="music-run">Playing Music from the Library</h2>
   <ol class="steps">
@@ -1929,14 +1948,21 @@
     <tr><td><kbd>⏸ PAUSE</kbd> / <kbd>▶ PLAY</kbd></td><td>Freezes both tracks and the lyric ticker in place; resuming picks up from exactly where it paused, no jump</td></tr>
     <tr><td><kbd>↺ START OVER</kbd></td><td>Restarts the current song from the top immediately — no count-off, both audio and lyrics reset together</td></tr>
     <tr><td><kbd>⏹ STOP SONG</kbd></td><td>Stops whatever's happening with the current song and returns to the (still-live) lobby, ready to pick another</td></tr>
+    <tr><td><kbd>📺 BACK ON SCREEN</kbd></td><td>Re-shows whatever karaoke phase is currently live (lobby, countdown, or lyrics) on the projector, without touching playback — for putting karaoke back up after a graphic/meme got fired over it by accident</td></tr>
     <tr><td><kbd>✕ END KARAOKE</kbd></td><td>Fully exits Karaoke, back to standby</td></tr>
   </table>
   <div class="callout callout-tip">
     <div class="callout-title">Controls follow you to any tab</div>
     Once a song is playing, a compact <strong>🎤 KARAOKE</strong> transport (Stop Song, Pause/Resume,
-    Fade Out, End Karaoke) appears in the Console's left panel — reachable from any tab, not just
-    the KARAOKE tab itself. <strong>Fade Out</strong> ramps the song down over a few seconds and
-    then stops it, a gentler way to cut a rendition short than an instant STOP SONG.
+    📺 Back On Screen, Fade Out, End Karaoke) appears in the Console's left panel — reachable from
+    any tab, not just the KARAOKE tab itself. <strong>Fade Out</strong> ramps the song down over a
+    few seconds and then stops it, a gentler way to cut a rendition short than an instant STOP SONG.
+  </div>
+  <div class="callout callout-info">
+    <div class="callout-title">Karaoke ends itself when the show moves on</div>
+    Advancing to a new Show Flow step, starting a game, or firing a walk-up automatically ends
+    Karaoke first — no need to remember to press END KARAOKE before moving on. If Karaoke wasn't
+    live, this is a no-op.
   </div>
   <div class="callout callout-info">
     <div class="callout-title">The master MUSIC slider covers the whole mix</div>
@@ -1958,13 +1984,16 @@
 
   <h2 id="memes-run">MEMES/GRAPHICS Tab</h2>
   <p>
-    <span class="tab">MEMES/GRAPHICS</span> splits the Display library into two one-tap-fireable
-    grids, so you can fire anything from Display without a trip to Admin:
+    <span class="tab">MEMES/GRAPHICS</span> builds one one-tap-fireable grid per tag actually in
+    use in the Display library, so you can fire anything from Display without a trip to Admin —
+    tag a file with anything in Admin (Admin → 🖼 Display → 🏷 tag button) and it gets its own
+    section here automatically, no console-side setup needed:
   </p>
   <table>
-    <tr><th>Section</th><th>What's in it</th></tr>
-    <tr><td><strong>MEMES</strong></td><td>Any Display file tagged "Meme" in Admin (Admin → 🖼 Display → 🏷 tag button) — reaction videos, sound stingers, quick gags</td></tr>
-    <tr><td><strong>GRAPHICS &amp; OTHER — UNTAGGED</strong></td><td>Everything else in the Display library that has no tags at all — logos, screens, one-off graphics you may want to throw up but that aren't "memes"</td></tr>
+    <tr><th>Section order</th><th>What's in it</th></tr>
+    <tr><td><strong>MEME</strong></td><td>Always first — reaction videos, sound stingers, quick gags</td></tr>
+    <tr><td><em>every other tag in use</em></td><td>Alphabetical — Circles, Event, Graphic, Rangers, Role, Roles, etc., whatever's actually been tagged</td></tr>
+    <tr><td><strong>UNTAGGED</strong></td><td>Always last — anything in the Display library with no tags at all</td></tr>
   </table>
   <ol class="steps">
     <li>Go to the <span class="tab">MEMES/GRAPHICS</span> tab.</li>
@@ -1974,7 +2003,7 @@
       revert straight back to whatever was on screen before it fired — a walk-up, a slide,
       standby, whatever was actually showing — not always a blank standby screen.</li>
     <li>If left to play out on its own, it reverts the same way once it finishes.</li>
-    <li>Hold and drag a tile to reorder either grid — each grid remembers its own order
+    <li>Hold and drag a tile to reorder any section — each one remembers its own order
       separately (same drag-to-reorder gesture as the SFX tab).</li>
   </ol>
   <div class="callout callout-info">
