@@ -281,8 +281,8 @@
         <div class="feat-desc">Every video (Game Entries, macro Show Video, Display library) has its own mute toggle — muted by default, matching prior behavior. Unmuted videos get a per-file volume boost (50–250%) via a Preview/Save workflow: adjust, fire live to the PA to check the level, compare against another file, then save.</div>
       </div>
       <div class="feat blue">
-        <div class="feat-name">MEMES Tab</div>
-        <div class="feat-desc">Video-only quick-fire grid on the Console — same files and volume settings as the Display library, filtered down to short clips. One tap fires full-screen with sound; hold-drag to reorder. Auto-returns to standby when the clip ends.</div>
+        <div class="feat-name">MEMES/GRAPHICS Tab</div>
+        <div class="feat-desc">Two one-tap grids on the Console: files tagged "Meme" (via a 🏷 tag button on any Display file) on top, everything else untagged — logos, screens, other graphics — below. Tap again mid-play to kill it and revert to whatever was showing before (a walkup, a slide, standby), not always standby; a walkup specifically fades the overlay out rather than restarting itself. Each grid drag-to-reorders independently.</div>
       </div>
       <div class="feat blue wide">
         <div class="feat-name">BAND Photo Slideshow</div>
@@ -423,6 +423,45 @@
       <div class="feat rose">
         <div class="feat-name">Kill All</div>
         <div class="feat-desc">Single button stops all audio, resets crowd state, and returns to idle — emergency override for anything running.</div>
+      </div>
+      <div class="feat rose">
+        <div class="feat-name">Export MC Guide</div>
+        <div class="feat-desc">Printable, numbered rundown of the whole Show Flow, opened in a new tab. Each step shows a thumbnail resolved from what it actually fires — a role/circle logo, a game's icon, a display video/graphic. v1 only; per-step visuals, not yet real per-step descriptions or live screenshots.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KARAOKE -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-icon">🎤</span>
+      <span class="section-label">Karaoke</span>
+      <div class="section-rule"></div>
+    </div>
+    <div class="feat-grid">
+      <div class="feat green wide">
+        <div class="feat-name">Offline Processing Pipeline</div>
+        <div class="feat-desc">Standalone local tool (runs on a Mac, not the Pi) separates vocals from instrumental (demucs) and auto-transcribes word-level lyric timing (Whisper large-v3). Optional pre-processing trim to cut a bad opening before separation/transcription even run. Title/Artist autofill from the file's own embedded tags. Paste-your-own-lyrics "Align Lyrics" fixes misheard words against real text while keeping automatic timing — never fetches lyrics itself. One-click installer, self-restart + auto-reload, "previously processed" reopen.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Admin Upload</div>
+        <div class="feat-desc">One-click "Import from Folder" pulls a whole processed song (instrumental/vocals/original/lyrics/meta) from the Tool's output in a single pick, or upload each file to its own slot by hand.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Duet Tagging</div>
+        <div class="feat-desc">Per-line singer cycle (— / A / B / A+B) in the lyrics editor. Projector color-codes live — singer A amber, singer B blue, together lines blended — with the next line tinted a beat early as a heads-up.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Song Timing — Start</div>
+        <div class="feat-desc">Skip the first N seconds of a song at playback time — same idea as a walk-up's own START field. Nothing is ever cut from the files; safe to change repeatedly.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Live Transport</div>
+        <div class="feat-desc">Go Live → pick + reveal a song → count-off → sing. Pause/Resume, Start Over, Stop Song, Fade Out (gentle ramp-down), End Karaoke — the core four reachable from the Console's left panel on any tab, not just the Karaoke tab.</div>
+      </div>
+      <div class="feat green">
+        <div class="feat-name">Synced Vocal Guide</div>
+        <div class="feat-desc">Instrumental and vocal guide play on synchronized channels (not mixed subsystems, avoids drift). Guide has its own balance slider + MC-remote mute toggle; the master Console volume slider scales both together.</div>
       </div>
     </div>
   </div>
