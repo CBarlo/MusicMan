@@ -889,6 +889,7 @@
     <tr><td>🎮 Shell Game</td><td>Launches the shell game on the HDMI display</td><td>Optional theme name</td></tr>
     <tr><td>📊 Show Crowd Viz</td><td>Opens the crowd noise gauge on the HDMI</td><td>Optional preset name</td></tr>
     <tr><td>🤺 Scoreboard</td><td>Puts a saved Scoreboard live on the HDMI (plays its intro Game Entry first, if one is set)</td><td>Pick a Scoreboard config</td></tr>
+    <tr><td>🔁 Run Macro</td><td>Fires another macro and moves straight to the next step — doesn't wait for it to finish, since the target can be a Loop that never returns on its own (e.g. chaining a song into a looping announcements reel)</td><td>Pick a macro (can't pick itself)</td></tr>
     <tr><td>⏳ Wait</td><td>Pauses the macro for a set time before the next step</td><td>Duration in seconds</td></tr>
   </table>
 
@@ -907,7 +908,24 @@
     </table>
     <p style="margin-bottom:0">
       Everything else — Play SFX, Set Scene, Play Music, Stop/Fade Audio, all Timer steps,
-      Walk-Ups, Slides, VS Card, Games, Show Crowd Viz — fires and immediately continues.
+      Walk-Ups, Slides, VS Card, Games, Show Crowd Viz, Run Macro — fires and immediately
+      continues.
+    </p>
+  </div>
+
+  <div class="callout callout-tip">
+    <div class="callout-title">Example: song plays under a looping announcements reel</div>
+    <p style="margin-top:0">
+      An end-of-show macro: <strong>Set Scene</strong> → <strong>Show Image</strong> (default
+      logo) → <strong>Play Music</strong> (a song) → <strong>Run Macro</strong> (an
+      "Announcements Loop" macro with 🔁 LOOP checked). Because Run Macro doesn't wait, the loop
+      starts immediately and runs alongside the song rather than after it — and since the song
+      was already started by this same macro, Run Macro won't fade it out the way a fresh,
+      independently-fired macro normally would if its own steps don't start any audio.
+    </p>
+    <p style="margin-bottom:0">
+      Prefer the loop to start only once the song finishes instead? Add a <strong>Wait</strong>
+      step (set to the song's length) between Play Music and Run Macro.
     </p>
   </div>
 
@@ -1998,10 +2016,12 @@
   <ol class="steps">
     <li>Go to the <span class="tab">MEMES/GRAPHICS</span> tab.</li>
     <li>Tap a tile — it fires immediately to the HDMI, full-screen, with whatever mute/volume
-      level was configured for that file in Admin.</li>
+      level was configured for that file in Admin. It plays as a pure overlay on top of
+      literally anything already showing — a walk-up, a live game, a saved slide, karaoke,
+      standby — without pausing or interrupting any of it underneath.</li>
     <li>Tap the <em>same</em> tile again while it's playing (it glows amber) to kill it early and
-      revert straight back to whatever was on screen before it fired — a walk-up, a slide,
-      standby, whatever was actually showing — not always a blank standby screen.</li>
+      reveal exactly what was there the whole time, running exactly as if the meme had never
+      fired — nothing was ever hidden or stopped to make room for it.</li>
     <li>If left to play out on its own, it reverts the same way once it finishes.</li>
     <li>Hold and drag a tile to reorder any section — each one remembers its own order
       separately (same drag-to-reorder gesture as the SFX tab).</li>

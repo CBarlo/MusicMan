@@ -286,7 +286,7 @@
       </div>
       <div class="feat blue">
         <div class="feat-name">MEMES/GRAPHICS Tab</div>
-        <div class="feat-desc">One one-tap grid per tag actually in use in the Display library (via a 🏷 tag button on any Display file) — Meme first, then every other tag alphabetically, Untagged last. Every tag you create shows up as its own section automatically, no console-side setup. Tap again mid-play to kill it and revert to whatever was showing before (a walkup, a slide, standby), not always standby; a walkup specifically fades the overlay out rather than restarting itself. Each section drag-to-reorders independently.</div>
+        <div class="feat-desc">One one-tap grid per tag actually in use in the Display library (via a 🏷 tag button on any Display file) — Meme first, then every other tag alphabetically, Untagged last. Every tag you create shows up as its own section automatically, no console-side setup. A fired meme renders as a pure overlay on top of literally anything — a walkup, a game, viz, karaoke, a saved slide, standby — without pausing or tearing any of it down underneath. Tap again mid-play (or let it finish) and it just fades away, revealing exactly what was there the whole time, running exactly as if the meme had never fired. Each section drag-to-reorders independently.</div>
       </div>
       <div class="feat blue wide">
         <div class="feat-name">BAND Photo Slideshow</div>
@@ -414,7 +414,11 @@
     <div class="feat-grid">
       <div class="feat rose">
         <div class="feat-name">Macros</div>
-        <div class="feat-desc">Multi-step sequences executed in parallel or series. Steps can be any combination of: scene, SFX, music, audio fade/stop, display image/animation/slide, walk-up, VS card, viz show/hide, game, timer start/reset, skit timer preset, wait. Optional 🔁 Loop repeats the whole step list until interrupted by another macro or Kill All.</div>
+        <div class="feat-desc">Multi-step sequences executed in parallel or series. Steps can be any combination of: scene, SFX, music, audio fade/stop, display image/animation/slide, walk-up, VS card, viz show/hide, game, timer start/reset, skit timer preset, run another macro, wait. Optional 🔁 Loop repeats the whole step list until interrupted by another macro or Kill All.</div>
+      </div>
+      <div class="feat rose">
+        <div class="feat-name">Run Macro</div>
+        <div class="feat-desc">A macro step that fires another macro and moves on immediately — doesn't wait for it to finish, since the target can itself be a Loop that never returns (e.g. a "start a song, then loop announcements underneath it" end-of-show chain). Won't fade out audio the nested macro didn't start itself, so a song already playing keeps going under the loop. Refuses to run a macro from itself.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">Show Flow</div>
@@ -426,7 +430,7 @@
       </div>
       <div class="feat rose">
         <div class="feat-name">Kill All</div>
-        <div class="feat-desc">Single button stops all audio, resets crowd state, and returns to idle — emergency override for anything running.</div>
+        <div class="feat-desc">Single button stops all audio, lights, and any running macro (including a looping one), and clears the projector back to standby — emergency override for anything running, screen included.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">Export MC Guide</div>
