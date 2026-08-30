@@ -160,7 +160,9 @@ let _state     = { round: 0, playing: false, song: '', song_label: '' };
 let _ws = null;
 function connectWS() {
   _ws = new WebSocket('ws://' + location.host + '/ws');
-  _ws.onopen  = () => { _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); };
+  // Only the projector iframe instance (?display=1) reports its location --
+  // the operator's own controller tab must never do this, see games_trivia.html.
+  _ws.onopen  = () => { if (_isDisplay) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); };
   _ws.onclose = () => setTimeout(connectWS, 3000);
   _ws.onerror = () => _ws.close();
   _ws.onmessage = (evt) => {

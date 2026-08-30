@@ -3635,7 +3635,7 @@ async function _renderFireableDisplayGrid(gridId, orderKey, files, emptyMsg) {
       if (_currentMemeFile === f) {
         fetch('/api/display/stop_meme').catch(() => {});
       } else {
-        fetch('/api/display/show_file?file=' + encodeURIComponent(f)).catch(() => {});
+        fetch('/api/display/show_file?meme=1&file=' + encodeURIComponent(f)).catch(() => {});
       }
       btn.style.transform = 'scale(0.95)';
       setTimeout(() => btn.style.transform = '', 120);

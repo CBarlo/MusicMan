@@ -2267,7 +2267,7 @@ def kill_everything():
     Emergency stop. Stops all audio, turns off all lights.
     Does NOT lose program position or reset timer to zero.
     """
-    global _walkup_fade_cancel, _macro_cancel
+    global _walkup_fade_cancel, _macro_cancel, _viz_scene
     log.info("KILL EVERYTHING fired")
     _walkup_fade_cancel.set()
     _walkup_fade_cancel = threading.Event()
@@ -2276,6 +2276,17 @@ def kill_everything():
     stop_audio()
     timer_state['running'] = False
     kill_lights()
+    # Stopping the macro thread doesn't undo whatever it last put on the
+    # projector (a slide, video, viz overlay) -- display.html never had a
+    # kill_all handler at all, so a looping macro's last frame just sat there
+    # forever after Kill All, looking like the loop never actually stopped
+    # even though the backend genuinely had. display_standby's own handler
+    # already tears down every display layer (game, viz, vs card, h2h, band
+    # slideshow, karaoke) in one shot.
+    if _viz_scene:
+        _viz_scene = None
+        _stop_audio_analyzer()
+    _ensure_display_for('display_standby', {})
     broadcast('kill_all', {})
 
 # ── WALKUP MACRO ──
@@ -4418,52 +4429,82 @@ def _end_meme():
     video finishes on its own) -- both just mean "put back whatever was
     showing before this fired."
 
-    A walk-up (circle/role) needs special handling: display_animation's own
-    hide-chain never actually tears down layer-walkup while a meme plays
-    over it -- the walk-up video just sits there, still frozen on its last
-    frame, underneath the now-opaque meme layer. Re-broadcasting
-    display_walkup to "restore" it would instead replay the whole walk-up
-    from scratch (video restart, name reveal, the works), which read as the
-    walk-up firing all over again. It only needs uncovering, not re-firing --
-    a lightweight display_meme_cleared just fades the meme layer back out.
+    A genuine meme/graphic overlay (is_overlay=True, see _fire_display_asset)
+    never touches anything else on screen while it plays -- display.html
+    renders it on the topmost layer and skips every hide/pause call that a
+    deliberate content change would normally do (see the WS handler comment
+    in display.html). So clearing it is always just fading that layer back
+    out, no matter what's actually underneath -- a walkup, a game, viz,
+    karaoke, standby, whatever. This used to only special-case walkups
+    specifically (checking _last_display_state), which meant a meme fired
+    over a game, a saved slide, karaoke, or anything else torn everything
+    down and never brought it back -- caught live 2026-08-28.
 
-    Anything else (a slide, standby, ...) genuinely was torn down when the
-    meme took over, so those still go through the normal re-broadcast."""
+    A non-overlay fire through the same route (BAE LOGO, the plain Display
+    grid) DID legitimately tear other layers down when it started (same as a
+    macro's display_image/anim step), so that case still needs the real
+    revert via _last_display_state."""
     global _meme_state
     if not _meme_state.get('playing'):
         return
+    was_overlay = _meme_state.get('is_overlay', False)
     _meme_state = {'playing': False, 'file': None}
     broadcast('meme_state', _meme_state)
-    if _last_display_state.get('event') == 'display_walkup':
+    if was_overlay:
         broadcast('display_meme_cleared', {})
     elif _last_display_state.get('event'):
         _ensure_display_for(_last_display_state['event'], _last_display_state['data'])
     else:
         _ensure_display_for('display_standby', {})
 
-def _fire_display_asset(filename, gain_override=None):
+def _fire_display_asset(filename, gain_override=None, remember=True):
     """Show an image or video from assets/display/ on the projector --
-    shared by the Console MEMES/GRAPHICS grid and anything else that just
-    wants to put one specific Display file up (e.g. a circle/role's
-    generated walk-up still)."""
+    shared by the Console MEMES/GRAPHICS grid, the plain Display library
+    grid, BAE LOGO, and anything else that just wants to put one specific
+    Display file up (e.g. a circle/role's generated walk-up still).
+
+    remember=False (an actual Memes/Graphics-tab fire) marks this as a real
+    transient overlay: the client renders it on the topmost layer without
+    hiding/pausing anything else (game, viz, karaoke, a saved slide, standby
+    -- everything keeps running exactly as if it were never there), and
+    _end_meme() always just uncovers it, regardless of what's underneath.
+    Every other caller here is a deliberate, standalone "put this up" action
+    (same as firing a walkup or a slide) and defaults to remember=True, which
+    does still tear down other layers first, same as before."""
     global _meme_state, current_slide
     ext = Path(filename).suffix.lower()
     video_exts = {'.mp4', '.webm', '.mov', '.ogv'}
-    _meme_state = {'playing': True, 'file': filename}
+    is_overlay = not remember
+    _meme_state = {'playing': True, 'file': filename, 'is_overlay': is_overlay}
     broadcast('meme_state', _meme_state)
     if ext in video_exts:
-        current_slide = {}
         cfg = load_config()
         meta = cfg.get('display_file_meta', {}).get(filename, {})
         muted = meta.get('muted', True)
         gain = gain_override if gain_override is not None else meta.get('gain', 1.0)
-        # remember=False -- this is the transient thing playing OVER whatever
-        # was there, not itself something to revert back to later.
-        _ensure_display_for('display_animation',
-                             {'video': f'/assets/display/{filename}', 'muted': muted, 'loop': False, 'gain': gain,
-                              'auto_revert': True}, remember=False)
+        payload = {'video': f'/assets/display/{filename}', 'muted': muted, 'loop': False, 'gain': gain,
+                   'auto_revert': True, 'meme': is_overlay}
+        event = 'display_animation'
     else:
-        _ensure_display_for('display_step', {'image': f'/assets/display/{filename}'}, remember=False)
+        payload = {'image': f'/assets/display/{filename}', 'meme': is_overlay}
+        event = 'display_step'
+    if is_overlay:
+        # A real overlay needs none of _ensure_display_for's side effects --
+        # it never moves the kiosk anywhere (display.html's own top-level
+        # page is always live, game iframe or not, so a plain broadcast
+        # always reaches it), never becomes the revert target, and must not
+        # force a display_navigate: that alone calls hideGameFrame() on the
+        # client the moment the server merely *thinks* the kiosk isn't on
+        # /display, independent of anything showStep/showTitleVideo do with
+        # the meme flag -- the exact way a meme fired during Trivia hid the
+        # real, still-running game on 2026-08-28. Also skips clearing
+        # current_slide/_current_live_game['revealed'], which a transient
+        # overlay has no business touching either.
+        broadcast(event, payload)
+    else:
+        if ext in video_exts:
+            current_slide = {}
+        _ensure_display_for(event, payload, remember=remember)
 
 @app.route('/api/display/show_file')
 def api_display_show_file():
@@ -4478,7 +4519,9 @@ def api_display_show_file():
             gain_override = float(gain_param)
         except ValueError:
             gain_override = None
-    _fire_display_asset(filename, gain_override)
+    # meme=1 only from the actual Memes/Graphics tab -- see _fire_display_asset.
+    is_meme = request.args.get('meme') == '1'
+    _fire_display_asset(filename, gain_override, remember=not is_meme)
     return jsonify({'ok': True})
 
 def _generate_walkup_still(item_type, item):
@@ -6960,17 +7003,24 @@ def _broadcast_timer_display(filename):
 
 _AUDIO_ACTIONS = {'music', 'play_playlist', 'audio_stop', 'audio_fade', 'walkup_circle', 'walkup_role', 'walkup_game_entry', 'karaoke'}
 
-def execute_macro(macro, cancel=None, show_flow_idx=None):
+def execute_macro(macro, cancel=None, show_flow_idx=None, is_nested=False):
     global config, current_slide, _viz_scene
     if cancel is None:
         cancel = threading.Event()
     log.info(f"Executing macro: {macro.get('id')}")
     steps = macro.get('steps', [])
-    if not any(s.get('action') in _AUDIO_ACTIONS for s in steps):
+    # is_nested=True for a run_macro-launched macro -- the fade-out-if-silent
+    # heuristic below exists for a macro fired fresh/independently (don't
+    # leave stale audio playing under it), but a nested macro was deliberately
+    # chained onto whatever the parent just started (e.g. "start a song, then
+    # loop announcements over it") -- fading it out here would undo exactly
+    # what the chain was built to do.
+    if not is_nested and not any(s.get('action') in _AUDIO_ACTIONS for s in steps):
         if pygame.mixer.music.get_busy():
             fade_audio(3)
-    # Auto-hide any active viz when a new macro starts (the viz step will re-show if needed)
-    if _viz_scene and not any(s.get('action') in ('viz', 'viz_hide') for s in steps):
+    # Auto-hide any active viz when a new macro starts (the viz step will re-show
+    # if needed) -- same is_nested exemption as the audio fade above.
+    if not is_nested and _viz_scene and not any(s.get('action') in ('viz', 'viz_hide') for s in steps):
         _viz_scene = None
         _stop_audio_analyzer()
         broadcast('viz_hide', {})
@@ -7191,6 +7241,25 @@ def execute_macro(macro, cancel=None, show_flow_idx=None):
                 h2h_id = step.get('head_to_head_id', '')
                 if not _show_head_to_head(h2h_id):
                     log.warning(f"head_to_head macro action: game not found: {h2h_id!r}")
+            elif action == 'run_macro':
+                target_id = step.get('macro_id', '')
+                target = next((m for m in config.get('macros', []) if m['id'] == target_id), None)
+                if not target:
+                    log.warning(f"run_macro macro action: macro not found: {target_id!r}")
+                elif target_id == macro.get('id'):
+                    # A macro running itself would spawn a new thread every pass with
+                    # nothing ever stopping the cascade -- refuse rather than let a
+                    # miss-click in the picker quietly fork the Pi to death.
+                    log.warning(f"run_macro macro action: refusing self-reference ({target_id!r})")
+                else:
+                    # Fire-and-forget, sharing this macro's own cancel token so the
+                    # nested macro stops the instant the show moves on to the next
+                    # thing -- same as this macro itself would. Must be threaded, not
+                    # called inline: the target is often a Loop (e.g. Announcements
+                    # Loop) that never returns on its own, which would otherwise hang
+                    # this step -- and this macro's own remaining steps -- forever.
+                    threading.Thread(target=execute_macro, args=(target, cancel, show_flow_idx),
+                                      kwargs={'is_nested': True}, daemon=True).start()
             log.info(f"Macro step done: {action}")
         except Exception as e:
             log.error(f"Macro step error ({action}): {e}")

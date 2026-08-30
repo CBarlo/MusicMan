@@ -124,7 +124,12 @@
   #layer-title {
     position:fixed;
     inset:0;
-    z-index:3;
+    /* Above every other layer, including the game iframe (30) -- a meme fired
+       here needs to be visible over literally anything already on screen,
+       not just the handful of layers that happen to sit below it. Doesn't
+       change existing (non-meme) behavior: every other display_* event
+       already hides everything else first regardless of z-index. */
+    z-index:35;
     opacity:0;
     pointer-events:none;
     display:flex;
@@ -920,10 +925,17 @@ function _resetTitleImgs() {
 
 function showStep(data) {
   const imageUrl = data.image || '';
+  const isMeme   = !!data.meme;
 
-  hideSlide();
-  hideLeaderboard();
-  standbyActive = false;
+  // A real meme never touches any other layer's state -- see the WS handler
+  // comment above. Everything below this guard only matters for deliberate
+  // content changes (BAE LOGO, a macro's own display_image step, etc), which
+  // still fully take over the screen exactly as before.
+  if (!isMeme) {
+    hideSlide();
+    hideLeaderboard();
+    standbyActive = false;
+  }
   const seq = ++_displaySeq;
 
   document.getElementById('title-name').style.display = 'none';
@@ -933,9 +945,11 @@ function showStep(data) {
   // Without this, hiding the game iframe (hideGameFrame) reveals the previous walkup
   // video underneath, which stays visible until the step image finishes loading.
   setLayerTransition(0.8);
-  layerWalkup.style.opacity       = '0';
-  layerWalkup.style.pointerEvents = 'none';
-  layerStandby.style.opacity      = '0';
+  if (!isMeme) {
+    layerWalkup.style.opacity       = '0';
+    layerWalkup.style.pointerEvents = 'none';
+    layerStandby.style.opacity      = '0';
+  }
   layerTitle.style.opacity        = '1';
 
   if (!imageUrl) return;
@@ -1004,9 +1018,12 @@ function _clearMemeOverlay() {
 function showTitleVideo(data) {
   const videoUrl = data.video || '';
   if (!videoUrl) return;
-  hideSlide();
-  hideLeaderboard();
-  standbyActive = false;
+  const isMeme = !!data.meme;
+  if (!isMeme) {
+    hideSlide();
+    hideLeaderboard();
+    standbyActive = false;
+  }
   const seq = ++_displaySeq;
 
   document.getElementById('title-name').style.display = 'none';
@@ -1052,7 +1069,10 @@ function showTitleVideo(data) {
     titleVideo.oncanplay = null;
     titleVideo.onerror   = null;
     clearTimeout(_titleVideoLoadTimer);
-    showStandby();
+    // A broken meme file shouldn't nuke whatever was legitimately on screen
+    // underneath (a game, viz, standby) -- just drop the overlay attempt.
+    // Non-meme content still falls back to standby as before.
+    if (isMeme) { _clearMemeOverlay(); } else { showStandby(); }
   };
   clearTimeout(_titleVideoLoadTimer);
   _titleVideoLoadTimer = setTimeout(recover, 4000);
@@ -1066,13 +1086,15 @@ function showTitleVideo(data) {
     titleVideo.play().catch(recover);
     titleVideo.style.opacity = '1';
     const t = 'opacity 0.8s ease';
-    layerWalkup.style.transition    = t;
-    layerStandby.style.transition   = t;
-    layerTitle.style.transition     = t;
-    layerWalkup.style.opacity       = '0';
-    layerWalkup.style.pointerEvents = 'none';
-    layerStandby.style.opacity      = '0';
-    layerTitle.style.opacity        = '1';
+    layerTitle.style.transition = t;
+    if (!isMeme) {
+      layerWalkup.style.transition    = t;
+      layerStandby.style.transition   = t;
+      layerWalkup.style.opacity       = '0';
+      layerWalkup.style.pointerEvents = 'none';
+      layerStandby.style.opacity      = '0';
+    }
+    layerTitle.style.opacity = '1';
   };
 }
 
@@ -2124,8 +2146,20 @@ function connectWS() {
       if      (msg.event === 'preload_assets')    { preloadAssets(data.urls); }
       else if (msg.event === 'walkup_preload')    { preloadWalkupVideo(data); }
       else if (msg.event === 'display_walkup')    { if (!_gamePreloading) hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showWalkup(data); }
-      else if (msg.event === 'display_step')      { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showStep(data); }
-      else if (msg.event === 'display_animation') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showTitleVideo(data); }
+      // data.meme -- a real Memes/Graphics-tab fire, not a deliberate content
+      // change (a macro's own display_image/display_anim step, BAE LOGO,
+      // etc). Those still tear down every other layer first, same as always.
+      // A meme fires as a purely visual overlay instead -- layer-title sits
+      // above everything (see its z-index), so nothing underneath needs to
+      // be hidden to make room for it, and nothing underneath gets paused or
+      // torn down either: a game keeps running, viz keeps animating,
+      // karaoke's lyric ticker keeps ticking, a timer keeps counting, all
+      // exactly as if the meme were never there. Clearing it later is just
+      // "fade this layer back out" (_end_meme -> display_meme_cleared),
+      // which is why that revert is always correct regardless of what's
+      // actually underneath -- it was never touched in the first place.
+      else if (msg.event === 'display_step')      { if (!data.meme) { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); } showStep(data); }
+      else if (msg.event === 'display_animation') { if (!data.meme) { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); } showTitleVideo(data); }
       else if (msg.event === 'display_clear')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); blackout(); }
       else if (msg.event === 'display_standby')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showStandby(); }
       else if (msg.event === 'display_slide')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showSlide(data); }

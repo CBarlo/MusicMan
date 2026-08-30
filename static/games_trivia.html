@@ -428,7 +428,13 @@ async function _loadH2hScoreboard() {
 function connectWS() {
   _ws = new WebSocket('ws://' + location.host + '/ws');
   _ws.onopen  = () => {
-    _ws.send(JSON.stringify({event:'page_ready', url: location.pathname}));
+    // Only the actual projector iframe instance (?display=1) should ever
+    // report its location -- this same page is also opened as a separate
+    // controller tab on the operator's own device, and that instance
+    // reporting itself here corrupted the server's idea of what the kiosk
+    // was showing, which cascaded into hiding the real game frame on the
+    // real projector the next time anything fired a display event.
+    if (_isDisplay) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname}));
     _loadH2hScoreboard();
   };
   _ws.onclose = () => setTimeout(connectWS, 3000);

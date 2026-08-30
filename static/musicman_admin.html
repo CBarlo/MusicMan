@@ -1405,6 +1405,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   </optgroup>
                   <optgroup label="FLOW">
                     <option value="wait">⏳ Wait (seconds)</option>
+                    <option value="run_macro">🔁 Run Macro</option>
                   </optgroup>
                 </select>
                 <button class="btn btn-secondary btn-sm" onclick="addMacroStep()">+ ADD STEP</button>
@@ -5370,7 +5371,7 @@ const STEP_LABELS = {
   saved_slide:'📋 Saved Slide', slide:'📋 Custom Slide', slide_clear:'✕ Clear Slide',
   game:'🎮 Launch Game', shell_game:'⛺ Shell Game',
   vs_card:'⚔ VS Card', viz:'🎛 Visualization', viz_hide:'✕ Stop Viz', head_to_head:'🏆 Scoreboard',
-  karaoke:'🎤 Karaoke'
+  karaoke:'🎤 Karaoke', run_macro:'🔁 Run Macro'
 };
 
 // Cached lists for dropdowns — populated at init
@@ -5620,6 +5621,17 @@ function stepParamHtml(step) {
       : '<option value="">— no Scoreboards saved yet —</option>';
     return `<select class="step-param">${opts}</select>`;
   }
+  if (a === 'run_macro') {
+    // Excludes the macro currently being edited -- self-reference would spawn
+    // a new thread every pass with nothing to ever stop it. The backend
+    // refuses it too, this just keeps it out of the picker in the first place.
+    const pickable = macros.filter(m => m.id !== selectedMacroId);
+    const opts = pickable.length
+      ? pickable.map(m => `<option value="${escHtml(m.id)}" ${step.macro_id===m.id?'selected':''}>${escHtml(m.name)}${m.loop?' 🔁':''}</option>`).join('')
+      : '<option value="">— no other macros to run —</option>';
+    return `<select class="step-param">${opts}</select>
+      <span style="font-size:11px;color:var(--text-dim);flex-shrink:0">fires it and moves on — doesn't wait for it to finish</span>`;
+  }
   // no-param actions
   return `<span style="flex:1;color:var(--text-dim);font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px">—</span>`;
 }
@@ -5668,6 +5680,7 @@ function collectStepValue(row, action) {
   }
   if (action === 'vs_card')          return { vs_card_id: val };
   if (action === 'head_to_head')     return { head_to_head_id: val };
+  if (action === 'run_macro')        return { macro_id: val };
   if (action === 'viz')              return { preset_id: val };
   if (action === 'viz_hide')         return {};
   if (action === 'slide') {
@@ -5861,6 +5874,7 @@ function addMacroStep() {
   else if (type === 'shell_game')    { step.hold = 5; step.theme_id = ''; }
   else if (type === 'vs_card')       step.vs_card_id = savedVsCards.length ? savedVsCards[0].id : '';
   else if (type === 'head_to_head')  step.head_to_head_id = savedHeadToHead.length ? savedHeadToHead[0].id : '';
+  else if (type === 'run_macro')     { const pickable = macros.filter(x => x.id !== selectedMacroId); step.macro_id = pickable.length ? pickable[0].id : ''; }
   m.steps = collectSteps();
   m.steps.push(step);
   renderSteps(m.steps);
