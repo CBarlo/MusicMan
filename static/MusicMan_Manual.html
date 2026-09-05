@@ -556,7 +556,7 @@
     <tr><td><strong>⚡ Macros</strong></td><td>Create automated sequences of actions (music + lights + display + timer + slides)</td></tr>
     <tr><td><strong>✦ Lighting Scenes</strong></td><td>Define named lighting states that macros and walk-ups can trigger</td></tr>
     <tr><td rowspan="2"><strong>SETTINGS</strong></td><td><strong>✦ Lighting</strong></td><td>Pole nodes, fixture types, DMX looks — physical hardware setup</td></tr>
-    <tr><td><strong>⚙ System</strong></td><td>Battery monitor, Pi health stats, restart and shutdown</td></tr>
+    <tr><td><strong>⚙ System</strong></td><td>Battery monitor, Pi health stats, restart and shutdown, SD card backup, projector remote control</td></tr>
   </table>
   <div class="callout callout-tip">
     <div class="callout-title">Where did Timer / Crowd Lighting / Climax FX go?</div>
@@ -875,6 +875,7 @@
     <tr><td>⬡ Circle Walk-Up</td><td>Fires a circle's full walk-up (music + logo/animation + lighting)</td><td>Pick a circle</td></tr>
     <tr><td>★ Role Walk-Up</td><td>Fires a role's full walk-up</td><td>Pick a role</td></tr>
     <tr><td>🎬 Set Scene</td><td>Activates a lighting scene</td><td>Pick a scene</td></tr>
+    <tr><td>🌗 Light Ramp</td><td>Smoothly brings the whole rig from one brightness level to another over a set number of seconds — fires the picked scene at the start percentage first, so there's a real full-brightness look to climb toward, then eases up (or down) to the end percentage</td><td>Scene (optional — leave blank to ramp whatever's already lit instead of firing a new one), Start %, End %, Duration (sec)</td></tr>
     <tr><td>⏱ Start Timer</td><td>Starts the skit timer (uses whatever preset is loaded)</td><td>None</td></tr>
     <tr><td>↺ Reset Timer</td><td>Stops and resets the skit timer</td><td>None</td></tr>
     <tr><td>⚙ Load Timer Preset</td><td>Loads a saved timer preset without starting it</td><td>Preset name</td></tr>
@@ -907,9 +908,11 @@
       <tr><td><strong>🎬 Show Video</strong></td><td>Its Duration field (default 5s) — <em>unless</em> Loop is checked, in which case it doesn't wait at all</td></tr>
     </table>
     <p style="margin-bottom:0">
-      Everything else — Play SFX, Set Scene, Play Music, Stop/Fade Audio, all Timer steps,
-      Walk-Ups, Slides, VS Card, Games, Show Crowd Viz, Run Macro — fires and immediately
-      continues.
+      Everything else — Play SFX, Set Scene, Light Ramp, Play Music, Stop/Fade Audio, all
+      Timer steps, Walk-Ups, Slides, VS Card, Games, Show Crowd Viz, Run Macro — fires and
+      immediately continues. Light Ramp in particular keeps running its whole duration in the
+      background after the macro moves on, which is what makes it usable during a Show Video
+      step at the same time — see the Climax example below.
     </p>
   </div>
 
@@ -948,6 +951,23 @@
     within the same instant). The macro then pauses for the video step's Duration. Once that
     elapses, the second scene and the image fire back-to-back — "lights come up, image
     appears" right as the video ends.</p>
+  </div>
+
+  <div class="callout callout-tip">
+    <div class="callout-title">Example: lights ramping up under a climax video</div>
+    <p style="margin-top:0">Steps in order: <strong>Set Scene</strong> (All Off) →
+    <strong>Light Ramp</strong> (scene: your full-brightness scene, 0% → 100%, 13 sec) →
+    <strong>Wait</strong> (2 sec) → <strong>Show Video</strong> (climax clip, Loop off, Duration
+    = clip length) → <strong>Wait</strong> (however much of the clip is left after the 2 sec) →
+    <strong>Set Scene</strong> (the same full-brightness scene again, to snap to its exact
+    values).</p>
+    <p style="margin-bottom:0">Light Ramp doesn't pause the macro — it keeps climbing in the
+    background for its whole 13 seconds while the rest of the steps run right alongside it. The
+    2-second Wait before the video is just for anticipation (lights are already rising in the
+    dark); sizing the ramp's duration and the video's own runtime to land at the same moment is
+    what makes the lights hit full brightness right as the video ends. The final Set Scene isn't
+    strictly required, but locks in the exact target look in case the ramp's last step landed a
+    shade off from rounding.</p>
   </div>
 
   <h2 id="show-flow">Show Flow</h2>
@@ -990,11 +1010,22 @@
   </div>
 
   <p>
-    Click <kbd>🖨 EXPORT MC GUIDE</kbd> to open a printable, numbered rundown of every step in
-    order, each with a thumbnail resolved from what that step actually shows (a role/circle's
-    logo, a game's icon, a display video/graphic) — opens in a new tab; print it or save as PDF
-    from there.
+    Click <kbd>🖨 EXPORT MC GUIDE</kbd> to open a printable rundown of the whole Show Flow —
+    built for handing to parents/helpers ahead of time, not just a stage reference. Each row
+    has a real, plain-English description of what that step actually does (lighting, screen,
+    audio, waits — walked action by action, not a generic label), a genuine screen preview
+    (a walk-up's real last-frame video still, a video's own thumbnail, or its display image —
+    resolved fresh each time you export, no live show run needed), and separate Audio Cues
+    columns pulled from that step's actual music/SFX/playlist actions. Time, People On Stage,
+    and Campfire Director Notes are left blank on purpose for you to fill in by hand before
+    sending it out. Opens in a new tab; print it or save as PDF from there.
   </p>
+  <div class="callout callout-tip">
+    <div class="callout-title">Live visualizations don't get a fake screenshot</div>
+    A step that shows a Crowd Meter or Music Viz gets a clearly labeled icon instead of a
+    picture — there's no single frame that honestly represents something animated, so the
+    guide doesn't pretend otherwise.
+  </div>
 
   <h2 id="timer-admin">Skit Timer &amp; Presets</h2>
   <p>
@@ -1688,6 +1719,26 @@
     cloned card into the Pi in place of the original, and confirm it boots cleanly. Keep the
     original card untouched and ready to swap back regardless of outcome.
   </div>
+
+  <h3>Projector Remote Control</h3>
+  <p>
+    For a projector with built-in Android TV (the Nebula Mars 3 and similar), the System tab
+    can power it on/off and launch the display page directly from Admin or the Console — no
+    separate remote needed once it's paired. This uses the same protocol the official Google TV
+    phone app does, over the network, not infrared.
+  </p>
+  <p>
+    One-time setup: enter the projector's IP address in the System tab's <strong>📽 Projector</strong>
+    card and click <kbd>START PAIRING</kbd>. The projector's own screen shows a PIN — type it
+    into Admin and click <kbd>CONFIRM</kbd>. Once paired, <kbd>POWER</kbd> and
+    <kbd>LAUNCH DISPLAY</kbd> buttons appear here and in the Console's left panel.
+  </p>
+  <div class="callout callout-warn">
+    <div class="callout-title">Launch Display needs a browser already on the projector</div>
+    This remote control layer can tell an already-installed browser app to open a URL — it
+    can't install one. If the projector has no browser yet, Launch Display has nothing to
+    trigger. Install one (a kiosk-style browser app is best) before relying on this button.
+  </div>
 </div>
 
 <!-- ══════════════════ PART 4 ══════════════════ -->
@@ -1760,6 +1811,14 @@
     If a show flow step is a <strong>Game</strong> step (Prize Wheel, Shell Game, Musical Chairs), tapping it
     automatically navigates the HDMI display to that game and launches it. No separate
     "Open on Display" tap is needed — the whole sequence is one button press.
+  </div>
+
+  <div class="callout callout-info">
+    <div class="callout-title">Advancing the show stops a running Skit Timer</div>
+    If a skit's timer is still counting down when you tap the next Show Flow item, it stops and
+    clears itself automatically — same idea as Karaoke ending itself on advance. No need to hit
+    Reset by hand before moving on; if the next step loads its own timer preset, that starts
+    fresh regardless.
   </div>
 
   <h2 id="transport">Transport Controls</h2>

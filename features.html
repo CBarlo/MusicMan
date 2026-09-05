@@ -414,15 +414,19 @@
     <div class="feat-grid">
       <div class="feat rose">
         <div class="feat-name">Macros</div>
-        <div class="feat-desc">Multi-step sequences executed in parallel or series. Steps can be any combination of: scene, SFX, music, audio fade/stop, display image/animation/slide, walk-up, VS card, viz show/hide, game, timer start/reset, skit timer preset, run another macro, wait. Optional 🔁 Loop repeats the whole step list until interrupted by another macro or Kill All.</div>
+        <div class="feat-desc">Multi-step sequences executed in parallel or series. Steps can be any combination of: scene, light ramp, SFX, music, audio fade/stop, display image/animation/slide, walk-up, VS card, viz show/hide, game, timer start/reset, skit timer preset, run another macro, wait. Optional 🔁 Loop repeats the whole step list until interrupted by another macro or Kill All.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">Run Macro</div>
         <div class="feat-desc">A macro step that fires another macro and moves on immediately — doesn't wait for it to finish, since the target can itself be a Loop that never returns (e.g. a "start a song, then loop announcements underneath it" end-of-show chain). Won't fade out audio the nested macro didn't start itself, so a song already playing keeps going under the loop. Refuses to run a macro from itself.</div>
       </div>
       <div class="feat rose">
+        <div class="feat-name">Light Ramp</div>
+        <div class="feat-desc">A macro step that smoothly brings the whole rig's brightness from one level to another over a set duration — fires a target scene at the start percentage first (so there's a real full look to climb toward), then steps every ~0.4s toward the end percentage using the exact same scaling the DIM slider already uses live. Doesn't block the macro, so it runs in the background alongside a video/walkup step at the same time — built for a lights-up-under-the-climax-video moment. A short, bounded step count rather than a continuous animation, by design — keeps well clear of the sustained-traffic pattern that caused the old DMX animation feature's RS485 noise issue.</div>
+      </div>
+      <div class="feat rose">
         <div class="feat-name">Show Flow</div>
-        <div class="feat-desc">Ordered list of macro steps that runs the full show in sequence. Advance, skip, or reset from the Console. Saveable as named templates — load a whole show in one tap. Steps that walk up the Log Keeper role can flip the Console to the CIRCLES tab automatically when they fire — a context-dependent option, not a generic one on every step.</div>
+        <div class="feat-desc">Ordered list of macro steps that runs the full show in sequence. Advance, skip, or reset from the Console. Saveable as named templates — load a whole show in one tap. Steps that walk up the Log Keeper role can flip the Console to the CIRCLES tab automatically when they fire — a context-dependent option, not a generic one on every step. Advancing to the next step also stops and clears a still-running Skit Timer automatically, same as it already does for a live Karaoke song.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">Show Flow Templates</div>
@@ -434,7 +438,7 @@
       </div>
       <div class="feat rose">
         <div class="feat-name">Export MC Guide</div>
-        <div class="feat-desc">Printable, numbered rundown of the whole Show Flow, opened in a new tab. Each step shows a thumbnail resolved from what it actually fires — a role/circle logo, a game's icon, a display video/graphic. v1 only; per-step visuals, not yet real per-step descriptions or live screenshots.</div>
+        <div class="feat-desc">Printable rundown of the whole Show Flow built for handing to parents/helpers ahead of a show, not just a stage cheat sheet. Every row gets a real, action-by-action description pulled from that step's actual macro (lighting, screen, audio, waits — not a generic label), a genuine screen preview (a walk-up's real last-frame video still generated fresh via ffmpeg, a video's own thumbnail, or its display image — no live show run needed), and a separate Audio Cues column. Time, People On Stage, and Director Notes are left blank for hand-filling. Live visualizations get a clearly labeled icon rather than a faked screenshot. Opens in a new tab; print or save as PDF from there.</div>
       </div>
     </div>
   </div>
@@ -708,6 +712,10 @@
       <div class="feat rose wide">
         <div class="feat-name">SD Card Backup</div>
         <div class="feat-desc">Full-clone backup to a USB card reader from Admin's System tab — partitions and formats the destination to match the live card, then rsyncs the running filesystem onto it and rewrites its boot references so the clone is independently bootable. Tracks last-backup time and a running count of config changes since. Device selection carries three independent, redundant safety gates (UI, route, and script all separately refuse anything that isn't a removable non-root disk) given how unrecoverable choosing the wrong target would be.</div>
+      </div>
+      <div class="feat rose wide">
+        <div class="feat-name">Projector Remote Control</div>
+        <div class="feat-desc">Power on/off and launch the display page on an Android TV-based projector (Nebula Mars 3 and similar) directly from Admin or Console, over the network — the same protocol the official Google TV phone app uses, no IR and no dev-mode sideloading. One-time PIN pairing per projector, then POWER/LAUNCH DISPLAY buttons live in both places, with live is-on/current-app status polled every 10s. Launch Display remotely triggers whatever browser is already installed on the projector to open the display URL — it can trigger a browser, not install one, so a kiosk-style browser still needs to be on the projector itself first.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">OTA File Update</div>
