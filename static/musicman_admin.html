@@ -1374,6 +1374,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                   </optgroup>
                   <optgroup label="LIGHTING">
                     <option value="scene">🎬 Set Scene</option>
+                    <option value="light_ramp">🌗 Light Ramp</option>
                   </optgroup>
                   <optgroup label="TIMER">
                     <option value="timer_start">⏱ Start Timer</option>
@@ -1440,7 +1441,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <div id="showflow-list" style="display:flex;flex-direction:column;gap:8px;min-height:60px"></div>
           <div style="margin-top:16px;display:flex;gap:10px">
             <button class="btn btn-primary" onclick="saveShowFlow()">SAVE SHOW FLOW</button>
-            <button class="btn btn-secondary" onclick="buildMcGuide()" title="Printable step-by-step guide with a visual for each step">🖨 EXPORT MC GUIDE</button>
+            <button class="btn btn-secondary" onclick="buildMcGuide()" title="Printable rundown — real per-step notes, walk-up stills, and blank columns for Time/People/Notes">🖨 EXPORT MC GUIDE</button>
             <div id="showflow-status" style="font-size:11px;color:var(--text-dim);align-self:center"></div>
           </div>
         </div>
@@ -2523,6 +2524,46 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         </div>
       </div>
 
+      <!-- PROJECTOR (Android TV Remote) -->
+      <div class="editor-panel" style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="editor-label" style="margin-bottom:0">📽 PROJECTOR</div>
+          <span id="proj-summary" style="font-size:11px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px">—</span>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5">
+          Controls the projector (Nebula Mars 3, or any Android TV) over the network — same protocol
+          the official Google TV phone app uses. One-time pairing, then power on/off and "launch the
+          display page" both live here and on Console.
+        </p>
+
+        <div id="proj-unpaired">
+          <label class="field-label">PROJECTOR IP ADDRESS</label>
+          <input id="proj-host" class="text-input" type="text" placeholder="e.g. 192.168.4.50" style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Find it under the projector's own Settings → Network. Must already be joined to the MusicMan WiFi.</div>
+          <button class="btn btn-primary" onclick="projStartPairing()">START PAIRING</button>
+          <div id="proj-pin-wrap" style="display:none;margin-top:14px">
+            <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">A PIN should now be showing on the projector screen. Enter it below.</div>
+            <label class="field-label">PIN</label>
+            <input id="proj-pin" class="text-input" type="text" inputmode="numeric" placeholder="e.g. 123456" style="margin-bottom:10px">
+            <button class="btn btn-primary" onclick="projFinishPairing()">CONFIRM PAIRING</button>
+          </div>
+        </div>
+
+        <div id="proj-paired" style="display:none">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--text-dim)">
+            <div>Host: <span id="proj-host-label" style="color:var(--text)">—</span></div>
+            <div>Connected: <span id="proj-connected-label" style="color:var(--text)">—</span></div>
+            <div>Power: <span id="proj-power-label" style="color:var(--text)">—</span></div>
+            <div>Current app: <span id="proj-app-label" style="color:var(--text)">—</span></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="projPower()">⏻ POWER</button>
+            <button class="btn btn-secondary" onclick="projLaunchDisplay()">📺 LAUNCH DISPLAY PAGE</button>
+            <button class="btn btn-danger btn-sm" onclick="projForget()">FORGET / RE-PAIR</button>
+          </div>
+        </div>
+      </div>
+
       <!-- SD CARD BACKUP -->
       <div class="editor-panel" style="margin-bottom:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -2633,7 +2674,7 @@ function switchTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   const navEl = document.querySelector(`.nav-item[data-tab="${name}"]`);
   if (navEl) navEl.classList.add('active');
-  if (name === 'system')        { loadHealth(); startHealthAutoRefresh(); backupRefreshStatus(); startBatteryAutoRefresh(); startSystemLogAutoRefresh(); } else { stopHealthAutoRefresh(); stopBatteryAutoRefresh(); stopSystemLogAutoRefresh(); }
+  if (name === 'system')        { loadHealth(); startHealthAutoRefresh(); backupRefreshStatus(); startBatteryAutoRefresh(); startSystemLogAutoRefresh(); startProjectorAutoRefresh(); } else { stopHealthAutoRefresh(); stopBatteryAutoRefresh(); stopSystemLogAutoRefresh(); stopProjectorAutoRefresh(); }
   if (name === 'lighting')      { loadPoleNodes(); }
   if (name === 'scenes')        { loadPoleNodes(); renderSceneGrid && renderSceneGrid(); }
   if (name === 'showflow')      { loadShowFlow(); loadShowFlowTemplates(); }
@@ -5421,6 +5462,17 @@ function stepParamHtml(step) {
     const opts = scenes.map(s => `<option value="${escHtml(s.id)}" ${step.scene===s.id?'selected':''}>${escHtml(s.name||s.id)}</option>`).join('');
     return `<select class="step-param">${opts || '<option value="">— no scenes saved yet —</option>'}</select>`;
   }
+  if (a === 'light_ramp') {
+    const opts   = scenes.map(s => `<option value="${escHtml(s.id)}" ${step.scene===s.id?'selected':''}>${escHtml(s.name||s.id)}</option>`).join('');
+    const numSt  = "width:56px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:4px 6px;border-radius:4px;font-size:12px";
+    return `<select class="step-param" style="flex:1;min-width:0"><option value="">— ramp whatever's already lit —</option>${opts}</select>
+      <input class="step-param-from" type="number" value="${step.from ?? 0}" min="0" max="100" step="5" style="${numSt}" title="Start brightness %">
+      <span style="font-size:11px;color:var(--text-dim)">→</span>
+      <input class="step-param-to" type="number" value="${step.to ?? 100}" min="0" max="100" step="5" style="${numSt}" title="End brightness %">
+      <span style="font-size:11px;color:var(--text-dim)">%</span>
+      <input class="step-param-dur" type="number" value="${step.duration ?? 10}" min="0.5" step="0.5" style="${numSt}">
+      <span style="font-size:11px;color:var(--text-dim);flex-shrink:0">sec</span>`;
+  }
   if (a === 'sfx') {
     const opts = sfxList.map(f => { const stem = f.replace(/\.[^.]+$/,''); return `<option value="${escHtml(stem)}" ${step.name===stem?'selected':''}>${escHtml(stem.replace(/_/g,' '))}</option>`; }).join('');
     return `<select class="step-param">${opts || '<option value="">— no SFX uploaded yet —</option>'}</select>`;
@@ -5640,6 +5692,15 @@ function collectStepValue(row, action) {
   const inp = row.querySelector('.step-param');
   const val = inp ? inp.value.trim() : '';
   if (action === 'scene')          return { scene:     val };
+  if (action === 'light_ramp') {
+    const num = (el, fb) => { const n = parseFloat(el?.value); return Number.isFinite(n) ? n : fb; };
+    return {
+      scene:    val,
+      from:     num(row.querySelector('.step-param-from'), 0),
+      to:       num(row.querySelector('.step-param-to'),   100),
+      duration: num(row.querySelector('.step-param-dur'),  10),
+    };
+  }
   if (action === 'sfx')            return { name:      val };
   if (action === 'music')          return { file: val, loop: !!(row.querySelector('.step-loop')?.checked) };
   if (action === 'walkup_circle')      return { circle_id:     val };
@@ -5856,6 +5917,7 @@ function addMacroStep() {
   const defaults = { scene:'', sfx:'', music:'', walkup_circle:'', walkup_role:'', audio_fade:3, wait:1 };
   const step = { action: type };
   if (type === 'scene')         step.scene     = '';
+  else if (type === 'light_ramp') { step.scene = ''; step.from = 0; step.to = 100; step.duration = 10; }
   else if (type === 'sfx')      step.name      = sfxList.length ? sfxList[0].replace(/\.[^.]+$/,'') : '';
   else if (type === 'music')    step.file      = musicList.length ? musicList[0] : '';
   else if (type === 'walkup_circle')     step.circle_id     = circles.length     ? circles[0].id     : '';
@@ -8155,26 +8217,107 @@ const SF_COLORS = ['#F5A623','#C4610A','#CC2222','#3CB96A','#2B5FA6','#8B44CC',
                    '#EEEEEE','#F5A623','#C4610A','#3CB96A','#2B5FA6','#8B44CC'];
 
 // ── MC SHOW GUIDE (printable) ────────────────────────────────────────────
-// Walks the loaded Show Flow in order and resolves each step to whatever
-// visual actually represents it -- a macro's own display_image if it set
-// one, otherwise the first recognizable visual step inside it (a role/
-// circle's logo, a display video/image, a game's icon, ...). Built
-// entirely client-side since Admin already has circles/roles/macros/
-// gameEntries/showFlow loaded -- no new backend route needed.
-function _mcResolveStepVisual(macro) {
-  if (macro && macro.display_image) {
-    return { kind: 'img', src: `${location.origin}/assets/macros/${macro.id}/${macro.display_image}`, label: 'MACRO' };
+// Rundown-style export for handing to dads in advance: one row per Show Flow
+// step with a real action-by-action description (not a bucket label) and a
+// real visual -- a walk-up's actual last-frame still (generated server-side
+// via ffmpeg, see _generate_walkup_still, so this needs no live show run or
+// kiosk capture), a video's own thumbnail, or its display image, in that
+// order of "how much like the actual screen is this." Time / People On
+// Stage / Campfire Director Notes are left blank on purpose -- Chris fills
+// those in by hand before sending it out.
+function _mcFileBase(p) { return p ? p.split('/').pop() : ''; }
+
+const _MC_AUDIO_ACTIONS = new Set(['music', 'play_playlist', 'audio_stop', 'audio_fade', 'sfx', 'karaoke']);
+
+// One-line, plain-English description of what a single macro step actually
+// does -- walked action-by-action rather than shown as a generic type label.
+function _mcDescribeStep(s) {
+  const a = s.action;
+  if (a === 'scene')     { const sc = scenes.find(x => x.id === s.scene); return `Lighting: ${sc ? sc.name : (s.scene || '—')}`; }
+  if (a === 'light_ramp') {
+    const sc = scenes.find(x => x.id === s.scene);
+    return `Lights ramp ${s.from ?? 0}%→${s.to ?? 100}% over ${s.duration ?? 10}s${sc ? ' — ' + sc.name : ''}`;
   }
-  for (const s of (macro && macro.steps) || []) {
+  if (a === 'sfx')            return `SFX: ${s.name || '—'}`;
+  if (a === 'music')          return `Music: ${_mcFileBase(s.file)}${s.loop ? ' (loops)' : ''}`;
+  if (a === 'play_playlist')  return `Playlist: ${_mcFileBase(s.path)}${s.shuffle ? ', shuffled' : ''}`;
+  if (a === 'audio_stop')     return 'Audio stops';
+  if (a === 'audio_fade')     return `Audio fades out over ${s.duration || 3}s`;
+  if (a === 'karaoke')        return 'Karaoke — song picked live from Console';
+  if (a === 'walkup_circle')  { const c = circles.find(x => x.id === s.circle_id); return `Circle walk-up: ${c ? c.name : '—'}`; }
+  if (a === 'walkup_role')    { const r = roles.find(x => x.id === s.role_id);     return `Role walk-up: ${r ? r.name : '—'}`; }
+  if (a === 'walkup_game_entry') { const e = gameEntries.find(x => x.id === s.game_entry_id); return `Game-entry walk-up: ${e ? e.name : '—'}`; }
+  if (a === 'wait')           return `Pause ${s.seconds || 1}s`;
+  if (a === 'display_image')  return `Screen: ${_mcFileBase(s.file)}${s.duration === 0 ? ' (holds)' : ''}`;
+  if (a === 'display_anim') {
+    const tag = s.loop ? ', loops' : (s.duration === 0 ? ', holds last frame' : ` (${s.duration || 5}s)`);
+    return `Screen: plays "${_mcFileBase(s.file)}"${tag}`;
+  }
+  if (a === 'display_circle') { const c = circles.find(x => x.id === s.circle_id); return `Screen: ${c ? c.name : '—'}'s logo`; }
+  if (a === 'display_role')   { const r = roles.find(x => x.id === s.role_id);     return `Screen: ${r ? r.name : '—'}'s logo`; }
+  if (a === 'saved_slide')    { const sl = (savedSlides || []).find(x => x.id === s.slide_id); return `Screen: slide — ${sl ? (sl.headline || sl.name || '') : '—'}`; }
+  if (a === 'slide')          return `Screen: custom slide — ${s.headline || ''}`;
+  if (a === 'slide_clear')    return 'Screen clears';
+  if (a === 'vs_card')        { const c = (savedVsCards || []).find(x => x.id === s.vs_card_id); return `Screen: VS card — ${c ? c.name : '—'}`; }
+  if (a === 'game')           { const gt = (glGameTypes || []).find(x => x.id === s.game_type_id); return `Launches game: ${gt ? gt.label : '—'}`; }
+  if (a === 'shell_game')     return 'Launches Shell Game';
+  if (a === 'head_to_head')   return 'Screen: scoreboard';
+  if (a === 'viz')            { const p = (_vizPresets || []).find(x => x.id === s.preset_id); return `Screen: live visualization — ${p ? p.name : 'viz'}`; }
+  if (a === 'viz_hide')       return 'Visualization stops';
+  if (a === 'timer_start')    return 'Timer starts';
+  if (a === 'timer_reset')    return 'Timer resets';
+  if (a === 'setup_skit_timer') return `Loads timer preset: ${s.preset || '—'}`;
+  if (a === 'run_macro')      { const m = macros.find(x => x.id === s.macro_id); return `Also runs: ${m ? m.name : '—'}`; }
+  return null;
+}
+
+// A Show Flow entry is either a macro (walk its steps) or a bare game/vs_card/
+// circle/role entry -- represented here as a single synthetic step so both
+// paths run through the exact same describe/visual logic below.
+function _mcEntrySteps(entry) {
+  if (entry.type === 'game')    return [{ action: 'game', game_type_id: entry.game_type_id, game_config_id: entry.game_config_id }];
+  if (entry.type === 'vs_card') return [{ action: 'vs_card', vs_card_id: entry.vs_card_id }];
+  if (entry.type === 'circle')  return [{ action: 'walkup_circle', circle_id: entry.target_id }];
+  if (entry.type === 'role')    return [{ action: 'walkup_role', role_id: entry.target_id }];
+  const macro = macros.find(m => m.id === entry.macro_id);
+  return (macro && macro.steps) || [];
+}
+
+async function _mcWalkupStillUrl(itemType, itemId) {
+  try {
+    const r = await fetch(`/api/walkup_still/${itemType}/${itemId}`);
+    const d = await r.json();
+    if (d.ok) return `${location.origin}${d.url}`;
+  } catch (e) {}
+  return null;   // no walk-up video uploaded for this one yet -- caller falls back
+}
+
+// Resolves whatever visual actually represents this entry, in order of "how
+// much like the real screen is this": a macro's own custom display_image
+// first (a deliberate override), then a walk-up's real last-frame still
+// (generated server-side via ffmpeg -- no live show run needed), then a
+// video's own thumbnail or a display image, down to an icon for step types
+// with no static asset to show (games, cards, live visualizations).
+async function _mcResolveVisual(steps, macro) {
+  if (macro && macro.display_image) {
+    return { kind: 'img', src: `${location.origin}/assets/macros/${macro.id}/${macro.display_image}`, label: 'CUSTOM IMAGE' };
+  }
+  for (const s of steps) {
     if (s.action === 'walkup_role') {
       const r = roles.find(x => x.id === s.role_id);
-      if (r && (r.assets || {}).logo) return { kind: 'img', src: `${location.origin}/assets/roles/${r.id}/${r.assets.logo}`, label: 'ROLE WALK-UP', name: r.name };
-      if (r) return { kind: 'text', text: r.name, label: 'ROLE WALK-UP' };
+      if (!r) continue;
+      const still = await _mcWalkupStillUrl('role', r.id);
+      if (still) return { kind: 'img', src: still, label: 'WALK-UP', name: r.name };
+      if ((r.assets || {}).logo) return { kind: 'img', src: `${location.origin}/assets/roles/${r.id}/${r.assets.logo}`, label: 'WALK-UP', name: r.name };
+      return { kind: 'text', text: r.name, label: 'WALK-UP' };
     }
     if (s.action === 'walkup_circle') {
       const c = circles.find(x => x.id === s.circle_id);
-      if (c && (c.assets || {}).logo) return { kind: 'img', src: `${location.origin}/assets/circles/${c.id}/${c.assets.logo}`, label: 'CIRCLE WALK-UP', name: c.name };
-      if (c) return { kind: 'text', text: c.name, label: 'CIRCLE WALK-UP' };
+      if (!c) continue;
+      const still = await _mcWalkupStillUrl('circle', c.id);
+      if (still) return { kind: 'img', src: still, label: 'WALK-UP', name: c.name };
+      if ((c.assets || {}).logo) return { kind: 'img', src: `${location.origin}/assets/circles/${c.id}/${c.assets.logo}`, label: 'WALK-UP', name: c.name };
+      return { kind: 'text', text: c.name, label: 'WALK-UP' };
     }
     if (s.action === 'walkup_game_entry') {
       const e = gameEntries.find(x => x.id === s.game_entry_id);
@@ -8186,84 +8329,132 @@ function _mcResolveStepVisual(macro) {
     if (s.action === 'display_image' && s.file) {
       return { kind: 'img', src: `${location.origin}/assets/display/${encodeURIComponent(s.file)}`, label: 'GRAPHIC' };
     }
+    if (s.action === 'display_circle') {
+      const c = circles.find(x => x.id === s.circle_id);
+      if (c && (c.assets || {}).logo) return { kind: 'img', src: `${location.origin}/assets/circles/${c.id}/${c.assets.logo}`, label: 'LOGO', name: c.name };
+    }
+    if (s.action === 'display_role') {
+      const r = roles.find(x => x.id === s.role_id);
+      if (r && (r.assets || {}).logo) return { kind: 'img', src: `${location.origin}/assets/roles/${r.id}/${r.assets.logo}`, label: 'LOGO', name: r.name };
+    }
     if (s.action === 'game') {
       const gt = (glGameTypes || []).find(t => t.id === s.game_type_id);
       if (gt) return { kind: 'emoji', emoji: gt.icon || '🎮', label: 'GAME', name: gt.label };
     }
     if (s.action === 'shell_game') return { kind: 'emoji', emoji: '🐚', label: 'GAME', name: 'Shell Game' };
-    if (s.action === 'vs_card')    return { kind: 'emoji', emoji: '⚔️', label: 'VS CARD' };
+    if (s.action === 'vs_card') {
+      const c = (savedVsCards || []).find(x => x.id === s.vs_card_id);
+      return { kind: 'emoji', emoji: '⚔️', label: 'VS CARD', name: c ? c.name : '' };
+    }
     if (s.action === 'saved_slide') {
       const sl = (savedSlides || []).find(x => x.id === s.slide_id);
       if (sl) return { kind: 'text', text: sl.headline || sl.name || '', label: 'SLIDE' };
     }
+    if (s.action === 'head_to_head') return { kind: 'emoji', emoji: '🏆', label: 'SCOREBOARD' };
     if (s.action === 'karaoke') return { kind: 'emoji', emoji: '🎤', label: 'KARAOKE', name: 'Song picked live from Console' };
+    if (s.action === 'viz') {
+      // Genuinely animated -- there's no static frame that represents it
+      // honestly, so this stays an icon rather than a faked/misleading still.
+      const p = (_vizPresets || []).find(x => x.id === s.preset_id);
+      return { kind: 'emoji', emoji: '🎛', label: 'LIVE VISUALIZATION', name: p ? p.name : 'Visualization' };
+    }
   }
   return { kind: 'emoji', emoji: '🔊', label: 'CUE', name: 'Audio / lighting only — nothing on screen' };
 }
 
-function buildMcGuide() {
-  const rows = showFlow.map((entry, i) => {
-    let visual, stepName = entry.name || '';
-    if (entry.type === 'game') {
-      const gt = (glGameTypes || []).find(t => t.id === entry.game_type_id);
-      visual = { kind: 'emoji', emoji: (gt && gt.icon) || '🎮', label: 'GAME' };
-    } else if (entry.type === 'vs_card') {
-      visual = { kind: 'emoji', emoji: '⚔️', label: 'VS CARD' };
-    } else if (entry.type === 'circle') {
-      const c = circles.find(x => x.id === entry.target_id);
-      visual = c && (c.assets || {}).logo
-        ? { kind: 'img', src: `${location.origin}/assets/circles/${c.id}/${c.assets.logo}`, label: 'CIRCLE WALK-UP' }
-        : { kind: 'emoji', emoji: '⬡', label: 'CIRCLE WALK-UP' };
-    } else if (entry.type === 'role') {
-      const r = roles.find(x => x.id === entry.target_id);
-      visual = r && (r.assets || {}).logo
-        ? { kind: 'img', src: `${location.origin}/assets/roles/${r.id}/${r.assets.logo}`, label: 'ROLE WALK-UP' }
-        : { kind: 'emoji', emoji: '★', label: 'ROLE WALK-UP' };
-    } else {
-      const macro = macros.find(m => m.id === entry.macro_id);
-      visual = _mcResolveStepVisual(macro);
+async function buildMcGuide() {
+  const w = window.open('', '_blank');
+  if (!w) { toast('Pop-up blocked — allow pop-ups to open the guide', 'err'); return; }
+  w.document.write('<!doctype html><title>MC Show Guide</title><body style="font-family:-apple-system,sans-serif;padding:60px;color:#888">Generating guide — resolving walk-up stills…</body>');
+  w.document.close();
+
+  const rowsData = [];
+  for (const entry of showFlow) {
+    const macro = (!entry.type || entry.type === 'macro') ? macros.find(m => m.id === entry.macro_id) : null;
+    const steps = _mcEntrySteps(entry);
+    const visual = await _mcResolveVisual(steps, macro);
+    const eventLines = [], audioLines = [];
+    for (const s of steps) {
+      const line = _mcDescribeStep(s);
+      if (!line) continue;
+      (_MC_AUDIO_ACTIONS.has(s.action) ? audioLines : eventLines).push(line);
     }
-    const thumbHtml = visual.kind === 'img'
-      ? `<img src="${escHtml(visual.src)}" onerror="this.parentElement.innerHTML='<span class=\\'mc-emoji\\'>❔</span>'">`
-      : visual.kind === 'emoji'
-      ? `<span class="mc-emoji">${visual.emoji}</span>`
-      : `<span class="mc-textthumb">${escHtml((visual.text || '').slice(0, 40))}</span>`;
+    rowsData.push({ entry, visual, eventLines, audioLines });
+  }
+
+  const thumbHtml = (visual) => visual.kind === 'img'
+    ? `<img src="${escHtml(visual.src)}" onerror="this.parentElement.innerHTML='<span class=\\'mc-emoji\\'>❔</span>'">`
+    : visual.kind === 'emoji'
+    ? `<span class="mc-emoji">${visual.emoji}</span>`
+    : `<span class="mc-textthumb">${escHtml((visual.text || '').slice(0, 40))}</span>`;
+
+  const rows = rowsData.map(({ entry, visual, eventLines, audioLines }, i) => {
+    const eventHtml = eventLines.length
+      ? `<ul class="mc-lines">${eventLines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
+      : `<span class="mc-nolines">—</span>`;
+    const audioHtml = audioLines.length
+      ? `<ul class="mc-lines">${audioLines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
+      : `<span class="mc-nolines">—</span>`;
+    const visLabel = visual.label + (visual.name ? ' — ' + escHtml(visual.name) : '');
     return `
-      <div class="mc-step">
-        <div class="mc-num">${i + 1}</div>
-        <div class="mc-thumb">${thumbHtml}</div>
-        <div class="mc-info">
-          <div class="mc-name">${escHtml(stepName)}</div>
-          <div class="mc-label">${visual.label}${visual.name ? ' — ' + escHtml(visual.name) : ''}</div>
-        </div>
-      </div>`;
+      <tr class="mc-row">
+        <td class="mc-num">${i + 1}</td>
+        <td class="mc-time"></td>
+        <td class="mc-event">
+          <div class="mc-name">${escHtml(entry.name || '')}</div>
+          ${eventHtml}
+        </td>
+        <td class="mc-thumb-cell">
+          <div class="mc-thumb">${thumbHtml(visual)}</div>
+          <div class="mc-vislabel">${visLabel}</div>
+        </td>
+        <td class="mc-people"></td>
+        <td class="mc-audio">${audioHtml}</td>
+        <td class="mc-notes"></td>
+      </tr>`;
   }).join('');
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>MC Show Guide</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: #fff; color: #111; margin: 0; padding: 24px 32px; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: #fff; color: #111; margin: 0; padding: 20px 24px; }
   h1 { font-size: 20px; letter-spacing: 2px; margin: 0 0 2px; }
-  .mc-sub { font-size: 11px; color: #777; letter-spacing: 1px; margin-bottom: 20px; }
-  .mc-step { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid #ddd; break-inside: avoid; }
-  .mc-num { font-size: 13px; font-weight: 700; color: #aaa; width: 26px; flex-shrink: 0; text-align: right; }
-  .mc-thumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 6px; background: #f2f2f2; border: 1px solid #ddd;
+  .mc-sub { font-size: 11px; color: #777; letter-spacing: 1px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  thead { display: table-header-group; }
+  th { text-align: left; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #888; border-bottom: 2px solid #333; padding: 4px 6px; }
+  td { border-bottom: 1px solid #ddd; padding: 8px 6px; font-size: 11px; vertical-align: top; }
+  tr.mc-row { break-inside: avoid; }
+  .mc-num  { width: 22px; font-weight: 700; color: #aaa; }
+  .mc-time { width: 50px; }
+  .mc-event { width: 25%; }
+  .mc-name { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .mc-thumb-cell { width: 92px; text-align: center; }
+  .mc-thumb { width: 80px; height: 80px; margin: 0 auto; border-radius: 6px; background: #f2f2f2; border: 1px solid #ddd;
               display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .mc-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .mc-emoji { font-size: 32px; }
+  .mc-emoji { font-size: 30px; }
   .mc-textthumb { font-size: 9px; text-align: center; color: #555; padding: 4px; line-height: 1.2; }
-  .mc-info { min-width: 0; }
-  .mc-name { font-size: 16px; font-weight: 700; }
-  .mc-label { font-size: 10px; letter-spacing: 1.5px; color: #888; text-transform: uppercase; margin-top: 2px; }
-  @media print { body { padding: 0 20px; } }
+  .mc-vislabel { font-size: 8px; letter-spacing: 0.5px; color: #999; text-transform: uppercase; margin-top: 3px; line-height: 1.3; }
+  .mc-people { width: 88px; }
+  .mc-audio  { width: 18%; }
+  .mc-notes  { width: 15%; }
+  .mc-lines { margin: 0; padding-left: 14px; }
+  .mc-lines li { margin-bottom: 2px; }
+  .mc-nolines { color: #bbb; }
+  @media print { body { padding: 0 16px; } }
 </style></head><body>
   <h1>MC SHOW GUIDE</h1>
   <div class="mc-sub">${showFlow.length} STEPS — RUN IN ORDER — GENERATED ${new Date().toLocaleDateString()}</div>
-  ${rows}
+  <table>
+    <thead><tr>
+      <th>#</th><th>Time</th><th>Event</th><th>Screen</th><th>People On Stage</th><th>Audio Cues / Notes</th><th>Campfire Director Notes</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
 </body></html>`;
 
-  const w = window.open('', '_blank');
-  if (!w) { toast('Pop-up blocked — allow pop-ups to open the guide', 'err'); return; }
+  w.document.open();
   w.document.write(html);
   w.document.close();
 }
@@ -9063,6 +9254,95 @@ function startBatteryAutoRefresh() {
 function stopBatteryAutoRefresh() {
   clearInterval(_adminBattTimer);
   _adminBattTimer = null;
+}
+
+// ── PROJECTOR (Android TV Remote) ───────────────────────────────────────────
+let _adminProjTimer = null;
+function startProjectorAutoRefresh() {
+  loadProjectorStatus();
+  clearInterval(_adminProjTimer);
+  _adminProjTimer = setInterval(loadProjectorStatus, 10000);
+}
+function stopProjectorAutoRefresh() {
+  clearInterval(_adminProjTimer);
+  _adminProjTimer = null;
+}
+
+async function loadProjectorStatus() {
+  let s;
+  try { s = await fetch('/api/projector/status').then(r => r.json()); } catch (e) { return; }
+  const unpairedEl = document.getElementById('proj-unpaired');
+  const pairedEl   = document.getElementById('proj-paired');
+  const summaryEl  = document.getElementById('proj-summary');
+  if (!s.available) {
+    summaryEl.textContent = 'androidtvremote2 not installed';
+    unpairedEl.style.display = '';
+    pairedEl.style.display   = 'none';
+    return;
+  }
+  if (!s.paired) {
+    unpairedEl.style.display = '';
+    pairedEl.style.display   = 'none';
+    summaryEl.textContent = s.error || 'Not paired';
+    return;
+  }
+  unpairedEl.style.display = 'none';
+  pairedEl.style.display   = '';
+  document.getElementById('proj-host-label').textContent      = s.host || '—';
+  document.getElementById('proj-connected-label').textContent = s.connected ? 'Yes' : 'No';
+  document.getElementById('proj-power-label').textContent     = s.is_on === true ? 'On' : s.is_on === false ? 'Off' : 'Unknown';
+  document.getElementById('proj-app-label').textContent       = s.current_app || '—';
+  summaryEl.textContent = s.connected ? 'Connected' : (s.error || 'Paired, not connected');
+}
+
+async function projStartPairing() {
+  const host = document.getElementById('proj-host').value.trim();
+  if (!host) { toast('Enter the projector\'s IP address first', 'err'); return; }
+  const r = await fetch('/api/admin/projector/pair/start', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({host}),
+  });
+  const d = await r.json();
+  if (!d.ok) { toast(d.error || 'Could not start pairing', 'err'); return; }
+  document.getElementById('proj-pin-wrap').style.display = '';
+  toast('Look at the projector for a PIN', 'ok');
+}
+
+async function projFinishPairing() {
+  const pin = document.getElementById('proj-pin').value.trim();
+  if (!pin) { toast('Enter the PIN shown on the projector', 'err'); return; }
+  const r = await fetch('/api/admin/projector/pair/finish', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin}),
+  });
+  const d = await r.json();
+  if (!d.ok) { toast(d.error || 'Pairing failed', 'err'); return; }
+  toast('Paired!', 'ok');
+  document.getElementById('proj-pin-wrap').style.display = 'none';
+  document.getElementById('proj-pin').value = '';
+  loadProjectorStatus();
+}
+
+async function projPower() {
+  const r = await fetch('/api/projector/power', {method: 'POST'});
+  const d = await r.json();
+  if (!d.ok) toast(d.error || 'Power command failed', 'err');
+  setTimeout(loadProjectorStatus, 1000);
+}
+
+async function projLaunchDisplay() {
+  const r = await fetch('/api/projector/launch_display', {method: 'POST'});
+  const d = await r.json();
+  if (!d.ok) toast(d.error || 'Launch failed', 'err');
+  setTimeout(loadProjectorStatus, 1000);
+}
+
+async function projForget() {
+  if (!confirm('Forget this projector? You\'ll need to pair again to control it.')) return;
+  const r = await fetch('/api/admin/projector/forget', {method: 'POST'});
+  const d = await r.json();
+  if (!d.ok) { toast(d.error || 'Could not forget projector', 'err'); return; }
+  document.getElementById('proj-host').value = '';
+  document.getElementById('proj-pin-wrap').style.display = 'none';
+  loadProjectorStatus();
 }
 
 function adminBattCmd(addr, port, state) {

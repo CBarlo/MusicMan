@@ -353,6 +353,19 @@
         <input type="range" class="vol-slider" min="0" max="100" value="75" oninput="updateBright(this.value)">
         <span class="vol-val" id="brightVal">75%</span>
       </div>
+
+      <div id="projSection" style="display:none;margin-top:16px">
+        <div class="section-label" style="display:flex;align-items:center;gap:6px">
+          <span id="projDot" style="width:7px;height:7px;border-radius:50%;background:var(--text-dim);flex-shrink:0"></span>
+          PROJECTOR
+        </div>
+        <div id="projStatusText" style="font-size:10px;color:var(--text-dim);letter-spacing:0.5px;margin:4px 0 8px">—</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="projConsolePower()" style="flex:1;padding:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">&#9211; POWER</button>
+          <button onclick="projConsoleLaunch()" style="flex:1;padding:8px;background:var(--surface);border:1px solid var(--border);color:var(--amber);border-radius:6px;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">&#128250; DISPLAY</button>
+        </div>
+      </div>
+
       <div class="credits" style="margin-top:16px">MUSIC MAN CONSOLE &middot; BROKEN ARROW EXPEDITION<br>BORING BADGER (CHRIS) &middot; GAMING GECKO (HENRY) &middot; LITTLE RED MACHINE (NOLAN)</div>
     </div>
   </div>
@@ -4056,6 +4069,37 @@ function uiToast(msg) {
 }
 let _displayLogo = '';
 fetch('/api/display-logo').then(r=>r.json()).then(d=>{ _displayLogo = d.logo || ''; }).catch(()=>{});
+
+// ── PROJECTOR (Android TV Remote) ───────────────────────────────────────────
+// Hidden entirely until Admin has actually paired one -- no point showing
+// controls that can't do anything yet.
+async function loadProjectorStatus() {
+  let s;
+  try { s = await fetch('/api/projector/status').then(r => r.json()); } catch (e) { return; }
+  const section = document.getElementById('projSection');
+  if (!s.available || !s.paired) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  const dot  = document.getElementById('projDot');
+  const text = document.getElementById('projStatusText');
+  dot.style.background = s.connected ? 'var(--green,#3cb96a)' : 'var(--text-dim)';
+  text.textContent = s.connected
+    ? (s.is_on === false ? 'Connected · Off' : 'Connected' + (s.current_app ? ' · ' + s.current_app : ''))
+    : (s.error || 'Not connected');
+}
+function projConsolePower() {
+  fetch('/api/projector/power', {method:'POST'}).then(r=>r.json()).then(d=>{
+    if (!d.ok) showAlert(d.error || 'Power command failed', 2500);
+    setTimeout(loadProjectorStatus, 1000);
+  }).catch(()=>{});
+}
+function projConsoleLaunch() {
+  fetch('/api/projector/launch_display', {method:'POST'}).then(r=>r.json()).then(d=>{
+    if (!d.ok) showAlert(d.error || 'Could not launch display', 2500);
+    setTimeout(loadProjectorStatus, 1000);
+  }).catch(()=>{});
+}
+loadProjectorStatus();
+setInterval(loadProjectorStatus, 10000);
 
 Promise.all([
   buildShowFlowGrid(), buildWalkupGrid(), buildRolesGrid(),

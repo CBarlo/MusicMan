@@ -950,9 +950,16 @@ function showStep(data) {
     layerWalkup.style.pointerEvents = 'none';
     layerStandby.style.opacity      = '0';
   }
-  layerTitle.style.opacity        = '1';
 
+  // A content-less display_step (no image — e.g. a macro with no display_image
+  // of its own) must be a true no-op for this layer. Raising layerTitle to
+  // opacity 1 with nothing loaded into it used to just sit there invisible when
+  // it was the bottom-most layer, but it now sits above things like the crowd
+  // meter viz and would blank them out for no reason. Bail before touching
+  // opacity at all when there's no image to show.
   if (!imageUrl) return;
+
+  layerTitle.style.opacity        = '1';
 
   // Load into the inactive slot, then crossfade
   const nextSlot = _titleImgSlot === 'a' ? 'b' : 'a';

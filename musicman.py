@@ -6237,42 +6237,93 @@ def api_lights_scene():
     threading.Thread(target=wled_set_scene, args=(name,), daemon=True).start()
     return jsonify({'ok': True, 'scene': name})
 
-@app.route('/api/lights/brightness')
-def api_lights_brightness():
+def _apply_master_dim(v):
+    """Set the master dim level (0-100) on every WLED target (pole nodes' own
+    pixel output + any non-independent WLED device) and rescale the last-fired
+    scene's raw DMX values by it on every pole node that scene touched.
+
+    This is the one place that knows what "the whole rig" means -- shared by
+    the DIM slider route below and the light_ramp macro step, so a ramp
+    reaches exactly the same set of fixtures the slider already does, using
+    the same proven single-POST-per-step mechanism (not the old continuous-
+    interpolation animation path that turned out to stress the pole nodes'
+    RS485 output over WiFi)."""
     global _master_dim
-    v = int(request.args.get('v', 75))
+    v = max(0.0, min(100.0, v))
     _master_dim = v / 100.0
     bri = int(v * 2.55)
     wled_targets = (
         [d for d in config.get('wled_devices', []) if not d.get('independent')] +
         [{'id': n['id'], 'ip': n['ip']} for n in config.get('pole_nodes', []) if n.get('ip')]
     )
-    def _apply():
-        for t in wled_targets:
+    for t in wled_targets:
+        try:
+            requests.post(f"http://{_resolve_ip_once(t['ip'])}/json/state",
+                          json={'bri': bri}, timeout=0.5)
+        except Exception as e:
+            _invalidate_ip(t['ip'])
+            log.warning(f"Brightness {t['id']}: {e}")
+    # Re-apply last scene DMX with new scale (skip if animation is driving DMX)
+    if _last_scene_dmx and not _dmx_anim_active:
+        nodes_map = {n['id']: n for n in config.get('pole_nodes', []) if n.get('ip')}
+        for node_id, fixtures in _last_scene_dmx.items():
+            node = nodes_map.get(node_id)
+            if not node:
+                continue
+            scaled = [{'start': f['start'],
+                       'channels': _dim_channels(f['channels'], _master_dim, f.get('dim_mask'))}
+                      for f in fixtures]
             try:
-                requests.post(f"http://{_resolve_ip_once(t['ip'])}/json/state",
-                              json={'bri': bri}, timeout=0.5)
+                requests.post(f"http://{_resolve_ip_once(node['ip'])}/dmx",
+                              json={'fixtures': scaled}, timeout=0.5)
             except Exception as e:
-                _invalidate_ip(t['ip'])
-                log.warning(f"Brightness {t['id']}: {e}")
-        # Re-apply last scene DMX with new scale (skip if animation is driving DMX)
-        if _last_scene_dmx and not _dmx_anim_active:
-            nodes_map = {n['id']: n for n in config.get('pole_nodes', []) if n.get('ip')}
-            for node_id, fixtures in _last_scene_dmx.items():
-                node = nodes_map.get(node_id)
-                if not node:
-                    continue
-                scaled = [{'start': f['start'],
-                           'channels': _dim_channels(f['channels'], _master_dim, f.get('dim_mask'))}
-                          for f in fixtures]
-                try:
-                    requests.post(f"http://{_resolve_ip_once(node['ip'])}/dmx",
-                                  json={'fixtures': scaled}, timeout=0.5)
-                except Exception as e:
-                    _invalidate_ip(node['ip'])
-                    log.warning(f"DMX dim {node_id}: {e}")
-    threading.Thread(target=_apply, daemon=True).start()
+                _invalidate_ip(node['ip'])
+                log.warning(f"DMX dim {node_id}: {e}")
+
+@app.route('/api/lights/brightness')
+def api_lights_brightness():
+    v = int(request.args.get('v', 75))
+    threading.Thread(target=_apply_master_dim, args=(v,), daemon=True).start()
     return jsonify({'ok': True, 'brightness': v})
+
+def _run_light_ramp(scene_id, from_pct, to_pct, duration, cancel):
+    """Fire scene_id (if given) at from_pct, then step the master dim from
+    from_pct to to_pct over duration seconds. "Everything" is whatever
+    _apply_master_dim already reaches -- every pole node's WLED pixel output
+    plus the DMX values that scene just set (mirrored to every pole via that
+    scene's own dmx_poles_match, same as any normal scene fire), which is the
+    same full set the DIM slider already scales live. Runs on its own thread
+    (called via threading.Thread from the light_ramp step) so it doesn't block
+    the rest of the macro -- a walkup video or audio can run at the same time.
+
+    Steps every 0.4s: frequent enough to read as a smooth fade, but a short,
+    bounded burst (duration/0.4 sends total, not an open-ended loop) rather
+    than the old always-on DMX animation whose sustained WiFi traffic was
+    found to inject noise into the pole nodes' RS485 output -- this ends on
+    its own after `duration` seconds either way.
+    """
+    if scene_id:
+        wled_set_scene(scene_id)
+        # Recalling a WLED preset (as wled_set_scene just did on every pole)
+        # can carry its own saved brightness -- e.g. full, for an "everything
+        # on" look -- which would otherwise flash briefly before the ramp's
+        # own dim steps take over. Correct it back to from_pct immediately,
+        # with no delay, to close that window down to one POST's round trip.
+        _apply_master_dim(from_pct)
+        # Then give the scene's own per-node DMX-apply threads (see
+        # wled_set_scene) a moment to land and populate _last_scene_dmx before
+        # the ramp's real steps start reading it -- harmless to wait here
+        # since from_pct is normally 0 (screen/stage already dark) regardless.
+        if cancel.wait(timeout=0.3):
+            return
+    _apply_master_dim(from_pct)
+    step_interval = 0.4
+    steps = max(1, round(duration / step_interval))
+    for i in range(1, steps + 1):
+        if cancel.wait(timeout=duration / steps):
+            log.info("Light ramp cancelled")
+            return
+        _apply_master_dim(from_pct + (to_pct - from_pct) * (i / steps))
 
 
 def _wled_ip_for_device(device_id):
@@ -6792,12 +6843,17 @@ def api_macro_run():
             broadcast('show_step', {'index': idx, 'macro_id': name, 'name': step_name, 'desc': matched_desc})
             break
     _set_current_show_step(index=matched_idx, type='macro', name=step_name, desc=matched_desc)
-    # Always update projector display when a macro fires
+    # Update the projector display when a macro fires -- unless the macro's own
+    # steps will put up their own real content a moment later anyway, in which
+    # case this would just flash stale/generic content in between (see
+    # _DISPLAY_OWNING_ACTIONS). A macro-level display_image is a deliberate
+    # override, so it always fires regardless.
     disp = {'name': step_name, 'color': step_color}
     img  = macro_obj.get('display_image', '')
     if img:
         disp['image'] = f'/assets/macros/{name}/{img}'
-    _ensure_display_for('display_step', disp)
+    if img or not _macro_has_own_display(macro_obj):
+        _ensure_display_for('display_step', disp)
     global _macro_cancel
     _macro_cancel.set()
     _macro_cancel = threading.Event()
@@ -6897,6 +6953,16 @@ def api_show_fire():
     # macro/vs_card steps too, which fire_walkup/_launch_game's own hooks don't
     # reach. No-ops instantly if Karaoke isn't live.
     end_karaoke(show_standby=False)
+    # Same idea for a running skit timer -- advancing means that skit is over,
+    # so its timer shouldn't keep counting down (or sit frozen on screen) into
+    # whatever comes next. Reset (not pause) so it comes back clean if the new
+    # step starts its own timer moments later -- pause leaves timer_state
+    # 'paused' set, which api_timer_start() reads as "resume" and skips
+    # re-showing the overlay for a genuinely new start.
+    if timer_state['running']:
+        api_timer_reset()
+        timer_state['visible_on_display'] = False
+        broadcast('timer_hide', {})
     # Context-dependent Console convenience: only ever set on a step whose
     # macro walks up the Log Keeper (enforced in the admin editor), so this
     # firing unconditionally here doesn't affect any other step type.
@@ -6962,11 +7028,14 @@ def api_show_fire():
         has_timer = any(s.get('action') in ('timer_start', 'setup_skit_timer') for s in macro_obj.get('steps', []))
         _set_current_show_step(index=idx, type='macro', name=step_name, desc=step_desc, has_timer=has_timer)
         broadcast('show_step', {'index': idx, 'macro_id': macro_id, 'name': step_name, 'desc': step_desc, 'has_timer': has_timer})
+        # See _DISPLAY_OWNING_ACTIONS / api_macro_run() -- skip the generic banner
+        # when this macro's own steps will put up real content a moment later.
         disp = {'name': step_name, 'color': step_color}
         img  = macro_obj.get('display_image', '')
         if img:
             disp['image'] = f'/assets/macros/{macro_id}/{img}'
-        _ensure_display_for('display_step', disp)
+        if img or not _macro_has_own_display(macro_obj):
+            _ensure_display_for('display_step', disp)
         threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel, idx), daemon=True).start()
 
     return jsonify({'ok': True})
@@ -7002,6 +7071,25 @@ def _broadcast_timer_display(filename):
         _ensure_display_for('display_step', {'image': f'/assets/display/{filename}'})
 
 _AUDIO_ACTIONS = {'music', 'play_playlist', 'audio_stop', 'audio_fade', 'walkup_circle', 'walkup_role', 'walkup_game_entry', 'karaoke'}
+
+# Step actions that put their own content on the projector once the macro's
+# thread actually reaches them. A macro containing any of these already has a
+# real display update coming -- firing the generic "display_step" name banner
+# first (as api_macro_run()/api_show_fire() do for every macro press) only
+# buys a flash of stale/generic content in the gap between the button press
+# and that real step running, since the two calls happen a beat apart (one
+# synchronous, one from the macro's own thread). Macros with none of these
+# (pure SFX/lighting cues, etc.) still need that banner as their only display
+# update, so it's skipped only when a step here means one is already coming.
+_DISPLAY_OWNING_ACTIONS = {
+    'walkup_circle', 'walkup_role', 'walkup_game_entry',
+    'display_image', 'display_anim', 'display_circle', 'display_role',
+    'slide', 'saved_slide', 'game', 'shell_game',
+    'viz', 'viz_hide', 'vs_card', 'head_to_head', 'karaoke', 'run_macro',
+}
+
+def _macro_has_own_display(macro_obj):
+    return any(s.get('action') in _DISPLAY_OWNING_ACTIONS for s in macro_obj.get('steps', []))
 
 def execute_macro(macro, cancel=None, show_flow_idx=None, is_nested=False):
     global config, current_slide, _viz_scene
@@ -7040,6 +7128,14 @@ def execute_macro(macro, cancel=None, show_flow_idx=None, is_nested=False):
         try:
             if action == 'scene':
                 wled_set_scene(step.get('scene', ''))
+            elif action == 'light_ramp':
+                to_pct   = float(step.get('to', 100))
+                from_pct = step.get('from')
+                from_pct = (_master_dim * 100) if from_pct is None else float(from_pct)
+                duration = max(0.1, float(step.get('duration', 10)))
+                threading.Thread(target=_run_light_ramp,
+                                  args=(step.get('scene', ''), from_pct, to_pct, duration, cancel),
+                                  daemon=True).start()
             elif action == 'sfx':
                 sfx_name = step.get('name', '')
                 sfx_dir  = ASSETS_DIR / 'sfx'
@@ -10029,6 +10125,234 @@ def api_battery_light(addr, mode):
         return jsonify({'error': 'unknown mode'}), 400
     ok, err = _batt_cmd(addr, lambda d: d.set_light_mode(ls))
     return (jsonify({'ok': True}), 200) if ok else (jsonify({'error': err}), 503)
+
+
+# ════════════════════════════════════════════
+# PROJECTOR — Android TV Remote (Nebula Mars 3)
+# ════════════════════════════════════════════
+# Controls the projector over the network via the same protocol the official
+# Google TV phone app uses (androidtvremote2) -- no ADB, no developer mode,
+# no sideloaded kiosk browser app. One-time PIN pairing (Admin), then power
+# on/off + "launch /display" from both Admin and Console. Same architecture
+# as the battery monitor above: a dedicated asyncio loop in its own daemon
+# thread, since AndroidTVRemote is asyncio-native and the rest of this app
+# is sync (gunicorn gthread workers).
+#
+# Guarded import: a missing/failed dependency here shouldn't take down the
+# rest of the app, same reasoning as every other optional-hardware import
+# in this file. _PROJECTOR_AVAILABLE gates every route below.
+try:
+    from androidtvremote2 import AndroidTVRemote, CannotConnect, ConnectionClosed, InvalidAuth
+    _PROJECTOR_AVAILABLE = True
+except Exception as _proj_import_exc:
+    _PROJECTOR_AVAILABLE = False
+    log.warning(f'Projector remote unavailable (androidtvremote2 not installed?): {_proj_import_exc}')
+
+_PROJECTOR_CERT_FILE   = BASE_DIR / 'projector_cert.pem'
+_PROJECTOR_KEY_FILE    = BASE_DIR / 'projector_key.pem'
+_PROJECTOR_CLIENT_NAME = 'MusicMan'
+# The Pi's own fixed AP-side address, not musicman.local -- Android TV's
+# in-app mDNS/.local resolution is inconsistent, confirmed unreliable in
+# other people's reports for similar casting features on this class of
+# device. wlan1 is always 192.168.4.1 on this rig regardless of DHCP.
+_PROJECTOR_DISPLAY_URL = 'http://192.168.4.1/display'
+
+_projector_lock    = threading.Lock()
+_projector_state   = {
+    'paired': False, 'host': None, 'connected': False,
+    'is_on': None, 'current_app': None, 'error': None,
+}
+_projector_loop    = None   # asyncio event loop running in the daemon thread
+_projector_remote  = None   # AndroidTVRemote once paired + connected
+_projector_pairing = None   # AndroidTVRemote mid-pairing, before finish
+
+def _proj_update(patch):
+    with _projector_lock:
+        _projector_state.update(patch)
+
+def _proj_snapshot():
+    with _projector_lock:
+        return dict(_projector_state)
+
+def _proj_run(coro_fn, *args, timeout=10):
+    """Run a one-off coroutine on the projector's event loop from a Flask
+    request thread (thread-safe), block for the result. Mirrors _batt_cmd's
+    role for the battery monitor above."""
+    if _projector_loop is None or not _projector_loop.is_running():
+        raise RuntimeError('projector loop not running')
+    fut = _asyncio.run_coroutine_threadsafe(coro_fn(*args), _projector_loop)
+    return fut.result(timeout=timeout)
+
+def _proj_send(fn, *args):
+    """Fire-and-forget one of AndroidTVRemote's sync send_* methods, called
+    unbound (fn(remote, *args)) -- e.g. _proj_send(AndroidTVRemote.send_key_command,
+    'POWER'). These write directly to an asyncio Transport owned by the
+    projector loop's thread, which isn't safe to touch from a different
+    thread without call_soon_threadsafe, even though the method itself is
+    a plain (non-async) call."""
+    if _projector_loop is None or not _projector_loop.is_running():
+        return False, 'projector loop not running'
+    with _projector_lock:
+        remote = _projector_remote
+    if remote is None:
+        return False, 'not connected -- pair in Admin first'
+    _projector_loop.call_soon_threadsafe(fn, remote, *args)
+    return True, None
+
+async def _proj_connect_and_watch(remote):
+    """Connects an already-paired AndroidTVRemote and keeps it alive,
+    updating _projector_state as its callbacks fire. Runs on the projector
+    event loop -- called once at startup (if already paired) and again
+    right after a fresh pairing finishes."""
+    global _projector_remote
+    remote.add_is_on_updated_callback(lambda v: _proj_update({'is_on': v}))
+    remote.add_current_app_updated_callback(lambda v: _proj_update({'current_app': v}))
+    remote.add_is_available_updated_callback(lambda v: _proj_update({'connected': v}))
+    def on_invalid_auth():
+        log.warning('Projector: pairing no longer valid, needs re-pairing in Admin')
+        _proj_update({'paired': False, 'connected': False, 'error': 'Pairing expired -- re-pair in Admin'})
+    try:
+        await remote.async_connect()
+        _proj_update({'error': None})
+    except InvalidAuth:
+        _proj_update({'paired': False, 'connected': False, 'error': 'Pairing expired -- re-pair in Admin'})
+        return
+    except (CannotConnect, ConnectionClosed) as e:
+        # keep_reconnecting (below) still retries even though this first
+        # attempt failed -- e.g. projector is powered off right now.
+        _proj_update({'connected': False, 'error': str(e)})
+    remote.keep_reconnecting(invalid_auth_callback=on_invalid_auth)
+    with _projector_lock:
+        _projector_remote = remote
+
+async def _proj_finish_pairing_and_connect(pin):
+    """Completes an in-progress pairing, saves the host, and immediately
+    establishes the real (non-pairing) control connection using the
+    now-valid certificate -- async_finish_pairing() itself disconnects
+    when it returns, so the follow-up connect is required, not optional."""
+    global _projector_pairing
+    remote = _projector_pairing
+    if remote is None:
+        raise RuntimeError('no pairing in progress -- start pairing again')
+    await remote.async_finish_pairing(pin)  # raises InvalidAuth on a wrong PIN
+    _projector_pairing = None
+    cfg = load_config()
+    cfg.setdefault('system', {}).setdefault('projector', {})['host'] = remote.host
+    save_config(cfg)
+    global config
+    config = cfg
+    _proj_update({'paired': True, 'host': remote.host, 'error': None})
+    await _proj_connect_and_watch(remote)
+
+def _start_projector_monitor():
+    """Bootstrap thread -- mirrors _start_battery_monitor. Only actually
+    connects if a host and a saved pairing certificate already exist;
+    otherwise the loop just idles, ready to service on-demand pairing
+    requests from Admin via _proj_run."""
+    if not _PROJECTOR_AVAILABLE:
+        return
+    def runner():
+        global _projector_loop
+        loop = _asyncio.new_event_loop()
+        _asyncio.set_event_loop(loop)
+        _projector_loop = loop
+        host = (config.get('system', {}).get('projector', {}) or {}).get('host')
+        if host and _PROJECTOR_CERT_FILE.exists() and _PROJECTOR_KEY_FILE.exists():
+            remote = AndroidTVRemote(
+                _PROJECTOR_CLIENT_NAME, str(_PROJECTOR_CERT_FILE), str(_PROJECTOR_KEY_FILE),
+                host, loop=loop,
+            )
+            _proj_update({'paired': True, 'host': host})
+            loop.create_task(_proj_connect_and_watch(remote))
+        loop.run_forever()
+    threading.Thread(target=runner, daemon=True, name='projector-remote').start()
+
+try:
+    _start_projector_monitor()
+    log.info('Projector remote started')
+except Exception as exc:
+    log.warning(f'Projector remote failed to start: {exc}')
+
+@app.route('/api/projector/status')
+def api_projector_status():
+    if not _PROJECTOR_AVAILABLE:
+        return jsonify({'available': False, 'paired': False, 'connected': False})
+    return jsonify({'available': True, **_proj_snapshot()})
+
+@app.route('/api/projector/power', methods=['POST'])
+def api_projector_power():
+    if not _PROJECTOR_AVAILABLE:
+        return jsonify({'ok': False, 'error': 'androidtvremote2 not installed'}), 503
+    ok, err = _proj_send(AndroidTVRemote.send_key_command, 'POWER')
+    return (jsonify({'ok': True}), 200) if ok else (jsonify({'ok': False, 'error': err}), 503)
+
+@app.route('/api/projector/launch_display', methods=['POST'])
+def api_projector_launch_display():
+    if not _PROJECTOR_AVAILABLE:
+        return jsonify({'ok': False, 'error': 'androidtvremote2 not installed'}), 503
+    ok, err = _proj_send(AndroidTVRemote.send_launch_app_command, _PROJECTOR_DISPLAY_URL)
+    return (jsonify({'ok': True}), 200) if ok else (jsonify({'ok': False, 'error': err}), 503)
+
+@app.route('/api/admin/projector/pair/start', methods=['POST'])
+def api_projector_pair_start():
+    if not _PROJECTOR_AVAILABLE:
+        return jsonify({'ok': False, 'error': 'androidtvremote2 not installed on the Pi'}), 503
+    global _projector_pairing
+    data = request.get_json() or {}
+    host = (data.get('host') or '').strip()
+    if not host:
+        return jsonify({'ok': False, 'error': 'host required'}), 400
+    remote = AndroidTVRemote(
+        _PROJECTOR_CLIENT_NAME, str(_PROJECTOR_CERT_FILE), str(_PROJECTOR_KEY_FILE),
+        host, loop=_projector_loop,
+    )
+    async def _start(r):
+        await r.async_generate_cert_if_missing()
+        await r.async_start_pairing()
+    try:
+        _proj_run(_start, remote)
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 400
+    _projector_pairing = remote
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/projector/pair/finish', methods=['POST'])
+def api_projector_pair_finish():
+    if not _PROJECTOR_AVAILABLE:
+        return jsonify({'ok': False, 'error': 'androidtvremote2 not installed on the Pi'}), 503
+    data = request.get_json() or {}
+    pin = (data.get('pin') or '').strip()
+    if not pin:
+        return jsonify({'ok': False, 'error': 'pin required'}), 400
+    try:
+        _proj_run(_proj_finish_pairing_and_connect, pin)
+    except InvalidAuth:
+        return jsonify({'ok': False, 'error': 'Wrong PIN -- try again'}), 400
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 400
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/projector/forget', methods=['POST'])
+def api_projector_forget():
+    global _projector_remote, _projector_pairing
+    with _projector_lock:
+        remote = _projector_remote
+        _projector_remote = None
+    if remote and _projector_loop and _projector_loop.is_running():
+        _projector_loop.call_soon_threadsafe(remote.disconnect)
+    _projector_pairing = None
+    for f in (_PROJECTOR_CERT_FILE, _PROJECTOR_KEY_FILE):
+        try:
+            f.unlink(missing_ok=True)
+        except Exception:
+            pass
+    cfg = load_config()
+    cfg.setdefault('system', {}).pop('projector', None)
+    save_config(cfg)
+    global config
+    config = cfg
+    _proj_update({'paired': False, 'host': None, 'connected': False, 'is_on': None, 'current_app': None, 'error': None})
+    return jsonify({'ok': True})
 
 
 # ── SOUND LEVEL POLLING (WLED /json/si from pole nodes) ─────────────────────
