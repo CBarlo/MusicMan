@@ -231,7 +231,7 @@
     body { padding: 0; font-size: 16.5px; }
     .masthead-title { font-size: 30px; }
     .case-card, .chain-block, ol.steps > li, .safety, .confirm, .charge-band { break-inside: avoid; }
-    .cases, section { break-inside: avoid; }
+    .cases { break-inside: avoid; }
     a { color: inherit; text-decoration: none; }
   }
 </style>
@@ -264,6 +264,7 @@
     <li><input type="checkbox"><span>Remote</span></li>
     <li><input type="checkbox"><span>iPad mini</span></li>
     <li><input type="checkbox"><span>Solix C300 ×2</span></li>
+    <li><input type="checkbox"><span>Projector</span></li>
     <li><input type="checkbox"><span>Generator gas</span></li>
     <li><input type="checkbox"><span>Camera</span></li>
   </ul>
@@ -278,8 +279,8 @@
         <li><input type="checkbox"><span>MusicMan (Pi unit)</span></li>
         <li><input type="checkbox"><span>Stream Deck</span></li>
         <li><input type="checkbox"><span>Physical remote<span class="chk-note">M5StickC Plus, MC's handheld control</span></span></li>
-        <li><input type="checkbox"><span>Wireless mic receiver (Rx, 2CH)</span></li>
-        <li><input type="checkbox"><span>Wireless mics ×2</span></li>
+        <li><input type="checkbox"><span>Shure BLX88 wireless mic receiver (2CH)</span></li>
+        <li><input type="checkbox"><span>Handheld wireless mics ×2</span></li>
         <li><input type="checkbox"><span>Wired mic stand</span></li>
         <li><input type="checkbox"><span>Wired mic</span></li>
         <li><input type="checkbox"><span>Mic cables (XLR) + receiver power adapter<span class="chk-note">needs a 110V outlet, at the console</span></span></li>
@@ -319,13 +320,15 @@
       <div class="case-title" style="margin-top:16px">Loose / Separate</div>
       <ul class="chk-list">
         <li><input type="checkbox"><span>Expedition EZ-Up<span class="chk-note">big canopy — stage backdrop + backstage/prep area</span></span></li>
-        <li><input type="checkbox"><span>Projector<span class="chk-note">own battery, but bring power adapter</span></span></li>
+        <li><input type="checkbox"><span>Projector (Nebula Mars 3)<span class="chk-note">battery-powered, charge before you leave — no cord needed at the screen</span></span></li>
+        <li><input type="checkbox"><span>Spare tripod, for the projector<span class="chk-note">Mars 3 has a standard ¼-20 mount on the bottom</span></span></li>
         <li><input type="checkbox"><span>Screen + inflator</span></li>
         <li><input type="checkbox"><span>Video extender kit<span class="chk-note">HDMI-over-Cat6 balun pair, console ↔ projector</span></span></li>
         <li><input type="checkbox"><span>Generator<span class="chk-note">backup only, if no shore power</span></span></li>
         <li><input type="checkbox"><span>Gas can</span></li>
         <li><input type="checkbox"><span>PA: Fender Venue<span class="chk-note">stands live in the Light Stand Case</span></span></li>
-        <li><input type="checkbox"><span>General 110V extension cords<span class="chk-note">console/screen/projector/PA — separate from the 2 pole cords in the Lights Box</span></span></li>
+        <li><input type="checkbox"><span>General 110V extension cords ×2<span class="chk-note">one to the console zone, one to the screen/projector zone — separate from the 2 pole cords in the Lights Box. See Power Needed.</span></span></li>
+        <li><input type="checkbox"><span>Power strips ×2<span class="chk-note">a 4-outlet for the console zone, a small 2-outlet for the screen zone. See Power Needed.</span></span></li>
         <li><input type="checkbox"><span>Camera</span></li>
         <li><input type="checkbox"><span>Folding table<span class="chk-note">the console table — Music Man Box + PA controls sit here</span></span></li>
         <li><input type="checkbox"><span>Small step stool<span class="chk-note">for reaching the pole fixtures to aim/adjust them</span></span></li>
@@ -379,16 +382,29 @@
 </section>
 
 <section>
-  <div class="section-hdr"><span class="section-num">4</span><h2>Power</h2></div>
+  <div class="section-hdr"><span class="section-num">4</span><h2>Power Needed</h2></div>
+  <div class="section-note">Everything that needs shore/generator power falls into two physical zones — not one cord per device. The poles are <strong>not</strong> part of this: they run off their own Solix batteries, already accounted for in Section 2.</div>
+
+  <div class="layout-options">
+    <div class="opt-card"><span class="opt-badge">1</span><div><div class="opt-title">Console Zone</div><div class="opt-body">MusicMan Pi unit, BLX88 wireless receiver, and the Fender Venue head/mixer — all three live at the console table. The Venue drives both stage speakers over speaker cable, so only the head unit itself needs power, not each speaker separately. One extension run in, one 4-outlet power strip splits it three ways (a 4th outlet free for the video extender, if it's powered on this end).</div></div></div>
+    <div class="opt-card"><span class="opt-badge">2</span><div><div class="opt-title">Screen Zone</div><div class="opt-body">Just the screen inflator needs wall power here. The projector (Nebula Mars 3) is battery-powered — it sits at this same location but doesn't need a cord, only the video extender's Rx end and its HDMI cable reaching it. One extension run in, a small 2-outlet strip covers the inflator plus the video extender if it's powered on this end instead of the console's.</div></div></div>
+  </div>
+  <p class="layout-note">Video extender only needs power at one end — pick whichever zone has a free outlet on its strip; it doesn't need a run of its own either way.</p>
+
   <div class="safety">
     <span class="safety-icon">⚠</span>
     <p><strong>Screen inflator needs continuous power</strong> — not a one-time inflate-and-disconnect. It stays plugged in and running the whole time the screen needs to stay up, or it sags/collapses.</p>
   </div>
-  <div class="power-grid" style="grid-template-columns:repeat(2,1fr)">
-    <div class="power-card"><div class="fixture">Shore power vs. generator</div><div class="source">Use shore power if the site has it. Generator only comes out as backup, with no shore power available.</div></div>
+
+  <div class="chain-label" style="margin:20px 0 8px">Shore Power vs. Generator</div>
+  <div class="layout-options">
+    <div class="opt-card"><span class="opt-badge">A</span><div><div class="opt-title">Shore power available</div><div class="opt-body">Run one extension cord from the nearest outlet to each zone — 2 cords total. Leave the generator in the truck.</div></div></div>
+    <div class="opt-card"><span class="opt-badge">B</span><div><div class="opt-title">No shore power — generator</div><div class="opt-body">One generator can feed both zones if it's positioned reasonably central between them — still just 2 extension cords, both running back to the generator instead of a wall outlet. Position it downwind/away from seating, confirm gas, start it, and let it settle before loading anything onto it (see Setup Order). If the site won't let one generator position reach both zones, that's a 3rd extension cord run, not a 2nd generator — cord is cheaper and simpler than a second fuel source.</div></div></div>
+  </div>
+
+  <div class="power-grid" style="grid-template-columns:repeat(2,1fr);margin-top:16px">
     <div class="power-card"><div class="fixture">Music Man Box</div><div class="source">Needs power at the console, from shore/generator.</div></div>
-    <div class="power-card"><div class="fixture">Projector</div><div class="source">Has its own battery, but plug it in when power's available — don't rely on battery for a full show.</div></div>
-    <div class="power-card"><div class="fixture">Video extender</div><div class="source">Needs power at one end only — console or projector side, whichever's more convenient.</div></div>
+    <div class="power-card"><div class="fixture">Projector (Nebula Mars 3)</div><div class="source">Runs on its own built-in battery — no power cord needed at its location, only the video extender's Cat6/HDMI reaching it.</div></div>
   </div>
 </section>
 
@@ -398,7 +414,7 @@
   <div class="chain-block">
     <div class="hub-label">→ INTO THE VENUE →</div>
     <div class="signal-grid">
-      <div class="signal-card"><div class="src">Wireless Mic Rx (2CH)</div><div class="via-arrow">↓</div><div class="via">2× XLR</div></div>
+      <div class="signal-card"><div class="src">Shure BLX88 (2CH)</div><div class="via-arrow">↓</div><div class="via">2× XLR</div></div>
       <div class="signal-card"><div class="src">Wired Mic</div><div class="via-arrow">↓</div><div class="via">XLR</div></div>
       <div class="signal-card"><div class="src">MusicMan (Pi out)</div><div class="via-arrow">↓</div><div class="via">3.5mm → dual-XLR</div></div>
       <div class="signal-card"><div class="src">Phone</div><div class="via-arrow">↓</div><div class="via">Bluetooth</div></div>
@@ -406,11 +422,16 @@
   </div>
   <ol class="steps">
     <li><div class="step-body"><span class="step-title">Speakers on stands</span>disconnect both speakers from the Venue head unit, set on stands spread apart, facing the crowd.</div></li>
-    <li><div class="step-body"><span class="step-title">Wireless receiver</span>power it at the console, pair the 2 wireless mics.</div></li>
-    <li><div class="step-body"><span class="step-title">Cable everything in</span>wired mic, wireless receiver, and MusicMan adapter cable into the Venue per the chart above.</div></li>
+    <li><div class="step-body"><span class="step-title">Scan for a clear RF group</span>power the BLX88 at the console (hold its power button). Press and release its group button once — it auto-scans and locks onto the clearest group, setting up both channels on the BLX88 at the same time.</div></li>
+    <li><div class="step-body"><span class="step-title">Match each handheld to it</span>turn on mic 1 (batteries installed) and use its own group/channel buttons to set its display to the same group letter the receiver landed on, channel 1. Repeat for mic 2 on channel 2. The receiver's ready LED lights up green next to a channel once that mic is matched correctly.</div></li>
+    <li><div class="step-body"><span class="step-title">Cable everything in</span>wired mic, BLX88 receiver (both XLR outs), and MusicMan adapter cable into the Venue per the chart above.</div></li>
     <li><div class="step-body"><span class="step-title">Bluetooth</span>pair a phone if it'll be used.</div></li>
     <li><div class="step-body"><span class="step-title">Power last</span>leave the Venue off until every source above is connected.</div></li>
   </ol>
+  <div class="safety" style="margin-top:12px">
+    <span class="safety-icon">⚠</span>
+    <p><strong>Mic sounding distorted?</strong> If a receiver channel's audio LED flickers red often (not just on loud moments), hold that mic's channel button for 5 seconds — a dot appears on its display, meaning it's switched to the quieter −10dB setting. Hold the same button 5 seconds again to switch it back to normal.</p>
+  </div>
 </section>
 
 <div class="divider-row"><div class="line"></div><div class="txt">Setup</div><div class="line"></div></div>
@@ -424,12 +445,12 @@
     <li><div class="step-body"><span class="step-title">Set up the folding table</span>where the console will go, under/near the EZ-Up. Everything in the Music Man Box and the PA controls end up here.</div></li>
     <li><div class="step-body"><span class="step-title">Position the screen</span>facing the seating area.</div></li>
     <li><div class="step-body"><span class="step-title">Inflate the screen</span>plug in the inflator and confirm it's actually running continuously before moving on — it stays plugged in and blowing the whole show, not a one-time inflate. Don't walk away and unplug it thinking it's done.</div></li>
-    <li><div class="step-body"><span class="step-title">Position the projector</span>reasonably short, clear throw to the screen.</div></li>
+    <li><div class="step-body"><span class="step-title">Position the projector</span>reasonably short, clear throw to the screen — on the spare tripod (standard ¼-20 mount on the bottom) or wherever it sits level. Power on by sliding the lens cover down — that's the power switch, there's no separate button. Autofocus and keystone correction trigger automatically on power-on; if the image comes up soft or crooked, nudge the projector slightly or press OK on the remote to re-trigger them.</div></li>
     <li><div class="step-body"><span class="step-title">Run the long Cat6 cable</span>from the projector back to the console.</div></li>
-    <li><div class="step-body"><span class="step-title">Connect the video/HDMI extender</span>a pair of small boxes — one end plugs into the projector's HDMI input, the other into the console's HDMI output, with the long Cat6 running between them. Power whichever end is more convenient — only one end needs power.</div></li>
+    <li><div class="step-body"><span class="step-title">Connect the video/HDMI extender</span>a pair of small boxes — one end plugs into the projector's HDMI input, the other into the console's HDMI output, with the long Cat6 running between them. Power whichever end is more convenient — only one end needs power. If the projector doesn't switch to the HDMI feed on its own, open the remote's home menu and select it manually.</div></li>
     <li><div class="step-body"><span class="step-title">Set up each pole</span>full per-pole assembly (Section 2), one pole completely before starting the second. Use the step stool to reach the fixtures for aiming — don't aim from the ground by eye.</div></li>
-    <li><div class="step-body"><span class="step-title">Set up the PA (Fender Venue)</span>full sequence above: speakers on stands, wireless receiver powered and paired, everything cabled in. Leave the Venue itself off until every source is connected.</div></li>
-    <li><div class="step-body"><span class="step-title">Set up the Music Man Box</span>on the console table: Pi unit, Stream Deck, remote, iPad mini, wired mic + stand, wireless Rx (power + pair the 2 wireless mics, fresh AA batteries), MusicMan cable into the Venue.</div></li>
+    <li><div class="step-body"><span class="step-title">Set up the PA (Fender Venue)</span>full sequence above: speakers on stands, BLX88 group-scanned and both mics matched to it, everything cabled in. Leave the Venue itself off until every source is connected.</div></li>
+    <li><div class="step-body"><span class="step-title">Set up the Music Man Box</span>on the console table: Pi unit, Stream Deck, remote, iPad mini, wired mic + stand, BLX88 (power, group scan, match the 2 handhelds, fresh AA batteries in each), MusicMan cable into the Venue.</div></li>
     <li><div class="step-body"><span class="step-title">Power on</span>shore/generator first, then the Venue, then Solix units, MusicMan unit last.</div></li>
     <li><div class="step-body"><span class="step-title">Verify connectivity</span>Pi status light: amber (booting) → blue (running) → <strong style="color:var(--sage)">green</strong> once both poles check in. Not green usually means a loose cable, not a real failure — worth a look before assuming the worst.</div></li>
     <li><div class="step-body"><span class="step-title">Walk the Show Flow, live, on the console</span>step through every entry from the start, confirming each one actually fires the right music/light/video before the audience shows up. The best way to catch a loose cable or wrong setting while it's still easy to fix.</div></li>
