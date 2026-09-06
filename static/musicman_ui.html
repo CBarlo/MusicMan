@@ -132,6 +132,7 @@
   .walkup-circle { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; margin-bottom: 2px; }
   .walkup-name { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-align: center; line-height: 1.1; }
   .walkup-song { font-size: 10px; color: var(--text-dim); text-align: center; font-family: 'Share Tech Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 0 4px; }
+  .walkup-names { font-size: 11px; color: var(--amber, #F5A623); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 0 4px; opacity: 0.9; }
   .asset-tiles-section { margin-top: 16px; }
   .asset-tiles-heading { font-size: 11px; letter-spacing: 2px; color: var(--text-dim); font-weight: 700; margin: 14px 2px 8px; }
   .asset-tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
@@ -3029,6 +3030,7 @@ let _activeGameType = '', _activeGameConfigId = '';  // whatever showGameOverlay
 
 let _sfgMacroCache = null;
 let _sfgFlowCache   = null;
+let _sfgRolesCache  = null;
 
 // Fetches fresh data (show flow + macros can change from Admin) and re-renders.
 // Use this for real navigation/load events, NOT for a step advance — a step
@@ -3039,9 +3041,10 @@ let _sfgFlowCache   = null;
 // step buttons feel slow to update on the iPad's WiFi.
 async function buildShowFlowGrid() {
   try {
-    [_sfgFlowCache, _sfgMacroCache] = await Promise.all([
+    [_sfgFlowCache, _sfgMacroCache, _sfgRolesCache] = await Promise.all([
       fetch('/api/show_flow').then(r => r.json()),
-      fetch('/api/macros').then(r => r.json())
+      fetch('/api/macros').then(r => r.json()),
+      fetch('/api/roles').then(r => r.json())
     ]);
   } catch(e) { /* keep whatever was cached before */ }
   _renderShowFlowGrid();
@@ -3053,6 +3056,8 @@ async function buildShowFlowGrid() {
 function _renderShowFlowGrid() {
   const flow   = _sfgFlowCache  || [];
   const macros = _sfgMacroCache || [];
+  const roleMap = {};
+  (_sfgRolesCache || []).forEach(r => { roleMap[r.id] = r; });
   const macroMap = {};
   macros.forEach(m => { macroMap[m.id] = m; });
 
@@ -3084,6 +3089,17 @@ function _renderShowFlowGrid() {
     // Detect inline actions from macro steps
     const macro = macroMap[step.macro_id];
     const steps = macro?.steps || [];
+    // Names for any role this step walks up -- either a macro step
+    // (walkup_role) or a bare role-type Show Flow entry. Additive only: a
+    // step with no role, or a role with no NAMES filled in, renders exactly
+    // as it always has.
+    const roleNames = [
+      ...(step.type === 'role' && step.target_id ? [roleMap[step.target_id]] : []),
+      ...steps.filter(s => s.action === 'walkup_role').map(s => roleMap[s.role_id]),
+    ].map(r => r && r.names).filter(Boolean);
+    const roleNamesHtml = roleNames.length
+      ? `<div style="font-size:9px;color:${col};margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700">${escHtml([...new Set(roleNames)].join(', '))}</div>`
+      : '';
     const hasShellGame = steps.some(s => s.action === 'shell_game');
     const hasViz       = steps.some(s => s.action === 'viz' || s.action === 'viz_hide');
     const vizScene     = (steps.find(s => s.action === 'viz') || {}).scene || 'crowd';
@@ -3131,6 +3147,7 @@ function _renderShowFlowGrid() {
           ${isActive ? '▶ NOW' : isNext ? 'NEXT' : '.'}
         </div>
         ${step.desc ? `<div style="font-size:9px;color:var(--text-dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.8">${escHtml(step.desc)}</div>` : ''}
+        ${roleNamesHtml}
       </div>
       ${actionBtnHtml}`;
 
@@ -3208,9 +3225,11 @@ async function buildRolesGrid() {
     btn.style.setProperty('--glow-color', glow);
     btn.style.borderColor = col + '55';
     const song = walkupSongLabel(r.assets);
+    const namesHtml = r.names ? `<div class="walkup-names">${escHtml(r.names)}</div>` : '';
     btn.innerHTML = `
       <div class="walkup-circle" style="background:${col}22;color:${col};border:1px solid ${col}66">★</div>
       <div class="walkup-name" style="color:${col}">${escHtml(r.name)}</div>
+      ${namesHtml}
       <div class="walkup-song">${escHtml(song)}</div>`;
     btn.onclick = () => playRoleWalkup(r);
     grid.appendChild(btn);

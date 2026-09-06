@@ -525,6 +525,9 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <label>ROLE NAME</label>
               <input type="text" id="r-name" placeholder="Role name">
 
+              <label>NAMES <span style="font-weight:400;color:var(--text-dim);letter-spacing:0.5px">(shown on Console and in the MC Guide export)</span></label>
+              <input type="text" id="r-names" placeholder="e.g. Henry B. &amp; Nolan T.">
+
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                 <div>
                   <label>COLOR</label>
@@ -1442,6 +1445,8 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <div style="margin-top:16px;display:flex;gap:10px">
             <button class="btn btn-primary" onclick="saveShowFlow()">SAVE SHOW FLOW</button>
             <button class="btn btn-secondary" onclick="buildMcGuide()" title="Printable rundown — real per-step notes, walk-up stills, and blank columns for Time/People/Notes">🖨 EXPORT MC GUIDE</button>
+            <button class="btn btn-secondary" onclick="downloadMcGuidePdf(this)" title="Downloads a real PDF file directly — no print dialog">⬇ PDF</button>
+            <button class="btn btn-secondary" onclick="downloadMcGuideCsv()" title="Downloads a plain spreadsheet (opens in Excel/Numbers/Sheets) — text only, no images">⬇ EXCEL (CSV)</button>
             <div id="showflow-status" style="font-size:11px;color:var(--text-dim);align-self:center"></div>
           </div>
         </div>
@@ -3217,6 +3222,7 @@ function populateRoleEditor(id) {
 
   document.getElementById('r-editor-title').textContent = (r.title || r.name).toUpperCase();
   document.getElementById('r-name').value = r.name || '';
+  document.getElementById('r-names').value = r.names || '';
 
   const color = r.color || '#FFFFFF';
   document.getElementById('r-color').value     = color;
@@ -3289,6 +3295,7 @@ async function saveRole() {
   const data = {
     id:    selectedRoleId,
     name:  document.getElementById('r-name').value.trim(),
+    names: document.getElementById('r-names').value.trim(),
     color:  document.getElementById('r-color').value,
     color2: document.getElementById('r-color2').value,
     walkup: {
@@ -8362,12 +8369,9 @@ async function _mcResolveVisual(steps, macro) {
   return { kind: 'emoji', emoji: '🔊', label: 'CUE', name: 'Audio / lighting only — nothing on screen' };
 }
 
-async function buildMcGuide() {
-  const w = window.open('', '_blank');
-  if (!w) { toast('Pop-up blocked — allow pop-ups to open the guide', 'err'); return; }
-  w.document.write('<!doctype html><title>MC Show Guide</title><body style="font-family:-apple-system,sans-serif;padding:60px;color:#888">Generating guide — resolving walk-up stills…</body>');
-  w.document.close();
-
+// Shared row computation -- used by the on-screen guide, the PDF export, and
+// the CSV export, so all three always agree on what a step actually shows.
+async function _mcBuildRowsData() {
   const rowsData = [];
   for (const entry of showFlow) {
     const macro = (!entry.type || entry.type === 'macro') ? macros.find(m => m.id === entry.macro_id) : null;
@@ -8379,19 +8383,34 @@ async function buildMcGuide() {
       if (!line) continue;
       (_MC_AUDIO_ACTIONS.has(s.action) ? audioLines : eventLines).push(line);
     }
-    rowsData.push({ entry, visual, eventLines, audioLines });
+    // People On Stage: every Role walk-up in this entry with a Names field
+    // filled in (Admin → Roles → NAMES) — joined, since a role can have more
+    // than one walkup_role step or be filled by more than one person.
+    const people = steps
+      .filter(s => s.action === 'walkup_role')
+      .map(s => (roles.find(x => x.id === s.role_id) || {}).names)
+      .filter(Boolean);
+    // A hand-written description of this part of the show (the Show Flow
+    // step's own NOTES field) rendered separately, above the auto-generated
+    // action-by-action lines -- it's a different kind of content, not just
+    // another bullet in the same list.
+    rowsData.push({ entry, visual, eventLines, audioLines, note: entry.desc || '', people: [...new Set(people)].join(', ') });
   }
+  return rowsData;
+}
 
+function _mcBuildGuideHtml(rowsData) {
   const thumbHtml = (visual) => visual.kind === 'img'
     ? `<img src="${escHtml(visual.src)}" onerror="this.parentElement.innerHTML='<span class=\\'mc-emoji\\'>❔</span>'">`
     : visual.kind === 'emoji'
     ? `<span class="mc-emoji">${visual.emoji}</span>`
     : `<span class="mc-textthumb">${escHtml((visual.text || '').slice(0, 40))}</span>`;
 
-  const rows = rowsData.map(({ entry, visual, eventLines, audioLines }, i) => {
+  const rows = rowsData.map(({ entry, visual, eventLines, audioLines, note, people }, i) => {
+    const noteHtml = note ? `<div class="mc-note">${escHtml(note)}</div>` : '';
     const eventHtml = eventLines.length
       ? `<ul class="mc-lines">${eventLines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
-      : `<span class="mc-nolines">—</span>`;
+      : (note ? '' : `<span class="mc-nolines">—</span>`);
     const audioHtml = audioLines.length
       ? `<ul class="mc-lines">${audioLines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
       : `<span class="mc-nolines">—</span>`;
@@ -8402,13 +8421,14 @@ async function buildMcGuide() {
         <td class="mc-time"></td>
         <td class="mc-event">
           <div class="mc-name">${escHtml(entry.name || '')}</div>
+          ${noteHtml}
           ${eventHtml}
         </td>
         <td class="mc-thumb-cell">
           <div class="mc-thumb">${thumbHtml(visual)}</div>
           <div class="mc-vislabel">${visLabel}</div>
         </td>
-        <td class="mc-people"></td>
+        <td class="mc-people">${people ? escHtml(people) : ''}</td>
         <td class="mc-audio">${audioHtml}</td>
         <td class="mc-notes"></td>
       </tr>`;
@@ -8429,6 +8449,7 @@ async function buildMcGuide() {
   .mc-time { width: 50px; }
   .mc-event { width: 25%; }
   .mc-name { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .mc-note { font-size: 11px; font-style: italic; color: #555; margin-bottom: 4px; }
   .mc-thumb-cell { width: 92px; text-align: center; }
   .mc-thumb { width: 80px; height: 80px; margin: 0 auto; border-radius: 6px; background: #f2f2f2; border: 1px solid #ddd;
               display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -8453,10 +8474,82 @@ async function buildMcGuide() {
     <tbody>${rows}</tbody>
   </table>
 </body></html>`;
+  return html;
+}
+
+async function buildMcGuide() {
+  const w = window.open('', '_blank');
+  if (!w) { toast('Pop-up blocked — allow pop-ups to open the guide', 'err'); return; }
+  w.document.write('<!doctype html><title>MC Show Guide</title><body style="font-family:-apple-system,sans-serif;padding:60px;color:#888">Generating guide — resolving walk-up stills…</body>');
+  w.document.close();
+
+  const rowsData = await _mcBuildRowsData();
+  const html     = _mcBuildGuideHtml(rowsData);
 
   w.document.open();
   w.document.write(html);
   w.document.close();
+}
+
+// Downloads a real .pdf file (not the print-dialog route) -- renders the
+// exact same HTML the on-screen guide uses through headless Chromium on the
+// Pi itself (the same binary the kiosk runs), which handles paging and image
+// loading identically to what a real "print" would do, no server-side
+// dependency beyond the browser MusicMan already needs anyway.
+async function downloadMcGuidePdf(btn) {
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'GENERATING…'; }
+  try {
+    const rowsData = await _mcBuildRowsData();
+    const html     = _mcBuildGuideHtml(rowsData);
+    const res = await fetch('/api/admin/mc_guide/pdf', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast(err.error || 'PDF generation failed', 'err');
+      return;
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'MC Show Guide.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    toast('Could not reach server', 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
+// Downloads a plain .csv -- opens directly in Excel/Numbers/Sheets. No
+// images (a spreadsheet cell can't hold one), but every real per-step text
+// field the on-screen guide has: description, action lines, people, audio
+// cues. Time/People/Notes stay blank cells for hand-filling, same as the
+// printable version.
+function _csvCell(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+async function downloadMcGuideCsv() {
+  const rowsData = await _mcBuildRowsData();
+  const header = ['#', 'Time', 'Event', 'Event Details', 'People On Stage', 'Audio Cues / Notes', 'Campfire Director Notes'];
+  const lines = [header.map(_csvCell).join(',')];
+  rowsData.forEach(({ entry, eventLines, audioLines, note, people }, i) => {
+    const details = [note, ...eventLines].filter(Boolean).join(' | ');
+    lines.push([
+      i + 1, '', entry.name || '', details, people || '',
+      audioLines.join(' | '), '',
+    ].map(_csvCell).join(','));
+  });
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'MC Show Guide.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function loadShowFlow() {

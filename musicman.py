@@ -25,6 +25,7 @@ import yaml
 import json
 import time
 import shutil
+import tempfile
 import itertools
 import datetime
 import subprocess
@@ -9040,6 +9041,7 @@ def api_get_show_flow():
         result.append({
             'id':             entry.get('id', macro_id),
             'name':           entry.get('name') or macro.get('name', macro_id),
+            'desc':           entry.get('desc', ''),
             'color':          entry.get('color', '#F5A623'),
             'macro_id':       macro_id,
             # Previously dropped, which made every entry look like a plain
@@ -9049,6 +9051,7 @@ def api_get_show_flow():
             # /api/show/fire and re-ran _launch_game(), replaying its walkup
             # video every time instead of just opening its controller.
             'type':             entry.get('type', 'macro'),
+            'target_id':        entry.get('target_id', ''),
             'game_type_id':     entry.get('game_type_id', ''),
             'game_config_id':   entry.get('game_config_id', ''),
             'flip_to_circles':  entry.get('flip_to_circles', False),
@@ -9061,6 +9064,48 @@ def api_save_show_flow():
     cfg['show_flow'] = request.json or []
     save_config(cfg)
     return jsonify({'ok': True})
+
+@app.route('/api/admin/mc_guide/pdf', methods=['POST'])
+def api_mc_guide_pdf():
+    """Renders the MC Guide's already-built HTML (sent from the client -- it
+    already resolved every walk-up still/thumbnail/description) to a real
+    PDF file via headless Chromium, so EXPORT MC GUIDE has a one-click
+    download instead of only "open a tab, use the browser's own Print
+    dialog." Uses the same /usr/bin/chromium binary the kiosk itself runs,
+    the same --print-to-pdf technique already proven for the Load-In field
+    guide -- no new dependency.
+
+    The client bakes image URLs as this request's own origin (location.origin
+    when it built the HTML) -- swapped here for http://localhost so headless
+    Chromium, running on the Pi itself, doesn't depend on resolving its own
+    mDNS hostname just to fetch its own images."""
+    data = request.get_json() or {}
+    html = data.get('html', '')
+    if not html:
+        return jsonify({'ok': False, 'error': 'no html provided'}), 400
+    origin = request.host_url.rstrip('/')
+    if origin and origin != 'http://localhost':
+        html = html.replace(origin, 'http://localhost')
+    with tempfile.TemporaryDirectory(prefix='mcguide_') as tmp:
+        html_path = Path(tmp) / 'guide.html'
+        pdf_path  = Path(tmp) / 'guide.pdf'
+        html_path.write_text(html, encoding='utf-8')
+        try:
+            subprocess.run(
+                ['chromium', '--headless', '--disable-gpu', '--no-sandbox',
+                 '--no-pdf-header-footer', f'--print-to-pdf={pdf_path}',
+                 f'file://{html_path}'],
+                timeout=30, capture_output=True, check=True,
+            )
+        except Exception as e:
+            log.warning(f"MC Guide PDF generation failed: {e}")
+            return jsonify({'ok': False, 'error': 'PDF generation failed'}), 500
+        if not pdf_path.exists() or pdf_path.stat().st_size == 0:
+            return jsonify({'ok': False, 'error': 'PDF generation failed'}), 500
+        pdf_bytes = pdf_path.read_bytes()
+    resp = Response(pdf_bytes, mimetype='application/pdf')
+    resp.headers['Content-Disposition'] = 'attachment; filename="MC Show Guide.pdf"'
+    return resp
 
 @app.route('/api/admin/show_flow_templates')
 def api_show_flow_templates_list():
