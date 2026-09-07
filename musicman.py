@@ -9150,6 +9150,27 @@ def api_audio_reset_mixer():
     log.info("Mixer reset")
     return jsonify({'ok': True})
 
+@app.route('/api/admin/display/refresh', methods=['POST'])
+def api_admin_display_refresh():
+    """Bounce just the HDMI kiosk (musicman-display.service), not the whole Pi.
+    This is the fix for CMA (video decode memory) fragmentation building up
+    over a long session -- confirmed live 2026-09-06/07 via dmesg showing real
+    allocation failures after hours of walkup-video preload/playback churn.
+    Restarting this one service releases every decode buffer chromium is
+    holding and starts clean, at the cost of a ~5-10s HDMI blip. Unlike a full
+    Pi reboot, it doesn't touch the WiFi AP or musicman.service itself -- use
+    this between segments of a long session (e.g. hours of pre-show setup)
+    rather than a full reboot."""
+    def _do_restart():
+        try:
+            subprocess.run(['sudo', 'systemctl', 'restart', 'musicman-display'],
+                            check=True, timeout=20)
+            log.info("Display kiosk refreshed (musicman-display.service restarted on demand)")
+        except Exception as e:
+            log.error(f"Display refresh failed: {e}")
+    threading.Thread(target=_do_restart, daemon=True).start()
+    return jsonify({'ok': True})
+
 @app.route('/api/audio/normalize', methods=['POST'])
 def api_audio_normalize():
     if _normalize_state['running']:
@@ -11308,6 +11329,47 @@ try:
     log.info('Display thumbnail prewarm started')
 except Exception as exc:
     log.warning(f'Display thumbnail prewarm failed to start: {exc}')
+
+_cma_mon_seen = 0  # count of CMA/video-decode alloc-failure lines already logged, so we only report *new* ones
+
+def _start_cma_monitor():
+    """Diagnostic-only: periodically checks dmesg for video-memory (CMA)
+    allocation failures -- confirmed live 2026-09-06/07 as a real cause of
+    choppy walkup video after a long session (fragmentation, not a total-size
+    shortage; see BUILD_HISTORY.md Phase 21). Purely informational -- doesn't
+    fix anything itself, just means a future 'video's choppy' report already
+    has hard evidence sitting in musicman.log instead of needing an SSH dig
+    through dmesg. Suggests the same fix each time: Admin > System >
+    REFRESH DISPLAY (musicman-display.service restart, not a full reboot)."""
+    def _loop():
+        global _cma_mon_seen
+        while True:
+            try:
+                out = subprocess.run(['dmesg'], capture_output=True, text=True, timeout=5).stdout
+                fails = [l for l in out.splitlines() if 'alloc failed' in l or 'dma alloc of size' in l]
+                if len(fails) > _cma_mon_seen:
+                    new = fails[_cma_mon_seen:]
+                    free_kb = total_kb = 0
+                    for line in open('/proc/meminfo'):
+                        if line.startswith('CmaFree:'):  free_kb  = int(line.split()[1])
+                        if line.startswith('CmaTotal:'): total_kb = int(line.split()[1])
+                    log.warning(
+                        f"Video-memory (CMA) allocation failure detected ({len(new)} new) -- "
+                        f"likely cause of choppy video. {free_kb//1024}MB free of {total_kb//1024}MB "
+                        f"total, but fragmented. Admin > System > REFRESH DISPLAY clears this. "
+                        f"Latest: {new[-1].strip()}"
+                    )
+                    _cma_mon_seen = len(fails)
+            except Exception as e:
+                log.warning(f"CMA monitor check failed (non-fatal): {e}")
+            time.sleep(300)  # every 5 min -- diagnostic only, no need to be tight
+    threading.Thread(target=_loop, daemon=True, name='cma-monitor').start()
+
+try:
+    _start_cma_monitor()
+    log.info('CMA (video memory) fragmentation monitor started')
+except Exception as exc:
+    log.warning(f'CMA monitor failed to start: {exc}')
 
 @app.route('/api/band_slideshow/config', methods=['GET'])
 def api_band_config_get():

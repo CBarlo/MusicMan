@@ -710,6 +710,15 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
         </div>
       </div>
 
+      <!-- Display kiosk refresh -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--text-dim)">◉ DISPLAY KIOSK</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px">Restarts just the HDMI display (not the whole Pi or the WiFi network) — clears out video memory that can fragment over a long session and cause choppy playback. Takes ~5-10 seconds; the screen will go dark briefly and come back on its own. Good to run during a break if you've had MusicMan up and running for hours (e.g. a long pre-show setup session), not something you need to do routinely.</div>
+        <button id="display-refresh-btn" class="btn btn-secondary" style="width:100%;font-size:11px;letter-spacing:1px" onclick="refreshDisplayKiosk()">🔄 REFRESH DISPLAY</button>
+      </div>
+
       <div class="form-row">
         <div>
           <div class="card">
@@ -4368,6 +4377,22 @@ async function startNormalize(mode) {
     toast('Normalization request failed', 'err');
     await refreshNormStatus();
   }
+}
+
+async function refreshDisplayKiosk() {
+  if (!confirm('Restart the HDMI display now? The screen will go dark for about 5-10 seconds and come back on its own.')) return;
+  const btn = document.getElementById('display-refresh-btn');
+  btn.disabled = true;
+  btn.textContent = 'RESTARTING…';
+  try {
+    const r = await fetch('/api/admin/display/refresh', {method: 'POST'});
+    const d = await r.json();
+    if (d.ok) toast('Display restarting — back in ~10s', 'ok');
+    else toast(d.error || 'Could not restart display', 'err');
+  } catch(e) {
+    toast('Display refresh request failed', 'err');
+  }
+  setTimeout(() => { btn.disabled = false; btn.textContent = '🔄 REFRESH DISPLAY'; }, 12000);
 }
 
 function _dropCopying(dropId, filename) {

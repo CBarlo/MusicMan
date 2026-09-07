@@ -2777,10 +2777,15 @@ function _drawLEDBank(ctx, bankX, bankW, H, lv, colCount, animated) {
   const segW    = colW * 0.70;
   const xOff    = (colW - segW) / 2;
   for (let c = 0; c < colCount; c++) {
-    // Animate each column independently
+    // Animate each column independently -- capped to a flat +/-3 percentage
+    // points (0.03 on the 0-1 scale), same ceiling as the needle's own
+    // wavering, regardless of what lv actually is. This used to scale with
+    // lv (up to 16% of the level itself), which at a high crowd level could
+    // swing a column by 12+ percentage points -- exactly the "mushiness"
+    // that needed reeling in.
     let colLv = lv;
     if (animated) {
-      const wobble = lv * 0.16 * Math.sin(_crowdFrame * _colFreqs[c] + _colPhases[c]);
+      const wobble = 0.03 * Math.sin(_crowdFrame * _colFreqs[c] + _colPhases[c]);
       colLv = Math.max(0, Math.min(1, lv + wobble));
     }
     const litN = Math.min(N_SEG, Math.round(colLv * N_SEG));
@@ -2980,10 +2985,14 @@ function _drawCrowd() {
   const _rate  = _diff > 0 ? 0.75 : 1.5;
   const _alpha = 1 - Math.exp(-_rate * _dt);
   _crowdSmoothed += _diff * _alpha;
-  // gentle needle wavering near target, like a real gauge
+  // Gentle needle wavering near target, like a real gauge -- deliberately kept
+  // to a hard +/-3 percentage-point ceiling (0.02 + 0.01 = 0.03 max, since each
+  // sin() term is bounded to [-1,1] on its own): the two terms are never in
+  // phase for long, but even in the worst case the combined wobble can't
+  // exceed 3% of the 0-100 scale away from wherever the slider is actually set.
   if (Math.abs(_diff) < 0.06 && _crowdTarget > 0) {
     const _t = _now / 1000;
-    _crowdSmoothed += 0.006 * Math.sin(_t * 0.7) + 0.003 * Math.sin(_t * 1.9 + 1.2);
+    _crowdSmoothed += 0.02 * Math.sin(_t * 0.7) + 0.01 * Math.sin(_t * 1.9 + 1.2);
   }
   const lv = Math.max(0, Math.min(1, _crowdSmoothed));
 
