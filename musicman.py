@@ -7007,7 +7007,14 @@ def api_macro_run():
     # next_preload the same way show-flow-advanced walkups do (see fire_walkup) —
     # without it, a macro fired directly (the normal case for every macro button:
     # Console, Admin TEST, StreamDeck) never warms whatever plays next, guaranteeing
-    # a cold start regardless of how that next thing gets fired.
+    # a cold start regardless of how that next thing gets fired. But that chaining
+    # only fires from *inside* fire_walkup(), so it still silently breaks if this
+    # macro isn't itself a walkup (e.g. Preshow) — same general fix as api_show_fire,
+    # fired proactively here too instead of only from within a walkup's own broadcast.
+    if matched_idx is not None:
+        next_preload = _get_next_walkup_preload(cfg, matched_idx)
+        if next_preload:
+            broadcast('walkup_preload', next_preload)
     threading.Thread(target=execute_macro, args=(macro_obj, _macro_cancel, matched_idx), daemon=True).start()
     return jsonify({'ok': True})
 
@@ -7088,6 +7095,22 @@ def api_show_fire():
     entry     = flow[idx]
     step_type = entry.get('type', 'macro')
     step_desc = entry.get('desc', '')
+    # Warm whatever walkup video comes right after this step, regardless of what
+    # *this* step is. Previously the only way a next-step video got preloaded was
+    # via fire_walkup()'s own display_walkup payload -- which chains fine walkup to
+    # walkup, but silently drops the chain the moment the current step isn't itself
+    # a walkup (a plain macro like Preshow, a vs_card, a game). Confirmed live as
+    # the cause of a reliably choppy "Campfire Directors" walkup -- the very first
+    # real walkup of the show, immediately after Preshow (lighting/video/wait/
+    # lighting, no walkup step of its own), so it always cold-started with zero
+    # preload lead time no matter how well every walkup *after* it chained. Firing
+    # this unconditionally here, for every step type, closes the gap in general
+    # instead of special-casing Preshow -- it's a harmless no-op duplicate for the
+    # circle/role/game cases that already chain correctly (preloadWalkupVideo on
+    # the display side is idempotent, keyed by URL).
+    next_preload = _get_next_walkup_preload(cfg, idx)
+    if next_preload:
+        broadcast('walkup_preload', next_preload)
     # Cancel whatever's currently running (a looping macro especially) before firing
     # this step — a walkup/game/vs_card advance used to leave a looping macro like
     # Announcements Loop completely unaware anything else had fired, so its next
