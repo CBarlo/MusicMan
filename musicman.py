@@ -488,6 +488,16 @@ _macro_cancel        = threading.Event()  # set to cancel any in-flight macro
 _walkup_led_active   = False              # True while circle color animation is running
 _dmx_anim_stop = threading.Event()       # set to cancel running DMX animation loop
 _audio_session      = 0                  # increments on every play_audio call
+# SDL_mixer's music-streaming API is not safe to call into from more than one
+# thread at once -- confirmed live 2026-09-06: 15 concurrent macro fires (a
+# "kid mashing the same button" stress test) SIGSEGV'd the whole gunicorn
+# worker. execute_macro() runs each macro fire on its own thread, and
+# play_audio()/fade_audio()/stop are the exact calls that piled up
+# concurrently. Every function that touches pygame.mixer.music holds this
+# for its whole mutating sequence -- serializing them is correct anyway,
+# since pygame.mixer.music is a single stream: two things were never
+# actually going to play through it "at once" regardless of locking.
+_music_lock = threading.Lock()
 _h2h_multiplier     = 1                  # live score multiplier for Head to Head (not persisted)
 _h2h_flash_token    = 0                  # increments on every H2H flash; stale reverts check this before reverting
 
@@ -1036,43 +1046,49 @@ def play_audio(filepath, volume=None, start_pos=0, loops=0, crossfade_ms=3000, o
     use it to fire display changes so sound and video start at the same moment."""
     global _audio_session
     _audio_session += 1
+    my_session = _audio_session
     try:
         if not os.path.exists(filepath):
             log.error(f"Audio file not found: {filepath}")
             return False
-        if crossfade_ms > 0 and pygame.mixer.music.get_busy():
-            orig = pygame.mixer.music.get_volume()
-            steps = max(10, int(crossfade_ms / 1000 * 20))
-            interval = crossfade_ms / 1000 / steps
-            for i in range(steps - 1, -1, -1):
-                if not pygame.mixer.music.get_busy():
-                    break
-                pygame.mixer.music.set_volume(orig * i / steps)
-                time.sleep(interval)
-        pygame.mixer.music.stop()
-        pygame.mixer.music.load(filepath)
-        if on_loaded:
+        with _music_lock:
+            if crossfade_ms > 0 and pygame.mixer.music.get_busy():
+                orig = pygame.mixer.music.get_volume()
+                steps = max(10, int(crossfade_ms / 1000 * 20))
+                interval = crossfade_ms / 1000 / steps
+                for i in range(steps - 1, -1, -1):
+                    if not pygame.mixer.music.get_busy():
+                        break
+                    if _audio_session != my_session:
+                        # A newer play_audio call already claimed this —
+                        # bail out of our own ramp instead of making it wait.
+                        break
+                    pygame.mixer.music.set_volume(orig * i / steps)
+                    time.sleep(interval)
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load(filepath)
+            if on_loaded:
+                try:
+                    on_loaded()
+                except Exception as e:
+                    log.warning(f"play_audio on_loaded error: {e}")
             try:
-                on_loaded()
-            except Exception as e:
-                log.warning(f"play_audio on_loaded error: {e}")
-        try:
-            ext = Path(filepath).suffix.lower()
-            if ext == '.mp3':
-                audio_state['duration'] = round(MutagenMP3(filepath).info.length, 2)
-            elif ext in ('.wav', '.wave'):
-                audio_state['duration'] = round(MutagenWAV(filepath).info.length, 2)
-            else:
+                ext = Path(filepath).suffix.lower()
+                if ext == '.mp3':
+                    audio_state['duration'] = round(MutagenMP3(filepath).info.length, 2)
+                elif ext in ('.wav', '.wave'):
+                    audio_state['duration'] = round(MutagenWAV(filepath).info.length, 2)
+                else:
+                    audio_state['duration'] = 0
+            except Exception:
                 audio_state['duration'] = 0
-        except Exception:
-            audio_state['duration'] = 0
-        vol = (volume or audio_state['volume']) / 100
-        pygame.mixer.music.set_volume(vol)
-        pygame.mixer.music.play(loops=loops, start=start_pos)
-        audio_state['playing'] = True
-        audio_state['paused'] = False
-        audio_state['current_track']      = os.path.basename(filepath)
-        audio_state['current_track_path'] = str(filepath)
+            vol = (volume or audio_state['volume']) / 100
+            pygame.mixer.music.set_volume(vol)
+            pygame.mixer.music.play(loops=loops, start=start_pos)
+            audio_state['playing'] = True
+            audio_state['paused'] = False
+            audio_state['current_track']      = os.path.basename(filepath)
+            audio_state['current_track_path'] = str(filepath)
         broadcast('audio_state', audio_state)
         log.info(f"Playing: {filepath}")
         return True
@@ -1127,23 +1143,31 @@ def fade_audio(duration=None):
     playlist_state['track_name'] = ''
     broadcast('playlist_state', playlist_state)
     my_advance_id = _playlist_advance_id
+    my_audio_session = _audio_session
 
     def _do_fade():
         # Manual volume ramp — more reliable than pygame fadeout() on SDL/Pi
-        if pygame.mixer.music.get_busy():
-            orig = pygame.mixer.music.get_volume()
-            steps = max(10, int(dur_sec * 20))
-            interval = dur_sec / steps
-            for i in range(steps - 1, -1, -1):
-                if _playlist_advance_id != my_advance_id:
-                    # A new fade or play_audio took over — stop meddling
-                    return
-                if not pygame.mixer.music.get_busy():
-                    break
-                pygame.mixer.music.set_volume(orig * i / steps)
-                time.sleep(interval)
-            pygame.mixer.music.stop()
-            pygame.mixer.music.set_volume(orig)
+        with _music_lock:
+            if pygame.mixer.music.get_busy():
+                orig = pygame.mixer.music.get_volume()
+                steps = max(10, int(dur_sec * 20))
+                interval = dur_sec / steps
+                for i in range(steps - 1, -1, -1):
+                    if _playlist_advance_id != my_advance_id:
+                        # A new fade or play_audio took over — stop meddling
+                        return
+                    if _audio_session != my_audio_session:
+                        # A new play_audio call fired mid-fade — someone
+                        # mashed a new macro/scene over this one. Bail out
+                        # of our own ramp now instead of making the new
+                        # play wait out our full fade duration.
+                        return
+                    if not pygame.mixer.music.get_busy():
+                        break
+                    pygame.mixer.music.set_volume(orig * i / steps)
+                    time.sleep(interval)
+                pygame.mixer.music.stop()
+                pygame.mixer.music.set_volume(orig)
         if _sfx_channel and sfx_state.get('playing'):
             _sfx_channel.fadeout(int(dur_sec * 1000))
         audio_state['playing'] = False
@@ -1158,7 +1182,8 @@ def _stop_music():
     _playlist_advance_id += 1
     playlist_state['active']     = False
     playlist_state['track_name'] = ''
-    pygame.mixer.music.stop()
+    with _music_lock:
+        pygame.mixer.music.stop()
     audio_state['playing'] = False
     audio_state['paused']  = False
     audio_state['current_track'] = None
@@ -1178,7 +1203,8 @@ def stop_audio():
 def set_volume(v):
     """Set music volume 0-100."""
     audio_state['volume'] = int(v)
-    pygame.mixer.music.set_volume(int(v) / 100)
+    with _music_lock:
+        pygame.mixer.music.set_volume(int(v) / 100)
     # Karaoke's instrumental/vocal don't play through mixer.music (see
     # _begin_karaoke_playback), so they need their own hook here to keep
     # responding to the same MUSIC slider while a song is live -- this is
