@@ -472,7 +472,19 @@ _scene_apply_epoch = 0  # incremented on every wled_set_scene() call; background
 current_circle = None   # id of last activated circle walk-up
 current_slide  = {}     # live custom slide currently shown on projector
 _walkup_fade_cancel  = threading.Event()  # set to cancel the in-flight auto-fade
-_macro_cancel        = threading.Event()  # set to cancel any in-flight macro; replaced per-fire
+_macro_cancel        = threading.Event()  # set to cancel any in-flight macro
+# One singleton Event for the whole process, cleared (not replaced) on every
+# fire -- see the .set()/.clear() pairs below. This used to be replaced with
+# a fresh Event object per-fire, which quietly orphaned any run_macro-nested
+# thread (e.g. a loop macro started from a run_macro step, itself started
+# from another macro) still holding a reference to an older Event: once
+# ANOTHER macro fired after that, _macro_cancel pointed at a new object, so
+# every subsequent Kill All / show-flow-advance / walkup call was setting an
+# Event nobody but the newest macro was even waiting on -- a long-running
+# nested loop (e.g. "End of Show Loop") became literally uncancellable by
+# anything except the one fire that happened to immediately follow it.
+# Reusing one object for the process lifetime means a .set() always reaches
+# every currently-running macro thread, no matter how it was started.
 _walkup_led_active   = False              # True while circle color animation is running
 _dmx_anim_stop = threading.Event()       # set to cancel running DMX animation loop
 _audio_session      = 0                  # increments on every play_audio call
@@ -2273,7 +2285,7 @@ def kill_everything():
     _walkup_fade_cancel.set()
     _walkup_fade_cancel = threading.Event()
     _macro_cancel.set()  # stops any running macro, including a looping one
-    _macro_cancel = threading.Event()
+    _macro_cancel.clear()
     stop_audio()
     timer_state['running'] = False
     kill_lights()
@@ -4319,6 +4331,8 @@ def api_display_list():
     files = sorted(f.name for f in d.iterdir() if f.is_file() and not f.name.startswith('.')) if d.exists() else []
     return jsonify(files)
 
+_DISPLAY_IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+
 def _video_thumb_path(filename):
     return ASSETS_DIR / 'display' / '.thumbs' / (filename + '.jpg')
 
@@ -4342,17 +4356,77 @@ def _ensure_video_thumb(filename):
             return thumb_path
     return None
 
+def _ensure_image_thumb(filename):
+    """Return a cached, small JPG thumbnail for a display image, generating it
+    via ffmpeg (same tool already used for video thumbs, no new dependency) on
+    first request. Console's Display grid used to load the raw original PNG
+    just to show a 48x36 tile -- with images running 200KB-4MB each and ~90
+    files in a typical library, that's tens of MB pulled over WiFi for
+    thumbnails alone, which is what made the tab feel like it hung. Cached the
+    same way video thumbs are: mtime-checked, regenerated only when the
+    source file actually changes."""
+    img_path = ASSETS_DIR / 'display' / filename
+    if not img_path.exists():
+        return None
+    thumb_path = _video_thumb_path(filename)  # same .thumbs/<filename>.jpg convention
+    if thumb_path.exists() and thumb_path.stat().st_mtime >= img_path.stat().st_mtime:
+        return thumb_path
+    thumb_path.parent.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run(
+        ['ffmpeg', '-nostdin', '-y', '-i', str(img_path),
+         '-frames:v', '1', '-update', '1', '-vf', 'scale=160:-1', str(thumb_path)],
+        capture_output=True, text=True, timeout=10,
+    )
+    if thumb_path.exists() and thumb_path.stat().st_size > 0:
+        return thumb_path
+    return None
+
 @app.route('/api/display/thumb/<path:filename>')
 def api_display_thumb(filename):
     if '..' in filename:
         return jsonify({'ok': False, 'error': 'invalid file'}), 400
-    thumb_path = _ensure_video_thumb(filename)
+    ext = Path(filename).suffix.lower()
+    thumb_path = _ensure_image_thumb(filename) if ext in _DISPLAY_IMAGE_EXTS else _ensure_video_thumb(filename)
     if not thumb_path:
         return jsonify({'ok': False, 'error': 'thumbnail unavailable'}), 404
     resp = send_file(thumb_path, mimetype='image/jpeg')
     resp.cache_control.public = True
     resp.cache_control.max_age = 3600
     return resp
+
+def _prewarm_display_thumbs():
+    """Generate every missing/stale Display library thumbnail once, in the
+    background, right after boot -- so the first person to open the Display
+    or Memes/Graphics tab during a show doesn't pay the few-seconds-per-file
+    ffmpeg cost live (confirmed live: ~8s for an uncached image, vs ~0.7s
+    once cached). Sequential on purpose, not parallelized: ffmpeg thumbnail
+    generation is CPU-bound, and this Pi is also busy with audio/battery/
+    projector startup at the same time -- running many at once would fight
+    those for CPU rather than finish any faster (confirmed elsewhere this
+    same day: concurrent ffmpeg-backed requests on this Pi measured as pure
+    serialization, not real parallelism). No rush either way since this
+    never blocks the service coming up or serving anything else."""
+    display_dir = ASSETS_DIR / 'display'
+    if not display_dir.exists():
+        return
+    warmed = 0
+    for f in sorted(display_dir.iterdir()):
+        if not f.is_file() or f.name.startswith('.'):
+            continue
+        ext = f.suffix.lower()
+        try:
+            if ext in _DISPLAY_IMAGE_EXTS:
+                if _ensure_image_thumb(f.name):
+                    warmed += 1
+            elif ext in _VIDEO_EXTS_PY:
+                if _ensure_video_thumb(f.name):
+                    warmed += 1
+        except Exception as e:
+            log.warning(f"Thumbnail prewarm failed for {f.name!r}: {e}")
+    log.info(f"Display thumbnail prewarm complete: {warmed} file(s) checked/generated")
+
+def _start_display_thumb_prewarm():
+    threading.Thread(target=_prewarm_display_thumbs, daemon=True, name='thumb-prewarm').start()
 
 @app.route('/api/admin/display-logo', methods=['GET'])
 def api_display_logo_get():
@@ -6857,7 +6931,7 @@ def api_macro_run():
         _ensure_display_for('display_step', disp)
     global _macro_cancel
     _macro_cancel.set()
-    _macro_cancel = threading.Event()
+    _macro_cancel.clear()
     # matched_idx lets any walkup_circle/walkup_role step inside this macro chain a
     # next_preload the same way show-flow-advanced walkups do (see fire_walkup) —
     # without it, a macro fired directly (the normal case for every macro button:
@@ -6949,7 +7023,7 @@ def api_show_fire():
     # step would broadcast straight over the walkup that just started playing.
     global _macro_cancel
     _macro_cancel.set()
-    _macro_cancel = threading.Event()
+    _macro_cancel.clear()
     # Advancing to any show step means leaving Karaoke, if it was live -- covers
     # macro/vs_card steps too, which fire_walkup/_launch_game's own hooks don't
     # reach. No-ops instantly if Karaoke isn't live.
@@ -7370,7 +7444,7 @@ def api_walkup():
     # keeps firing its own steps over this walkup, unaware anything else started.
     global _macro_cancel
     _macro_cancel.set()
-    _macro_cancel = threading.Event()
+    _macro_cancel.clear()
     threading.Thread(
         target=fire_walkup,
         kwargs={'circle_id': circle, 'role_id': role},
@@ -10201,6 +10275,19 @@ _PROJECTOR_CLIENT_NAME = 'MusicMan'
 # other people's reports for similar casting features on this class of
 # device. wlan1 is always 192.168.4.1 on this rig regardless of DHCP.
 _PROJECTOR_DISPLAY_URL = 'http://192.168.4.1/display'
+# Fully Kiosk Browser's real Android package id (confirmed via its Play Store
+# listing: play.google.com/store/apps/details?id=de.ozerov.fully). Launching
+# by package id sends a market://launch?id=... intent -- androidtvremote2's
+# own documented behavior for a bare package string, as opposed to a URL --
+# which just brings the already-installed, already-configured app to the
+# foreground. Confirmed live 2026-09-06 that sending the raw display URL
+# directly (the original approach) does NOT reliably work: nothing was
+# registered to catch a plain http:// ACTION_VIEW intent, so the command
+# reported success but the projector stayed on the Android TV home screen.
+# Launching Fully Kiosk Browser itself sidesteps that -- it shows whatever
+# its own Start URL is already configured to (see the Manual's Projector
+# Remote Control section), which only has to be set once.
+_PROJECTOR_KIOSK_APP_PACKAGE = 'de.ozerov.fully'
 
 _projector_lock    = threading.Lock()
 _projector_state   = {
@@ -10335,7 +10422,11 @@ def api_projector_power():
 def api_projector_launch_display():
     if not _PROJECTOR_AVAILABLE:
         return jsonify({'ok': False, 'error': 'androidtvremote2 not installed'}), 503
-    ok, err = _proj_send(AndroidTVRemote.send_launch_app_command, _PROJECTOR_DISPLAY_URL)
+    # Launch Fully Kiosk Browser itself by package id, not a raw URL -- see
+    # _PROJECTOR_KIOSK_APP_PACKAGE's comment. Requires FKB's own Start URL to
+    # already be set to _PROJECTOR_DISPLAY_URL (one-time setup on the
+    # projector itself).
+    ok, err = _proj_send(AndroidTVRemote.send_launch_app_command, _PROJECTOR_KIOSK_APP_PACKAGE)
     return (jsonify({'ok': True}), 200) if ok else (jsonify({'ok': False, 'error': err}), 503)
 
 @app.route('/api/admin/projector/pair/start', methods=['POST'])
@@ -11117,6 +11208,12 @@ try:
     log.info('BAND slideshow sync started')
 except Exception as exc:
     log.warning(f'BAND slideshow sync failed to start: {exc}')
+
+try:
+    _start_display_thumb_prewarm()
+    log.info('Display thumbnail prewarm started')
+except Exception as exc:
+    log.warning(f'Display thumbnail prewarm failed to start: {exc}')
 
 @app.route('/api/band_slideshow/config', methods=['GET'])
 def api_band_config_get():

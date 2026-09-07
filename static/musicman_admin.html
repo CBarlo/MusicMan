@@ -1446,7 +1446,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             <button class="btn btn-primary" onclick="saveShowFlow()">SAVE SHOW FLOW</button>
             <button class="btn btn-secondary" onclick="buildMcGuide()" title="Printable rundown — real per-step notes, walk-up stills, and blank columns for Time/People/Notes">🖨 EXPORT MC GUIDE</button>
             <button class="btn btn-secondary" onclick="downloadMcGuidePdf(this)" title="Downloads a real PDF file directly — no print dialog">⬇ PDF</button>
-            <button class="btn btn-secondary" onclick="downloadMcGuideCsv()" title="Downloads a plain spreadsheet (opens in Excel/Numbers/Sheets) — text only, no images">⬇ EXCEL (CSV)</button>
+            <button class="btn btn-secondary" onclick="downloadMcGuideCsv(this)" title="Downloads a plain spreadsheet (opens in Excel/Numbers/Sheets) — text only, no images">⬇ EXCEL (CSV)</button>
             <div id="showflow-status" style="font-size:11px;color:var(--text-dim);align-self:center"></div>
           </div>
         </div>
@@ -8234,59 +8234,119 @@ const SF_COLORS = ['#F5A623','#C4610A','#CC2222','#3CB96A','#2B5FA6','#8B44CC',
 // those in by hand before sending it out.
 function _mcFileBase(p) { return p ? p.split('/').pop() : ''; }
 
-const _MC_AUDIO_ACTIONS = new Set(['music', 'play_playlist', 'audio_stop', 'audio_fade', 'sfx', 'karaoke']);
+// Every export (guide/PDF/CSV) fetches its own fresh copy of everything it
+// needs, right before building rows -- it does NOT trust the page's own
+// macros/roles/circles/etc globals, which can be stale (a tab left open
+// since before a Names field was filled in, before a macro was edited, or
+// simply before this tab's own initial load chain finished) and produced a
+// guide that looked entirely empty despite the data being right on the
+// server the whole time. An export is a snapshot -- it should always reflect
+// what the server actually has, not whatever this one tab happened to have
+// loaded whenever it was last opened.
+async function _mcFetchContext() {
+  const get = (url, fallback) => fetch(url).then(r => r.json()).catch(() => fallback);
+  const [showFlow, macros, roles, circles, scenes, gameEntries, savedSlides, savedVsCards, glGameTypes, vizPresets] = await Promise.all([
+    get('/api/show_flow',    []),
+    get('/api/macros',       []),
+    get('/api/roles',        []),
+    get('/api/circles',      []),
+    get('/api/scenes',       []),
+    get('/api/game-entries', []),
+    get('/api/slides',       []),
+    get('/api/vs_cards',     []),
+    get('/api/game_types',   []),
+    get('/api/viz/presets',  []),
+  ]);
+  return { showFlow, macros, roles, circles, scenes, gameEntries, savedSlides, savedVsCards, glGameTypes, vizPresets };
+}
 
-// One-line, plain-English description of what a single macro step actually
-// does -- walked action-by-action rather than shown as a generic type label.
-function _mcDescribeStep(s) {
-  const a = s.action;
-  if (a === 'scene')     { const sc = scenes.find(x => x.id === s.scene); return `Lighting: ${sc ? sc.name : (s.scene || '—')}`; }
-  if (a === 'light_ramp') {
-    const sc = scenes.find(x => x.id === s.scene);
-    return `Lights ramp ${s.from ?? 0}%→${s.to ?? 100}% over ${s.duration ?? 10}s${sc ? ' — ' + sc.name : ''}`;
+// Real audio/video/lighting lines behind a walk-up (circle, role, or game
+// entry) -- pulled from that item's own assets/walkup config, not just "a
+// walk-up happens". Every walk-up type shares the same assets/walkup shape,
+// so one function covers all three.
+function _mcWalkupAssetLines(kind, id, ctx) {
+  const list = kind === 'circle' ? ctx.circles : kind === 'role' ? ctx.roles : ctx.gameEntries;
+  const item = (list || []).find(x => x.id === id);
+  const audio = [], video = [], lighting = [];
+  if (!item) return { audio, video, lighting };
+  const assets = item.assets || {};
+  const wu     = item.walkup || {};
+  const introFile = assets.animation_intro || item.animation_intro || '';
+  const loopFile  = assets.animation || assets.animation_loop || item.animation_loop || '';
+  if (introFile) video.push(`Video: "${_mcFileBase(introFile)}"`);
+  if (loopFile && loopFile !== introFile) video.push(`Video: "${_mcFileBase(loopFile)}" (loop)`);
+  const musicFile = assets.walkup_music || assets.walkup_music_lib || item.walkup_music || '';
+  if (musicFile) audio.push(`Music: ${_mcFileBase(musicFile)}`);
+  if (wu.walkup_scene) { const sc = ctx.scenes.find(x => x.id === wu.walkup_scene); lighting.push(`Scene: ${sc ? sc.name : wu.walkup_scene}`); }
+  if (wu.stage_scene)  { const sc = ctx.scenes.find(x => x.id === wu.stage_scene);  lighting.push(`Scene: ${sc ? sc.name : wu.stage_scene} (after)`); }
+  return { audio, video, lighting };
+}
+
+// Walks every step in a macro (recursing into a run_macro target, since that
+// content genuinely fires as part of this step too) and buckets each real
+// action into Audio / Video / Lighting -- every instance listed, so a macro
+// with 2 video steps shows both. Depth-capped as a guard against a run_macro
+// cycle across two or more macros (a direct self-reference is already
+// blocked in the step editor, but a Ping->Pong loop isn't).
+function _mcCategorizeSteps(steps, ctx, depth) {
+  depth = depth || 0;
+  const audio = [], video = [], lighting = [];
+  if (depth > 5) return { audio, video, lighting };
+  for (const s of steps) {
+    const a = s.action;
+    if (a === 'scene') { const sc = ctx.scenes.find(x => x.id === s.scene); lighting.push(`Scene: ${sc ? sc.name : (s.scene || '—')}`); }
+    else if (a === 'light_ramp') {
+      const sc = ctx.scenes.find(x => x.id === s.scene);
+      lighting.push(`Light ramp ${s.from ?? 0}%→${s.to ?? 100}% over ${s.duration ?? 10}s${sc ? ' — ' + sc.name : ''}`);
+    }
+    else if (a === 'sfx')           audio.push(`SFX: ${s.name || '—'}`);
+    else if (a === 'music')         audio.push(`Music: ${_mcFileBase(s.file)}${s.loop ? ' (loops)' : ''}`);
+    else if (a === 'play_playlist') audio.push(`Playlist: ${_mcFileBase(s.path)}${s.shuffle ? ', shuffled' : ''}`);
+    else if (a === 'audio_stop')    audio.push('Audio stops');
+    else if (a === 'audio_fade')    audio.push(`Audio fades out (${s.duration || 3}s)`);
+    else if (a === 'display_image') video.push(`Image: ${_mcFileBase(s.file)}`);
+    else if (a === 'display_anim') {
+      const tag = s.loop ? ' (loop)' : (s.duration === 0 ? ' (holds)' : '');
+      video.push(`Video: "${_mcFileBase(s.file)}"${tag}`);
+    }
+    else if (a === 'display_circle') { const c = ctx.circles.find(x => x.id === s.circle_id); video.push(`Logo: ${c ? c.name : '—'}`); }
+    else if (a === 'display_role')   { const r = ctx.roles.find(x => x.id === s.role_id);     video.push(`Logo: ${r ? r.name : '—'}`); }
+    else if (a === 'saved_slide')    { const sl = (ctx.savedSlides || []).find(x => x.id === s.slide_id); video.push(`Slide: ${sl ? (sl.headline || sl.name || '') : '—'}`); }
+    else if (a === 'slide')          video.push(`Slide: ${s.headline || ''}`);
+    else if (a === 'vs_card')        { const c = (ctx.savedVsCards || []).find(x => x.id === s.vs_card_id); video.push(`VS Card: ${c ? c.name : '—'}`); }
+    else if (a === 'game')           { const gt = (ctx.glGameTypes || []).find(x => x.id === s.game_type_id); video.push(`Game: ${gt ? gt.label : '—'}`); }
+    else if (a === 'shell_game')     video.push('Game: Shell Game');
+    else if (a === 'head_to_head')   video.push('Scoreboard');
+    else if (a === 'viz')            { const p = (ctx.vizPresets || []).find(x => x.id === s.preset_id); video.push(`Visualization: ${p ? p.name : 'viz'}`); }
+    else if (a === 'karaoke')        { audio.push('Karaoke song (picked live)'); video.push('Karaoke lyrics on screen'); }
+    else if (a === 'walkup_circle' || a === 'walkup_role' || a === 'walkup_game_entry') {
+      const kind = a === 'walkup_circle' ? 'circle' : a === 'walkup_role' ? 'role' : 'game_entry';
+      const id   = a === 'walkup_circle' ? s.circle_id : a === 'walkup_role' ? s.role_id : s.game_entry_id;
+      const lines = _mcWalkupAssetLines(kind, id, ctx);
+      audio.push(...lines.audio); video.push(...lines.video); lighting.push(...lines.lighting);
+    }
+    else if (a === 'run_macro') {
+      const m = ctx.macros.find(x => x.id === s.macro_id);
+      if (m) {
+        const nested = _mcCategorizeSteps(m.steps || [], ctx, depth + 1);
+        audio.push(...nested.audio); video.push(...nested.video); lighting.push(...nested.lighting);
+      }
+    }
+    // wait / timer_start / timer_reset / setup_skit_timer / viz_hide / slide_clear:
+    // not audio/video/lighting content -- intentionally not listed here.
   }
-  if (a === 'sfx')            return `SFX: ${s.name || '—'}`;
-  if (a === 'music')          return `Music: ${_mcFileBase(s.file)}${s.loop ? ' (loops)' : ''}`;
-  if (a === 'play_playlist')  return `Playlist: ${_mcFileBase(s.path)}${s.shuffle ? ', shuffled' : ''}`;
-  if (a === 'audio_stop')     return 'Audio stops';
-  if (a === 'audio_fade')     return `Audio fades out over ${s.duration || 3}s`;
-  if (a === 'karaoke')        return 'Karaoke — song picked live from Console';
-  if (a === 'walkup_circle')  { const c = circles.find(x => x.id === s.circle_id); return `Circle walk-up: ${c ? c.name : '—'}`; }
-  if (a === 'walkup_role')    { const r = roles.find(x => x.id === s.role_id);     return `Role walk-up: ${r ? r.name : '—'}`; }
-  if (a === 'walkup_game_entry') { const e = gameEntries.find(x => x.id === s.game_entry_id); return `Game-entry walk-up: ${e ? e.name : '—'}`; }
-  if (a === 'wait')           return `Pause ${s.seconds || 1}s`;
-  if (a === 'display_image')  return `Screen: ${_mcFileBase(s.file)}${s.duration === 0 ? ' (holds)' : ''}`;
-  if (a === 'display_anim') {
-    const tag = s.loop ? ', loops' : (s.duration === 0 ? ', holds last frame' : ` (${s.duration || 5}s)`);
-    return `Screen: plays "${_mcFileBase(s.file)}"${tag}`;
-  }
-  if (a === 'display_circle') { const c = circles.find(x => x.id === s.circle_id); return `Screen: ${c ? c.name : '—'}'s logo`; }
-  if (a === 'display_role')   { const r = roles.find(x => x.id === s.role_id);     return `Screen: ${r ? r.name : '—'}'s logo`; }
-  if (a === 'saved_slide')    { const sl = (savedSlides || []).find(x => x.id === s.slide_id); return `Screen: slide — ${sl ? (sl.headline || sl.name || '') : '—'}`; }
-  if (a === 'slide')          return `Screen: custom slide — ${s.headline || ''}`;
-  if (a === 'slide_clear')    return 'Screen clears';
-  if (a === 'vs_card')        { const c = (savedVsCards || []).find(x => x.id === s.vs_card_id); return `Screen: VS card — ${c ? c.name : '—'}`; }
-  if (a === 'game')           { const gt = (glGameTypes || []).find(x => x.id === s.game_type_id); return `Launches game: ${gt ? gt.label : '—'}`; }
-  if (a === 'shell_game')     return 'Launches Shell Game';
-  if (a === 'head_to_head')   return 'Screen: scoreboard';
-  if (a === 'viz')            { const p = (_vizPresets || []).find(x => x.id === s.preset_id); return `Screen: live visualization — ${p ? p.name : 'viz'}`; }
-  if (a === 'viz_hide')       return 'Visualization stops';
-  if (a === 'timer_start')    return 'Timer starts';
-  if (a === 'timer_reset')    return 'Timer resets';
-  if (a === 'setup_skit_timer') return `Loads timer preset: ${s.preset || '—'}`;
-  if (a === 'run_macro')      { const m = macros.find(x => x.id === s.macro_id); return `Also runs: ${m ? m.name : '—'}`; }
-  return null;
+  return { audio, video, lighting };
 }
 
 // A Show Flow entry is either a macro (walk its steps) or a bare game/vs_card/
 // circle/role entry -- represented here as a single synthetic step so both
 // paths run through the exact same describe/visual logic below.
-function _mcEntrySteps(entry) {
+function _mcEntrySteps(entry, ctx) {
   if (entry.type === 'game')    return [{ action: 'game', game_type_id: entry.game_type_id, game_config_id: entry.game_config_id }];
   if (entry.type === 'vs_card') return [{ action: 'vs_card', vs_card_id: entry.vs_card_id }];
   if (entry.type === 'circle')  return [{ action: 'walkup_circle', circle_id: entry.target_id }];
   if (entry.type === 'role')    return [{ action: 'walkup_role', role_id: entry.target_id }];
-  const macro = macros.find(m => m.id === entry.macro_id);
+  const macro = ctx.macros.find(m => m.id === entry.macro_id);
   return (macro && macro.steps) || [];
 }
 
@@ -8305,13 +8365,13 @@ async function _mcWalkupStillUrl(itemType, itemId) {
 // (generated server-side via ffmpeg -- no live show run needed), then a
 // video's own thumbnail or a display image, down to an icon for step types
 // with no static asset to show (games, cards, live visualizations).
-async function _mcResolveVisual(steps, macro) {
+async function _mcResolveVisual(steps, macro, ctx) {
   if (macro && macro.display_image) {
     return { kind: 'img', src: `${location.origin}/assets/macros/${macro.id}/${macro.display_image}`, label: 'CUSTOM IMAGE' };
   }
   for (const s of steps) {
     if (s.action === 'walkup_role') {
-      const r = roles.find(x => x.id === s.role_id);
+      const r = ctx.roles.find(x => x.id === s.role_id);
       if (!r) continue;
       const still = await _mcWalkupStillUrl('role', r.id);
       if (still) return { kind: 'img', src: still, label: 'WALK-UP', name: r.name };
@@ -8319,7 +8379,7 @@ async function _mcResolveVisual(steps, macro) {
       return { kind: 'text', text: r.name, label: 'WALK-UP' };
     }
     if (s.action === 'walkup_circle') {
-      const c = circles.find(x => x.id === s.circle_id);
+      const c = ctx.circles.find(x => x.id === s.circle_id);
       if (!c) continue;
       const still = await _mcWalkupStillUrl('circle', c.id);
       if (still) return { kind: 'img', src: still, label: 'WALK-UP', name: c.name };
@@ -8327,7 +8387,7 @@ async function _mcResolveVisual(steps, macro) {
       return { kind: 'text', text: c.name, label: 'WALK-UP' };
     }
     if (s.action === 'walkup_game_entry') {
-      const e = gameEntries.find(x => x.id === s.game_entry_id);
+      const e = ctx.gameEntries.find(x => x.id === s.game_entry_id);
       if (e) return { kind: 'emoji', emoji: e.emoji || '🎲', label: 'GAME ENTRY', name: e.name };
     }
     if (s.action === 'display_anim' && s.file) {
@@ -8337,24 +8397,24 @@ async function _mcResolveVisual(steps, macro) {
       return { kind: 'img', src: `${location.origin}/assets/display/${encodeURIComponent(s.file)}`, label: 'GRAPHIC' };
     }
     if (s.action === 'display_circle') {
-      const c = circles.find(x => x.id === s.circle_id);
+      const c = ctx.circles.find(x => x.id === s.circle_id);
       if (c && (c.assets || {}).logo) return { kind: 'img', src: `${location.origin}/assets/circles/${c.id}/${c.assets.logo}`, label: 'LOGO', name: c.name };
     }
     if (s.action === 'display_role') {
-      const r = roles.find(x => x.id === s.role_id);
+      const r = ctx.roles.find(x => x.id === s.role_id);
       if (r && (r.assets || {}).logo) return { kind: 'img', src: `${location.origin}/assets/roles/${r.id}/${r.assets.logo}`, label: 'LOGO', name: r.name };
     }
     if (s.action === 'game') {
-      const gt = (glGameTypes || []).find(t => t.id === s.game_type_id);
+      const gt = (ctx.glGameTypes || []).find(t => t.id === s.game_type_id);
       if (gt) return { kind: 'emoji', emoji: gt.icon || '🎮', label: 'GAME', name: gt.label };
     }
     if (s.action === 'shell_game') return { kind: 'emoji', emoji: '🐚', label: 'GAME', name: 'Shell Game' };
     if (s.action === 'vs_card') {
-      const c = (savedVsCards || []).find(x => x.id === s.vs_card_id);
+      const c = (ctx.savedVsCards || []).find(x => x.id === s.vs_card_id);
       return { kind: 'emoji', emoji: '⚔️', label: 'VS CARD', name: c ? c.name : '' };
     }
     if (s.action === 'saved_slide') {
-      const sl = (savedSlides || []).find(x => x.id === s.slide_id);
+      const sl = (ctx.savedSlides || []).find(x => x.id === s.slide_id);
       if (sl) return { kind: 'text', text: sl.headline || sl.name || '', label: 'SLIDE' };
     }
     if (s.action === 'head_to_head') return { kind: 'emoji', emoji: '🏆', label: 'SCOREBOARD' };
@@ -8362,40 +8422,42 @@ async function _mcResolveVisual(steps, macro) {
     if (s.action === 'viz') {
       // Genuinely animated -- there's no static frame that represents it
       // honestly, so this stays an icon rather than a faked/misleading still.
-      const p = (_vizPresets || []).find(x => x.id === s.preset_id);
+      const p = (ctx.vizPresets || []).find(x => x.id === s.preset_id);
       return { kind: 'emoji', emoji: '🎛', label: 'LIVE VISUALIZATION', name: p ? p.name : 'Visualization' };
     }
   }
-  return { kind: 'emoji', emoji: '🔊', label: 'CUE', name: 'Audio / lighting only — nothing on screen' };
+  return { kind: 'text', text: '', label: 'CUE', name: 'Audio / lighting only — nothing on screen' };
 }
 
 // Shared row computation -- used by the on-screen guide, the PDF export, and
 // the CSV export, so all three always agree on what a step actually shows.
+// Always fetches its own fresh context (see _mcFetchContext) rather than
+// trusting this page's own live state.
 async function _mcBuildRowsData() {
-  const rowsData = [];
-  for (const entry of showFlow) {
-    const macro = (!entry.type || entry.type === 'macro') ? macros.find(m => m.id === entry.macro_id) : null;
-    const steps = _mcEntrySteps(entry);
-    const visual = await _mcResolveVisual(steps, macro);
-    const eventLines = [], audioLines = [];
-    for (const s of steps) {
-      const line = _mcDescribeStep(s);
-      if (!line) continue;
-      (_MC_AUDIO_ACTIONS.has(s.action) ? audioLines : eventLines).push(line);
-    }
+  const ctx = await _mcFetchContext();
+  // Resolved in parallel, not one entry at a time -- each walk-up still
+  // lookup is a real network+disk round trip (measured ~2s each), and doing
+  // 22 of those sequentially can stretch a full guide past 40s for no
+  // reason, since none of them depend on each other. Promise.all preserves
+  // row order regardless of which finishes first.
+  const rowsData = await Promise.all(ctx.showFlow.map(async (entry) => {
+    const macro = (!entry.type || entry.type === 'macro') ? ctx.macros.find(m => m.id === entry.macro_id) : null;
+    const steps = _mcEntrySteps(entry, ctx);
+    const visual = await _mcResolveVisual(steps, macro, ctx);
+    const { audio, video, lighting } = _mcCategorizeSteps(steps, ctx);
     // People On Stage: every Role walk-up in this entry with a Names field
     // filled in (Admin → Roles → NAMES) — joined, since a role can have more
     // than one walkup_role step or be filled by more than one person.
     const people = steps
       .filter(s => s.action === 'walkup_role')
-      .map(s => (roles.find(x => x.id === s.role_id) || {}).names)
+      .map(s => (ctx.roles.find(x => x.id === s.role_id) || {}).names)
       .filter(Boolean);
-    // A hand-written description of this part of the show (the Show Flow
-    // step's own NOTES field) rendered separately, above the auto-generated
-    // action-by-action lines -- it's a different kind of content, not just
-    // another bullet in the same list.
-    rowsData.push({ entry, visual, eventLines, audioLines, note: entry.desc || '', people: [...new Set(people)].join(', ') });
-  }
+    return {
+      entry, visual, audio, video, lighting,
+      note: entry.desc || '',
+      people: [...new Set(people)].join(', '),
+    };
+  }));
   return rowsData;
 }
 
@@ -8405,32 +8467,28 @@ function _mcBuildGuideHtml(rowsData) {
     : visual.kind === 'emoji'
     ? `<span class="mc-emoji">${visual.emoji}</span>`
     : `<span class="mc-textthumb">${escHtml((visual.text || '').slice(0, 40))}</span>`;
+  const listHtml = (lines) => lines.length
+    ? `<ul class="mc-lines">${lines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
+    : `<span class="mc-nolines">—</span>`;
 
-  const rows = rowsData.map(({ entry, visual, eventLines, audioLines, note, people }, i) => {
+  const rows = rowsData.map(({ entry, visual, audio, video, lighting, note, people }, i) => {
     const noteHtml = note ? `<div class="mc-note">${escHtml(note)}</div>` : '';
-    const eventHtml = eventLines.length
-      ? `<ul class="mc-lines">${eventLines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
-      : (note ? '' : `<span class="mc-nolines">—</span>`);
-    const audioHtml = audioLines.length
-      ? `<ul class="mc-lines">${audioLines.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
-      : `<span class="mc-nolines">—</span>`;
     const visLabel = visual.label + (visual.name ? ' — ' + escHtml(visual.name) : '');
     return `
       <tr class="mc-row">
         <td class="mc-num">${i + 1}</td>
-        <td class="mc-time"></td>
         <td class="mc-event">
           <div class="mc-name">${escHtml(entry.name || '')}</div>
           ${noteHtml}
-          ${eventHtml}
         </td>
         <td class="mc-thumb-cell">
           <div class="mc-thumb">${thumbHtml(visual)}</div>
           <div class="mc-vislabel">${visLabel}</div>
         </td>
         <td class="mc-people">${people ? escHtml(people) : ''}</td>
-        <td class="mc-audio">${audioHtml}</td>
-        <td class="mc-notes"></td>
+        <td class="mc-audio">${listHtml(audio)}</td>
+        <td class="mc-video">${listHtml(video)}</td>
+        <td class="mc-lighting">${listHtml(lighting)}</td>
       </tr>`;
   }).join('');
 
@@ -8446,10 +8504,9 @@ function _mcBuildGuideHtml(rowsData) {
   td { border-bottom: 1px solid #ddd; padding: 8px 6px; font-size: 11px; vertical-align: top; }
   tr.mc-row { break-inside: avoid; }
   .mc-num  { width: 22px; font-weight: 700; color: #aaa; }
-  .mc-time { width: 50px; }
-  .mc-event { width: 25%; }
+  .mc-event { width: 20%; }
   .mc-name { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
-  .mc-note { font-size: 11px; font-style: italic; color: #555; margin-bottom: 4px; }
+  .mc-note { font-size: 11px; font-style: italic; color: #555; margin-top: 3px; }
   .mc-thumb-cell { width: 92px; text-align: center; }
   .mc-thumb { width: 80px; height: 80px; margin: 0 auto; border-radius: 6px; background: #f2f2f2; border: 1px solid #ddd;
               display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -8457,19 +8514,18 @@ function _mcBuildGuideHtml(rowsData) {
   .mc-emoji { font-size: 30px; }
   .mc-textthumb { font-size: 9px; text-align: center; color: #555; padding: 4px; line-height: 1.2; }
   .mc-vislabel { font-size: 8px; letter-spacing: 0.5px; color: #999; text-transform: uppercase; margin-top: 3px; line-height: 1.3; }
-  .mc-people { width: 88px; }
-  .mc-audio  { width: 18%; }
-  .mc-notes  { width: 15%; }
+  .mc-people  { width: 15%; }
+  .mc-audio, .mc-video, .mc-lighting { width: 16%; }
   .mc-lines { margin: 0; padding-left: 14px; }
   .mc-lines li { margin-bottom: 2px; }
   .mc-nolines { color: #bbb; }
   @media print { body { padding: 0 16px; } }
 </style></head><body>
   <h1>MC SHOW GUIDE</h1>
-  <div class="mc-sub">${showFlow.length} STEPS — RUN IN ORDER — GENERATED ${new Date().toLocaleDateString()}</div>
+  <div class="mc-sub">${rowsData.length} STEPS — RUN IN ORDER — GENERATED ${new Date().toLocaleDateString()}</div>
   <table>
     <thead><tr>
-      <th>#</th><th>Time</th><th>Event</th><th>Screen</th><th>People On Stage</th><th>Audio Cues / Notes</th><th>Campfire Director Notes</th>
+      <th>#</th><th>Event</th><th>Screen</th><th>People On Stage</th><th>Audio</th><th>Video</th><th>Lighting</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
@@ -8480,7 +8536,7 @@ function _mcBuildGuideHtml(rowsData) {
 async function buildMcGuide() {
   const w = window.open('', '_blank');
   if (!w) { toast('Pop-up blocked — allow pop-ups to open the guide', 'err'); return; }
-  w.document.write('<!doctype html><title>MC Show Guide</title><body style="font-family:-apple-system,sans-serif;padding:60px;color:#888">Generating guide — resolving walk-up stills…</body>');
+  w.document.write('<!doctype html><title>MC Show Guide</title><body style="font-family:-apple-system,sans-serif;padding:60px;color:#888">Generating guide — resolving walk-up stills… this can take up to a minute for a full show, it is not stuck.</body>');
   w.document.close();
 
   const rowsData = await _mcBuildRowsData();
@@ -8526,22 +8582,30 @@ async function downloadMcGuidePdf(btn) {
 
 // Downloads a plain .csv -- opens directly in Excel/Numbers/Sheets. No
 // images (a spreadsheet cell can't hold one), but every real per-step text
-// field the on-screen guide has: description, action lines, people, audio
-// cues. Time/People/Notes stay blank cells for hand-filling, same as the
-// printable version.
+// field the on-screen guide has: description, people, and the Audio/Video/
+// Lighting breakdown, each instance on its own line within the cell.
 function _csvCell(v) {
   const s = String(v == null ? '' : v);
   return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
-async function downloadMcGuideCsv() {
-  const rowsData = await _mcBuildRowsData();
-  const header = ['#', 'Time', 'Event', 'Event Details', 'People On Stage', 'Audio Cues / Notes', 'Campfire Director Notes'];
+async function downloadMcGuideCsv(btn) {
+  const label = btn ? btn.textContent : '';
+  // Resolving every walk-up still can take a while on a full show -- show
+  // that this is working, not stuck, the same way the PDF button does.
+  if (btn) { btn.disabled = true; btn.textContent = 'GENERATING…'; }
+  let rowsData;
+  try {
+    rowsData = await _mcBuildRowsData();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+  const header = ['#', 'Event', 'People On Stage', 'Audio', 'Video', 'Lighting'];
   const lines = [header.map(_csvCell).join(',')];
-  rowsData.forEach(({ entry, eventLines, audioLines, note, people }, i) => {
-    const details = [note, ...eventLines].filter(Boolean).join(' | ');
+  rowsData.forEach(({ entry, note, people, audio, video, lighting }, i) => {
+    const event = [entry.name || '', note].filter(Boolean).join(' — ');
     lines.push([
-      i + 1, '', entry.name || '', details, people || '',
-      audioLines.join(' | '), '',
+      i + 1, event, people || '',
+      audio.join('\n'), video.join('\n'), lighting.join('\n'),
     ].map(_csvCell).join(','));
   });
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });

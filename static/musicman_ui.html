@@ -313,6 +313,7 @@
         <button class="btn-transport" onclick="if(_displayLogo){fetch('/api/display/show_file?file='+encodeURIComponent(_displayLogo)).catch(()=>{})}else{showAlert('No default logo set — configure in Admin > Display',2500)}" style="flex:1;font-size:10px;letter-spacing:1px">&#127989; BAE LOGO</button>
         <button class="btn-transport" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Display cleared',1500)" style="flex:1;font-size:10px;letter-spacing:1px">&#9723; CLEAR</button>
       </div>
+      <button onclick="fetch('/api/macro/run?name=macro_1782024642418').catch(()=>{});showAlert('🛠 TECHNICAL DIFFICULTIES',2000)" style="width:100%;margin-top:8px;height:38px;border-radius:8px;border:2px solid #f5a623;background:#2d1f05;color:#f5a623;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;letter-spacing:2px;cursor:pointer">&#128295; TECHNICAL DIFFICULTIES</button>
       <button onclick="killAll()" style="width:100%;margin-top:8px;height:42px;border-radius:8px;border:2px solid #c0392b;background:#2d0a0a;color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;cursor:pointer">&#9760; KILL ALL</button>
 
       <div class="vol-row">
@@ -3561,7 +3562,10 @@ async function buildDisplayGrid() {
   files.forEach(f => {
     const ext = f.slice(f.lastIndexOf('.')).toLowerCase();
     const isVid = VIDEO_EXTS.has(ext);
-    const url = '/assets/display/' + encodeURIComponent(f);
+    // Small cached thumbnail, not the raw original -- display images run
+    // 200KB-4MB each, and loading ~90 of them full-size just to show a
+    // 48x36 tile is what made this grid feel like it hung on WiFi.
+    const url = '/api/display/thumb/' + encodeURIComponent(f);
     const label = f.replace(/\.[^.]+$/, '').replace(/_/g, ' ').toUpperCase().slice(0, 14);
     const btn = document.createElement('button');
     btn.className = 'sfx-btn';
@@ -3569,7 +3573,7 @@ async function buildDisplayGrid() {
     if (isVid) {
       btn.innerHTML = '<span class="sfx-icon">🎬</span>' + label;
     } else {
-      btn.innerHTML = '<img src="' + url + '" style="width:48px;height:36px;object-fit:cover;border-radius:4px;margin-bottom:2px" onerror="this.remove()">' + '<span style="font-size:11px;letter-spacing:1px">' + label + '</span>';
+      btn.innerHTML = '<img src="' + url + '" loading="lazy" style="width:48px;height:36px;object-fit:cover;border-radius:4px;margin-bottom:2px" onerror="this.remove()">' + '<span style="font-size:11px;letter-spacing:1px">' + label + '</span>';
     }
     btn.style.flexDirection = 'column';
     btn.draggable = true;
@@ -3643,18 +3647,16 @@ async function _renderFireableDisplayGrid(gridId, orderKey, files, emptyMsg) {
 
   let _dragSrc = null;
 
-  const MEME_VIDEO_EXTS = new Set(['.mp4','.webm','.mov','.ogv']);
   files.forEach(f => {
     const label = f.replace(/\.[^.]+$/, '').replace(/_/g, ' ').toUpperCase().slice(0, 14);
-    const isVid = MEME_VIDEO_EXTS.has(f.slice(f.lastIndexOf('.')).toLowerCase());
-    // Tags aren't limited to video-like files anymore, so a static image
-    // meme needs its own direct thumbnail instead of always hitting the
-    // video-frame endpoint (which 404s for anything that isn't a video).
-    const thumbSrc = isVid ? '/api/display/thumb/' + encodeURIComponent(f) : '/assets/display/' + encodeURIComponent(f);
+    // /api/display/thumb/ now generates a small cached thumbnail for images
+    // too (not just video frames), so every file type goes through the same
+    // endpoint -- avoids loading a multi-MB original just for a 36x22 tile.
+    const thumbSrc = '/api/display/thumb/' + encodeURIComponent(f);
     const btn = document.createElement('button');
     btn.className = 'sfx-btn';
     btn.dataset.filename = f;
-    btn.innerHTML = '<img src="' + thumbSrc + '" '
+    btn.innerHTML = '<img src="' + thumbSrc + '" loading="lazy" '
       + 'style="width:36px;height:22px;object-fit:cover;border-radius:3px;margin-bottom:2px" '
       + 'onerror="this.outerHTML=\'<span class=&quot;sfx-icon&quot;>🎬</span>\'">' + label;
     btn.style.flexDirection = 'column';
