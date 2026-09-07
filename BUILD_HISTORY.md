@@ -639,4 +639,47 @@ Deliberately did not build volume/mute/Home controls or picture-mode/autofocus c
 
 ---
 
-*Last updated: September 2026 — Phase 19*
+## Phase 20 — Role Names, MC Guide Audio/Video/Lighting Rebuild, `_macro_cancel` Orphaning, Projector Launch Fix, HDMI Kiosk Reliability Overhaul, Display Thumbnails
+
+The projector got paired to real hardware this session and immediately started exercising every rough edge in the system at once — a genuinely useful (if painful) stress test that surfaced several real bugs, one of them a serious one that had nothing to do with the projector at all.
+
+### Role Names + Show Flow Round-Trip Fix
+Added a **NAMES** field to Roles (Admin) — free text, purely informational, for whoever's actually filling that role this season (e.g. "Henry B. & Nolan T."). Shows on the Console role tile, on every Show Flow step button that walks up that role (additive only — a step with no role, or a role with no name set, renders exactly as before), and feeds the MC Guide's People On Stage column automatically.
+
+Finding it exposed a real, separate bug: the Show Flow step's own **NOTES** field ("shown on console") never actually reached Console at all. `/api/show_flow`'s response was rebuilt from a hardcoded field whitelist that simply didn't include `desc` (or `target_id`, for a bare role/circle/game Show Flow entry) — so a note typed into that field was saved correctly but silently dropped on every read. Fixed by adding both fields to the whitelist; both now round-trip and the note appears in the MC Guide's Event column too.
+
+### MC Guide Rebuilt Again: Audio / Video / Lighting
+Direct feedback: drop Time and Campfire Director Notes (never used), and instead of a blended description, break every step into exactly what happens across three real columns — **Audio**, **Video**, **Lighting** — with every instance listed (two videos in one macro shows both, not just the first). A walk-up step (circle/role/game entry) is decomposed into its *actual* underlying assets — real video file, real music file, real walk-up/stage scenes — instead of a generic "walk-up happened" line, and a `run_macro` step recurses into whatever the target macro actually does (depth-capped against a cross-macro cycle), since that content genuinely fires as part of the step.
+
+Also fixed the guide's own reliability: `_mcBuildRowsData()` used to read straight from the page's own live `macros`/`roles`/`showFlow`/etc. globals, which could be stale (a tab open a while, a race on load) — confirmed live as the cause of an export that rendered a fully-styled table with every row completely empty. Now every export (guide, PDF, CSV) fetches its own fresh copy of everything from the server first (`_mcFetchContext()`), never trusting the tab's own state. Row resolution (screen preview + Audio/Video/Lighting) was also parallelized across all steps via `Promise.all` instead of one at a time, cutting wall-clock time for a full-show export roughly in half even though the underlying walk-up-still lookups (~2s each, confirmed via direct timing) turned out to be more server-bound than client-side concurrency could fully mask — both PDF and CSV buttons now show `GENERATING…` while they work so a slow export doesn't read as broken.
+
+### `_macro_cancel` Orphaning — a Real, Systemic Bug
+Reported live: Kill All, BAE Logo, and multiple other show-flow presses all failed to stop a running "End of Show Loop" (a `run_macro`-nested Announcements-style loop) — it just kept cycling through its own steps regardless of what else was fired. Root cause: `_macro_cancel` was **replaced** with a brand-new `threading.Event()` on every single macro/walkup/show-step fire (four separate call sites: `api_macro_run`, `api_show_fire`, `kill_everything`, `api_walkup`), rather than cleared and reused. A macro passes its own `cancel` object down into any `run_macro`-nested child by reference — so the very next fire *after* that nested loop started would correctly signal it (same object, not yet replaced), but literally everything fired after that was signaling a newer, unrelated Event that the now-orphaned loop thread was never waiting on. The loop wasn't broken, it was just permanently deaf to anything but one specific already-passed moment.
+
+Fixed by making `_macro_cancel` one singleton Event for the entire process lifetime — `.clear()`'d, never replaced — at all four call sites. A `.set()` now always reaches every currently-running macro thread, no matter how deeply nested or how long it's been running.
+
+### Projector LAUNCH DISPLAY Actually Launching Something
+Confirmed live: `send_launch_app_command` sent the raw display URL (`http://192.168.4.1/display`), the command reported success, and nothing happened — the projector stayed on the Android TV home screen. Per the Phase 19 finding, this is a generic `ACTION_VIEW` intent, and apparently nothing on this projector is registered to catch a bare `http://` URL that way. Fixed by launching Fully Kiosk Browser directly by its real Android package id (`de.ozerov.fully`, confirmed via its Play Store listing), which sends a `market://launch?id=...` intent instead — androidtvremote2's own documented behavior for a bare package string — bringing the already-installed, already-configured browser to the foreground directly. Confirmed live via `/api/projector/status`'s `current_app` field actually reporting `de.ozerov.fully` after the command.
+
+### HDMI Kiosk: From Fragile Auto-Login Script to a Real Supervised Service
+The local HDMI kiosk froze and crashed repeatedly during live testing — traced through several layers:
+
+1. **No real process supervision.** The kiosk was launched from `.bash_profile` on an auto-login TTY (`tty7`), wrapped in manual polling loops ("wait for HDMI connected," "wait for MusicMan's API"), ending in `exec cage -- chromium ...`. If chromium crashed, the whole login session died with it, and recovery depended on `getty` noticing and re-running the entire file from scratch — confirmed live to have restarted 5 times in 47 minutes during one test session, with dead air on HDMI each time in between.
+2. **A properly-configured systemd unit already existed** (`musicman-display.service`, real `Restart=on-failure` semantics) but was disabled and had never actually been switched to.
+3. **Cutover exposed a second bug**: even after switching to the service, HDMI showed plain terminal text instead of the kiosk. `who` showed two live sessions fighting for the console — the service's own properly logind-managed seat, and the *old* tty7 auto-login session, still alive (now just an idle shell after its launch script was disabled) and apparently still holding the physical console's focus. Fixed by disabling `getty@tty7` entirely — the kiosk no longer needs a TTY auto-login at all once it's a real service.
+4. **A third bug, once that was clean**: the service exited with status 0 (a *clean* exit, seemingly triggered by losing the console fight above) shortly after cutover, and sat dead — `Restart=on-failure` only restarts on a crash/non-zero exit, not a clean one. Changed to `Restart=always`, since a kiosk display should come back regardless of *why* it stopped.
+
+All four fixes verified live in sequence: killed the kiosk process directly, confirmed systemd noticed and relaunched it within seconds with zero manual intervention, matching what should now happen automatically after any real crash, HDMI hotplug event, or thermal blip — not just the specific failure mode that was tested.
+
+### Display Thumbnails: Real Perf Fix + Boot-Time Prewarm
+Console's Display and Memes/Graphics grids were loading each image's **full-resolution original** (some 1-4MB, ~90 files, 331MB total in the library) over WiFi just to render a 48x36 or 36x22 tile — confirmed as the actual cause of "forever loading" when opening either tab. Added a cached, ffmpeg-generated small thumbnail for images (mirroring the existing video-thumbnail approach exactly — same `.thumbs/` cache dir, same mtime-freshness check, same `/api/display/thumb/` route now serving both types) and pointed both grids at it, plus `loading="lazy"` so thumbnails only fetch as they scroll into view. Measured live: ~8s for an uncached thumbnail, ~0.7s once cached.
+
+Since a live show is exactly the wrong time to pay that first-generation cost, added a background boot-time prewarm (`_prewarm_display_thumbs`, one more `try/except`-guarded bootstrap call alongside the battery monitor / projector remote / BAND sync) that walks the whole Display library once at startup and generates anything missing or stale — sequential on purpose, not parallelized, since ffmpeg thumbnail generation is CPU-bound and the Pi is already busy with audio/battery/projector init at boot; no rush either way since it never blocks the service coming up. Confirmed live: "Display thumbnail prewarm complete: 80 file(s) checked/generated" logged within 200ms of the service starting (most were already warm from same-session testing).
+
+### Small fixes
+- **Technical Difficulties button** — one tap in Console's left panel fires that macro directly, for covering a gap without hunting for the button mid-show.
+- **Crowd overlay Stop button** — was a bare, unlabeled "■" icon; relabeled to "✕ STOP" to match what the Manual already described, since it was apparently easy to miss in the middle of a show.
+
+---
+
+*Last updated: September 2026 — Phase 20*

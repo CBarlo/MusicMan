@@ -731,6 +731,13 @@
     <li>Click <kbd>+ NEW ROLE</kbd>. Enter the role name.</li>
     <li>Fill in the same editor fields as circles. Click <kbd>✓ SAVE ROLE</kbd>.</li>
   </ol>
+  <p>
+    The <strong>NAMES</strong> field (right under Role Name) is for whoever's actually filling
+    that role this season — e.g. "Henry B. &amp; Nolan T." for a two-person role. It's optional
+    and purely informational: it shows up under the role's name on its Console tile, on every
+    Show Flow step button that walks up that role, and auto-fills the MC Guide's People On
+    Stage column — nothing else about the walk-up (music, video, lighting) reads from it.
+  </p>
 
   <h2 id="vs-cards-admin">VS Cards</h2>
   <p>
@@ -1011,14 +1018,34 @@
 
   <p>
     Click <kbd>🖨 EXPORT MC GUIDE</kbd> to open a printable rundown of the whole Show Flow —
-    built for handing to parents/helpers ahead of time, not just a stage reference. Each row
-    has a real, plain-English description of what that step actually does (lighting, screen,
-    audio, waits — walked action by action, not a generic label), a genuine screen preview
-    (a walk-up's real last-frame video still, a video's own thumbnail, or its display image —
-    resolved fresh each time you export, no live show run needed), and separate Audio Cues
-    columns pulled from that step's actual music/SFX/playlist actions. Time, People On Stage,
-    and Campfire Director Notes are left blank on purpose for you to fill in by hand before
-    sending it out. Opens in a new tab; print it or save as PDF from there.
+    built for handing to parents/helpers ahead of time, not just a stage reference. Each row has
+    a genuine screen preview (a walk-up's real last-frame video still, a video's own thumbnail,
+    or its display image — resolved fresh each time you export, no live show run needed), a
+    <strong>People On Stage</strong> column pulled automatically from whichever Role is walking
+    up (see <strong>NAMES</strong> under Roles, below), and the step broken into exactly what
+    happens, in three columns:
+  </p>
+  <table>
+    <tr><th>Column</th><th>What's in it</th></tr>
+    <tr><td><strong>Audio</strong></td><td>Every music/SFX/playlist file that step actually plays</td></tr>
+    <tr><td><strong>Video</strong></td><td>Every video/image/slide/game/scoreboard that step puts on screen</td></tr>
+    <tr><td><strong>Lighting</strong></td><td>Every scene or Light Ramp that step fires</td></tr>
+  </table>
+  <p>
+    A Role/Circle/Game Entry walk-up step is broken down into its <em>real</em> underlying
+    assets (its actual video file, music file, and walk-up/stage scenes) rather than a generic
+    "walk-up happened" line, and a <strong>Run Macro</strong> step pulls in whatever the target
+    macro actually does too, since that content genuinely fires as part of the step. A hand-
+    written note in a step's own <strong>NOTES</strong> field (Show Flow editor) appears above
+    its breakdown. Nothing is left for you to fill in except People On Stage staying blank when
+    a step has no Role attached.
+  </p>
+  <p>
+    Next to <kbd>🖨 EXPORT MC GUIDE</kbd> are two direct downloads — <kbd>⬇ PDF</kbd> (a real
+    .pdf file, generated on the Pi itself, no print dialog) and <kbd>⬇ EXCEL (CSV)</kbd> (a plain
+    spreadsheet — same data, no images, opens in Excel/Numbers/Sheets). Both can take up to a
+    minute to generate on a full show — resolving each walk-up's screen preview is the slow
+    part — the buttons show <kbd>GENERATING…</kbd> while they work rather than looking stuck.
   </p>
   <div class="callout callout-tip">
     <div class="callout-title">Live visualizations don't get a fake screenshot</div>
@@ -1831,6 +1858,7 @@
     <tr><td><kbd>◄◄ TRACK −</kbd></td><td>Skips to the previous track in the playlist</td></tr>
     <tr><td><kbd>TRACK + ►►</kbd></td><td>Skips to the next track in the playlist</td></tr>
     <tr><td><kbd>BAE LOGO</kbd></td><td>Shows the default Broken Arrow Expedition logo on the HDMI display</td></tr>
+    <tr><td><kbd>🔧 TECHNICAL DIFFICULTIES</kbd></td><td>One tap fires the "Technical Difficulties" macro — for covering an unexpected gap without scrambling for a button in the middle of a show</td></tr>
     <tr><td><kbd>KILL ALL</kbd></td><td>Emergency stop — cuts music, resets timer, clears display</td></tr>
   </table>
 

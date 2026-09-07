@@ -227,7 +227,7 @@
       </div>
       <div class="feat amber">
         <div class="feat-name">Roles</div>
-        <div class="feat-desc">Role-based walk-up cards (Chief, Scout, etc.) with their own photo, music, and animation.</div>
+        <div class="feat-desc">Role-based walk-up cards (Chief, Scout, etc.) with their own photo, music, and animation. Optional NAMES field records who's actually filling the role this season — shows on the Console tile, on Show Flow step buttons, and auto-fills the MC Guide's People On Stage column.</div>
       </div>
       <div class="feat amber wide">
         <div class="feat-name">Walk-Up Pipeline</div>
@@ -433,12 +433,16 @@
         <div class="feat-desc">Store multiple show configurations as named templates. Load any template to replace the active show flow without editing macro definitions.</div>
       </div>
       <div class="feat rose">
+        <div class="feat-name">Technical Difficulties Button</div>
+        <div class="feat-desc">One tap in Console's left panel fires the "Technical Difficulties" macro directly — no hunting for it mid-show when something needs covering.</div>
+      </div>
+      <div class="feat rose">
         <div class="feat-name">Kill All</div>
-        <div class="feat-desc">Single button stops all audio, lights, and any running macro (including a looping one), and clears the projector back to standby — emergency override for anything running, screen included.</div>
+        <div class="feat-desc">Single button stops all audio, lights, and any running macro — including a looping one nested arbitrarily deep via Run Macro — and clears the projector back to standby. Backed by one singleton cancel signal for the whole process lifetime, so it actually reaches every running macro thread regardless of how it was started; a long-running loop can no longer end up holding a stale reference nothing can signal.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">Export MC Guide</div>
-        <div class="feat-desc">Printable rundown of the whole Show Flow built for handing to parents/helpers ahead of a show, not just a stage cheat sheet. Every row gets a real, action-by-action description pulled from that step's actual macro (lighting, screen, audio, waits — not a generic label), a genuine screen preview (a walk-up's real last-frame video still generated fresh via ffmpeg, a video's own thumbnail, or its display image — no live show run needed), and a separate Audio Cues column. Time, People On Stage, and Director Notes are left blank for hand-filling. Live visualizations get a clearly labeled icon rather than a faked screenshot. Opens in a new tab; print or save as PDF from there.</div>
+        <div class="feat-desc">Printable rundown of the whole Show Flow built for handing to parents/helpers ahead of a show. Every row breaks the step into exactly what happens across three columns — Audio, Video, Lighting — walking a walk-up step down into its real underlying assets (actual video/music file, walk-up/stage scenes) rather than a generic "walk-up happened" line, and following a Run Macro step into whatever its target actually does. Plus a People On Stage column (from Roles' NAMES field) and a genuine screen preview per step (a walk-up's real last-frame still, a video's own thumbnail, or its display image — resolved fresh on export, no live show run needed). Live visualizations get a clearly labeled icon rather than a faked screenshot. Opens in a new tab for print/Save-as-PDF, plus direct ⬇ PDF and ⬇ CSV downloads generated server-side.</div>
       </div>
     </div>
   </div>
@@ -715,7 +719,7 @@
       </div>
       <div class="feat rose wide">
         <div class="feat-name">Projector Remote Control</div>
-        <div class="feat-desc">Power on/off and launch the display page on an Android TV-based projector (Nebula Mars 3 and similar) directly from Admin or Console, over the network — the same protocol the official Google TV phone app uses, no IR and no dev-mode sideloading. One-time PIN pairing per projector, then POWER/LAUNCH DISPLAY buttons live in both places, with live is-on/current-app status polled every 10s. Launch Display remotely triggers whatever browser is already installed on the projector to open the display URL — it can trigger a browser, not install one, so a kiosk-style browser still needs to be on the projector itself first.</div>
+        <div class="feat-desc">Power on/off and launch the display page on an Android TV-based projector (Nebula Mars 3 and similar) directly from Admin or Console, over the network — the same protocol the official Google TV phone app uses, no IR and no dev-mode sideloading. One-time PIN pairing per projector, then POWER/LAUNCH DISPLAY buttons live in both places, with live is-on/current-app status polled every 10s. Launch Display launches the kiosk browser app itself by its package id (confirmed live: sending a raw URL to a generic launch intent silently did nothing, since nothing was registered to catch it) — the browser's own Start URL still has to be configured once to point at the display page.</div>
       </div>
       <div class="feat rose">
         <div class="feat-name">OTA File Update</div>
