@@ -1428,15 +1428,19 @@ def timer_worker():
                 _timer_sound_stop.set()
                 time.sleep(0.1)  # let the sound thread exit its loop
                 fade_sec = float(timer_state.get('start_sound_fade', 3))
-                if fade_sec > 0:
-                    vol = pygame.mixer.music.get_volume()
-                    steps = max(10, int(fade_sec * 20))
-                    interval = fade_sec / steps
-                    for i in range(steps - 1, -1, -1):
-                        pygame.mixer.music.set_volume(vol * i / steps)
-                        time.sleep(interval)
-                pygame.mixer.music.stop()
-                pygame.mixer.music.set_volume(1.0)
+                my_audio_session = _audio_session
+                with _music_lock:
+                    if fade_sec > 0:
+                        vol = pygame.mixer.music.get_volume()
+                        steps = max(10, int(fade_sec * 20))
+                        interval = fade_sec / steps
+                        for i in range(steps - 1, -1, -1):
+                            if _audio_session != my_audio_session:
+                                break  # a newer play_audio took over
+                            pygame.mixer.music.set_volume(vol * i / steps)
+                            time.sleep(interval)
+                    pygame.mixer.music.stop()
+                    pygame.mixer.music.set_volume(1.0)
             sfx_name = tcfg.get('end_sound', '')
             if sfx_name:
                 sfx_path = _resolve_audio_file(sfx_name)
@@ -2776,7 +2780,8 @@ def _begin_karaoke_playback(song, instrumental_sound, vocal_sound, my_session):
     putting both tracks on the identical Channel-based timing path is the
     actual fix."""
     try:
-        pygame.mixer.music.stop()  # silence any regular background music karaoke is replacing
+        with _music_lock:
+            pygame.mixer.music.stop()  # silence any regular background music karaoke is replacing
         karaoke_state['vocal_muted'] = False  # fresh start -- always unmuted, before the volume calc below reads it
         _karaoke_instrumental_channel.set_volume(audio_state.get('volume', 80) / 100)
         _karaoke_vocal_channel.set_volume(_karaoke_vocal_target_volume())
@@ -2987,7 +2992,8 @@ def end_karaoke(show_standby=True):
     _karaoke_session += 1
     _karaoke_stop_event.set()
     _karaoke_stop_event.clear()
-    pygame.mixer.music.stop()
+    with _music_lock:
+        pygame.mixer.music.stop()
     if _karaoke_instrumental_channel:
         _karaoke_instrumental_channel.stop()
     if _karaoke_vocal_channel:
@@ -3292,20 +3298,24 @@ def shell_game_audio_stop():
     global _sg_fade_token
     _sg_fade_token += 1
     my_token = _sg_fade_token
+    my_audio_session = _audio_session
     def _fade_music_only():
-        if pygame.mixer.music.get_busy():
-            orig = pygame.mixer.music.get_volume()
-            steps = 30
-            for i in range(steps - 1, -1, -1):
-                if _sg_fade_token != my_token:
-                    return  # cancelled by a new play call
-                if not pygame.mixer.music.get_busy():
-                    break
-                pygame.mixer.music.set_volume(orig * i / steps)
-                time.sleep(1.5 / steps)
-            if _sg_fade_token == my_token:
-                pygame.mixer.music.stop()
-                pygame.mixer.music.set_volume(orig)
+        with _music_lock:
+            if pygame.mixer.music.get_busy():
+                orig = pygame.mixer.music.get_volume()
+                steps = 30
+                for i in range(steps - 1, -1, -1):
+                    if _sg_fade_token != my_token:
+                        return  # cancelled by a new play call
+                    if _audio_session != my_audio_session:
+                        return  # a macro/play_audio took over — don't meddle
+                    if not pygame.mixer.music.get_busy():
+                        break
+                    pygame.mixer.music.set_volume(orig * i / steps)
+                    time.sleep(1.5 / steps)
+                if _sg_fade_token == my_token:
+                    pygame.mixer.music.stop()
+                    pygame.mixer.music.set_volume(orig)
         if _sg_fade_token == my_token:
             audio_state['playing'] = False
             audio_state['paused']  = False
@@ -4849,7 +4859,8 @@ def api_audio_stop():
 @app.route('/api/audio/pause')
 def api_audio_pause():
     try:
-        pygame.mixer.music.pause()
+        with _music_lock:
+            pygame.mixer.music.pause()
         audio_state['paused'] = True
         broadcast('audio_state', audio_state)
         if _sfx_channel and sfx_state.get('playing'):
@@ -4863,7 +4874,8 @@ def api_audio_pause():
 @app.route('/api/audio/resume')
 def api_audio_resume():
     try:
-        pygame.mixer.music.unpause()
+        with _music_lock:
+            pygame.mixer.music.unpause()
         audio_state['paused'] = False
         broadcast('audio_state', audio_state)
         if _sfx_channel and sfx_state.get('paused'):
@@ -4987,13 +4999,14 @@ def api_timer_start():
                     # Resume: music is paused at position; just unfreeze + fade in
                     _timer_sound_paused.clear()
                     def _timer_fade_in(ev=_timer_sound_stop):
-                        pygame.mixer.music.unpause()
-                        steps = 6
-                        for i in range(1, steps + 1):
-                            if ev.is_set(): return
-                            pygame.mixer.music.set_volume(i / steps)
-                            time.sleep(0.05)
-                        pygame.mixer.music.set_volume(1.0)
+                        with _music_lock:
+                            pygame.mixer.music.unpause()
+                            steps = 6
+                            for i in range(1, steps + 1):
+                                if ev.is_set(): return
+                                pygame.mixer.music.set_volume(i / steps)
+                                time.sleep(0.05)
+                            pygame.mixer.music.set_volume(1.0)
                     threading.Thread(target=_timer_fade_in, daemon=True).start()
                 else:
                     _timer_sound_stop = threading.Event()  # new event per start; old thread keeps ref to old (set) event
@@ -5006,6 +5019,7 @@ def api_timer_start():
                         stem = Path(ap).stem.replace('_', ' ')
                         loops_arg = -1 if loop else 0
                         play_audio(ap, start_pos=sp, loops=loops_arg, crossfade_ms=0)
+                        my_audio_session = _audio_session  # captured post-increment, for the fade-out bail check below
                         broadcast('music_track', {'name': stem, 'file': Path(ap).name, 'sub': 'SKIT TIMER'})
                         # Determine play duration: explicit > file's natural length > full timer
                         if snd_dur > 0:
@@ -5034,18 +5048,23 @@ def api_timer_start():
                                 continue
                             time.sleep(0.05)
                         # Always fade (or stop) once deadline passes — never skip based on ev
-                        vol = pygame.mixer.music.get_volume()
-                        if fade > 0:
-                            steps = max(10, int(fade * 20))
-                            interval = fade / steps
-                            for i in range(steps - 1, -1, -1):
-                                if ev.is_set():
-                                    _timer_sound_looping = False
-                                    return
-                                pygame.mixer.music.set_volume(vol * i / steps)
-                                time.sleep(interval)
-                        pygame.mixer.music.stop()
-                        pygame.mixer.music.set_volume(vol)
+                        with _music_lock:
+                            vol = pygame.mixer.music.get_volume()
+                            if fade > 0:
+                                steps = max(10, int(fade * 20))
+                                interval = fade / steps
+                                for i in range(steps - 1, -1, -1):
+                                    if ev.is_set():
+                                        _timer_sound_looping = False
+                                        return
+                                    if _audio_session != my_audio_session:
+                                        # A new play_audio call took over — bail
+                                        _timer_sound_looping = False
+                                        return
+                                    pygame.mixer.music.set_volume(vol * i / steps)
+                                    time.sleep(interval)
+                            pygame.mixer.music.stop()
+                            pygame.mixer.music.set_volume(vol)
                         _timer_sound_looping = False
                     threading.Thread(target=_timer_sound, daemon=True).start()
         log.info("Timer started")
@@ -5073,14 +5092,20 @@ def api_timer_pause():
         threading.Thread(target=_clear_countdown_leds, args=(tcfg,), daemon=True).start()
     if _timer_sound_looping:
         _timer_sound_paused.set()   # freeze deadline thread immediately
+        my_audio_session = _audio_session
         def _fade_and_pause():
-            vol = pygame.mixer.music.get_volume()
-            steps = 6
-            for i in range(steps - 1, -1, -1):
-                pygame.mixer.music.set_volume(vol * i / steps)
-                time.sleep(0.05)
-            pygame.mixer.music.pause()
-            pygame.mixer.music.set_volume(vol)  # restore for unpause
+            with _music_lock:
+                if _audio_session != my_audio_session:
+                    return  # a new play_audio call already took over
+                vol = pygame.mixer.music.get_volume()
+                steps = 6
+                for i in range(steps - 1, -1, -1):
+                    if _audio_session != my_audio_session:
+                        return
+                    pygame.mixer.music.set_volume(vol * i / steps)
+                    time.sleep(0.05)
+                pygame.mixer.music.pause()
+                pygame.mixer.music.set_volume(vol)  # restore for unpause
         threading.Thread(target=_fade_and_pause, daemon=True).start()
     broadcast('timer_state', timer_state)
     return jsonify({'ok': True})
@@ -5100,7 +5125,8 @@ def api_timer_reset():
     _timer_sound_paused.clear()  # unblock frozen thread so it can see stop
     _timer_sound_stop.set()
     if _timer_sound_looping:
-        pygame.mixer.music.unpause()  # needed if paused, harmless if not
+        with _music_lock:
+            pygame.mixer.music.unpause()  # needed if paused, harmless if not
         fade_audio(1.0)
     broadcast('timer_state', timer_state)
     # Restore whatever was on screen before the end display came up
@@ -5278,13 +5304,14 @@ def api_countdown_start():
                     # Resume: music is paused at position; just unfreeze + fade in
                     _cd_sound_paused.clear()
                     def _cd_fade_in(ev=_cd_sound_stop):
-                        pygame.mixer.music.unpause()
-                        steps = 6
-                        for i in range(1, steps + 1):
-                            if ev.is_set(): return
-                            pygame.mixer.music.set_volume(i / steps)
-                            time.sleep(0.05)
-                        pygame.mixer.music.set_volume(1.0)
+                        with _music_lock:
+                            pygame.mixer.music.unpause()
+                            steps = 6
+                            for i in range(1, steps + 1):
+                                if ev.is_set(): return
+                                pygame.mixer.music.set_volume(i / steps)
+                                time.sleep(0.05)
+                            pygame.mixer.music.set_volume(1.0)
                     threading.Thread(target=_cd_fade_in, daemon=True).start()
                 else:
                     _cd_sound_stop.clear()
@@ -5296,6 +5323,7 @@ def api_countdown_start():
                         stem = Path(ap).stem.replace('_',' ')
                         loops_arg = -1 if loop else 0
                         play_audio(ap, loops=loops_arg, crossfade_ms=0)
+                        my_audio_session = _audio_session  # captured post-increment, for the fade-out bail check below
                         broadcast('music_track', {'name': stem, 'file': Path(ap).name, 'sub': 'COUNTDOWN'})
                         if snd_dur > 0:
                             pdur = snd_dur
@@ -5317,18 +5345,22 @@ def api_countdown_start():
                                 deadline += time.monotonic() - t0
                                 continue
                             time.sleep(0.05)
-                        vol = pygame.mixer.music.get_volume()
-                        if fade > 0:
-                            steps = max(10, int(fade * 20))
-                            interval = fade / steps
-                            for i in range(steps - 1, -1, -1):
-                                if ev.is_set():
-                                    _cd_sound_looping = False
-                                    return
-                                pygame.mixer.music.set_volume(vol * i / steps)
-                                time.sleep(interval)
-                        pygame.mixer.music.stop()
-                        pygame.mixer.music.set_volume(vol)
+                        with _music_lock:
+                            vol = pygame.mixer.music.get_volume()
+                            if fade > 0:
+                                steps = max(10, int(fade * 20))
+                                interval = fade / steps
+                                for i in range(steps - 1, -1, -1):
+                                    if ev.is_set():
+                                        _cd_sound_looping = False
+                                        return
+                                    if _audio_session != my_audio_session:
+                                        _cd_sound_looping = False
+                                        return
+                                    pygame.mixer.music.set_volume(vol * i / steps)
+                                    time.sleep(interval)
+                            pygame.mixer.music.stop()
+                            pygame.mixer.music.set_volume(vol)
                         _cd_sound_looping = False
                     threading.Thread(target=_cd_sound, daemon=True).start()
             else:
@@ -5342,14 +5374,20 @@ def api_countdown_pause():
     countdown_state['paused'] = True
     if _cd_sound_looping:
         _cd_sound_paused.set()   # freeze deadline thread immediately
+        my_audio_session = _audio_session
         def _cd_fade_and_pause():
-            vol = pygame.mixer.music.get_volume()
-            steps = 6
-            for i in range(steps - 1, -1, -1):
-                pygame.mixer.music.set_volume(vol * i / steps)
-                time.sleep(0.05)
-            pygame.mixer.music.pause()
-            pygame.mixer.music.set_volume(vol)
+            with _music_lock:
+                if _audio_session != my_audio_session:
+                    return  # a new play_audio call already took over
+                vol = pygame.mixer.music.get_volume()
+                steps = 6
+                for i in range(steps - 1, -1, -1):
+                    if _audio_session != my_audio_session:
+                        return
+                    pygame.mixer.music.set_volume(vol * i / steps)
+                    time.sleep(0.05)
+                pygame.mixer.music.pause()
+                pygame.mixer.music.set_volume(vol)
         threading.Thread(target=_cd_fade_and_pause, daemon=True).start()
     broadcast('countdown_state', countdown_state)
     return jsonify({'ok': True})
@@ -5365,7 +5403,8 @@ def api_countdown_reset():
     _cd_sound_paused.clear()  # unblock frozen thread so it can see stop
     _cd_sound_stop.set()
     if _cd_sound_looping:
-        pygame.mixer.music.unpause()  # needed if paused, harmless if not
+        with _music_lock:
+            pygame.mixer.music.unpause()  # needed if paused, harmless if not
         fade_audio(1.0)
     broadcast('countdown_state', countdown_state)
     # Restore whatever was on screen before the end display came up
@@ -5855,7 +5894,8 @@ def _chairs_do_stop(cfg_data):
     of restarting the song — real musical chairs doesn't rewind between rounds."""
     global chairs_state
     try:
-        pygame.mixer.music.pause()
+        with _music_lock:
+            pygame.mixer.music.pause()
         audio_state['paused'] = True
         broadcast('audio_state', audio_state)
     except Exception as e:
@@ -5917,7 +5957,8 @@ def api_games_chairs_start():
         chairs_state['song_label']   = Path(song).stem
 
     if resume:
-        pygame.mixer.music.unpause()
+        with _music_lock:
+            pygame.mixer.music.unpause()
         audio_state['paused'] = False
         broadcast('audio_state', audio_state)
     else:
@@ -5999,21 +6040,25 @@ def api_games_wheel_audio_stop():
     my_token = _wheel_fade_token
     if _sfx_channel and _sfx_channel.get_busy():
         _sfx_channel.fadeout(1000)
+    my_audio_session = _audio_session
     def _fade():
-        if not pygame.mixer.music.get_busy():
-            return
-        orig  = pygame.mixer.music.get_volume()
-        steps = 20
-        for i in range(steps - 1, -1, -1):
-            if _wheel_fade_token != my_token:
-                return
+        with _music_lock:
             if not pygame.mixer.music.get_busy():
-                break
-            pygame.mixer.music.set_volume(orig * i / steps)
-            time.sleep(1.0 / steps)
-        if _wheel_fade_token == my_token:
-            pygame.mixer.music.stop()
-            pygame.mixer.music.set_volume(orig)
+                return
+            orig  = pygame.mixer.music.get_volume()
+            steps = 20
+            for i in range(steps - 1, -1, -1):
+                if _wheel_fade_token != my_token:
+                    return
+                if _audio_session != my_audio_session:
+                    return  # a macro/play_audio took over — don't meddle
+                if not pygame.mixer.music.get_busy():
+                    break
+                pygame.mixer.music.set_volume(orig * i / steps)
+                time.sleep(1.0 / steps)
+            if _wheel_fade_token == my_token:
+                pygame.mixer.music.stop()
+                pygame.mixer.music.set_volume(orig)
     threading.Thread(target=_fade, daemon=True).start()
     return jsonify({'ok': True})
 
