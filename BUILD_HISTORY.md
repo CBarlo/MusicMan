@@ -753,6 +753,11 @@ Dropped `no-store` from both pages' cache headers (kept `no-cache, must-revalida
 
 Deliberately left alone: Console's WebSocket connection currently waits for all 7 grid-population calls to finish before connecting, which delays live state sync but isn't itself why the grids feel slow to populate — reordering it safely would need more care (some initial state-sync logic assumes those grids already exist in the DOM) than was worth rushing into on a live show control surface.
 
+### M5 Remote — Status LED Heartbeat
+Asked directly: any way to improve the remote's battery life, maybe by dimming the LED or giving it a heartbeat instead of solid-on? Investigated the actual firmware (`firmware/musicman_remote/musicman_remote.ino`) rather than guessing: the LED is a single GPIO-driven indicator (~a few mA), genuinely small next to the TFT backlight, WiFi radio, and ESP32 core itself — and those bigger draws are already well covered (12s backlight sleep with tilt-wake, WiFi modem-sleep, a tuned state-poll interval, 10-minute auto-poweroff when idle+unreachable — all pre-existing, found via the code itself, not re-suggested as new). So this is honestly more a visibility/polish win than a big battery lever, but it's real, cheap, and safe, so built it anyway.
+
+Switched the LED from a plain `digitalWrite` (solid on when connected) to LEDC PWM driving an actual heartbeat waveform — two quick pulses then a rest on a ~1.4s cycle, keyframed and linearly interpolated, dim overall (peaks don't even reach full brightness). Reconnecting/offline states keep their original full-brightness on/off blink unchanged — those mean something's actually wrong and should stay unmissable. Had to use the current ESP32 core's pin-based LEDC API (`ledcAttach`/`ledcWrite` by pin) rather than the older channel-based one (`ledcSetup`/`ledcAttachPin`) — the installed core is 3.3.11, which dropped the old API entirely; caught this by actually compiling against the real board definition and installed libraries (`arduino-cli compile --fqbn esp32:esp32:m5stack_stickc_plus`), not just eyeballing the change. Clean build. Not yet flashed to the physical remote — needs it connected via USB.
+
 ---
 
 *Last updated: September 2026 — Phase 22*
