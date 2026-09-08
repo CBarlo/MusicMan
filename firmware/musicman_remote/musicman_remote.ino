@@ -286,9 +286,26 @@ void setup() {
   Serial.println("\n\n=== MusicMan Remote v2 booting ===");
 
   M5.begin();
+  // Default is 240MHz -- this device spends nearly all its time waiting on a
+  // poll timer or a button press, never doing anything CPU-heavy (the
+  // busiest thing it does is compose a 240x135 sprite and blit it over SPI,
+  // already throttled to ~8fps in drawScreen()). 80MHz is the ESP32's floor
+  // while WiFi still works at all (it needs >=80MHz), and cuts real active
+  // power for all that idle/waiting time.
+  setCpuFrequencyMhz(80);
   M5.IMU.Init();   // M5.begin() does NOT init the MPU6886 -- without this, getAccelData() returns dead values and tilt never fires
   M5.Lcd.setRotation(3);
   M5.Lcd.fillScreen(BLACK);
+  // AXP192 boots the backlight to its own power-on-reset level (register
+  // default, not set through this API -- works out to roughly 70% on this
+  // 0-100 scale). Backlight is the single biggest power draw on this device
+  // (see SCREEN_SLEEP_MS below) -- SCREEN_SLEEP_MS already cuts it off
+  // after 12s idle, but it was always full-ish brightness for however long
+  // the screen stays awake before that. Dimming the *intensity* while awake
+  // is a second, independent lever on top of that -- 60 is a conservative
+  // pick, still clearly readable; tune this one number if it's off in
+  // practice (dimmer = lower, brighter = higher, 0-100).
+  M5.Axp.ScreenBreath(60);
   ledcAttach(LED_PIN, 5000, 8);  // 5kHz, 8-bit duty -- current ESP32 core's pin-based LEDC API (no channel handle needed)
   setLedBrightness(0.0f);  // off until connected
 
