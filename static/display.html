@@ -161,6 +161,36 @@
     transition:opacity 0.8s ease;
   }
 
+  /* ── MEME/GRAPHIC OVERLAY ──────────────────────────────────
+     Deliberately its own layer, not sharing #layer-title's elements. A meme
+     used to render into title-img/title-video (same layer real title cards
+     use), which meant firing one over a role/circle logo actually overwrote
+     that logo's image in place -- dismissing the meme afterward had nothing
+     left to reveal and went to black instead of back to the logo. Confirmed
+     live 2026-09-07. This layer sits above literally everything, including
+     #layer-title itself, so a meme still shows over a title card too. */
+  #layer-meme {
+    position:fixed;
+    inset:0;
+    z-index:40;
+    opacity:0;
+    pointer-events:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#050505;
+  }
+  #meme-video,
+  #meme-img {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    opacity:0;
+    transition:opacity 0.8s ease;
+  }
+
   /* ── BREATHE ANIMATION on standby ──────────────────────── */
   @keyframes breathe {
     0%, 100% { opacity:0.85; }
@@ -715,6 +745,12 @@
   <div id="title-name"></div>
 </div>
 
+<!-- MEME/GRAPHIC OVERLAY LAYER -- independent from layer-title, see CSS comment -->
+<div id="layer-meme">
+  <video id="meme-video" playsinline autoplay loop muted></video>
+  <img id="meme-img" alt="">
+</div>
+
 <!-- CHRONO OVERLAY (countdown timer + stopwatch) -->
 <div id="layer-timer" style="position:fixed;inset:0;z-index:10;pointer-events:none;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5vh;opacity:0;transition:opacity 0.8s ease">
   <div style="background:rgba(0,0,0,0.72);border-radius:16px;padding:2vw 5vw 1.5vw;text-align:center;backdrop-filter:blur(6px)">
@@ -862,12 +898,14 @@ loadStandbyConfig();
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let standbyActive  = true;
 let _displaySeq    = 0; // incremented on every display change to cancel stale onload callbacks
+let _memeSeq       = 0; // same idea as _displaySeq, but for the independent meme overlay layer
 let _titleImgSlot  = 'a'; // which img slot is currently showing
 let _startupId     = null; // server startup_id from first connect; changes only on service restart
 
 const layerStandby = document.getElementById('layer-standby');
 const layerWalkup  = document.getElementById('layer-walkup');
 const layerTitle   = document.getElementById('layer-title');
+const layerMeme    = document.getElementById('layer-meme');
 const layerSlide   = document.getElementById('layer-slide');
 const layerBandSlideshow = document.getElementById('layer-band-slideshow');
 const layerBandQr        = document.getElementById('layer-band-qr');
@@ -925,17 +963,16 @@ function _resetTitleImgs() {
 
 function showStep(data) {
   const imageUrl = data.image || '';
-  const isMeme   = !!data.meme;
 
-  // A real meme never touches any other layer's state -- see the WS handler
-  // comment above. Everything below this guard only matters for deliberate
-  // content changes (BAE LOGO, a macro's own display_image step, etc), which
-  // still fully take over the screen exactly as before.
-  if (!isMeme) {
-    hideSlide();
-    hideLeaderboard();
-    standbyActive = false;
-  }
+  // A real meme renders into its own independent layer entirely -- see the
+  // #layer-meme CSS comment for why this can't share title-img with real
+  // title-card content anymore. Bail out completely before touching
+  // anything else here.
+  if (data.meme) { _showMemeImage(data); return; }
+
+  hideSlide();
+  hideLeaderboard();
+  standbyActive = false;
   const seq = ++_displaySeq;
 
   document.getElementById('title-name').style.display = 'none';
@@ -945,11 +982,9 @@ function showStep(data) {
   // Without this, hiding the game iframe (hideGameFrame) reveals the previous walkup
   // video underneath, which stays visible until the step image finishes loading.
   setLayerTransition(0.8);
-  if (!isMeme) {
-    layerWalkup.style.opacity       = '0';
-    layerWalkup.style.pointerEvents = 'none';
-    layerStandby.style.opacity      = '0';
-  }
+  layerWalkup.style.opacity       = '0';
+  layerWalkup.style.pointerEvents = 'none';
+  layerStandby.style.opacity      = '0';
 
   // A content-less display_step (no image — e.g. a macro with no display_image
   // of its own) must be a true no-op for this layer. Raising layerTitle to
@@ -981,6 +1016,7 @@ function showStep(data) {
 function clearAllLayers() {
   hideSlide();
   hideLeaderboard();
+  _clearMemeOverlay();
   standbyActive = true;
   const t = 'opacity 1s ease';
   layerWalkup.style.transition = t;
@@ -1010,27 +1046,31 @@ function _ensureTitleAudioGraph(titleVideo) {
   } catch (e) { /* Web Audio unavailable — falls back to unboosted element volume */ }
 }
 
-// A meme ending over a walk-up doesn't need the walk-up re-fired -- it was
-// never actually torn down underneath (display_animation's hide-chain never
-// touches layerWalkup), just covered by this now-opaque layer. Fading this
-// back out is the whole "revert" -- no restart, no re-triggered video/name
-// reveal, nothing else needs to change.
+// A meme ending over a walk-up (or a title card, or anything else) doesn't
+// need that content re-fired -- it was never actually torn down underneath
+// (the meme lives on its own independent #layer-meme, see the CSS comment),
+// just covered by this now-opaque layer. Fading this back out is the whole
+// "revert" -- no restart, no re-triggered video/name reveal, nothing else
+// needs to change.
 function _clearMemeOverlay() {
-  const titleVideo = document.getElementById('title-video');
-  layerTitle.style.transition = 'opacity 0.5s ease';
-  layerTitle.style.opacity    = '0';
-  if (titleVideo) titleVideo.pause();
+  const memeVideo = document.getElementById('meme-video');
+  layerMeme.style.transition = 'opacity 0.5s ease';
+  layerMeme.style.opacity    = '0';
+  if (memeVideo) memeVideo.pause();
 }
 
 function showTitleVideo(data) {
   const videoUrl = data.video || '';
   if (!videoUrl) return;
-  const isMeme = !!data.meme;
-  if (!isMeme) {
-    hideSlide();
-    hideLeaderboard();
-    standbyActive = false;
-  }
+
+  // A real meme renders into its own independent layer -- see the
+  // #layer-meme CSS comment. Bail out completely before touching anything
+  // else here.
+  if (data.meme) { _showMemeVideo(data); return; }
+
+  hideSlide();
+  hideLeaderboard();
+  standbyActive = false;
   const seq = ++_displaySeq;
 
   document.getElementById('title-name').style.display = 'none';
@@ -1040,15 +1080,9 @@ function showTitleVideo(data) {
   const titleVideo = document.getElementById('title-video');
   const holdFrame  = !!data.hold;
   const loopVideo  = data.loop !== undefined ? !!data.loop : !holdFrame;
-  const autoRevert = !!data.auto_revert;
   titleVideo.loop    = loopVideo;
   titleVideo.muted   = (data.muted === false) ? false : true;
-  titleVideo.onended = holdFrame ? () => { titleVideo.pause(); }
-                     // The server decides what "revert" actually means --
-                     // whatever was showing before this fired, not always
-                     // standby -- and re-broadcasts it once told this ended.
-                     : autoRevert ? () => { fetch('/api/display/meme_ended', {method:'POST'}).catch(() => {}); }
-                     : null;
+  titleVideo.onended = holdFrame ? () => { titleVideo.pause(); } : null;
 
   _ensureTitleAudioGraph(titleVideo);
   if (_titleAudioCtx && _titleAudioCtx.state === 'suspended') _titleAudioCtx.resume().catch(() => {});
@@ -1076,10 +1110,7 @@ function showTitleVideo(data) {
     titleVideo.oncanplay = null;
     titleVideo.onerror   = null;
     clearTimeout(_titleVideoLoadTimer);
-    // A broken meme file shouldn't nuke whatever was legitimately on screen
-    // underneath (a game, viz, standby) -- just drop the overlay attempt.
-    // Non-meme content still falls back to standby as before.
-    if (isMeme) { _clearMemeOverlay(); } else { showStandby(); }
+    showStandby();
   };
   clearTimeout(_titleVideoLoadTimer);
   _titleVideoLoadTimer = setTimeout(recover, 4000);
@@ -1093,15 +1124,95 @@ function showTitleVideo(data) {
     titleVideo.play().catch(recover);
     titleVideo.style.opacity = '1';
     const t = 'opacity 0.8s ease';
-    layerTitle.style.transition = t;
-    if (!isMeme) {
-      layerWalkup.style.transition    = t;
-      layerStandby.style.transition   = t;
-      layerWalkup.style.opacity       = '0';
-      layerWalkup.style.pointerEvents = 'none';
-      layerStandby.style.opacity      = '0';
-    }
+    layerTitle.style.transition  = t;
+    layerWalkup.style.transition  = t;
+    layerStandby.style.transition = t;
+    layerWalkup.style.opacity       = '0';
+    layerWalkup.style.pointerEvents = 'none';
+    layerStandby.style.opacity      = '0';
     layerTitle.style.opacity = '1';
+  };
+}
+
+// ── MEME/GRAPHIC OVERLAY -- independent layer, see #layer-meme CSS comment ──
+let _memeVideoClearTimer = null;
+let _memeLoadTimer       = null;
+let _memeAudioCtx = null, _memeGainNode = null, _memeSourceNode = null;
+function _ensureMemeAudioGraph(memeVideo) {
+  if (_memeAudioCtx) return;
+  try {
+    _memeAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    _memeSourceNode = _memeAudioCtx.createMediaElementSource(memeVideo);
+    _memeGainNode = _memeAudioCtx.createGain();
+    _memeSourceNode.connect(_memeGainNode).connect(_memeAudioCtx.destination);
+  } catch (e) { /* Web Audio unavailable — falls back to unboosted element volume */ }
+}
+
+function _showMemeImage(data) {
+  const imageUrl = data.image || '';
+  if (!imageUrl) return;
+  const memeVideo = document.getElementById('meme-video');
+  memeVideo.oncanplay = null; memeVideo.pause(); memeVideo.style.opacity = '0';
+  const seq = ++_memeSeq;
+  const img = document.getElementById('meme-img');
+  img.onload = null;
+  img.onload = () => { if (_memeSeq === seq) { img.style.opacity = '1'; layerMeme.style.opacity = '1'; } };
+  img.onerror = () => { if (_memeSeq === seq) _clearMemeOverlay(); };
+  img.src = imageUrl + '?t=' + Date.now();
+}
+
+function _showMemeVideo(data) {
+  const videoUrl = data.video || '';
+  if (!videoUrl) return;
+  const seq = ++_memeSeq;
+  document.getElementById('meme-img').style.opacity = '0';
+  clearTimeout(_memeVideoClearTimer); _memeVideoClearTimer = null;
+  const memeVideo = document.getElementById('meme-video');
+  const holdFrame  = !!data.hold;
+  memeVideo.loop    = data.loop !== undefined ? !!data.loop : !holdFrame;
+  memeVideo.muted   = (data.muted === false) ? false : true;
+  memeVideo.onended = holdFrame ? () => { memeVideo.pause(); }
+                     // The server decides what "revert" actually means --
+                     // whatever was showing before this fired -- and
+                     // re-broadcasts it once told this ended.
+                     : (!!data.auto_revert) ? () => { fetch('/api/display/meme_ended', {method:'POST'}).catch(() => {}); }
+                     : null;
+
+  _ensureMemeAudioGraph(memeVideo);
+  if (_memeAudioCtx && _memeAudioCtx.state === 'suspended') _memeAudioCtx.resume().catch(() => {});
+  if (_memeGainNode) {
+    const g = (typeof data.gain === 'number' && data.gain > 0) ? data.gain : 1.0;
+    _memeGainNode.gain.value = g;
+  }
+  memeVideo.style.opacity = '0';
+  const videoUrlBusted = videoUrl + '?t=' + Date.now();
+  if (memeVideo.src !== location.origin + videoUrl) {
+    memeVideo.src = videoUrlBusted;
+    memeVideo.load();
+  }
+
+  // Same reasoning as showTitleVideo's recover() -- a broken meme file
+  // shouldn't leave the screen stuck; just drop the overlay attempt and
+  // reveal whatever's legitimately underneath instead.
+  const recover = () => {
+    if (_memeSeq !== seq) return;
+    memeVideo.oncanplay = null;
+    memeVideo.onerror   = null;
+    clearTimeout(_memeLoadTimer);
+    _clearMemeOverlay();
+  };
+  clearTimeout(_memeLoadTimer);
+  _memeLoadTimer = setTimeout(recover, 4000);
+  memeVideo.onerror = recover;
+
+  memeVideo.oncanplay = () => {
+    if (_memeSeq !== seq) return;
+    clearTimeout(_memeLoadTimer);
+    memeVideo.oncanplay = null;
+    memeVideo.onerror   = null;
+    memeVideo.play().catch(recover);
+    memeVideo.style.opacity = '1';
+    layerMeme.style.opacity = '1';
   };
 }
 
@@ -1324,6 +1435,7 @@ function showWalkup(data) {
 
   // Fade IN — stays until next step or explicit clear
   setLayerTransition(0.8);
+  _clearMemeOverlay();
   layerStandby.style.opacity = '0';
   layerTitle.style.opacity   = '0';
   layerWalkup.style.opacity  = '1';
@@ -1342,6 +1454,7 @@ function tryLogo(itemType, id, logoFile) {
 function showStandby(fadeDurMs) {
   hideLeaderboard();
   hideSlide();
+  _clearMemeOverlay();
   standbyActive = true;
   _displaySeq++; // cancel any pending showStep image load
 
@@ -1416,6 +1529,7 @@ function showSlide(data) {
 
   const t = 'opacity .7s ease';
   [layerWalkup, layerTitle, layerStandby, layerSlide].forEach(l => l.style.transition = t);
+  _clearMemeOverlay();
   layerWalkup.style.opacity  = '0'; layerWalkup.style.pointerEvents  = 'none';
   layerTitle.style.opacity   = '0';
   layerStandby.style.opacity = '0';
@@ -1460,6 +1574,7 @@ async function showBandSlideshow(data) {
 
   const t = 'opacity .7s ease';
   [layerWalkup, layerTitle, layerStandby].forEach(l => l.style.transition = t);
+  _clearMemeOverlay();
   layerWalkup.style.opacity  = '0'; layerWalkup.style.pointerEvents = 'none';
   layerTitle.style.opacity   = '0';
   layerStandby.style.opacity = '0';
@@ -1584,6 +1699,7 @@ function blackout() {
   hideChronoOverlay();
   hideLeaderboard();
   hideSlide();
+  _clearMemeOverlay();
   standbyActive = false;
   _displaySeq++;
   const t = 'opacity 1s ease';
@@ -2207,6 +2323,7 @@ function connectWS() {
           hideGameFrame();
         } else {
           hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke();
+          _clearMemeOverlay(); // a lingering meme sits above the game iframe (z-index 40 vs 30) -- would otherwise block it
           showGameFrame(data.url);
         }
       }
