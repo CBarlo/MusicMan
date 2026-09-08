@@ -762,6 +762,11 @@ Asked for more: two further real levers, again from reading the actual firmware/
 
 None of the three commits flashed to the physical remote yet — couldn't find the device on the dev machine despite it reportedly being connected (checked `arduino-cli board list`, raw `/dev/cu.*`, and a `system_profiler` USB listing; nothing new appeared on any of them). Needs the connection itself checked (cable, port, or which machine it's actually plugged into) before any of this reaches the real hardware.
 
+Turned out to be the cable — a different one made the device show up immediately as `/dev/cu.usbserial-*`. Flashed all three commits in one pass (`arduino-cli compile --upload`), verified via the write's own hash-verification step. First boot after the auto-reset showed no visible change — ESP32-family boards don't always reset cleanly into new firmware right after a USB flash — a manual power cycle (hold power ~6s off, press again) confirmed it. Live afterward: `/api/remote/status` showed the real device reconnected at 89% battery.
+
+### M5 Remote Battery on Console
+The remote already reported its battery every heartbeat and it was already visible in Admin's System Health panel — just never on Console, which is what's actually open during a show. Added a small status row (dot + text, same pattern as the existing Projector section) to Console's left sidebar: green + percentage when connected, red + "LOW" once battery drops to 20% or below, dim + last-seen time when disconnected. No new polling — `_remote_status` was already broadcast over WS on every change; Console just needed one initial fetch plus a handler for that existing broadcast.
+
 ---
 
 *Last updated: September 2026 — Phase 22*
