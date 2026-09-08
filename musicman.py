@@ -16,6 +16,7 @@ Main Flask application. Handles:
 import os
 import sys
 import io
+import gzip
 import csv
 import re
 import base64
@@ -231,6 +232,43 @@ log.info(f"Music Man Console starting — {config['expedition']['name']}")
 # ── FLASK APP ──
 app = Flask(__name__, static_folder=str(STATIC_DIR))
 sock = Sock(app)
+
+# gzip text responses -- Console/Admin are large single-file HTML+JS pages
+# (400-700KB) and nothing was compressing them before this, so every page
+# load shipped the full uncompressed size over the Pi's own WiFi. No new
+# dependency needed (flask-compress isn't installed and this is small
+# enough not to bother) -- plain stdlib gzip on the way out, skipped for
+# anything already small, already encoded, or not a text type (so binary/
+# video/image responses, which are already compressed formats, are never
+# touched or slowed down by attempting to re-gzip them).
+_GZIP_TYPES = {'text/html', 'text/css', 'application/javascript', 'text/javascript', 'application/json'}
+@app.after_request
+def _gzip_response(response):
+    if 'gzip' not in request.headers.get('Accept-Encoding', ''):
+        return response
+    if response.content_encoding:
+        return response
+    # Content-type check BEFORE touching direct_passthrough -- static file
+    # routes (video/image assets) are served passthrough/streamed on purpose
+    # and never match _GZIP_TYPES, so they're skipped here without ever
+    # being forced into memory. musicman_ui.html/musicman_admin.html do
+    # match, and send_from_directory sets direct_passthrough on them too
+    # (Werkzeug's default for any file response, regardless of size) --
+    # that's fine to disable here since both are well under 1MB.
+    ctype = (response.content_type or '').split(';')[0].strip()
+    if ctype not in _GZIP_TYPES:
+        return response
+    if response.direct_passthrough:
+        response.direct_passthrough = False
+    data = response.get_data()
+    if len(data) < 500:
+        return response
+    compressed = gzip.compress(data, compresslevel=6)
+    response.set_data(compressed)
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers['Content-Length'] = str(len(compressed))
+    response.headers.add('Vary', 'Accept-Encoding')
+    return response
 
 if not (BASE_DIR / 'generator.py').exists():
     import logging as _logging
@@ -3180,18 +3218,21 @@ def _run_normalization(mode: str):
 # ── SERVE UI ──
 @app.route('/')
 def index():
+    # 'no-cache' (not 'no-store'): the browser is still allowed to keep a
+    # local copy, but must always ask "is this still current?" before using
+    # it -- a cheap conditional GET (send_from_directory already handles the
+    # 304 automatically via the file's own mtime) instead of re-downloading
+    # the full ~400KB page every single time Console is opened or reloaded.
+    # Never serves stale content (every load still checks first) -- just
+    # skips re-transferring the body when nothing's actually changed.
     resp = send_from_directory(STATIC_DIR, 'musicman_ui.html')
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
+    resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
     return resp
 
 @app.route('/admin')
 def admin():
     resp = send_from_directory(STATIC_DIR, 'musicman_admin.html')
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
+    resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
     return resp
 
 @app.route('/manual')
