@@ -204,10 +204,33 @@ ConnState connState = CONN_OFFLINE;
 // Short vs. long press, both resolved on release -- see handleButtons().
 const uint32_t LONG_PRESS_MS = 450;
 
-// LED (single red, GPIO10, active LOW)
+// LED (single red, GPIO10, active LOW) -- driven via LEDC PWM instead of a
+// plain digitalWrite so CONN_OK can breathe/heartbeat instead of sitting
+// solid-on. Solid-on was both harder to glance-check at a distance (a lit
+// LED and an unlit one look almost the same in bright daylight; a pulsing
+// one doesn't) and pointless steady current for an indicator nobody's
+// staring at continuously.
 #define LED_PIN 10
 unsigned long lastBlink = 0;
 bool ledOn = false;
+
+// One heartbeat cycle -- two quick pulses then a rest, like an ECG trace,
+// not a plain sine breathe. Keyframes are (ms into cycle, brightness
+// 0.0-1.0), linearly interpolated between consecutive points in
+// heartbeatBrightness(). Deliberately dim overall: even the peaks don't
+// reach full brightness, and the LED sits near-off the rest of the ~1.4s
+// cycle -- average current is a small fraction of the old always-on level.
+struct LedKeyframe { uint16_t t; float b; };
+const LedKeyframe HEARTBEAT[] = {
+  {0,    0.04f},
+  {80,   0.85f},
+  {160,  0.12f},
+  {240,  0.55f},
+  {360,  0.04f},
+  {1400, 0.04f},
+};
+const int HEARTBEAT_LEN       = sizeof(HEARTBEAT) / sizeof(HEARTBEAT[0]);
+const uint16_t HEARTBEAT_CYCLE_MS = HEARTBEAT[HEARTBEAT_LEN - 1].t;
 
 // Screen backlight power-save
 bool screenAwake = true;
@@ -244,6 +267,8 @@ void handleStepChange();
 void drawScreen();
 void drawBootLogo();
 void updateLed();
+void setLedBrightness(float brightness);
+float heartbeatBrightness(unsigned long now);
 void updateScreenSleep();
 void checkAutoPowerOff();
 void beepConfirm();
@@ -264,8 +289,8 @@ void setup() {
   M5.IMU.Init();   // M5.begin() does NOT init the MPU6886 -- without this, getAccelData() returns dead values and tilt never fires
   M5.Lcd.setRotation(3);
   M5.Lcd.fillScreen(BLACK);
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
+  ledcAttach(LED_PIN, 5000, 8);  // 5kHz, 8-bit duty -- current ESP32 core's pin-based LEDC API (no channel handle needed)
+  setLedBrightness(0.0f);  // off until connected
 
   screenBuf.createSprite(240, 135);
   screenBuf.setTextFont(1);
@@ -992,17 +1017,40 @@ void showToast(const String& msg) {
   toastUntil = millis() + 1600;
 }
 
+// brightness: 0.0 = off, 1.0 = full on. Hides the active-LOW inversion --
+// LEDC duty is "how much of the cycle the pin spends HIGH", and HIGH is off
+// for this LED, so full brightness is duty 0, not duty 255.
+void setLedBrightness(float brightness) {
+  brightness = constrain(brightness, 0.0f, 1.0f);
+  uint32_t duty = (uint32_t)((1.0f - brightness) * 255.0f);
+  ledcWrite(LED_PIN, duty);
+}
+
+float heartbeatBrightness(unsigned long now) {
+  uint16_t t = now % HEARTBEAT_CYCLE_MS;
+  for (int i = 0; i < HEARTBEAT_LEN - 1; i++) {
+    if (t >= HEARTBEAT[i].t && t <= HEARTBEAT[i + 1].t) {
+      float span = HEARTBEAT[i + 1].t - HEARTBEAT[i].t;
+      float frac = span > 0 ? (t - HEARTBEAT[i].t) / span : 0;
+      return HEARTBEAT[i].b + (HEARTBEAT[i + 1].b - HEARTBEAT[i].b) * frac;
+    }
+  }
+  return HEARTBEAT[0].b;
+}
+
 void updateLed() {
   unsigned long now = millis();
   switch (connState) {
     case CONN_OK:
-      digitalWrite(LED_PIN, LOW);
+      setLedBrightness(heartbeatBrightness(now));
       break;
+    // Reconnecting/offline stay full on/off blinks, not dimmed -- these mean
+    // something's actually wrong and need to read as unmissable, not calm.
     case CONN_RECONNECTING:
-      if (now - lastBlink > 250) { lastBlink = now; ledOn = !ledOn; digitalWrite(LED_PIN, ledOn ? LOW : HIGH); }
+      if (now - lastBlink > 250) { lastBlink = now; ledOn = !ledOn; setLedBrightness(ledOn ? 1.0f : 0.0f); }
       break;
     case CONN_OFFLINE:
-      if (now - lastBlink > 500) { lastBlink = now; ledOn = !ledOn; digitalWrite(LED_PIN, ledOn ? LOW : HIGH); }
+      if (now - lastBlink > 500) { lastBlink = now; ledOn = !ledOn; setLedBrightness(ledOn ? 1.0f : 0.0f); }
       break;
   }
 }
