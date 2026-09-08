@@ -3102,16 +3102,24 @@ function _drawCrowd() {
   const _rate  = _diff > 0 ? 0.75 : 1.5;
   const _alpha = 1 - Math.exp(-_rate * _dt);
   _crowdSmoothed += _diff * _alpha;
-  // Gentle needle wavering near target, like a real gauge -- deliberately kept
-  // to a hard +/-3 percentage-point ceiling (0.02 + 0.01 = 0.03 max, since each
-  // sin() term is bounded to [-1,1] on its own): the two terms are never in
-  // phase for long, but even in the worst case the combined wobble can't
-  // exceed 3% of the 0-100 scale away from wherever the slider is actually set.
+  // Gentle needle wavering near target, like a real gauge -- a hard +/-3
+  // percentage-point ceiling (0.02 + 0.01 = 0.03 max, since each sin() term
+  // is bounded to [-1,1] on its own). This MUST be a fresh offset added only
+  // at the point lv is computed, never folded back into _crowdSmoothed
+  // itself -- _crowdSmoothed persists frame to frame, so adding a sine
+  // sample directly into it every frame doesn't oscillate around the target,
+  // it accumulates (summing sine samples over time is a drift/random-walk,
+  // not a bounded wobble). That accumulation bug was already in the original
+  // wavering code at tiny amplitude (barely noticeable); bumping the
+  // amplitude for the "+/-3%" ask made the drift ~3x faster and turned it
+  // into the reported wild swing on the HDMI gauge (31% drifting to 39/23).
+  // Confirmed live 2026-09-07.
+  let _wobble = 0;
   if (Math.abs(_diff) < 0.06 && _crowdTarget > 0) {
     const _t = _now / 1000;
-    _crowdSmoothed += 0.02 * Math.sin(_t * 0.7) + 0.01 * Math.sin(_t * 1.9 + 1.2);
+    _wobble = 0.02 * Math.sin(_t * 0.7) + 0.01 * Math.sin(_t * 1.9 + 1.2);
   }
-  const lv = Math.max(0, Math.min(1, _crowdSmoothed));
+  const lv = Math.max(0, Math.min(1, _crowdSmoothed + _wobble));
 
   _climaxFrame   = 0;
   _lightningArcs.length = 0;
