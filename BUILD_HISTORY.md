@@ -742,7 +742,16 @@ Direct follow-up, found live: crowd level set to 31%, the HDMI gauge seen swingi
 Fixed by computing the wobble as a fresh offset every frame (from wall-clock time, never folded back into `_crowdSmoothed`) and adding it only at the point the final on-screen level is computed. `_crowdSmoothed` itself now purely tracks the exponential approach to target with zero noise mixed in, so it converges and holds still; the wobble genuinely oscillates within ±3% of wherever it lands, indefinitely, instead of wandering away from it. Traced and fixed via direct code/math reading rather than live re-testing, per explicit instruction mid-session to stop verifying through the browser tool and just read the code.
 
 ### Crowd Slider Tick Marks
-Console's manual crowd slider gained tick marks with percent labels (10-90) positioned above the track — a small, purely visual request, done in two passes after the first attempt put the ticks on the track instead of over it.
+Console's manual crowd slider gained tick marks with percent labels (10-90) positioned above the track — a small, purely visual request, done in two passes after the first attempt put the ticks on the track instead of over it, then a second pass after the labels themselves rendered off-screen behind the pole meter row (two negative CSS offsets compounding instead of one clean anchor).
+
+### Console/Admin Page Load Speed
+Reported: both pages "feel like they take forever to load and populate." Two real, measured causes, not guesses — nothing was compressing responses (Console is 409KB, Admin 675KB, shipped raw on every load) and `Cache-Control` included `no-store`, which blocks the browser from keeping any local copy at all, so every single page open re-downloaded the full file from scratch even when nothing had changed.
+
+Added a small gzip `after_request` hook (stdlib only, no new dependency) for html/css/js/json responses — had to explicitly disable `direct_passthrough` for the two page routes specifically, since Werkzeug sets that by default on any `send_from_directory` response regardless of size, which silently skips the gzip step entirely rather than erroring (caught by actually measuring the response, not assuming the fix worked). Confirmed live: Console 409KB → 153KB (63% smaller), Admin 675KB → 133KB (80% smaller).
+
+Dropped `no-store` from both pages' cache headers (kept `no-cache, must-revalidate`, so a stale copy is never served without checking first — doesn't reopen the staleness class of issue the kiosk-reload problem was about, since every load still revalidates). `send_from_directory` already supports conditional GET via the file's mtime for free. Confirmed live: a repeat load with `If-Modified-Since` now returns 304 in ~65ms transferring zero bytes, instead of a full re-download.
+
+Deliberately left alone: Console's WebSocket connection currently waits for all 7 grid-population calls to finish before connecting, which delays live state sync but isn't itself why the grids feel slow to populate — reordering it safely would need more care (some initial state-sync logic assumes those grids already exist in the DOM) than was worth rushing into on a live show control surface.
 
 ---
 
