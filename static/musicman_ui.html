@@ -356,6 +356,14 @@
         <span class="vol-val" id="brightVal">75%</span>
       </div>
 
+      <div style="margin-top:16px">
+        <div class="section-label" style="display:flex;align-items:center;gap:6px">
+          <span id="remoteDot" style="width:7px;height:7px;border-radius:50%;background:var(--text-dim);flex-shrink:0"></span>
+          M5 REMOTE
+        </div>
+        <div id="remoteStatusText" style="font-size:10px;color:var(--text-dim);letter-spacing:0.5px;margin:4px 0 8px">—</div>
+      </div>
+
       <div id="projSection" style="display:none;margin-top:16px">
         <div class="section-label" style="display:flex;align-items:center;gap:6px">
           <span id="projDot" style="width:7px;height:7px;border-radius:50%;background:var(--text-dim);flex-shrink:0"></span>
@@ -4146,6 +4154,30 @@ function projConsoleLaunch() {
 loadProjectorStatus();
 setInterval(loadProjectorStatus, 10000);
 
+// ── M5 REMOTE STATUS ────────────────────────────────────────────────────────
+// Battery + connection already flow over the WS on every change (see
+// _set_remote_status in musicman.py) -- no polling loop needed here, just a
+// one-time fetch for whatever's already true before this page's own WS
+// connection opens, then _renderRemoteStatus keeps it live from there.
+const REMOTE_LOW_BATTERY_PCT = 20;
+function _renderRemoteStatus(s) {
+  const dot  = document.getElementById('remoteDot');
+  const text = document.getElementById('remoteStatusText');
+  if (!dot || !text) return;
+  const lowBatt = s.connected && s.battery_pct != null && s.battery_pct <= REMOTE_LOW_BATTERY_PCT;
+  dot.style.background = !s.connected ? 'var(--text-dim)'
+                        : lowBatt     ? '#e74c3c'
+                                      : 'var(--green,#3cb96a)';
+  if (s.connected) {
+    text.textContent = 'Connected' + (s.battery_pct != null ? ' · ' + s.battery_pct + '%' + (lowBatt ? ' — LOW' : '') : '');
+    text.style.color = lowBatt ? '#e74c3c' : 'var(--text-dim)';
+  } else {
+    text.textContent = s.last_seen ? 'Last seen ' + new Date(s.last_seen * 1000).toLocaleTimeString() : 'Never connected';
+    text.style.color = 'var(--text-dim)';
+  }
+}
+fetch('/api/remote/status').then(r => r.json()).then(_renderRemoteStatus).catch(() => {});
+
 Promise.all([
   buildShowFlowGrid(), buildWalkupGrid(), buildRolesGrid(),
   buildSfxGrid(), buildMacroGrid(), buildSceneGrid(), buildDisplayGrid()
@@ -4581,6 +4613,8 @@ function initWebSocket() {
         _crowdMode = data.mode || 'manual';
         crowdUpdateModeUI();
       }
+
+      else if (event === 'remote_status') { _renderRemoteStatus(data); }
 
       else if (event === 'viz_show') { vizConsoleUpdateStatus(data.scene); }
       else if (event === 'viz_hide') {
