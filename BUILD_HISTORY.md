@@ -734,6 +734,16 @@ Fixed by giving memes a genuinely independent layer (`#layer-meme`, its own imag
 
 Verified live end-to-end: fired a role logo, fired a video meme over it (confirmed via direct DOM inspection that the logo's image element was completely untouched the whole time), let it auto-revert on its own — logo still there. Repeated with an image meme and the actual reported interaction (clicking the same meme again to dismiss it) — same result, confirmed via DOM state and a real screenshot.
 
+**Real deploy-process gap found alongside this**: the fix looked airtight in testing but Chris reproduced the exact same bug live shortly after. Root cause wasn't the code — the kiosk's chromium process had been running continuously since *before* the fix was even written, so it was still showing the stale page the whole time; `scp`-ing a static HTML file doesn't reload an already-open kiosk tab. Restarting `musicman-display.service` picked it up correctly. **New standing rule going forward: every `static/*.html` deploy is followed by a `musicman-display` restart, no exceptions** — a passed browser-tool test (always a fresh page load) doesn't prove the live kiosk actually has the fix.
+
+### Crowd Gauge Wobble — the +/-3% Fix Itself Was Buggy
+Direct follow-up, found live: crowd level set to 31%, the HDMI gauge seen swinging 23-39% — far more than the ±3% ceiling the wobble-cap fix (above, same session) was supposed to guarantee. Root cause: the needle wavering added its sine offset directly into `_crowdSmoothed` every frame (`_crowdSmoothed += sin(...)`), but `_crowdSmoothed` is a persistent value carried frame to frame — summing sine samples into a persistent accumulator over time is a drift/random-walk, not a bounded oscillation. This bug was already latent in the *original* code, just unnoticeable at its tiny original amplitude (under 1%); raising the amplitude for the ±3% ask made the drift roughly 3x faster and turned a barely-visible quirk into a real, reported swing.
+
+Fixed by computing the wobble as a fresh offset every frame (from wall-clock time, never folded back into `_crowdSmoothed`) and adding it only at the point the final on-screen level is computed. `_crowdSmoothed` itself now purely tracks the exponential approach to target with zero noise mixed in, so it converges and holds still; the wobble genuinely oscillates within ±3% of wherever it lands, indefinitely, instead of wandering away from it. Traced and fixed via direct code/math reading rather than live re-testing, per explicit instruction mid-session to stop verifying through the browser tool and just read the code.
+
+### Crowd Slider Tick Marks
+Console's manual crowd slider gained tick marks with percent labels (10-90) positioned above the track — a small, purely visual request, done in two passes after the first attempt put the ticks on the track instead of over it.
+
 ---
 
 *Last updated: September 2026 — Phase 22*
