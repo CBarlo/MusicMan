@@ -4502,8 +4502,34 @@ def _prewarm_display_thumbs():
             log.warning(f"Thumbnail prewarm failed for {f.name!r}: {e}")
     log.info(f"Display thumbnail prewarm complete: {warmed} file(s) checked/generated")
 
+def _prewarm_walkup_stills():
+    """Same idea as _prewarm_display_thumbs, for circle/role walk-up stills --
+    _generate_walkup_still() already skips anything already current, so this
+    is just walking every circle/role once at boot instead of leaving the
+    first Console tab open on each one (or the first live fire of its still)
+    to pay the ffmpeg cost. Sequential on purpose, same CPU-contention
+    reasoning as the display-thumb prewarm."""
+    cfg = load_config()
+    warmed = 0
+    for item_type, key in (('circle', 'circles'), ('role', 'roles')):
+        for item in cfg.get(key, []):
+            try:
+                if _generate_walkup_still(item_type, item):
+                    warmed += 1
+            except Exception as e:
+                log.warning(f"Walk-up still prewarm failed for {item_type} {item.get('id')!r}: {e}")
+    log.info(f"Walk-up still prewarm complete: {warmed} file(s) checked/generated")
+
 def _start_display_thumb_prewarm():
-    threading.Thread(target=_prewarm_display_thumbs, daemon=True, name='thumb-prewarm').start()
+    # Chained in one thread, not two separate ones -- both are sequential
+    # ffmpeg work by design (see _prewarm_display_thumbs' own comment on why
+    # concurrent ffmpeg calls on this Pi just serialize anyway rather than
+    # actually running in parallel), so two competing prewarm threads would
+    # only fight each other for the same CPU instead of finishing faster.
+    def _run_both():
+        _prewarm_display_thumbs()
+        _prewarm_walkup_stills()
+    threading.Thread(target=_run_both, daemon=True, name='thumb-prewarm').start()
 
 @app.route('/api/admin/display-logo', methods=['GET'])
 def api_display_logo_get():
