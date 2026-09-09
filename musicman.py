@@ -3061,6 +3061,18 @@ def end_karaoke(show_standby=True):
 # ════════════════════════════════════════════
 
 _NORM_EXTS = {'.mp3', '.wav', '.wave', '.ogg', '.flac', '.aac', '.m4a'}
+
+def _has_audio_stream(fp: Path) -> bool:
+    try:
+        r = subprocess.run(
+            ['ffprobe', '-v', 'error', '-select_streams', 'a',
+             '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', str(fp)],
+            capture_output=True, text=True, timeout=10,
+        )
+        return bool(r.stdout.strip())
+    except Exception:
+        return False
+
 _normalize_state = {
     'running':  False,
     'done':     0,
@@ -3071,21 +3083,41 @@ _normalize_state = {
 }
 
 def _normalize_file_2pass(fp: Path):
-    """Two-pass EBU R128 normalization to -14 LUFS. Overwrites file in-place."""
+    """Two-pass EBU R128 normalization to -14 LUFS. Overwrites file in-place.
+    For a walk-up video (its own embedded audio, MUTE VIDEO unchecked), the
+    video stream is passed through byte-identical (-c:v copy) -- only the
+    audio track is touched, exactly like every other file normalized here."""
     ext = fp.suffix.lower()
+    is_video = ext in _VIDEO_EXTS_PY
 
-    # Pass 1 — measure loudness
+    # Pass 1 — measure loudness. errors='replace': ffmpeg echoes a file's own
+    # metadata (artist/comment tags, etc.) into its stderr output verbatim --
+    # confirmed live 2026-09-09 as a real crash, not theoretical: a SFX file
+    # with a Latin-1 '©' byte in its tag made text=True's default UTF-8
+    # decode raise UnicodeDecodeError and fail the whole normalize for that
+    # file. Only affects this diagnostic text capture, never the actual
+    # audio processing.
     r1 = subprocess.run(
         ['ffmpeg', '-nostdin', '-i', str(fp),
          '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json',
          '-f', 'null', '-'],
-        capture_output=True, text=True
+        capture_output=True, text=True, errors='replace'
     )
     idx_start = r1.stderr.rfind('{')
     idx_end   = r1.stderr.rfind('}')
     if idx_start == -1 or idx_end == -1 or idx_end < idx_start:
         raise RuntimeError(f"loudnorm pass 1 produced no JSON for {fp.name}")
     stats = json.loads(r1.stderr[idx_start:idx_end + 1])
+
+    # A track with a technically-present but silent/empty audio track (real
+    # case found live 2026-09-09: a walk-up video with an AAC stream that
+    # contains no actual signal) measures as -inf -- loudnorm's measured_I
+    # only accepts a real dB value, so feeding it -inf into pass 2 would
+    # error. Nothing meaningful to normalize on true silence anyway -- skip
+    # cleanly rather than letting it surface as a normalize failure.
+    if stats.get('input_i') in ('-inf', 'inf', 'nan') or stats.get('target_offset') in ('inf', '-inf', 'nan'):
+        log.info(f"Normalize: {fp.name} has no measurable audio (silent track) — skipped")
+        return
 
     # Pass 2 — apply linear normalization
     af2 = (
@@ -3096,18 +3128,23 @@ def _normalize_file_2pass(fp: Path):
         f"measured_thresh={stats['input_thresh']}:"
         f"offset={stats['target_offset']}"
     )
-    codec = {
-        '.mp3':  ['-c:a', 'libmp3lame', '-q:a', '2'],
-        '.wav':  ['-c:a', 'pcm_s16le'],
-        '.wave': ['-c:a', 'pcm_s16le'],
-    }.get(ext, [])
+    if is_video:
+        codec = ['-map', '0:v:0', '-map', '0:a:0', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k']
+        rate_args = []  # leave the video's own native audio sample rate alone
+    else:
+        codec = {
+            '.mp3':  ['-c:a', 'libmp3lame', '-q:a', '2'],
+            '.wav':  ['-c:a', 'pcm_s16le'],
+            '.wave': ['-c:a', 'pcm_s16le'],
+        }.get(ext, [])
+        rate_args = ['-ar', '44100']
 
     tmp = fp.with_suffix('.normalizing' + ext)
     try:
         subprocess.run(
             ['ffmpeg', '-nostdin', '-y', '-i', str(fp),
-             '-af', af2, '-ar', '44100'] + codec + [str(tmp)],
-            capture_output=True, text=True, check=True
+             '-af', af2] + rate_args + codec + [str(tmp)],
+            capture_output=True, text=True, errors='replace', check=True
         )
         tmp.replace(fp)
     except Exception:
@@ -3122,7 +3159,13 @@ def _collect_norm_files(mode: str) -> list:
 
     def _add(f: Path):
         key = str(f)
-        if key in seen or f.name.startswith('._'):
+        # '.normalizing.' is _normalize_file_2pass's own in-progress temp-file
+        # marker (see tmp = fp.with_suffix('.normalizing' + ext)) -- a file
+        # matching this pattern is never a real source to normalize, whether
+        # it's a leftover from some past run that never got cleaned up or
+        # transient from this one. Confirmed live 2026-09-09: exactly this
+        # shape surfaced as a real (harmless) error mid-run.
+        if key in seen or f.name.startswith('._') or '.normalizing.' in f.name:
             return
         seen.add(key)
         if cutoff == 0 or f.stat().st_mtime > cutoff:
@@ -3139,7 +3182,19 @@ def _collect_norm_files(mode: str) -> list:
     for d in local_dirs:
         if d.exists():
             for f in sorted(d.iterdir()):
-                if f.is_file() and f.suffix.lower() in _NORM_EXTS:
+                if not f.is_file():
+                    continue
+                if f.suffix.lower() in _NORM_EXTS:
+                    _add(f)
+                # A walk-up video's own embedded audio (MUTE VIDEO unchecked)
+                # never went through any loudness pass before -- confirmed
+                # live 2026-09-09 as a real, reported mismatch walkup to
+                # walkup, since every other audio source here gets leveled
+                # but these were left at whatever the source video happened
+                # to have. Only videos that actually carry an audio track --
+                # most walkup videos are silent/muted and have none at all,
+                # so probing first avoids running loudnorm against nothing.
+                elif f.suffix.lower() in _VIDEO_EXTS_PY and _has_audio_stream(f):
                     _add(f)
 
     # Karaoke: instrumental + vocals only -- these are the tracks actually
