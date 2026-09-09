@@ -769,6 +769,11 @@ Asked directly: Console screens take a long time to load, can they preload at bo
 
 Confirmed live: completed in ~80s for 17 circles/roles after a restart (chained after the ~2s display-thumb prewarm), all logged. Note for future debugging: `musicman.log` has picked up some binary content somewhere along the way that makes plain `grep` silently treat it as a binary file and suppress matches with no error — always grep it with `-a` from now on.
 
+### Circle/Role Walkup Videos Can Play Their Own Audio Now
+Asked directly: one walkup video has its own sound baked in — does that already work, or does the audio need separating out into a walkup_music file? Turned out the mechanism already existed, just wasn't wired all the way through. `display.html`'s `showWalkup()` already reads a `muted` flag off the walkup payload and applies it to the video element, and Game Entries already had a real "MUTE VIDEO (uncheck to play its own audio)" checkbox in Admin driving it — Circles and Roles never got the same checkbox, and `fire_walkup()`'s own payload never included the field at all, so their videos were unconditionally muted with no way to override.
+
+Added the identical checkbox to both Circle and Role editors, and added the missing field to `fire_walkup()`'s payload — copying the Game Entry path's already-working pattern exactly. Existing circles/roles are unaffected (still default to muted).
+
 ### M5 Remote Battery on Console
 The remote already reported its battery every heartbeat and it was already visible in Admin's System Health panel — just never on Console, which is what's actually open during a show. Added a small status row (dot + text, same pattern as the existing Projector section) to Console's left sidebar: green + percentage when connected, red + "LOW" once battery drops to 20% or below, dim + last-seen time when disconnected. No new polling — `_remote_status` was already broadcast over WS on every change; Console just needed one initial fetch plus a handler for that existing broadcast.
 
