@@ -8949,8 +8949,13 @@ async function loadShowFlowTemplates() {
     el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;letter-spacing:2px;font-family:\'Share Tech Mono\',monospace">NO SAVED FLOWS YET</div>';
     return;
   }
-  el.innerHTML = _showFlowTemplates.map(t => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;margin-bottom:6px">
+  // Auto-backups (see api_show_flow_templates_load) sort to the top -- the
+  // one you'd want after an oops-wrong-template click is always the most
+  // recent one, not buried under whatever's alphabetically/insertion-first.
+  const sorted = [..._showFlowTemplates].sort((a, b) => (b.auto?1:0) - (a.auto?1:0));
+  el.innerHTML = sorted.map(t => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border:1px solid ${t.auto ? 'var(--amber-dim)' : 'var(--border)'};border-radius:7px;margin-bottom:6px">
+      ${t.auto ? '<span style="font-size:9px;font-weight:800;letter-spacing:1px;color:var(--amber);background:var(--amber-dim);padding:2px 6px;border-radius:4px;flex-shrink:0">AUTO</span>' : ''}
       <div style="flex:1;font-size:13px;font-weight:700;color:var(--text);letter-spacing:.5px">${escHtml(t.name)}</div>
       <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;font-family:'Share Tech Mono',monospace;white-space:nowrap">${(t.steps||[]).length} STEPS</div>
       <button onclick="loadShowFlowTemplate('${escHtml(t.id)}')" style="padding:5px 10px;border-radius:5px;border:1px solid var(--amber-dim);background:var(--amber-dim);color:var(--amber);font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Barlow Condensed',sans-serif">⤓ LOAD</button>
@@ -8975,7 +8980,7 @@ async function saveShowFlowTemplate() {
 }
 
 async function loadShowFlowTemplate(id) {
-  if (!confirm('Replace the current show flow with this template?')) return;
+  if (!confirm('Replace the current show flow with this template? (Whatever\'s live now gets auto-saved first, so this is safe to undo.)')) return;
   try {
     const r = await fetch(`/api/admin/show_flow_templates/${id}/load`, { method: 'POST' });
     if ((await r.json()).ok) { toast('FLOW LOADED', 'ok'); await loadShowFlow(); }

@@ -9394,12 +9394,37 @@ def api_show_flow_templates_delete(tid):
     save_config(cfg)
     return jsonify({'ok': True})
 
+_SHOW_FLOW_AUTO_BACKUP_KEEP = 10
+
 @app.route('/api/admin/show_flow_templates/<tid>/load', methods=['POST'])
 def api_show_flow_templates_load(tid):
     cfg = load_config()
     tmpl = next((t for t in cfg.get('show_flow_templates', []) if t['id'] == tid), None)
     if not tmpl:
         return jsonify({'ok': False, 'error': 'not found'}), 404
+    # This used to be a silent, unconditional full replace of the live show
+    # flow -- confirmed live 2026-09-09: loading an old template wiped out a
+    # step added since that template was saved, with no trace of it left
+    # anywhere and no way to recover it except reconstructing it by hand.
+    # Auto-snapshot whatever's live right now, under its own clearly-tagged
+    # entry in the same template list, before ever overwriting it -- the
+    # previous state is always one more "Load Template" click away instead
+    # of gone. Capped so this list doesn't grow forever across a season of
+    # normal template-switching.
+    current = cfg.get('show_flow', [])
+    if current:
+        templates = cfg.setdefault('show_flow_templates', [])
+        stamp = datetime.datetime.now().strftime('%b %-d, %-I:%M %p')
+        templates.append({
+            'id':    f'sft_auto_{int(time.time() * 1000)}',
+            'name':  f'Auto-backup before loading "{tmpl.get("name", "?")}" — {stamp}',
+            'steps': current,
+            'auto':  True,
+        })
+        autos = [t for t in templates if t.get('auto')]
+        if len(autos) > _SHOW_FLOW_AUTO_BACKUP_KEEP:
+            drop = {t['id'] for t in autos[:-_SHOW_FLOW_AUTO_BACKUP_KEEP]}
+            cfg['show_flow_templates'] = [t for t in templates if t['id'] not in drop]
     cfg['show_flow'] = tmpl.get('steps', [])
     save_config(cfg)
     return jsonify({'ok': True})
