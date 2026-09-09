@@ -2460,6 +2460,7 @@ def fire_walkup(circle_id=None, role_id=None, show_flow_idx=None):
         'animation':       _versioned_walkup_file(_walkup_dir, item['id'], item.get('assets', {}).get('animation',       '')),
         'animation_intro': _versioned_walkup_file(_walkup_dir, item['id'], item.get('assets', {}).get('animation_intro', '')),
         'hide_name':       walkup_cfg.get('hide_name', False),
+        'muted':           walkup_cfg.get('muted', True),  # same mute/own-audio toggle game entries already had
     }
     next_preload = _get_next_walkup_preload(cfg, show_flow_idx)
     if next_preload:

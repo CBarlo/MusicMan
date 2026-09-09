@@ -443,6 +443,10 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                 <input type="checkbox" id="c-hide-name" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
                 <label for="c-hide-name" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">HIDE NAME WHEN ANIMATION PLAYS</label>
               </div>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="c-muted" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+                <label for="c-muted" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">MUTE VIDEO (uncheck to play its own audio)</label>
+              </div>
 
               <div class="section-divider"></div>
 
@@ -616,6 +620,10 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
                 <input type="checkbox" id="r-hide-name" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
                 <label for="r-hide-name" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">HIDE NAME WHEN ANIMATION PLAYS</label>
+              </div>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="r-muted" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+                <label for="r-muted" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">MUTE VIDEO (uncheck to play its own audio)</label>
               </div>
 
               <div class="section-divider"></div>
@@ -2775,6 +2783,7 @@ function populateCircleEditor(id) {
   document.getElementById('c-vol-trim').value = cVolTrim;
   document.getElementById('c-vol-trim-val').textContent = cVolTrim + '%';
   document.getElementById('c-hide-name').checked = wu.hide_name || false;
+  document.getElementById('c-muted').checked = wu.muted !== false;
   document.getElementById('c-walkup-scene').value = wu.walkup_scene || '';
   document.getElementById('c-stage-scene').value  = wu.stage_scene  || '';
   const assets = c.assets || {};
@@ -3094,6 +3103,7 @@ async function saveCircle() {
       fade_duration: parseFloat(document.getElementById('c-fade').value)     || 3,
       volume_trim:   parseInt(document.getElementById('c-vol-trim').value)   || 100,
       hide_name:     document.getElementById('c-hide-name').checked,
+      muted:         document.getElementById('c-muted').checked,
       walkup_scene:  document.getElementById('c-walkup-scene').value || null,
       stage_scene:   document.getElementById('c-stage-scene').value  || null,
     }
@@ -3251,6 +3261,7 @@ function populateRoleEditor(id) {
   document.getElementById('r-vol-trim').value = rVolTrim;
   document.getElementById('r-vol-trim-val').textContent = rVolTrim + '%';
   document.getElementById('r-hide-name').checked = wu.hide_name || false;
+  document.getElementById('r-muted').checked = wu.muted !== false;
   document.getElementById('r-walkup-scene').value = wu.walkup_scene || '';
   document.getElementById('r-stage-scene').value  = wu.stage_scene  || '';
   const assets = r.assets || {};
@@ -3313,6 +3324,7 @@ async function saveRole() {
       fade_duration: parseFloat(document.getElementById('r-fade').value)     || 3,
       volume_trim:   parseInt(document.getElementById('r-vol-trim').value)   || 100,
       hide_name:     document.getElementById('r-hide-name').checked,
+      muted:         document.getElementById('r-muted').checked,
       walkup_scene:  document.getElementById('r-walkup-scene').value || null,
       stage_scene:   document.getElementById('r-stage-scene').value  || null,
     }
