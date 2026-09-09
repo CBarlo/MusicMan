@@ -707,7 +707,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
           <span style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--text-dim)">◉ VOLUME NORMALIZATION</span>
           <span id="norm-last-run" style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">NEVER RUN</span>
         </div>
-        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px">Covers everything actually played live: Music library, SFX, Circle/Role/Game Entry walkup audio, and Karaoke instrumental + vocal tracks. Karaoke's preview-only ORIGINAL SONG is skipped on purpose — it's never played during the show.</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px">Covers everything actually played live: Music library, SFX, Circle/Role/Game Entry walkup audio (including a walkup video's own embedded audio, if MUTE VIDEO is unchecked — only its audio track is touched, the video itself is untouched), and Karaoke instrumental + vocal tracks. Karaoke's preview-only ORIGINAL SONG is skipped on purpose — it's never played during the show.</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <button id="norm-all-btn" class="btn btn-secondary" style="flex:1;font-size:11px;letter-spacing:1px" onclick="startNormalize('all')">⚡ NORMALIZE ALL</button>
           <button id="norm-new-btn" class="btn btn-secondary" style="flex:1;font-size:11px;letter-spacing:1px" onclick="startNormalize('new')">✦ NORMALIZE NEW <span id="norm-new-badge" style="display:none"></span></button>
