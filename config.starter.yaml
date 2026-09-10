@@ -4,11 +4,11 @@
 # Add circles, roles, macros, and scenes through the Admin UI after first launch
 
 audio:
-  default_volume: 80
+  default_volume: 20
   fade_duration: 4
   playlist_volume: 70
   preload_all: false
-  sfx_volume: 90
+  sfx_volume: 30
   walkup_fade: 3
 
 display:
