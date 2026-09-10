@@ -7202,35 +7202,6 @@ def _get_next_walkup_preload(cfg, idx):
         return _get_next_walkup_preload(cfg, idx + 1)
     return None
 
-def _get_next_title_video_preload(cfg, idx):
-    """Return a title_video_preload payload for the first display_anim step in
-    the macro at show_flow[idx+1], if any -- same lead-time idea as
-    _get_next_walkup_preload above, but for macro-triggered title videos
-    (showTitleVideo on the display side) instead of circle/role walkups.
-    Confirmed live as the cause of the Crowd Cheer Meter -> Hype Video
-    transition being choppy/intermittent on both HDMI and the projector:
-    that video previously cold-loaded the instant its macro step fired,
-    racing the Pi's video-decode memory (CMA) with zero lead time. Firing
-    this unconditionally for every step type (like the walkup one) means any
-    step followed by a display_anim macro gets warmed, not just this one."""
-    if idx is None:
-        return None
-    flow = cfg.get('show_flow', [])
-    if idx + 1 >= len(flow):
-        return None
-    nxt = flow[idx + 1]
-    if nxt.get('type', 'macro') != 'macro':
-        return None
-    macro_id  = nxt.get('macro_id', '')
-    macros    = {m['id']: m for m in cfg.get('macros', [])}
-    macro_obj = macros.get(macro_id)
-    if not macro_obj:
-        return None
-    for step in macro_obj.get('steps', []):
-        if step.get('action') == 'display_anim' and step.get('file'):
-            return {'video': f"/assets/display/{step['file']}", 'muted': step.get('muted', True)}
-    return None
-
 
 @app.route('/api/show/fire')
 def api_show_fire():
@@ -7263,13 +7234,6 @@ def api_show_fire():
     next_preload = _get_next_walkup_preload(cfg, idx)
     if next_preload:
         broadcast('walkup_preload', next_preload)
-    # Same lead-time warming, for the macro-triggered "title video" case
-    # (see _get_next_title_video_preload) -- e.g. the Crowd Cheer Meter step
-    # warms up the Hype Video's file while the meter is still running, well
-    # before the operator advances to that step for real.
-    next_title_preload = _get_next_title_video_preload(cfg, idx)
-    if next_title_preload:
-        broadcast('title_video_preload', next_title_preload)
     # Cancel whatever's currently running (a looping macro especially) before firing
     # this step — a walkup/game/vs_card advance used to leave a looping macro like
     # Announcements Loop completely unaware anything else had fired, so its next

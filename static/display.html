@@ -949,10 +949,7 @@ fetch('/api/preload_assets').then(r => r.json()).then(d => preloadAssets(d.urls)
 // triggers a synchronous GC freeze of ~7s if the element has decoded video in memory.
 let _titleVideoClearTimer = null;
 let _titleVideoLoadTimer  = null;
-let _titleBusy = false;   // true from the moment showTitleVideo commits until the title layer is torn down
 function _resetTitleVideo() {
-  _titleBusy = false;
-  _titlePreload = null;   // any warm preload on this element is stale once we're tearing it down
   clearTimeout(_titleVideoLoadTimer); _titleVideoLoadTimer = null;
   const v = document.getElementById('title-video');
   v.oncanplay = null; v.onerror = null; v.pause(); v.style.opacity = '0';
@@ -1063,49 +1060,6 @@ function _clearMemeOverlay() {
   if (memeVideo) memeVideo.pause();
 }
 
-// Warm a macro's upcoming display_anim video (e.g. the Hype Video) into the
-// title-video element well before it actually fires -- same idea as the
-// walkup preloader's warm elements, but for showTitleVideo's cold-load path,
-// which never had one. title-video is otherwise idle whenever this signal
-// arrives (nothing else uses it while, say, the Crowd Cheer Meter's canvas
-// viz is up), so there's no swap-in-a-parallel-element complexity needed:
-// just warm the real element directly, actually play()+pause() it once
-// (not just .load(), which on this Pi often only buffers metadata, not real
-// decoded frames) to force the hardware decoder to actually spin up and
-// claim its CMA buffers *now*, while there's time to spare, instead of at
-// the exact moment the show needs it. If a real video shows in the
-// meantime, this gets silently discarded and showTitleVideo falls back to
-// its normal cold-load path -- no worse than before.
-let _titlePreload = null; // { video, bustedSrc, ready }
-function preloadTitleVideo(data) {
-  const videoUrl = (data && data.video) || '';
-  if (!videoUrl) return;
-  const titleVideo = document.getElementById('title-video');
-  // Never touch the real title-video element while it's in use OR mid-load.
-  // _titleBusy covers the whole load-through-teardown window; the opacity and
-  // load-timer checks are belt-and-suspenders.
-  if (_titleBusy) return;
-  if (parseFloat(layerTitle.style.opacity || '0') > 0) return;
-  if (_titleVideoLoadTimer) return;
-  if (_titlePreload && _titlePreload.video === videoUrl) return; // already warming/warmed this exact one
-  const bustedSrc = videoUrl + '?t=' + Date.now();
-  _titlePreload = { video: videoUrl, bustedSrc, ready: false };
-  titleVideo.loop  = false;
-  titleVideo.muted = true; // force muted during the silent warm-up regardless of the eventual real setting
-  titleVideo.onended = null;
-  titleVideo.onerror  = () => { if (_titlePreload && _titlePreload.video === videoUrl) _titlePreload = null; };
-  titleVideo.oncanplay = () => {
-    titleVideo.oncanplay = null;
-    titleVideo.play().then(() => {
-      titleVideo.pause();
-      try { titleVideo.currentTime = 0; } catch (e) {}
-      if (_titlePreload && _titlePreload.video === videoUrl) _titlePreload.ready = true;
-    }).catch(() => {});
-  };
-  titleVideo.src = bustedSrc;
-  titleVideo.load();
-}
-
 function showTitleVideo(data) {
   const videoUrl = data.video || '';
   if (!videoUrl) return;
@@ -1115,7 +1069,6 @@ function showTitleVideo(data) {
   // else here.
   if (data.meme) { _showMemeVideo(data); return; }
 
-  _titleBusy = true;   // block preloadTitleVideo from touching the element until teardown
   hideSlide();
   hideLeaderboard();
   standbyActive = false;
@@ -1172,20 +1125,6 @@ function showTitleVideo(data) {
     layerStandby.style.opacity      = '0';
     layerTitle.style.opacity = '1';
   };
-
-  // Preload hit — the decoder's already warm and sitting on frame 0 of this
-  // exact file. Skip the cold load/canplay-wait entirely and reveal now.
-  // This is the fix for the Crowd Cheer Meter -> Hype Video jank: that
-  // transition used to cold-load a real video with embedded audio the
-  // instant it fired, racing the Pi's video-decode memory (CMA) at the
-  // worst possible moment. See BUILD_HISTORY.md Phase 22.
-  if (_titlePreload && _titlePreload.video === videoUrl && _titlePreload.ready &&
-      titleVideo.src === _titlePreload.bustedSrc && titleVideo.readyState >= 3) {
-    _titlePreload = null;
-    reveal();
-    return;
-  }
-  _titlePreload = null;
 
   clearTimeout(_titleVideoLoadTimer);
   _titleVideoLoadTimer = setTimeout(recover, 4000);
@@ -2333,7 +2272,6 @@ function connectWS() {
 
       if      (msg.event === 'preload_assets')    { preloadAssets(data.urls); }
       else if (msg.event === 'walkup_preload')    { preloadWalkupVideo(data); }
-      else if (msg.event === 'title_video_preload') { preloadTitleVideo(data); }
       else if (msg.event === 'display_walkup')    { if (!_gamePreloading) hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showWalkup(data); }
       // data.meme -- a real Memes/Graphics-tab fire, not a deliberate content
       // change (a macro's own display_image/display_anim step, BAE LOGO,
@@ -3298,11 +3236,7 @@ function _climaxVideoHide() {
 // frozen on the previous step. Confirmed live 2026-09-09.
 function _vizClearStageLayers() {
   _displaySeq++;          // cancel any in-flight showStep / showTitleVideo load callbacks
-  // Only tear the title video down if one was actually showing/held. If the
-  // element is just sitting on a warm preload (e.g. the Hype Video, queued
-  // while the crowd meter runs), leave it buffering behind the hidden layer
-  // so the next step still gets the instant start.
-  if (_titleBusy) _resetTitleVideo();
+  _resetTitleVideo();     // stop + hide any title video playing or held under us
   hideSlide();
   hideLeaderboard();
   _clearMemeOverlay();
