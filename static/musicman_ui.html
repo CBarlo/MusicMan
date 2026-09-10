@@ -106,6 +106,15 @@
   .scene-btn.drag-over { border-color: var(--amber); opacity: 0.6; outline: 2px dashed var(--amber); }
   .scene-icon { font-size: 16px; }
   .dim-row { display: flex; align-items: center; gap: 8px; margin-top: 22px; }
+  .qf-tab { flex: 1; padding: 6px 0; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); font-size: 15px; cursor: pointer; transition: all .15s; }
+  .qf-tab:hover { background: var(--bg3); }
+  .qf-tab.active { border-color: var(--amber); background: var(--amber-dim); color: var(--amber); box-shadow: 0 0 10px #F5A62333; }
+  .qf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 2px; }
+  .qf-btn { min-height: 40px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .3px; cursor: pointer; transition: background .1s, transform .1s; padding: 6px 4px; text-align: center; line-height: 1.2; word-break: break-word; }
+  .qf-btn:hover { background: var(--bg3); }
+  .qf-btn:active { transform: scale(.95); }
+  .qf-btn.playing { border-color: var(--amber); box-shadow: 0 0 8px #F5A62366; }
+  .qf-empty { color: var(--text-dim); font-size: 10px; letter-spacing: 1px; padding: 10px 4px; text-align: center; grid-column: 1/-1; }
   .right { display: flex; flex-direction: column; overflow: hidden; }
   /* Top row: the 6 most-used tabs, pinned, never scrolls — each shares the row
      width equally so it can never overflow off the right edge on a narrow
@@ -346,14 +355,27 @@
       </div>
     </div>
     <div class="lighting-panel">
-      <div class="section-label">LIGHTING SCENES</div>
-      <div class="scene-grid">
-        <div id="sceneGrid" style="display:contents"></div>
-      </div>
       <div class="dim-row">
         <span class="vol-label" style="width:40px;font-size:9px;">DIM</span>
         <input type="range" class="vol-slider" min="0" max="100" value="75" oninput="updateBright(this.value)">
         <span class="vol-val" id="brightVal">75%</span>
+      </div>
+
+      <!-- QUICK FIRE — always-reachable mini launcher, independent of whatever
+           the main pane is doing. Same tabs as the StreamDeck's own pages
+           (Lights/SFX/Roles/Circles/Memes), reusing the exact same fire
+           calls/data as their full-size Console tabs so nothing behaves
+           differently fired from here. -->
+      <div style="margin-top:16px">
+        <div class="section-label">⚡ QUICK FIRE</div>
+        <div style="display:flex;gap:4px;margin:6px 0 8px">
+          <button class="qf-tab active" data-qf="lights"  onclick="qfSwitch('lights')"  title="Lights">💡</button>
+          <button class="qf-tab"        data-qf="sfx"     onclick="qfSwitch('sfx')"     title="SFX">🔊</button>
+          <button class="qf-tab"        data-qf="roles"   onclick="qfSwitch('roles')"   title="Roles">★</button>
+          <button class="qf-tab"        data-qf="circles" onclick="qfSwitch('circles')" title="Circles">⬡</button>
+          <button class="qf-tab"        data-qf="memes"   onclick="qfSwitch('memes')"   title="Memes">🎬</button>
+        </div>
+        <div id="qfPanel"></div>
       </div>
 
       <div style="margin-top:16px">
@@ -362,6 +384,12 @@
           M5 REMOTE
         </div>
         <div id="remoteStatusText" style="font-size:10px;color:var(--text-dim);letter-spacing:0.5px;margin:4px 0 8px">—</div>
+      </div>
+
+      <div style="margin-top:16px">
+        <div class="section-label">◉ DISPLAY KIOSK</div>
+        <div style="font-size:10px;color:var(--text-dim);letter-spacing:0.5px;margin:4px 0 8px">Projector stuck or choppy? Restarts just the HDMI display (~5-10s blip), not the whole Pi.</div>
+        <button id="consoleDisplayRefreshBtn" onclick="refreshDisplayKioskConsole()" style="width:100%;padding:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">🔄 REFRESH DISPLAY</button>
       </div>
 
       <div id="projSection" style="display:none;margin-top:16px">
@@ -3408,6 +3436,127 @@ function _saveConsoleOrder(kind, order) {
   }).catch(()=>{});
 }
 
+// ── QUICK FIRE (persistent side-panel mini launcher) ────────────────────────
+// Deliberately thin: fetches the same data and calls the exact same fire
+// functions/endpoints as the full-size tabs (playWalkup, playRoleWalkup,
+// setScene, /api/sfx/play, /api/display/show_file) so a button fired from
+// here behaves identically to firing it from its home tab. Only the
+// rendering is separate, since the mini grid needs compact buttons instead
+// of the full walkup-tile/sfx-tile treatment.
+//
+// Cached per category after first load (_qfCache) so switching tabs is
+// instant -- the whole point of a "quick fire" panel is dead if every tap
+// re-fetches over the network. qfPrefetchAll() warms every category at page
+// load; a cache miss (prefetch still in flight, or failed) falls back to a
+// one-off fetch inline. Freshness is deliberately best-effort: circles/
+// roles/SFX essentially never change mid-show, and scenes/memes still get
+// live updates pushed via WS handlers elsewhere, so this trades perfect
+// staleness-avoidance for the snappy tab-switch that's the actual point here.
+let _qfTab = 'lights';
+const _qfCache = { scenes: null, sfx: null, roles: null, circles: null, memeFiles: null, memeTags: null };
+
+async function qfPrefetchAll() {
+  try {
+    const sfxFiles = await fetch('/api/sfx/list').then(r => r.json());
+    _qfCache.sfx = sfxFiles.map(f => ({
+      label: f.replace(/\.[^.]+$/, '').replace(/_/g, ' ').toUpperCase(),
+      playName: f.replace(/\.[^.]+$/, ''),
+    }));
+  } catch(e) {}
+  try {
+    const roles = await fetch('/api/roles').then(r => r.json());
+    _qfCache.roles = roles.map(r => ({ label: r.name, color: r.color, ref: r }));
+  } catch(e) {}
+  try {
+    const circles = await fetch('/api/circles').then(r => r.json());
+    _qfCache.circles = circles.map(c => ({ label: c.name, color: c.color, ref: c }));
+  } catch(e) {}
+  try { _qfCache.memeFiles = await fetch('/api/display/list').then(r => r.json()); } catch(e) {}
+  try { _qfCache.memeTags  = await fetch('/api/display/tags').then(r => r.json()); } catch(e) {}
+}
+
+function qfSwitch(tab) {
+  _qfTab = tab;
+  document.querySelectorAll('.qf-tab').forEach(b => b.classList.toggle('active', b.dataset.qf === tab));
+  if (tab === 'lights') {
+    document.getElementById('qfPanel').innerHTML = '<div class="scene-grid" style="max-height:220px;overflow-y:auto;padding-right:2px"><div id="sceneGridQuick" style="display:contents"></div></div>';
+    if (_qfCache.scenes) _renderSceneGrid(document.getElementById('sceneGridQuick'), _qfCache.scenes, true);
+    else buildSceneGrid();
+  } else if (tab === 'sfx')     qfBuildSfx();
+  else if (tab === 'roles')   qfBuildRoles();
+  else if (tab === 'circles') qfBuildCircles();
+  else if (tab === 'memes')   qfBuildMemes();
+}
+
+function qfRenderGrid(items, onClick, emptyMsg) {
+  const panel = document.getElementById('qfPanel');
+  panel.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'qf-grid';
+  if (!items.length) {
+    grid.innerHTML = '<div class="qf-empty">' + emptyMsg + '</div>';
+  } else {
+    items.forEach(it => {
+      const btn = document.createElement('button');
+      btn.className = 'qf-btn' + (it.playing ? ' playing' : '');
+      if (it.color) { btn.style.borderColor = it.color + '66'; btn.style.color = it.color; }
+      btn.textContent = it.label;
+      btn.onclick = () => onClick(it);
+      grid.appendChild(btn);
+    });
+  }
+  panel.appendChild(grid);
+}
+
+async function qfBuildSfx() {
+  if (!_qfCache.sfx) {
+    let sfxFiles = [];
+    try { sfxFiles = await fetch('/api/sfx/list').then(r => r.json()); } catch(e) {}
+    _qfCache.sfx = sfxFiles.map(f => ({
+      label: f.replace(/\.[^.]+$/, '').replace(/_/g, ' ').toUpperCase(),
+      playName: f.replace(/\.[^.]+$/, ''),
+    }));
+  }
+  qfRenderGrid(_qfCache.sfx, it => fetch('/api/sfx/play?name=' + encodeURIComponent(it.playName)).catch(()=>{}), 'NO SFX — ADD IN ADMIN');
+}
+
+async function qfBuildRoles() {
+  if (!_qfCache.roles) {
+    let roles = [];
+    try { roles = await fetch('/api/roles').then(r => r.json()); } catch(e) {}
+    _qfCache.roles = roles.map(r => ({ label: r.name, color: r.color, ref: r }));
+  }
+  qfRenderGrid(_qfCache.roles, it => playRoleWalkup(it.ref), 'NO ROLES — SET UP IN ADMIN');
+}
+
+async function qfBuildCircles() {
+  if (!_qfCache.circles) {
+    let circles = [];
+    try { circles = await fetch('/api/circles').then(r => r.json()); } catch(e) {}
+    _qfCache.circles = circles.map(c => ({ label: c.name, color: c.color, ref: c }));
+  }
+  qfRenderGrid(_qfCache.circles, it => playWalkup(it.ref), 'NO CIRCLES — SET UP IN ADMIN');
+}
+
+async function qfBuildMemes() {
+  if (!_qfCache.memeFiles) {
+    try { _qfCache.memeFiles = await fetch('/api/display/list').then(r => r.json()); } catch(e) { _qfCache.memeFiles = []; }
+    try { _qfCache.memeTags  = await fetch('/api/display/tags').then(r => r.json()); } catch(e) { _qfCache.memeTags = {}; }
+  }
+  let memeFiles = _qfCache.memeFiles.filter(f => (_qfCache.memeTags[f] || []).some(t => t.toLowerCase() === 'meme'));
+  if (!memeFiles.length) memeFiles = _qfCache.memeFiles; // nothing tagged "Meme" yet -- fall back to everything in Display
+  const items = memeFiles.map(f => ({
+    label: f.replace(/\.[^.]+$/, '').replace(/_/g, ' ').toUpperCase().slice(0, 16),
+    file: f,
+    playing: f === _currentMemeFile,
+  }));
+  qfRenderGrid(items, it => {
+    if (_currentMemeFile === it.file) fetch('/api/display/stop_meme').catch(()=>{});
+    else fetch('/api/display/show_file?meme=1&file=' + encodeURIComponent(it.file)).catch(()=>{});
+    setTimeout(qfBuildMemes, 150); // re-render from cache with the fresh 'playing' flag -- no re-fetch
+  }, 'NOTHING IN DISPLAY LIBRARY');
+}
+
 let _sfxTags = {};        // filename (with ext) -> [tags]
 let _sfxActiveTag = null; // null = ALL
 
@@ -3820,20 +3969,30 @@ async function buildSceneGrid(){
   let list=[];
   try{const r=await fetch('/api/scenes');list=await r.json();}catch(e){}
   if(!list.length) list=FB;
-  ['sceneGrid','sceneGridLights'].forEach(gridId => {
+  _qfCache.scenes = list;
+  // sceneGridQuick (persistent Quick Fire panel) is the one draggable/
+  // reorderable copy -- it's the always-on-screen instance now that the
+  // old standalone sidebar section is gone. sceneGridLights (the full-page
+  // LIGHTS tab) is a read-only mirror that just follows whatever order gets
+  // set from sceneGridQuick.
+  ['sceneGridLights','sceneGridQuick'].forEach(gridId => {
     const grid=document.getElementById(gridId);
     if(!grid) return;
-    grid.innerHTML='';
-    list.forEach((s)=>{
-      const btn=document.createElement('button');
-      btn.className='scene-btn'+(s.toggleable?' toggleable':'');
-      btn.dataset.sceneId=s.id;
-      btn.dataset.toggleable=s.toggleable?'1':'';
-      btn.innerHTML=`<span class="scene-icon">${s.icon||'✦'}</span> ${escHtml((s.name||s.id).toUpperCase())}`;
-      btn.onclick=()=>setScene(s.id,btn);
-      if(gridId==='sceneGrid') _sceneAddDrag(btn);
-      grid.appendChild(btn);
-    });
+    _renderSceneGrid(grid, list, gridId==='sceneGridQuick');
+  });
+}
+
+function _renderSceneGrid(grid, list, draggable) {
+  grid.innerHTML='';
+  list.forEach((s)=>{
+    const btn=document.createElement('button');
+    btn.className='scene-btn'+(s.toggleable?' toggleable':'');
+    btn.dataset.sceneId=s.id;
+    btn.dataset.toggleable=s.toggleable?'1':'';
+    btn.innerHTML=`<span class="scene-icon">${s.icon||'✦'}</span> ${escHtml((s.name||s.id).toUpperCase())}`;
+    btn.onclick=()=>setScene(s.id,btn);
+    if(draggable) _sceneAddDrag(btn);
+    grid.appendChild(btn);
   });
 }
 
@@ -3847,7 +4006,7 @@ function _sceneAddDrag(btn) {
   });
   btn.addEventListener('dragend', () => {
     btn.style.opacity = '';
-    document.querySelectorAll('#sceneGrid .scene-btn').forEach(b => b.classList.remove('drag-over'));
+    document.querySelectorAll('#sceneGridQuick .scene-btn').forEach(b => b.classList.remove('drag-over'));
   });
   btn.addEventListener('dragover', e => { e.preventDefault(); btn.classList.add('drag-over'); });
   btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
@@ -3855,7 +4014,8 @@ function _sceneAddDrag(btn) {
     e.preventDefault();
     btn.classList.remove('drag-over');
     if (!_sceneDragSrc || _sceneDragSrc === btn) return;
-    const grid = document.getElementById('sceneGrid');
+    const grid = document.getElementById('sceneGridQuick');
+    if (!grid) return;
     const children = [...grid.children];
     const fromIdx = children.indexOf(_sceneDragSrc);
     const toIdx   = children.indexOf(btn);
@@ -3863,6 +4023,7 @@ function _sceneAddDrag(btn) {
     if (fromIdx < toIdx) grid.insertBefore(_sceneDragSrc, btn.nextSibling);
     else grid.insertBefore(_sceneDragSrc, btn);
     const order = [...grid.children].map(b => b.dataset.sceneId);
+    _qfCache.scenes = order.map(id => _qfCache.scenes.find(s => s.id === id)).filter(Boolean);
     fetch('/api/scenes/reorder', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({order})}).catch(()=>{});
     const lg = document.getElementById('sceneGridLights');
     if (lg) order.forEach(id => { const b = lg.querySelector(`[data-scene-id="${id}"]`); if (b) lg.appendChild(b); });
@@ -4123,6 +4284,21 @@ function uiToast(msg) {
 let _displayLogo = '';
 fetch('/api/display-logo').then(r=>r.json()).then(d=>{ _displayLogo = d.logo || ''; }).catch(()=>{});
 
+// ── DISPLAY KIOSK REFRESH ────────────────────────────────────────────────────
+// Console-facing twin of Admin's REFRESH DISPLAY (System tab). Hits a
+// non-admin route (/api/display/refresh) since Console isn't behind the
+// admin password -- same trust level as every other operator control here.
+function refreshDisplayKioskConsole() {
+  if (!confirm('Restart the HDMI display now? The screen will go dark for about 5-10 seconds and come back on its own.')) return;
+  const btn = document.getElementById('consoleDisplayRefreshBtn');
+  btn.disabled = true;
+  btn.textContent = 'RESTARTING…';
+  fetch('/api/display/refresh', {method: 'POST'}).then(r => r.json()).then(d => {
+    if (!d.ok) showAlert(d.error || 'Could not restart display', 2500);
+  }).catch(() => { showAlert('Display refresh request failed', 2500); });
+  setTimeout(() => { btn.disabled = false; btn.textContent = '🔄 REFRESH DISPLAY'; }, 12000);
+}
+
 // ── PROJECTOR (Android TV Remote) ───────────────────────────────────────────
 // Hidden entirely until Admin has actually paired one -- no point showing
 // controls that can't do anything yet.
@@ -4182,6 +4358,8 @@ Promise.all([
   buildShowFlowGrid(), buildWalkupGrid(), buildRolesGrid(),
   buildSfxGrid(), buildMacroGrid(), buildSceneGrid(), buildDisplayGrid()
 ]).then(function() { initWebSocket(); });
+qfPrefetchAll().then(() => { if (_qfTab !== 'lights') qfSwitch(_qfTab); });
+qfSwitch('lights');
 
 // ── WEBSOCKET SYNC ─────────────────────────────────────────────────────────
 // Keeps the UI in sync when Stream Deck (or anything else) calls the API remotely.
@@ -4595,7 +4773,7 @@ function initWebSocket() {
       }
 
       else if (event === 'karaoke_state') { kkApplyState(data); }
-      else if (event === 'meme_state') { _currentMemeFile = data.playing ? data.file : null; _syncMemeButtonState(); }
+      else if (event === 'meme_state') { _currentMemeFile = data.playing ? data.file : null; _syncMemeButtonState(); if (_qfTab === 'memes') qfBuildMemes(); }
 
       else if (event === 'games_state') {
         _gamesData = data;
