@@ -1013,7 +1013,13 @@ def scan_playlist(path):
             log.error(f'M3U parse error: {e}')
         return tracks
     elif p.is_dir():
-        return sorted(str(f) for f in p.rglob('*') if f.suffix.lower() in AUDIO_EXTS and f.is_file())
+        # not f.name.startswith('.') -- skip macOS AppleDouble sidecars
+        # (._Track.mp3, 4KB metadata stubs Finder drops on FAT/exFAT drives)
+        # and any other dotfiles. They match *.mp3 but aren't audio, and mpg123
+        # chokes on them mid-playlist ("Illegal Audio-MPEG-Header ... I am done
+        # with this track"). Same guard the USB-browse endpoints already use.
+        return sorted(str(f) for f in p.rglob('*')
+                      if f.suffix.lower() in AUDIO_EXTS and f.is_file() and not f.name.startswith('.'))
     elif p.suffix.lower() in AUDIO_EXTS and p.is_file():
         return [str(p)]  # single track — a "playlist" of one, so USB search results can reuse play_playlist()
     return []
@@ -8950,12 +8956,12 @@ def api_usb_list():
             if entry.name.startswith('.'):
                 continue
             if entry.is_dir():
-                count = sum(1 for f in entry.rglob('*') if f.suffix.lower() in AUDIO_EXTS and f.is_file())
+                count = sum(1 for f in entry.rglob('*') if f.suffix.lower() in AUDIO_EXTS and f.is_file() and not f.name.startswith('.'))
                 if count:
                     items.append({'name': entry.name, 'type': 'dir', 'path': str(entry), 'count': count})
             elif entry.suffix.lower() == '.m3u':
                 items.append({'name': entry.name, 'type': 'm3u', 'path': str(entry), 'count': 0})
-        total = sum(1 for f in Path(mount).rglob('*') if f.suffix.lower() in AUDIO_EXTS and f.is_file())
+        total = sum(1 for f in Path(mount).rglob('*') if f.suffix.lower() in AUDIO_EXTS and f.is_file() and not f.name.startswith('.'))
         if total:
             items.insert(0, {'name': 'All Files', 'type': 'dir', 'path': mount, 'count': total})
     except Exception as e:
