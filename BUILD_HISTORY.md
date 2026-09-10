@@ -790,6 +790,19 @@ The remote already reported its battery every heartbeat and it was already visib
 ### Console Quick Fire Panel
 Console's left sidebar got a persistent mini-launcher — five icon tabs (Lights / SFX / Roles / Circles / Memes), each a compact scrollable grid — so the operator can fire a scene, sound, walkup or meme without leaving whatever the main pane is doing (the exact case: main pane driving a show step while you need to fire something else). Every button routes through the same functions/endpoints as the full-size tabs (`playWalkup`, `playRoleWalkup`, `setScene`, `/api/sfx/play`, `/api/display/show_file`), so nothing behaves differently fired from here. All five categories are prefetched once at page load and cached client-side — tab switches are zero-latency, no per-tap refetch. The old standalone "Lighting Scenes" sidebar block was folded into the Lights tab (it was redundant sitting right next to it); scene drag-reordering moved with it onto the Quick Fire grid.
 
+### Green Screen on the Hype Video → walkup transition
+HDMI went to a solid green frame handing off from the Hype Video to the next
+walkup (the projector, with more decode headroom, was fine). Green frame on the
+Pi = the VideoCore decoder / CMA couldn't get buffers. Cause: the Hype Video
+(`Broken Arrow - Its Time - FINAL.mp4`) was **1080p at 17.8 Mbps / 43 MB** —
+5–10× heavier than every other 1080p clip in the system (all 1.7–3.5 Mbps).
+Decoding that monster and then spinning up a second decoder for the walkup
+before its buffers freed blew the CMA budget. Re-encoded it (and the two other
+outliers actually used in the show, `Tony Pepperoni Intro.mov` 9.7→3.5 Mbps and
+`Welcome Campfire.mov` 4.8→1.6 Mbps) with the standard recipe — CRF 22 /
+maxrate 4M / yuv420p / AAC 128k. Hype Video is now 4.1 Mbps / 10 MB, same
+weight class as everything else. Originals kept as `*.bak` in `assets/display/`.
+
 ### Crowd Cheer Meter → Hype Video: Cold-Load Jank, Fixed
 The transition from the Crowd Cheer Meter step to the Hype Video (a real MP4 with embedded audio, fired via a macro's `display_anim` step) was choppy and intermittently didn't play at all, on both HDMI and the projector. Root cause: `showTitleVideo()` — the display-side function for every macro-triggered title video — had no preload path at all. Unlike walkup videos (which got the warm-element preload chain in Phase 21), it cold-loaded the file and cold-started the hardware decoder the instant the macro step fired, racing the Pi's fragmented video-decode memory (CMA) with zero lead time. Fix mirrors the walkup preloader: `_get_next_title_video_preload()` on the server scans the *next* show-flow step's macro for a `display_anim`, and `/api/show/fire` broadcasts a `title_video_preload` for it the moment the *current* step fires — so firing "Crowd Cheer Meter" warms the Hype Video's file while the meter's still running, well before the operator advances to it. The display side (`preloadTitleVideo()`) loads it into the otherwise-idle title-video element and does a real `play()`+`pause()` (not just `.load()`, which on this Pi often only buffers metadata) to force the decoder to actually spin up and claim its CMA buffers early. When the step fires for real, `showTitleVideo()` sees the warm element already sitting on frame 0 and reveals instantly — no cold load, no canplay wait. Falls back cleanly to the old cold path if the preload didn't land (wrong file, no lead time, something else used title-video in between). Note: this narrows the CMA race, it doesn't remove CMA fragmentation itself — a REFRESH DISPLAY before the show still gives the cleanest starting margin.
 
