@@ -949,9 +949,13 @@ fetch('/api/preload_assets').then(r => r.json()).then(d => preloadAssets(d.urls)
 // triggers a synchronous GC freeze of ~7s if the element has decoded video in memory.
 let _titleVideoClearTimer = null;
 let _titleVideoLoadTimer  = null;
+let _titleBusy = false;   // true from the moment showTitleVideo commits until the title layer is torn down
 function _resetTitleVideo() {
+  _titleBusy = false;
+  _titlePreload = null;   // any warm preload on this element is stale once we're tearing it down
+  clearTimeout(_titleVideoLoadTimer); _titleVideoLoadTimer = null;
   const v = document.getElementById('title-video');
-  v.oncanplay = null; v.pause(); v.style.opacity = '0';
+  v.oncanplay = null; v.onerror = null; v.pause(); v.style.opacity = '0';
   clearTimeout(_titleVideoClearTimer);
   _titleVideoClearTimer = setTimeout(() => { v.src = ''; _titleVideoClearTimer = null; }, 10000);
 }
@@ -1077,7 +1081,12 @@ function preloadTitleVideo(data) {
   const videoUrl = (data && data.video) || '';
   if (!videoUrl) return;
   const titleVideo = document.getElementById('title-video');
-  if (parseFloat(layerTitle.style.opacity || '0') > 0) return; // something's live there right now -- don't touch it
+  // Never touch the real title-video element while it's in use OR mid-load.
+  // _titleBusy covers the whole load-through-teardown window; the opacity and
+  // load-timer checks are belt-and-suspenders.
+  if (_titleBusy) return;
+  if (parseFloat(layerTitle.style.opacity || '0') > 0) return;
+  if (_titleVideoLoadTimer) return;
   if (_titlePreload && _titlePreload.video === videoUrl) return; // already warming/warmed this exact one
   const bustedSrc = videoUrl + '?t=' + Date.now();
   _titlePreload = { video: videoUrl, bustedSrc, ready: false };
@@ -1106,6 +1115,7 @@ function showTitleVideo(data) {
   // else here.
   if (data.meme) { _showMemeVideo(data); return; }
 
+  _titleBusy = true;   // block preloadTitleVideo from touching the element until teardown
   hideSlide();
   hideLeaderboard();
   standbyActive = false;
@@ -1142,13 +1152,13 @@ function showTitleVideo(data) {
     if (_displaySeq !== seq) return;
     titleVideo.oncanplay = null;
     titleVideo.onerror   = null;
-    clearTimeout(_titleVideoLoadTimer);
+    clearTimeout(_titleVideoLoadTimer); _titleVideoLoadTimer = null;
     showStandby();
   };
 
   const reveal = () => {
     if (_displaySeq !== seq) return;
-    clearTimeout(_titleVideoLoadTimer);
+    clearTimeout(_titleVideoLoadTimer); _titleVideoLoadTimer = null;
     titleVideo.oncanplay = null; // canplay can refire during buffering — don't re-issue play()
     titleVideo.onerror   = null;
     titleVideo.play().catch(recover);
@@ -3279,6 +3289,34 @@ function _climaxVideoHide() {
 }
 
 // ── VIZ: SHOW / HIDE ─────────────────────────────────────────────────────────
+// Tear down every competing full-screen layer before a viz comes up. The
+// viz_show WS handler already clears the game/chrono/vs-card/h2h/band/karaoke
+// family; this covers the title-video / walkup / standby / slide / leaderboard
+// family that showTitleVideo() clears in the other direction. Without this a
+// viz (crowd meter especially) fades in *behind* whatever was already on
+// screen -- e.g. a held Council Intro video -- and the display just looks
+// frozen on the previous step. Confirmed live 2026-09-09.
+function _vizClearStageLayers() {
+  _displaySeq++;          // cancel any in-flight showStep / showTitleVideo load callbacks
+  // Only tear the title video down if one was actually showing/held. If the
+  // element is just sitting on a warm preload (e.g. the Hype Video, queued
+  // while the crowd meter runs), leave it buffering behind the hidden layer
+  // so the next step still gets the instant start.
+  if (_titleBusy) _resetTitleVideo();
+  hideSlide();
+  hideLeaderboard();
+  _clearMemeOverlay();
+  standbyActive = false;
+  const t = 'opacity 0.6s ease';
+  layerWalkup.style.transition  = t;
+  layerTitle.style.transition   = t;
+  layerStandby.style.transition = t;
+  layerWalkup.style.opacity  = '0';
+  layerWalkup.style.pointerEvents = 'none';
+  layerTitle.style.opacity   = '0';
+  layerStandby.style.opacity = '0';
+}
+
 function showMusicViz(settings) {
   if (settings) {
     if (settings.bars)              _eqBarCount   = Math.min(EQ_MAX, Math.max(8, parseInt(settings.bars) || 24));
@@ -3289,12 +3327,13 @@ function showMusicViz(settings) {
     _ensureCenterMedia(settings.center_media_url || null, settings.center_media_type || null);
     _centerMediaZoom = settings.center_media_zoom != null ? parseFloat(settings.center_media_zoom) : 1.15;
   }
+  _vizClearStageLayers();
   _activeViz = 'music';
   _resizeCanvas(_eqCanvas);
   _crowdRunning = false;
   if (!_eqRunning) { _eqRunning = true; requestAnimationFrame(_drawEQ); }
-  _eqLayer.style.transition    = 'opacity 5s ease';
-  _crowdLayer.style.transition = 'opacity 5s ease';
+  _eqLayer.style.transition    = 'opacity 1.2s ease';
+  _crowdLayer.style.transition = 'opacity 1.2s ease';
   _eqLayer.style.opacity    = '1';
   _crowdLayer.style.opacity = '0';
 }
@@ -3314,12 +3353,15 @@ function showCrowdViz(settings) {
     if (settings.color_mid)     _crowdColors.mid  = settings.color_mid;
     if (settings.color_high)    _crowdColors.high = settings.color_high;
   }
+  _vizClearStageLayers();
   _activeViz = 'crowd';
   _resizeCanvas(_crowdCanvas);
   _eqRunning = false;
   if (!_crowdRunning) { _crowdRunning = true; requestAnimationFrame(_drawCrowd); }
-  _crowdLayer.style.transition = 'opacity 5s ease';
-  _eqLayer.style.transition    = 'opacity 5s ease';
+  // 1.2s crossfade (was 5s): coming straight off a full-screen video, a long
+  // fade leaves the screen dark in the gap. Fast, clean hand-off instead.
+  _crowdLayer.style.transition = 'opacity 1.2s ease';
+  _eqLayer.style.transition    = 'opacity 1.2s ease';
   _crowdLayer.style.opacity = '1';
   _eqLayer.style.opacity    = '0';
 }

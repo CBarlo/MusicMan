@@ -9310,21 +9310,33 @@ def api_audio_reset_mixer():
     return jsonify({'ok': True})
 
 def _refresh_display_kiosk():
-    """Bounce just the HDMI kiosk (musicman-display.service), not the whole Pi.
-    This is the fix for CMA (video decode memory) fragmentation building up
-    over a long session -- confirmed live 2026-09-06/07 via dmesg showing real
-    allocation failures after hours of walkup-video preload/playback churn.
-    Restarting this one service releases every decode buffer chromium is
-    holding and starts clean, at the cost of a ~5-10s HDMI blip. Unlike a full
-    Pi reboot, it doesn't touch the WiFi AP or musicman.service itself -- use
-    this between segments of a long session (e.g. hours of pre-show setup)
-    rather than a full reboot."""
+    """Bounce the HDMI kiosk (musicman-display.service) AND relaunch the
+    projector's kiosk browser, so one button clears a stuck/choppy display on
+    both outputs. The HDMI restart is the fix for CMA (video decode memory)
+    fragmentation building up over a long session -- confirmed live
+    2026-09-06/07 via dmesg showing real allocation failures after hours of
+    walkup-video preload/playback churn. Restarting releases every decode
+    buffer chromium is holding and starts clean, at the cost of a ~5-10s HDMI
+    blip. Unlike a full Pi reboot, it doesn't touch the WiFi AP or
+    musicman.service itself. The projector runs the same /display page on a
+    separate Android TV device -- restarting the HDMI service does nothing for
+    it, so relaunch its Fully Kiosk Browser too (no-op if not paired/up)."""
     try:
         subprocess.run(['sudo', 'systemctl', 'restart', 'musicman-display'],
                         check=True, timeout=20)
         log.info("Display kiosk refreshed (musicman-display.service restarted on demand)")
     except Exception as e:
         log.error(f"Display refresh failed: {e}")
+    # Relaunch the projector's kiosk browser too -- best effort.
+    try:
+        if _PROJECTOR_AVAILABLE:
+            ok, err = _proj_send(AndroidTVRemote.send_launch_app_command, _PROJECTOR_KIOSK_APP_PACKAGE)
+            if ok:
+                log.info("Projector kiosk relaunched (display refresh)")
+            else:
+                log.info(f"Projector kiosk relaunch skipped: {err}")
+    except Exception as e:
+        log.error(f"Projector kiosk relaunch failed: {e}")
 
 @app.route('/api/admin/display/refresh', methods=['POST'])
 def api_admin_display_refresh():
