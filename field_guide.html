@@ -257,6 +257,50 @@
   console table cuts that down a lot. Not a one-person job if you can help it.</p>
 </div>
 
+<section>
+  <div class="section-hdr"><span class="section-num" style="border-color:var(--sage);color:var(--sage)">◇</span><h2>System at a Glance</h2></div>
+  <div class="section-note">The whole rig, source to output, in one picture — lighting, video, and audio. Each chain is broken out in full step-by-step detail in its own numbered section below; this is just the map before you start reading turn-by-turn directions.</div>
+
+  <div class="chain-block">
+    <div class="chain-label">Lighting — ×2, one identical chain per pole</div>
+    <div class="chain">
+      <span class="link">SOLIX C300</span><span class="arrow">→</span>
+      <span class="link">POLE NODE</span><span class="arrow">→</span>
+      <span class="link">WASH BAR</span><span class="arrow">→</span>
+      <span class="link">PINSPOT</span><span class="arrow">→</span>
+      <span class="link">PAR</span><span class="arrow">→</span>
+      <span class="link">PAR</span>
+    </div>
+    <p style="font-size:12.5px;color:var(--ink-dim);margin-top:12px">Solix powers the Node (12V) and the Wash Bar + Pinspot (110V AC, separate from the DMX signal cable). Both PARs run on their own internal battery — no cable in this chain powers them. Full DMX order, mounting, and the fixture power map: Section 2.</p>
+  </div>
+
+  <div class="chain-block">
+    <div class="chain-label">Video — console to screen</div>
+    <div class="chain">
+      <span class="link">MUSICMAN (Pi)</span>
+      <span class="chain-cable">HDMI</span>
+      <span class="link">EXTENDER (Tx)</span>
+      <span class="chain-cable">CAT6 — ~100 ft</span>
+      <span class="link">EXTENDER (Rx)</span>
+      <span class="chain-cable">HDMI</span>
+      <span class="link">PROJECTOR</span>
+      <span class="arrow">→</span>
+      <span class="link">SCREEN</span>
+    </div>
+    <p style="font-size:12.5px;color:var(--ink-dim);margin-top:12px">The extender is a matched pair — one small box at each end of the long Cat6 run, only one end needs power (either zone's outlet strip works, see Section 4). The projector itself is battery-powered, so this HDMI/Cat6 run is the <em>only</em> thing that has to physically reach it. Screen's own inflator is a separate, unrelated power need — see the safety note in Section 4.</p>
+  </div>
+
+  <div class="chain-block">
+    <div class="chain-label">Audio — into and out of the PA</div>
+    <div class="chain">
+      <span class="link">MUSICMAN + WIRED MIC + WIRELESS MICS (via Mic Rx)</span><span class="arrow">→</span>
+      <span class="link">PA — FENDER VENUE</span><span class="arrow">→</span>
+      <span class="link">SPEAKER</span><span class="arrow">+</span><span class="link">SPEAKER</span>
+    </div>
+    <p style="font-size:12.5px;color:var(--ink-dim);margin-top:12px">The Venue is the hub every source plugs into, and it drives both stage speakers directly over speaker cable — only the head unit itself needs power. Full input-by-input cabling chart (BLX88, wired mic, MusicMan's 3.5mm adapter, phone Bluetooth): Section 5.</p>
+  </div>
+</section>
+
 <div class="charge-band">
   <div class="charge-hdr"><span class="icon">🔋</span><span class="title">Charge Before You Leave</span><span class="when">— night before / morning of, not at the site</span></div>
   <ul class="chk-list charge-items">
