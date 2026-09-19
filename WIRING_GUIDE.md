@@ -148,37 +148,50 @@ DIY ultrasonic-mist fogger: a sealed accumulation chamber (mist charges it for
 several seconds before release, for a denser cloud than a continuous stream),
 water reservoir with a float switch (never run the transducer dry), fan to
 push the accumulated fog out. Runs off the same 12V line already feeding the
-Node. No pole node firmware changes needed — the node is a generic DMX bridge
-(`musicman.py` posts `{fixtures: [{start, channels}]}` to its `/dmx` endpoint
-and it just outputs whatever it's told), so this is a config-only addition,
-same as any other fixture.
+Node.
 
-| Fixture | DMX address | Channels |
+**WiFi-controlled, not DMX.** DMX is only load-bearing for Pinspot/Wash/PAR
+because they're commercial fixtures with no other interface — this is a
+from-scratch build, so it gets the same control path as every other custom
+device in the system (pole nodes, WLED devices, the M5 remote): its own
+ESP32 on the MusicMan WiFi, a tiny HTTP endpoint, `musicman.py` calling it
+directly the same shape as `_dmx_post`'s `requests.post(f'http://{ip}/...')`.
+No MAX485, no DMX receive library, no physical daisy-chain dependency, no
+DMX-address bookkeeping — it doesn't even need to sit near the DMX chain.
+Drops straight into the existing "flat list of network devices with tracked
+IPs" pattern Admin → System → Pole Nodes already uses.
+
+Two relay outputs (mister, fan) same as the DMX version would have had —
+switched by logic-level MOSFETs (silent, no mechanical wear across a season
+of burst-fire cycles) rather than a relay module, plus a flyback diode across
+the fan since a motor is an inductive load.
+
+**Local physical controls** (wired directly to the ESP32's GPIO — work with
+zero network dependency, same "always-available hardware fallback" idea as
+the Pi's own power button):
+
+| Control | Type | Behavior |
 |---|---|---|
-| Pinspot (10W) | 1 | 6 |
-| Stage wash (~40W) | 7 | 8 |
-| PAR | 15 | 10 |
-| **Fog Relay** | **25** | **2 — ch1 mister relay, ch2 fan relay, both simple on/off (0 or 255)** |
+| **ARM / DISARM** | SPDT toggle switch | Safety gate, checked first by both the button and the HTTP handler. DISARM makes the unit refuse every fire command — local button and WiFi alike — so nobody can trigger it remotely while someone's hands are in the box refilling water. Read before anything else, every time. |
+| **FIRE** | Momentary pushbutton | Runs the exact same charge→release→off sequence as the WiFi command, only while armed. Lets you test/fire it standing at the pole without touching Console — useful at load-in, and as a manual fallback if WiFi ever hiccups mid-show. |
+| **Status LED** *(optional, matches the pole's own status-pixel convention)* | Single LED or WS2812B | Solid = armed, off = disarmed, blink = mid-sequence. Cheap, and gives an at-a-glance read the way every other subsystem here already does. |
 
-Wire the DMX relay board as the next link in the existing chain: Node → Wash
-Bar → Pinspot → PAR → PAR → **Fog Relay board**. Board needs its own tap off
-the pole's 12V feed alongside the Node.
+Debounce both inputs in firmware; drive the fire sequence as a non-blocking
+state machine keyed off `millis()` rather than `delay()`, so the ESP32's web
+server keeps answering requests (including a "how's it doing" status poll)
+while a burst is mid-cycle instead of freezing for the whole 8-10 seconds.
 
-Once the fixture physically exists and is addressed for real, add a "Fog
-Relay" entry in Admin → Lighting Hardware → fixture types (2 channels, as
-above), add it to that pole's fixture list at address 25, then build a
-**Fog Burst** macro the same way Cheer Director Climax sequences light_ramp/
-wait/display_anim — scene → wait → scene → wait → scene, all just switching
-the two Fog Relay channels:
+**Sequence** (identical logic whether triggered by the FIRE button or a WiFi
+call):
 
-1. `scene` — **Fog Charge**: ch1 (mister) = 255, ch2 (fan) = 0
-2. `wait` — 6–8s (chamber fills)
-3. `scene` — **Fog Release**: ch1 = 0, ch2 = 255
-4. `wait` — 2–3s (dump)
-5. `scene` — **Fog Off**: ch1 = 0, ch2 = 0
+1. Mister relay ON
+2. Wait 6–8s (chamber fills)
+3. Mister OFF, fan ON
+4. Wait 2–3s (dump)
+5. Fan OFF
 
-Not created in `config.yaml` yet — needs the real fixture wired and DMX-tested
-live before scenes/macro get built against it, same as any other new fixture.
+Not built yet — this is the locked-in design, ready to turn into an actual
+Arduino sketch and a `musicman.py` device entry once the hardware exists.
 
 **OTA firmware updates:** once the pole is on the MusicMan WiFi, flash via
 `curl -X POST http://<pole-ip>/update -F "file=@firmware.bin"` (WLED's
