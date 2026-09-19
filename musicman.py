@@ -724,6 +724,25 @@ def _dmx_post(ip, fixtures):
     except Exception:
         _invalidate_ip(ip)
 
+def _fog_fire(ip, timeout=2):
+    """Fire a fog unit's charge->release->off burst. WiFi/HTTP, not DMX --
+    see WIRING_GUIDE.md's Fog unit section for why. The unit itself owns the
+    armed/disarmed gate and the sequence timing (musicman_fog.ino) -- this is
+    fire-and-forget with logging, same reliability posture as _dmx_post, so a
+    fog cue failing never takes the rest of its macro down with it."""
+    try:
+        requests.post(f'http://{ip}/fire', timeout=timeout)
+    except Exception as e:
+        log.warning(f"Fog unit {ip} fire error: {e}")
+
+def _fog_stop(ip, timeout=2):
+    """Force a fog unit's relays off immediately, armed or not -- the escape
+    hatch, same spirit as REFRESH DISPLAY."""
+    try:
+        requests.post(f'http://{ip}/stop', timeout=timeout)
+    except Exception as e:
+        log.warning(f"Fog unit {ip} stop error: {e}")
+
 def _build_dim_mask(fix, fixture_types):
     """True per channel = dimmable (no presets). False = control channel (MODE, EFFECT…)."""
     type_def = fixture_types.get(fix.get('type', ''), {})
@@ -7623,6 +7642,20 @@ def execute_macro(macro, cancel=None, show_flow_idx=None, is_nested=False):
                 _viz_scene = None
                 _stop_audio_analyzer()
                 broadcast('viz_hide', {})
+            elif action == 'fog_fire':
+                fog_id = step.get('fog_id', '')
+                fog = next((f for f in config.get('fog_units', []) if f['id'] == fog_id), None)
+                if fog:
+                    _fog_fire(fog['ip'])
+                else:
+                    log.warning(f"fog_fire macro action: unit not found: {fog_id!r}")
+            elif action == 'fog_stop':
+                fog_id = step.get('fog_id', '')
+                fog = next((f for f in config.get('fog_units', []) if f['id'] == fog_id), None)
+                if fog:
+                    _fog_stop(fog['ip'])
+                else:
+                    log.warning(f"fog_stop macro action: unit not found: {fog_id!r}")
             elif action == 'vs_card':
                 card_id = step.get('vs_card_id', '')
                 cards   = {c['id']: c for c in load_vs_cards()}

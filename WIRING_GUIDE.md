@@ -190,8 +190,44 @@ call):
 4. Wait 2–3s (dump)
 5. Fan OFF
 
-Not built yet — this is the locked-in design, ready to turn into an actual
-Arduino sketch and a `musicman.py` device entry once the hardware exists.
+**Built:** firmware is [`firmware/musicman_fog/musicman_fog.ino`](firmware/musicman_fog/musicman_fog.ino)
+(plain ESP32 sketch, no WLED — that engine's addressable-LED overhead has no
+use here) — compiles clean against a generic ESP32 devkit (69% flash, 14%
+RAM). `musicman.py` side is in too: `_fog_fire()`/`_fog_stop()` and a
+`fog_fire`/`fog_stop` macro action, keyed off a `fog_units` list in
+`config.yaml` (`[{id, name, ip}]`, empty until real units exist — completely
+inert on the live Pi until you add entries). **Not yet deployed to the live
+Pi** — no hardware to test the round trip against yet; happens once a unit's
+built and addressable.
+
+Physical wiring, matching the pins the firmware actually uses:
+
+| Signal | ESP32 pin | Goes to |
+|---|---|---|
+| Mister relay | GPIO26 | Logic-level N-MOSFET gate → mister driver board's power line |
+| Fan relay | GPIO27 | Logic-level N-MOSFET gate → fan power line (+ flyback diode across the fan — it's a motor, an inductive load, skipping this eventually kills the MOSFET on the switch-off spike) |
+| ARM switch | GPIO32 | One leg of an SPDT toggle; other leg to GND. Internal pullup — closed to GND reads armed |
+| FIRE button | GPIO33 | One leg of a momentary pushbutton; other leg to GND. Internal pullup — press reads LOW |
+| Status LED | GPIO25 | LED + ~330Ω resistor to GND |
+
+Each MOSFET gate wants a small series resistor (~100–220Ω, damps gate
+ringing) and a gate-to-source pulldown (~10kΩ) so the load can't glitch on
+during ESP32 boot, before `setup()` has run and claimed the pin — same
+boot-glitch caution as the Pi's own GPIO3/GPIO17 button wiring above.
+
+**Float switch is not a GPIO input** — it's a plain mechanical/electrical
+cutoff wired in series with the mister driver's own power line, upstream of
+the MOSFET. That way "don't run dry" holds even if the ESP32 crashes or
+reboots mid-show, instead of depending on firmware that might not be running.
+
+ESP32 runs off the pole's 12V via its own small 12V→5V buck (same part
+category as the one already feeding the pole node's ESP32) into the board's
+5V/VIN pin — most ESP32 devkits have their own onboard 3.3V regulator from
+there, no separate 3.3V supply needed.
+
+Two units total, one per pole — flash each with its own `DEVICE_HOSTNAME`
+(`musicman-fog-a` / `musicman-fog-b`, set near the top of the .ino) before
+uploading, so they're distinguishable on the network.
 
 **OTA firmware updates:** once the pole is on the MusicMan WiFi, flash via
 `curl -X POST http://<pole-ip>/update -F "file=@firmware.bin"` (WLED's
