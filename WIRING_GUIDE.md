@@ -142,6 +142,44 @@ hardcoded.
 audience-facing), 60 LEDs each, daisy-chained off the single level-shifted
 data line from G2.
 
+**Fog unit (planned, one per pole — not yet built/wired)**
+
+DIY ultrasonic-mist fogger: a sealed accumulation chamber (mist charges it for
+several seconds before release, for a denser cloud than a continuous stream),
+water reservoir with a float switch (never run the transducer dry), fan to
+push the accumulated fog out. Runs off the same 12V line already feeding the
+Node. No pole node firmware changes needed — the node is a generic DMX bridge
+(`musicman.py` posts `{fixtures: [{start, channels}]}` to its `/dmx` endpoint
+and it just outputs whatever it's told), so this is a config-only addition,
+same as any other fixture.
+
+| Fixture | DMX address | Channels |
+|---|---|---|
+| Pinspot (10W) | 1 | 6 |
+| Stage wash (~40W) | 7 | 8 |
+| PAR | 15 | 10 |
+| **Fog Relay** | **25** | **2 — ch1 mister relay, ch2 fan relay, both simple on/off (0 or 255)** |
+
+Wire the DMX relay board as the next link in the existing chain: Node → Wash
+Bar → Pinspot → PAR → PAR → **Fog Relay board**. Board needs its own tap off
+the pole's 12V feed alongside the Node.
+
+Once the fixture physically exists and is addressed for real, add a "Fog
+Relay" entry in Admin → Lighting Hardware → fixture types (2 channels, as
+above), add it to that pole's fixture list at address 25, then build a
+**Fog Burst** macro the same way Cheer Director Climax sequences light_ramp/
+wait/display_anim — scene → wait → scene → wait → scene, all just switching
+the two Fog Relay channels:
+
+1. `scene` — **Fog Charge**: ch1 (mister) = 255, ch2 (fan) = 0
+2. `wait` — 6–8s (chamber fills)
+3. `scene` — **Fog Release**: ch1 = 0, ch2 = 255
+4. `wait` — 2–3s (dump)
+5. `scene` — **Fog Off**: ch1 = 0, ch2 = 0
+
+Not created in `config.yaml` yet — needs the real fixture wired and DMX-tested
+live before scenes/macro get built against it, same as any other new fixture.
+
 **OTA firmware updates:** once the pole is on the MusicMan WiFi, flash via
 `curl -X POST http://<pole-ip>/update -F "file=@firmware.bin"` (WLED's
 built-in OTA endpoint — no physical access needed). Pole IPs are listed in
