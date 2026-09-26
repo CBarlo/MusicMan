@@ -11019,8 +11019,8 @@ def _preshow_content_items(cfg, add):
             codec, h, br, has_audio = pr
             if codec != 'h264':
                 add('Show flow', f'{where}: {path.name} is {codec}, not H.264', 'warn', 'The projector may not play it. Re-encode to 720p H.264.')
-            if h > 720 and br > 2_500_000:
-                add('Show flow', f'{where}: {path.name} is {h}p at {br/1e6:.1f} Mbps', 'warn', 'Too heavy for the projector. Re-encode to 720p, Main profile, about 4 Mbps.')
+            if h > 720:
+                add('Show flow', f'{where}: {path.name} is {h}p at {br/1e6:.1f} Mbps', 'warn', 'The projector drops frames on 1080p. Re-encode to 720p, Main profile, about 4 Mbps.')
             if wants_sound and not has_audio:
                 add('Show flow', f'{where}: {path.name} is set to play sound but has no audio track', 'warn', 'Untick the sound option or use a file with audio.')
         return len(uniq)
