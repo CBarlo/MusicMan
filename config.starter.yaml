@@ -8,7 +8,7 @@ audio:
   fade_duration: 4
   playlist_volume: 70
   preload_all: false
-  sfx_volume: 30
+  sfx_volume: 50
   walkup_fade: 3
 
 display:
