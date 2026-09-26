@@ -827,7 +827,10 @@ The Nebula's Fully Kiosk WebView dropped 150+ frames playing 1080p H.264 at 4–
 (0 on an iPad; 0 at 1280x720 Main profile 4 Mbps). Measured with a per-client
 `getVideoPlaybackQuality` probe. Recipe for anything shown on the projector:
 1280x720, H.264 Main, ~4 Mbps cap, AAC 48 kHz, faststart. 1080p at ~2 Mbps measured
-clean. 16 heavier files were converted; originals are in `assets/_orig_1080p/` on the Pi.
+clean on 10 s clips, but 20 s walk-up intros at ~1.8 Mbps still dropped ~4% of frames
+(Rough Riders/Outlaws) and once failed to start after a chain of walk-ups; at 720p the same
+clips drop <1%. So every video on the projector is 720p: 30 files converted in two batches;
+originals are in `assets/_orig_1080p/` on the Pi. Convert new uploads before showtime.
 
 ### Walk-up preloader
 The display page created a hidden `<video preload=auto>` for every walk-up/macro video
