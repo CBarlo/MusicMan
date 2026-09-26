@@ -806,6 +806,64 @@ weight class as everything else. Originals kept as `*.bak` in `assets/display/`.
 ### Crowd Cheer Meter → Hype Video: Cold-Load Jank, Fixed
 The transition from the Crowd Cheer Meter step to the Hype Video (a real MP4 with embedded audio, fired via a macro's `display_anim` step) was choppy and intermittently didn't play at all, on both HDMI and the projector. Root cause: `showTitleVideo()` — the display-side function for every macro-triggered title video — had no preload path at all. Unlike walkup videos (which got the warm-element preload chain in Phase 21), it cold-loaded the file and cold-started the hardware decoder the instant the macro step fired, racing the Pi's fragmented video-decode memory (CMA) with zero lead time. Fix mirrors the walkup preloader: `_get_next_title_video_preload()` on the server scans the *next* show-flow step's macro for a `display_anim`, and `/api/show/fire` broadcasts a `title_video_preload` for it the moment the *current* step fires — so firing "Crowd Cheer Meter" warms the Hype Video's file while the meter's still running, well before the operator advances to it. The display side (`preloadTitleVideo()`) loads it into the otherwise-idle title-video element and does a real `play()`+`pause()` (not just `.load()`, which on this Pi often only buffers metadata) to force the decoder to actually spin up and claim its CMA buffers early. When the step fires for real, `showTitleVideo()` sees the warm element already sitting on frame 0 and reveals instantly — no cold load, no canplay wait. Falls back cleanly to the old cold path if the preload didn't land (wrong file, no lead time, something else used title-video in between). Note: this narrows the CMA race, it doesn't remove CMA fragmentation itself — a REFRESH DISPLAY before the show still gives the cleanest starting margin.
 
+## Phase 23 — Projector Control, Video Sound Without HDMI, 720p Projector Video, Show-Flow Actions, Pre-Show Check, UI Speed
+
+### Video sound needs a screen on the Pi (Pi-side change, not in git except the script)
+Sound inside a video (macro videos, memes, walk-up own-audio) plays from the Pi's own
+Chromium through PipeWire to the HAT — not from the projector. With the HDMI cable
+unplugged both HDMI ports report `disconnected`, cage/Chromium never load a page, and
+every video with embedded audio goes silent (walk-up *music* is unaffected — pygame
+plays it). Fix: `scripts/mm-force-hdmi.sh` writes `on` to
+`/sys/class/drm/card*-HDMI-A-1/status`, and `musicman-display.service` runs it first.
+To reinstall on a fresh Pi:
+
+    sudo install -m 755 scripts/mm-force-hdmi.sh /usr/local/bin/mm-force-hdmi.sh
+    # in /etc/systemd/system/musicman-display.service, above `ExecStartPre=/bin/sleep 5`:
+    ExecStartPre=+/usr/local/bin/mm-force-hdmi.sh
+    sudo systemctl daemon-reload && sudo systemctl restart musicman-display
+
+### Projector video must be 720p
+The Nebula's Fully Kiosk WebView dropped 150+ frames playing 1080p H.264 at 4–8 Mbps
+(0 on an iPad; 0 at 1280x720 Main profile 4 Mbps). Measured with a per-client
+`getVideoPlaybackQuality` probe. Recipe for anything shown on the projector:
+1280x720, H.264 Main, ~4 Mbps cap, AAC 48 kHz, faststart. 1080p at ~2 Mbps measured
+clean. 16 heavier files were converted; originals are in `assets/_orig_1080p/` on the Pi.
+
+### Walk-up preloader
+The display page created a hidden `<video preload=auto>` for every walk-up/macro video
+(~25) on each page load; right after a reload the projector stalled the next video.
+Now sequential (one file at a time, 20 s abort), and the projector WebView only
+`fetch()`-warms the HTTP cache instead of creating hidden video elements.
+
+### Projector remote
+Console + Admin remote pad (gear, arrows, OK, Back, Home), FRONT/REAR buttons, and a
+"Projector Front/Rear" macro step. The flip path (verified live): gear → Down 1, OK
+(Projector settings) → Down 6, OK (Advanced settings) → Down 1, OK (Projector mode;
+cursor always opens on Auto) → Down 1 = Front / Down 3 = Rear, OK → Back until the
+reported foreground app is Fully. Keys are spaced ~0.7 s and each screen change is
+confirmed against `current_app`; a key sent while a screen loads is dropped. The
+remote's launch-app command is now rejected by the projector for every app, so LAUNCH
+DISPLAY backs out of settings instead, and reports when the projector is on its home
+screen. Fully's Remote Administration (port 2323) would fix that but was not available.
+
+### Video sound delay
+The projector picture runs ~1.2 s behind the Pi's audio. Admin > System > Video Sound
+Delay holds the sound back via a DelayNode in every video audio graph.
+
+### Show flow "action" steps, pre-show check
+`type: action` show-flow steps run any single macro action through the macro engine
+(Admin reuses the macro editor's action list). `/api/preshow/check` + `static/preshow.js`
+(button on Console SHOW page and Admin System) check system state and walk the whole
+show flow.
+
+### UI speed
+`load_config()` used the pure-Python YAML parser (~2 s, 5–8 s under load, 118 call
+sites). Now libyaml's C loader + an mtime-keyed cache; saves use the C dumper (non-BMP
+emoji are written as `\UXXXXXXXX` escapes; data is identical on reload). `/api/health`
+no longer blocks on offline `.local` poles (one 2 s deadline, cached 15 s);
+`/api/wifi/status` no longer rescans on every poll; Console fetches walk-up stills in
+one batch call and merges identical in-flight list requests.
+
 ---
 
-*Last updated: September 2026 — Phase 22*
+*Last updated: September 2026 — Phase 23*
