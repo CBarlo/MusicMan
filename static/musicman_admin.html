@@ -6528,14 +6528,14 @@ async function admSendSlide() {
   if (_admSlideTpl === 'qr')         { data.headline = g('adm_sl_headline'); data.body        = g('adm_sl_body');    data.qr_url = g('adm_sl_qr_url'); }
   try {
     const r = await fetch('/api/display/slide', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
-    if (r.ok) showToast('SLIDE SENT', 'ok'); else showToast('SEND FAILED', 'err');
-  } catch(e) { showToast('SEND FAILED', 'err'); }
+    if (r.ok) toast('SLIDE SENT', 'ok'); else toast('SEND FAILED', 'err');
+  } catch(e) { toast('SEND FAILED', 'err'); }
 }
 
 async function admClearSlide() {
   try {
     await fetch('/api/display/slide/clear');
-    showToast('SLIDE CLEARED', 'info');
+    toast('SLIDE CLEARED', 'info');
   } catch(e) {}
 }
 
@@ -7254,7 +7254,7 @@ async function loadSavedSlides() {
 
 async function admSaveSlide() {
   const name = document.getElementById('adm-slide-save-name')?.value.trim();
-  if (!name) { showToast('ENTER A NAME FIRST', 'err'); return; }
+  if (!name) { toast('ENTER A NAME FIRST', 'err'); return; }
   const g = id => document.getElementById(id)?.value?.trim() || '';
   const data = { name, template: _admSlideTpl, theme: _admSlideColor };
   if (_admSelectedSlideId) data.id = _admSelectedSlideId;
@@ -7270,17 +7270,17 @@ async function admSaveSlide() {
       _admSelectedSlideId = res.id;
       document.getElementById('adm-sl-editor-title').textContent = name.toUpperCase();
       document.getElementById('adm-sl-delete-btn').style.display = 'block';
-      showToast('SLIDE SAVED', 'ok');
+      toast('SLIDE SAVED', 'ok');
       await loadSavedSlides();
-    } else { showToast('SAVE FAILED', 'err'); }
-  } catch(e) { showToast('SAVE FAILED', 'err'); }
+    } else { toast('SAVE FAILED', 'err'); }
+  } catch(e) { toast('SAVE FAILED', 'err'); }
 }
 
 async function admPushSavedSlide(id) {
   try {
     const r = await fetch(`/api/slides/${id}/push`);
-    if ((await r.json()).ok) showToast('SLIDE SENT', 'ok'); else showToast('PUSH FAILED', 'err');
-  } catch(e) { showToast('PUSH FAILED', 'err'); }
+    if ((await r.json()).ok) toast('SLIDE SENT', 'ok'); else toast('PUSH FAILED', 'err');
+  } catch(e) { toast('PUSH FAILED', 'err'); }
 }
 
 function admLoadSavedSlide(id) {
@@ -7324,8 +7324,8 @@ async function admDeleteSavedSlide(id) {
   try {
     await fetch(`/api/slides/${id}`, { method: 'DELETE' });
     await loadSavedSlides();
-    showToast('DELETED', 'info');
-  } catch(e) { showToast('DELETE FAILED', 'err'); }
+    toast('DELETED', 'info');
+  } catch(e) { toast('DELETE FAILED', 'err'); }
 }
 
 function admNewSlide() {
@@ -7355,8 +7355,8 @@ async function admDeleteCurrentSlide() {
     document.getElementById('adm-slide-placeholder').style.display = '';
     document.getElementById('adm-slide-editor').style.display = 'none';
     await loadSavedSlides();
-    showToast('SLIDE DELETED', 'info');
-  } catch(e) { showToast('DELETE FAILED', 'err'); }
+    toast('SLIDE DELETED', 'info');
+  } catch(e) { toast('DELETE FAILED', 'err'); }
 }
 
 async function admSendFromEditor() {
