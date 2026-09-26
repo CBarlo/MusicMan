@@ -164,6 +164,8 @@
   .sfx-btn[draggable=true] { cursor: grab; }
   .sfx-btn[draggable=true]:active { cursor: grabbing; }
   .sfx-icon { display: none; }
+  .proj-key { padding:8px 0;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer; }
+  .proj-key:active { background:var(--amber-dim);border-color:var(--amber); }
   .slide-tpl-btn { padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;cursor:pointer;transition:all .15s; }
   .slide-tpl-btn.active { border-color:var(--amber);color:var(--amber);background:var(--amber-dim); }
   .slide-color-btn { width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all .15s; }
@@ -402,6 +404,21 @@
           <button onclick="projConsolePower()" style="flex:1;padding:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">&#9211; POWER</button>
           <button onclick="projConsoleLaunch()" style="flex:1;padding:8px;background:var(--surface);border:1px solid var(--border);color:var(--amber);border-radius:6px;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;cursor:pointer">&#128250; DISPLAY</button>
         </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px">
+          <button class="proj-key" onclick="projConsoleKey('SETTINGS')">&#9881;</button>
+          <button class="proj-key" onclick="projConsoleKey('UP')">&#9650;</button>
+          <button class="proj-key" onclick="projConsoleKey('HOME')">HOME</button>
+          <button class="proj-key" onclick="projConsoleKey('LEFT')">&#9664;</button>
+          <button class="proj-key" onclick="projConsoleKey('OK')">OK</button>
+          <button class="proj-key" onclick="projConsoleKey('RIGHT')">&#9654;</button>
+          <button class="proj-key" onclick="projConsoleKey('BACK')">BACK</button>
+          <button class="proj-key" onclick="projConsoleKey('DOWN')">&#9660;</button>
+          <span></span>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="proj-key" style="flex:1" onclick="projConsoleOrient('front')">FRONT</button>
+          <button class="proj-key" style="flex:1" onclick="projConsoleOrient('rear')">REAR</button>
+        </div>
       </div>
 
       <div class="credits" style="margin-top:16px">MUSIC MAN CONSOLE &middot; BROKEN ARROW EXPEDITION<br>BORING BADGER (CHRIS) &middot; GAMING GECKO (HENRY) &middot; LITTLE RED MACHINE (NOLAN)</div>
@@ -430,6 +447,7 @@
       <div class="page-tab" onclick="showPage('help',this)">HELP</div>
     </div>
     <div class="page active" id="page-show">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button onclick="openPreshowCheck()" style="padding:9px 16px;border-radius:7px;border:2px solid var(--amber,#f5a623);background:var(--amber-dim,#3a2a08);color:var(--amber,#f5a623);font:800 12px 'Barlow Condensed',sans-serif;letter-spacing:2px;cursor:pointer;white-space:nowrap">✔ PRE-SHOW CHECK</button></div>
       <div style="font-size:11px;color:var(--text-dim);padding:5px 8px;background:var(--bg2);border-radius:6px;border-left:2px solid var(--border2);margin-bottom:8px">Press steps in order to hit the cues for the show.</div>
       <div id="showGrid" style="display:flex;flex-direction:column;gap:8px;padding:4px 0"></div>
     </div>
@@ -1186,6 +1204,28 @@
   <span id="crowd-bug-level" style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.85);font-family:'Share Tech Mono',monospace">0%</span>
 </div>
 <script>
+// Identical read-only list requests made at the same moment (several parts of the
+// page ask for config, macros, scenes... on load) share one network call.
+// Whitelisted to list endpoints only: GET endpoints that DO something (sfx play,
+// show fire, macro run...) must never be merged.
+(function () {
+  const orig = window.fetch.bind(window);
+  const inflight = new Map();
+  const READ_ONLY = /^\/api\/(config|macros|scenes|roles|circles|show_flow|slides|games|game-entries|vs_cards|head_to_head|state|remote\/state|display\/list|display\/tags|sfx\/list|sfx\/tags|music\/list|timer\/presets|viz\/presets|console_order\/[a-z_]+)$/;
+  window.fetch = function (input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    if (method !== 'GET' || !READ_ONLY.test(url) || (init && init.signal)) return orig(input, init);
+    let p = inflight.get(url);
+    if (!p) {
+      p = orig(input, init);
+      inflight.set(url, p);
+      const clear = () => inflight.delete(url);
+      p.then(clear, clear);
+    }
+    return p.then(r => r.clone());
+  };
+})();
 function updateClock() {
   const n = new Date();
   document.getElementById('clock').textContent =
@@ -3149,7 +3189,7 @@ function _renderShowFlowGrid() {
 
     // Detect inline actions from macro steps
     const macro = macroMap[step.macro_id];
-    const steps = macro?.steps || [];
+    const steps = macro?.steps || (step.type === 'action' && step.step ? [step.step] : []);
     // Names for any role this step walks up -- either a macro step
     // (walkup_role) or a bare role-type Show Flow entry. Additive only: a
     // step with no role, or a role with no NAMES filled in, renders exactly
@@ -3366,22 +3406,28 @@ function buildAssetTilesSection(items, type, containerId) {
 
   const stillsGrid = document.getElementById(containerId + '-stills');
   if (!stillsGrid) return;
+  const tiles = {};
   stillable.forEach(i => {
     const tile = document.createElement('div');
     tile.className = 'asset-tile empty';
     tile.title = `Show ${i.name}'s walk-up still on the display`;
     tile.innerHTML = `<div class="asset-tile-name">${escHtml(i.name)}</div><div class="asset-tile-badge still">STILL</div>`;
     stillsGrid.appendChild(tile);
-    fetch(`/api/walkup_still/${type}/${encodeURIComponent(i.id)}`).then(r => r.json()).then(d => {
-      if (!d.ok || !d.url) return;
+    tiles[i.id] = tile;
+  });
+  // One request for every still of this type, not one per circle/role.
+  fetch(`/api/walkup_stills/${type}`).then(r => r.json()).then(d => {
+    Object.entries(d.stills || {}).forEach(([id, url]) => {
+      const tile = tiles[id];
+      if (!tile) return;
       const img = document.createElement('img');
       img.loading = 'lazy';
-      img.src = d.url;
+      img.src = url;
       tile.insertBefore(img, tile.firstChild);
       tile.classList.remove('empty');
-      tile.onclick = () => sendWalkupStill(type, i.id);
-    }).catch(() => {});
-  });
+      tile.onclick = () => sendWalkupStill(type, id);
+    });
+  }).catch(() => {});
 }
 
 // Generates (first time, or if the walk-up video's changed since) and
@@ -4326,6 +4372,14 @@ function projConsoleLaunch() {
     if (!d.ok) showAlert(d.error || 'Could not launch display', 2500);
     setTimeout(loadProjectorStatus, 1000);
   }).catch(()=>{});
+}
+function projConsoleKey(key) {
+  fetch('/api/projector/key', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({key})})
+    .then(r=>r.json()).then(d=>{ if (!d.ok) showAlert(d.error || 'Key failed', 2500); }).catch(()=>{});
+}
+function projConsoleOrient(mode) {
+  fetch('/api/projector/orientation', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({mode})})
+    .then(r=>r.json()).then(d=>{ showAlert(d.ok ? 'Switching projector to ' + mode.toUpperCase() + '…' : (d.error || 'Failed'), d.ok ? 2500 : 3000); }).catch(()=>{});
 }
 loadProjectorStatus();
 setInterval(loadProjectorStatus, 10000);
@@ -5523,5 +5577,6 @@ function hideGameOverlay() {
   showPage('games');
 }
 </script>
+<script src="/static/preshow.js"></script>
 </body>
 </html>

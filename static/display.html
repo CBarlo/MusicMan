@@ -922,25 +922,48 @@ const wuNamebar    = document.getElementById('wu-namebar');
 const wuFrameHold  = document.getElementById('wu-frame-hold');
 
 // ── Show Flow video preloader ──────────────────────────────────────────────
-// Keeps a hidden <video> per URL so files are in OS page cache before walkup fires.
+// One file at a time. On the projector's Android WebView, ~25 hidden <video>
+// elements created at once stalled real playback, so it only warms the HTTP
+// cache with a plain download; the Pi and iPad keep a hidden <video> per URL.
+const _isProjectorWebView = /Fully|; wv\)/.test(navigator.userAgent);
 const _preloadPool = {};
+let _preloadQueue = [], _preloadBusy = false;
+function _preloadNext() {
+  if (_preloadBusy) return;
+  const url = _preloadQueue.shift();
+  if (!url) return;
+  _preloadBusy = true;
+  const next = () => { _preloadBusy = false; setTimeout(_preloadNext, 300); };
+  if (_isProjectorWebView) {
+    const ac = new AbortController();
+    const to = setTimeout(() => ac.abort(), 20000);
+    fetch(url, { signal: ac.signal }).then(r => r.blob()).then(() => { _preloadPool[url] = true; }).catch(() => {}).finally(() => { clearTimeout(to); next(); });
+    return;
+  }
+  const v = document.createElement('video');
+  v.muted = true; v.preload = 'auto';
+  let fin = false;
+  const done = () => { if (!fin) { fin = true; next(); } };
+  v.addEventListener('canplaythrough', done, { once: true });
+  v.addEventListener('error', done, { once: true });
+  setTimeout(done, 8000);
+  v.src = url; v.load();
+  _preloadPool[url] = v;
+}
 function preloadAssets(urls) {
-  // Start loading any new URLs
-  (urls || []).forEach(url => {
-    if (_preloadPool[url]) return;
-    const v = document.createElement('video');
-    v.muted = true; v.preload = 'auto';
-    v.src = url; v.load();
-    _preloadPool[url] = v;
-  });
-  // Release URLs no longer in the list
   const keep = new Set(urls || []);
+  (urls || []).forEach(url => {
+    if (!_preloadPool[url] && !_preloadQueue.includes(url)) _preloadQueue.push(url);
+  });
+  _preloadQueue = _preloadQueue.filter(u => keep.has(u));
   Object.keys(_preloadPool).forEach(url => {
     if (!keep.has(url)) {
-      _preloadPool[url].src = '';
+      const v = _preloadPool[url];
+      if (v && v.tagName) v.src = '';
       delete _preloadPool[url];
     }
   });
+  _preloadNext();
 }
 fetch('/api/preload_assets').then(r => r.json()).then(d => preloadAssets(d.urls)).catch(() => {});
 // ──────────────────────────────────────────────────────────────────────────
@@ -1035,6 +1058,47 @@ function clearAllLayers() {
   }, 1200);
 }
 
+// ── VIDEO SOUND DELAY ─────────────────────────────────────────────────────
+// The projector's picture runs behind the Pi's audio (Wi-Fi + projector
+// processing). Every video-audio graph passes through a DelayNode set from
+// Admin. Walk-up elements have no graph, so they get one only when a delay is
+// actually set (at 0 their audio path is left exactly as it was).
+let _audioDelayMs = 0;
+const _delayNodes = new Set();
+function _newDelayNode(ctx) {
+  const d = ctx.createDelay(2.0);
+  d.delayTime.value = _audioDelayMs / 1000;
+  _delayNodes.add(d);
+  return d;
+}
+function _applyAudioDelay(ms) {
+  _audioDelayMs = Math.max(0, Math.min(1500, Number(ms) || 0));
+  _delayNodes.forEach(d => { d.delayTime.value = _audioDelayMs / 1000; });
+}
+let _wuAudioCtx = null, _wuDelay = null;
+const _wuSources = new Map();
+function _delayWalkupAudio(el) {
+  if (!el || _audioDelayMs <= 0 || _wuSources.has(el)) return;
+  try {
+    if (!_wuAudioCtx) {
+      _wuAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      _wuDelay = _newDelayNode(_wuAudioCtx);
+      _wuDelay.connect(_wuAudioCtx.destination);
+    }
+    // A suspended context would swallow the element's audio: leave this one
+    // undelayed (native output) and try again on the next walk-up.
+    if (_wuAudioCtx.state !== 'running') { _wuAudioCtx.resume().catch(() => {}); return; }
+    const src = _wuAudioCtx.createMediaElementSource(el);
+    src.connect(_wuDelay);
+    _wuSources.set(el, src);
+  } catch (e) { /* falls back to undelayed element audio */ }
+}
+function _releaseWalkupAudio(el) {
+  const src = _wuSources.get(el);
+  if (src) { try { src.disconnect(); } catch (e) {} _wuSources.delete(el); }
+}
+fetch('/api/display/audio_delay').then(r => r.json()).then(d => _applyAudioDelay(d.ms)).catch(() => {});
+
 // ── DISPLAY CONTROL ───────────────────────────────────────────────────────────
 let _titleAudioCtx = null, _titleGainNode = null, _titleSourceNode = null;
 function _ensureTitleAudioGraph(titleVideo) {
@@ -1043,7 +1107,7 @@ function _ensureTitleAudioGraph(titleVideo) {
     _titleAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     _titleSourceNode = _titleAudioCtx.createMediaElementSource(titleVideo);
     _titleGainNode = _titleAudioCtx.createGain();
-    _titleSourceNode.connect(_titleGainNode).connect(_titleAudioCtx.destination);
+    _titleSourceNode.connect(_titleGainNode).connect(_newDelayNode(_titleAudioCtx)).connect(_titleAudioCtx.destination);
   } catch (e) { /* Web Audio unavailable — falls back to unboosted element volume */ }
 }
 
@@ -1148,7 +1212,7 @@ function _ensureMemeAudioGraph(memeVideo) {
     _memeAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     _memeSourceNode = _memeAudioCtx.createMediaElementSource(memeVideo);
     _memeGainNode = _memeAudioCtx.createGain();
-    _memeSourceNode.connect(_memeGainNode).connect(_memeAudioCtx.destination);
+    _memeSourceNode.connect(_memeGainNode).connect(_newDelayNode(_memeAudioCtx)).connect(_memeAudioCtx.destination);
   } catch (e) { /* Web Audio unavailable — falls back to unboosted element volume */ }
 }
 
@@ -1254,7 +1318,7 @@ function preloadWalkupVideo(data) {
       const old = _wuWarm[oldUrl];
       delete _wuWarm[oldUrl];
       old.pause();
-      setTimeout(() => { if (old.parentNode) old.parentNode.removeChild(old); }, 500);
+      setTimeout(() => { _releaseWalkupAudio(old); if (old.parentNode) old.parentNode.removeChild(old); }, 500);
     });
   }
 
@@ -1313,11 +1377,12 @@ function showWalkup(data) {
     oldEl.pause();
     oldEl.style.display = 'none';
     if (oldEl !== wuVideo) {
-      setTimeout(() => { if (oldEl.parentNode) oldEl.parentNode.removeChild(oldEl); }, 5000);
+      setTimeout(() => { _releaseWalkupAudio(oldEl); if (oldEl.parentNode) oldEl.parentNode.removeChild(oldEl); }, 5000);
     }
   }
   const vid = _wuCurrentEl;
   vid.muted = (data.muted === false) ? false : true;
+  if (!vid.muted) _delayWalkupAudio(vid);
 
   // Background wash
   wuBg.style.background = `radial-gradient(ellipse at 50% 30%, ${hexOpacity(color, 0.18)} 0%, #050505 70%)`;
@@ -1370,12 +1435,13 @@ function showWalkup(data) {
       delete _wuWarm[animBase];
       warmAnim.loop  = true;
       warmAnim.muted = (data.muted === false) ? false : true;
+      if (!warmAnim.muted) _delayWalkupAudio(warmAnim);
       warmAnim.style.display = 'block';
       const oldEl = _wuCurrentEl;
       _wuCurrentEl = warmAnim;
       oldEl.pause();
       oldEl.style.display = 'none';
-      if (oldEl !== wuVideo) setTimeout(() => { if (oldEl.parentNode) oldEl.parentNode.removeChild(oldEl); }, 5000);
+      if (oldEl !== wuVideo) setTimeout(() => { _releaseWalkupAudio(oldEl); if (oldEl.parentNode) oldEl.parentNode.removeChild(oldEl); }, 5000);
       warmAnim.play().then(() => {
         wuFrameHold.style.display = 'none';
       }).catch(() => { wuFrameHold.style.display = 'none'; warmAnim.style.display = 'none'; _showLogo(); });
@@ -1973,7 +2039,7 @@ function _kkEnsureVideoAudioGraph() {
     _kkVideoAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     _kkVideoSourceNode = _kkVideoAudioCtx.createMediaElementSource(kkVideo);
     _kkVideoGainNode = _kkVideoAudioCtx.createGain();
-    _kkVideoSourceNode.connect(_kkVideoGainNode).connect(_kkVideoAudioCtx.destination);
+    _kkVideoSourceNode.connect(_kkVideoGainNode).connect(_newDelayNode(_kkVideoAudioCtx)).connect(_kkVideoAudioCtx.destination);
   } catch (e) { /* Web Audio unavailable -- falls back to unboosted element volume */ }
 }
 function _kkApplyVideoSound(muted, gain) {
@@ -2320,6 +2386,7 @@ function connectWS() {
       else if (msg.event === 'h2h_contestant')    { updateH2HContestant(data); }
       else if (msg.event === 'display_h2h_winner') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); showH2HWinner(data); }
       else if (msg.event === 'timer_hide')        { hideChronoOverlay(); }
+      else if (msg.event === 'display_audio_delay') { _applyAudioDelay(data.ms); }
       else if (msg.event === 'display_reload')    { location.href = '/display?v=' + Date.now(); }
       else if (msg.event === 'display_meme_cleared') { _clearMemeOverlay(); }
       else if (msg.event === 'display_navigate')  {
