@@ -7820,6 +7820,10 @@ async function _renderGlShellGameEditor(container) {
     </div>
     <div class="section-divider"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.4">Images and sounds you drop into the slots above are resized/compressed automatically. Use this if you loaded a variation saved before that existed, or just want a fresh pass.</div>
+      <button onclick="sgOptimizeAssets()" id="sg-optimize-btn" class="btn btn-secondary btn-sm" style="white-space:nowrap">🗜 OPTIMIZE SKIN ASSETS</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
       <div class="card-title" style="margin-bottom:0">SAVED VARIATIONS</div>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="sg-theme-name" type="text" placeholder="Variation name…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:160px;font-family:'Barlow Condensed',sans-serif;font-weight:600">
@@ -11968,6 +11972,23 @@ async function _usbSongImport(usbPath, fieldKey, el) {
 }
 
 // ── Themes / Variations ──────────────────────────────────────────────────────
+async function sgOptimizeAssets() {
+  const btn = document.getElementById('sg-optimize-btn');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '…OPTIMIZING';
+  try {
+    const r = await fetch('/api/admin/shell-game/optimize', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      const savedMb = ((d.bytes_before - d.bytes_after) / 1e6).toFixed(1);
+      toast(d.files_optimized
+        ? `Optimized ${d.files_optimized} file(s), saved ${savedMb} MB`
+        : 'Everything already optimized', 'ok');
+    } else { toast('Optimize failed', 'err'); }
+  } catch { toast('Optimize failed', 'err'); }
+  btn.disabled = false; btn.textContent = orig;
+}
+
 async function sgLoadThemes() {
   const list = document.getElementById('sg-themes-list');
   try {

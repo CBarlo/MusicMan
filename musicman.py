@@ -3504,6 +3504,92 @@ def _sg_find_file(sg_dir, slot):
             return f'{slot}.{ext}', ext
     return None, None
 
+# Displayed sizes: bg_image is full-bleed, tent/rock are ~26vw/9-42vh on screen
+# (a few hundred px even on a 1920-wide projector) -- these caps give real
+# headroom above that without keeping a phone-camera-sized master around.
+_SG_IMG_MAX_SIDE = {'bg_image': 1920, 'tent': 900, 'rock': 900}
+
+def _optimize_shell_game_asset(path, slot):
+    """Resize/recompress a shell-game skin asset (image or audio) right after
+    it lands -- direct upload, USB import, or picked from the Display/Music
+    library -- so every later use of it (a saved theme snapshot, restoring a
+    theme, the game's own page load) is already working with a small file.
+    Themes are plain copies of whatever's in the live slots (see
+    shell_game_themes_save/_load_shell_game_theme), so optimizing once here
+    at the point a file enters the system is enough -- nothing downstream
+    needs to know this ever ran. Returns the (possibly renamed, e.g.
+    .wav -> .mp3) final path. Never raises and leaves the file exactly as
+    uploaded if ffmpeg is missing or anything goes wrong -- an optimization
+    pass must not be why an upload fails."""
+    path = Path(path)
+    if not shutil.which('ffmpeg') or not path.exists() or path.suffix.lower() == '.gif':
+        return path
+    try:
+        if slot in _SG_IMAGE_SLOTS:
+            max_side = _SG_IMG_MAX_SIDE.get(slot, 1200)
+            probe = subprocess.run(
+                ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+                 '-show_entries', 'stream=width,height', '-of', 'csv=p=0', str(path)],
+                capture_output=True, text=True, timeout=10)
+            dims = probe.stdout.strip().split(',')
+            w, h = (int(dims[0]), int(dims[1])) if len(dims) == 2 and dims[0].isdigit() else (0, 0)
+            if not w or (max(w, h) <= max_side and path.stat().st_size < 400_000):
+                return path  # already small enough -- don't bother re-encoding
+            tmp = path.parent / f'{path.stem}.opt.tmp{path.suffix}'
+            r = subprocess.run(
+                ['ffmpeg', '-y', '-v', 'error', '-i', str(path),
+                 '-vf', f"scale='min({max_side},iw)':'min({max_side},ih)':force_original_aspect_ratio=decrease",
+                 '-frames:v', '1', str(tmp)], capture_output=True, timeout=30)
+            # ffmpeg's default PNG compression can lose to whatever produced the
+            # original (an export tool, a previous optimize pass) when the source
+            # was already within max_side -- confirmed live: a 1920x1080 background
+            # came back 27% BIGGER after an unconditional re-encode. Only ever
+            # keep the result if it's actually smaller; otherwise leave the
+            # original exactly as it was.
+            if tmp.exists() and 0 < tmp.stat().st_size < path.stat().st_size:
+                os.replace(tmp, path)
+            else:
+                tmp.unlink(missing_ok=True)
+            return path
+        elif slot in _SG_AUDIO_SLOTS:
+            if path.suffix.lower() in ('.mp3', '.ogg') and path.stat().st_size < 3_000_000:
+                return path  # already compact
+            mp3_path = path.parent / f'{slot}.mp3'
+            tmp = path.parent / f'{slot}.opt.tmp.mp3'
+            r = subprocess.run(
+                ['ffmpeg', '-y', '-v', 'error', '-i', str(path),
+                 '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', str(tmp)],
+                capture_output=True, timeout=60)
+            if tmp.exists() and 0 < tmp.stat().st_size < path.stat().st_size:
+                os.replace(tmp, mp3_path)
+                if mp3_path != path:
+                    path.unlink(missing_ok=True)
+                return mp3_path
+            tmp.unlink(missing_ok=True)
+            return path
+    except Exception as e:
+        log.warning(f"Shell game asset optimize failed for {path}: {e}")
+    return path
+
+def _sg_optimize_dir(d):
+    """Run _optimize_shell_game_asset over every slot file directly inside
+    one shell-game asset directory (the live slots, or one theme's folder).
+    Returns (files touched, bytes before, bytes after)."""
+    touched, before, after = 0, 0, 0
+    for slot in _ALL_SG_SLOTS:
+        fname, _ = _sg_find_file(d, slot)
+        if not fname:
+            continue
+        p = d / fname
+        sz0 = p.stat().st_size
+        new_p = _optimize_shell_game_asset(p, slot)
+        sz1 = new_p.stat().st_size if new_p.exists() else sz0
+        before += sz0
+        after  += sz1
+        if new_p != p or sz1 != sz0:
+            touched += 1
+    return touched, before, after
+
 @app.route('/api/shell-game/config', methods=['GET'])
 def shell_game_config_get():
     cfg = load_config()
@@ -3600,6 +3686,7 @@ def shell_game_asset_from_library():
             old.unlink()
     dest = sg_dir / (slot + src.suffix.lower())
     shutil.copy2(src, dest)
+    dest = _optimize_shell_game_asset(dest, slot)
     cfg = load_config()
     cfg.setdefault('shell_game', {})[f'{slot}_name'] = src.name
     save_config(cfg)
@@ -3696,6 +3783,25 @@ def api_admin_wheel_post():
     save_config(cfg)
     return jsonify({'ok': True})
 
+@app.route('/api/admin/shell-game/optimize', methods=['POST'])
+def api_shell_game_optimize_all():
+    """On-demand re-run of the same optimization every new skin asset already
+    gets automatically -- for assets that were saved before this existed, or
+    just as a "make sure everything's tidy" button. Covers the live slots and
+    every saved theme."""
+    sg_dir = ASSETS_DIR / 'shell_game'
+    total_touched = before = after = 0
+    dirs = [sg_dir]
+    themes_dir = sg_dir / 'themes'
+    if themes_dir.exists():
+        dirs += [d for d in sorted(themes_dir.iterdir()) if d.is_dir()]
+    for d in dirs:
+        t, b, a = _sg_optimize_dir(d)
+        total_touched += t; before += b; after += a
+    broadcast('shell_game_reload', {})
+    return jsonify({'ok': True, 'themes_checked': len(dirs) - 1, 'files_optimized': total_touched,
+                    'bytes_before': before, 'bytes_after': after})
+
 @app.route('/api/shell-game/themes', methods=['GET'])
 def shell_game_themes_list():
     """List all saved shell game themes."""
@@ -3772,7 +3878,7 @@ def shell_game_theme_asset(theme_id, slot):
         return send_from_directory(str(theme_dir), fname)
     return '', 404
 
-def _load_shell_game_theme(theme_id):
+def _load_shell_game_theme(theme_id, broadcast_reload=True):
     """Restore a theme: copy its assets to the active slots and merge its text
     config. Shared by the Admin 'load theme' button and the Shell Game macro
     step (so a macro can pick a specific variant instead of whatever's
@@ -3807,7 +3913,8 @@ def _load_shell_game_theme(theme_id):
             sg.pop(key, None)
     cfg['shell_game'] = sg
     save_config(cfg)
-    broadcast('shell_game_reload', {})
+    if broadcast_reload:
+        broadcast('shell_game_reload', {})
     return True, None
 
 @app.route('/api/shell-game/themes/<theme_id>/load', methods=['POST'])
@@ -7674,7 +7781,10 @@ def execute_macro(macro, cancel=None, show_flow_idx=None, is_nested=False):
             elif action == 'shell_game':
                 theme_id = step.get('theme_id', '')
                 if theme_id:
-                    _load_shell_game_theme(theme_id)  # loads its own hold too, but the step's own value below wins
+                    # broadcast_reload=False: display_navigate two lines down already
+                    # forces a fresh load of the game, so the theme's own reload
+                    # broadcast would just be a second, redundant screen flash.
+                    _load_shell_game_theme(theme_id, broadcast_reload=False)  # loads its own hold too, but the step's own value below wins
                 hold = step.get('hold', 5)
                 url = f'/shell-game?hold={hold}'
                 broadcast('display_navigate', {'url': url})
@@ -8069,6 +8179,8 @@ def api_upload():
     dest.parent.mkdir(parents=True, exist_ok=True)
     f.save(str(dest))
     _ensure_video_faststart(dest)
+    if target_type == 'shell_game' and slot:
+        dest = _optimize_shell_game_asset(dest, slot)
     stored_name = dest.name  # use the actual saved filename (logo.png, walkup.mp3, etc.)
     log.info(f"File uploaded: {dest}")
 
