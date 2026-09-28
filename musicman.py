@@ -2515,6 +2515,7 @@ def fire_walkup(circle_id=None, role_id=None, show_flow_idx=None):
         'animation_intro': _versioned_walkup_file(_walkup_dir, item['id'], item.get('assets', {}).get('animation_intro', '')),
         'hide_name':       walkup_cfg.get('hide_name', False),
         'muted':           walkup_cfg.get('muted', True),  # same mute/own-audio toggle game entries already had
+        'video_gain':      walkup_cfg.get('video_gain', 100) / 100,
     }
     next_preload = _get_next_walkup_preload(cfg, show_flow_idx)
     if next_preload:
@@ -2635,6 +2636,7 @@ def fire_game_entry(entry_id, reveal_url=None):
         'animation_intro': _versioned_walkup_file(ASSETS_DIR / 'game_entries', item['id'], assets_cfg.get('animation_intro', '')),
         'hide_name':       walkup_cfg.get('hide_name', False),
         'muted':           walkup_cfg.get('muted', True),
+        'video_gain':      walkup_cfg.get('video_gain', 100) / 100,
         'reveal_game_url': reveal_url,
     }
 

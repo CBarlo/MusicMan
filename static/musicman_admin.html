@@ -449,6 +449,12 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
                 <input type="checkbox" id="c-muted" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
                 <label for="c-muted" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">MUTE VIDEO (uncheck to play its own audio)</label>
               </div>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                <label for="c-video-gain" style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim);white-space:nowrap">VIDEO VOLUME</label>
+                <input type="range" id="c-video-gain" min="25" max="200" value="100" step="5" style="flex:1"
+                  oninput="document.getElementById('c-video-gain-val').textContent=this.value+'%'">
+                <span id="c-video-gain-val" style="font-size:11px;font-family:'Share Tech Mono',monospace;color:var(--amber);min-width:40px;text-align:right">100%</span>
+              </div>
 
               <div class="section-divider"></div>
 
@@ -628,6 +634,12 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
                 <input type="checkbox" id="r-muted" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
                 <label for="r-muted" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">MUTE VIDEO (uncheck to play its own audio)</label>
+              </div>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                <label for="r-video-gain" style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim);white-space:nowrap">VIDEO VOLUME</label>
+                <input type="range" id="r-video-gain" min="25" max="200" value="100" step="5" style="flex:1"
+                  oninput="document.getElementById('r-video-gain-val').textContent=this.value+'%'">
+                <span id="r-video-gain-val" style="font-size:11px;font-family:'Share Tech Mono',monospace;color:var(--amber);min-width:40px;text-align:right">100%</span>
               </div>
 
               <div class="section-divider"></div>
@@ -1648,6 +1660,12 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
               <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
                 <input type="checkbox" id="ge-muted" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
                 <label for="ge-muted" style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim)">MUTE VIDEO (uncheck to play its own audio)</label>
+              </div>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                <label for="ge-video-gain" style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-dim);white-space:nowrap">VIDEO VOLUME</label>
+                <input type="range" id="ge-video-gain" min="25" max="200" value="100" step="5" style="flex:1"
+                  oninput="document.getElementById('ge-video-gain-val').textContent=this.value+'%'">
+                <span id="ge-video-gain-val" style="font-size:11px;font-family:'Share Tech Mono',monospace;color:var(--amber);min-width:40px;text-align:right">100%</span>
               </div>
 
               <div class="section-divider"></div>
@@ -2828,6 +2846,7 @@ function populateCircleEditor(id) {
   document.getElementById('c-vol-trim-val').textContent = cVolTrim + '%';
   document.getElementById('c-hide-name').checked = wu.hide_name || false;
   document.getElementById('c-muted').checked = wu.muted !== false;
+  { const g = Math.round(wu.video_gain ?? 100); document.getElementById('c-video-gain').value = g; document.getElementById('c-video-gain-val').textContent = g + '%'; }
   document.getElementById('c-walkup-scene').value = wu.walkup_scene || '';
   document.getElementById('c-stage-scene').value  = wu.stage_scene  || '';
   const assets = c.assets || {};
@@ -3148,6 +3167,7 @@ async function saveCircle() {
       volume_trim:   parseInt(document.getElementById('c-vol-trim').value)   || 100,
       hide_name:     document.getElementById('c-hide-name').checked,
       muted:         document.getElementById('c-muted').checked,
+      video_gain:    parseInt(document.getElementById('c-video-gain').value, 10) || 100,
       walkup_scene:  document.getElementById('c-walkup-scene').value || null,
       stage_scene:   document.getElementById('c-stage-scene').value  || null,
     }
@@ -3306,6 +3326,7 @@ function populateRoleEditor(id) {
   document.getElementById('r-vol-trim-val').textContent = rVolTrim + '%';
   document.getElementById('r-hide-name').checked = wu.hide_name || false;
   document.getElementById('r-muted').checked = wu.muted !== false;
+  { const g = Math.round(wu.video_gain ?? 100); document.getElementById('r-video-gain').value = g; document.getElementById('r-video-gain-val').textContent = g + '%'; }
   document.getElementById('r-walkup-scene').value = wu.walkup_scene || '';
   document.getElementById('r-stage-scene').value  = wu.stage_scene  || '';
   const assets = r.assets || {};
@@ -3369,6 +3390,7 @@ async function saveRole() {
       volume_trim:   parseInt(document.getElementById('r-vol-trim').value)   || 100,
       hide_name:     document.getElementById('r-hide-name').checked,
       muted:         document.getElementById('r-muted').checked,
+      video_gain:    parseInt(document.getElementById('r-video-gain').value, 10) || 100,
       walkup_scene:  document.getElementById('r-walkup-scene').value || null,
       stage_scene:   document.getElementById('r-stage-scene').value  || null,
     }
@@ -3512,6 +3534,7 @@ function populateGameEntryEditor(id) {
   document.getElementById('ge-vol-trim-val').textContent = vt + '%';
   document.getElementById('ge-hide-name').checked = wu.hide_name || false;
   document.getElementById('ge-muted').checked = wu.muted !== false;
+  { const g = Math.round(wu.video_gain ?? 100); document.getElementById('ge-video-gain').value = g; document.getElementById('ge-video-gain-val').textContent = g + '%'; }
   document.getElementById('ge-walkup-scene').value = wu.walkup_scene || '';
   document.getElementById('ge-stage-scene').value  = wu.stage_scene  || '';
   const assets = e.assets || {};
@@ -3649,6 +3672,7 @@ async function saveGameEntry() {
       volume_trim:   parseInt(document.getElementById('ge-vol-trim').value)   || 100,
       hide_name:     document.getElementById('ge-hide-name').checked,
       muted:         document.getElementById('ge-muted').checked,
+      video_gain:    parseInt(document.getElementById('ge-video-gain').value, 10) || 100,
       walkup_scene:  document.getElementById('ge-walkup-scene').value || null,
       stage_scene:   document.getElementById('ge-stage-scene').value  || null,
     }

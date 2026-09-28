@@ -1076,9 +1076,16 @@ function _applyAudioDelay(ms) {
   _delayNodes.forEach(d => { d.delayTime.value = _audioDelayMs / 1000; });
 }
 let _wuAudioCtx = null, _wuDelay = null;
-const _wuSources = new Map();
-function _delayWalkupAudio(el) {
-  if (!el || _audioDelayMs <= 0 || _wuSources.has(el)) return;
+const _wuSources = new Map();   // el -> {source, gainNode}
+function _applyWalkupAudio(el, gain) {
+  gain = (typeof gain === 'number' && gain > 0) ? gain : 1;
+  if (!el) return;
+  const existing = _wuSources.get(el);
+  if (existing) { existing.gainNode.gain.value = gain; return; }
+  // Only build a Web Audio graph when something actually needs adjusting --
+  // a video at 100% with no delay set plays through the element's own
+  // (untouched) audio path.
+  if (gain === 1 && _audioDelayMs <= 0) return;
   try {
     if (!_wuAudioCtx) {
       _wuAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1086,16 +1093,22 @@ function _delayWalkupAudio(el) {
       _wuDelay.connect(_wuAudioCtx.destination);
     }
     // A suspended context would swallow the element's audio: leave this one
-    // undelayed (native output) and try again on the next walk-up.
+    // at its native volume and try again on the next walk-up.
     if (_wuAudioCtx.state !== 'running') { _wuAudioCtx.resume().catch(() => {}); return; }
-    const src = _wuAudioCtx.createMediaElementSource(el);
-    src.connect(_wuDelay);
-    _wuSources.set(el, src);
-  } catch (e) { /* falls back to undelayed element audio */ }
+    const source   = _wuAudioCtx.createMediaElementSource(el);
+    const gainNode = _wuAudioCtx.createGain();
+    gainNode.gain.value = gain;
+    source.connect(gainNode).connect(_wuDelay);
+    _wuSources.set(el, {source, gainNode});
+  } catch (e) { /* falls back to native element audio */ }
 }
 function _releaseWalkupAudio(el) {
-  const src = _wuSources.get(el);
-  if (src) { try { src.disconnect(); } catch (e) {} _wuSources.delete(el); }
+  const entry = _wuSources.get(el);
+  if (entry) {
+    try { entry.source.disconnect(); } catch (e) {}
+    try { entry.gainNode.disconnect(); } catch (e) {}
+    _wuSources.delete(el);
+  }
 }
 fetch('/api/display/audio_delay').then(r => r.json()).then(d => _applyAudioDelay(d.ms)).catch(() => {});
 
@@ -1382,7 +1395,7 @@ function showWalkup(data) {
   }
   const vid = _wuCurrentEl;
   vid.muted = (data.muted === false) ? false : true;
-  if (!vid.muted) _delayWalkupAudio(vid);
+  if (!vid.muted) _applyWalkupAudio(vid, data.video_gain);
 
   // Background wash
   wuBg.style.background = `radial-gradient(ellipse at 50% 30%, ${hexOpacity(color, 0.18)} 0%, #050505 70%)`;
@@ -1435,7 +1448,7 @@ function showWalkup(data) {
       delete _wuWarm[animBase];
       warmAnim.loop  = true;
       warmAnim.muted = (data.muted === false) ? false : true;
-      if (!warmAnim.muted) _delayWalkupAudio(warmAnim);
+      if (!warmAnim.muted) _applyWalkupAudio(warmAnim, data.video_gain);
       warmAnim.style.display = 'block';
       const oldEl = _wuCurrentEl;
       _wuCurrentEl = warmAnim;
