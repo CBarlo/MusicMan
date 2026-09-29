@@ -142,13 +142,14 @@ hardcoded.
 audience-facing), 60 LEDs each, daisy-chained off the single level-shifted
 data line from G2.
 
-**Fog unit (planned, one per pole — not yet built/wired)**
+**Fog unit (single unit at the EZ-Up — not yet deployed to the live Pi)**
 
-DIY ultrasonic-mist fogger: a sealed accumulation chamber (mist charges it for
-several seconds before release, for a denser cloud than a continuous stream),
-water reservoir with a float switch (never run the transducer dry), fan to
-push the accumulated fog out. Runs off the same 12V line already feeding the
-Node.
+Low-lying fog, staged behind the EZ-Up: an accumulation tote (mist charges it
+for several seconds before release, for a denser cloud than a continuous
+stream) feeding out through a tee into two slitted tubes spanning the
+canopy's width, plus a real consumer fog machine feeding the same tote. No
+longer one unit per pole — moved to a single unit at the stage once the
+design settled on staging fog at the EZ-Up rather than at each pole.
 
 **WiFi-controlled, not DMX.** DMX is only load-bearing for Pinspot/Wash/PAR
 because they're commercial fixtures with no other interface — this is a
@@ -161,10 +162,16 @@ DMX-address bookkeeping — it doesn't even need to sit near the DMX chain.
 Drops straight into the existing "flat list of network devices with tracked
 IPs" pattern Admin → System → Pole Nodes already uses.
 
-Two relay outputs (mister, fan) same as the DMX version would have had —
-switched by logic-level MOSFETs (silent, no mechanical wear across a season
-of burst-fire cycles) rather than a relay module, plus a flyback diode across
-the fan since a motor is an inductive load.
+**Three outputs, two different kinds of switching.** Mister and fan are
+logic-level MOSFETs (silent, no mechanical wear across a season of burst-fire
+cycles) with a flyback diode across the fan since it's an inductive load. The
+fog machine is a third output on a plain **relay module**, not a MOSFET — it
+fires by shorting the fog machine's own wired-remote jack, mimicking its
+pushbutton, polarity-agnostic to whatever's on the other side. The fog
+machine's own 110V power is never switched by this unit at all: it stays
+plugged into its own outlet at the EZ-Up (the same outlet powers this ESP32's
+12V wall adapter) and its internal thermostat handles its own warm-up, same
+as any consumer fog machine at a party — only the trigger is ours.
 
 **Local physical controls** (wired directly to the ESP32's GPIO — work with
 zero network dependency, same "always-available hardware fallback" idea as
@@ -184,21 +191,21 @@ while a burst is mid-cycle instead of freezing for the whole 8-10 seconds.
 **Sequence** (identical logic whether triggered by the FIRE button or a WiFi
 call):
 
-1. Mister relay ON
-2. Wait 6–8s (chamber fills)
+1. Mister relay ON, fog machine trigger relay pulses closed for 1.5s (fires
+   one burst from the fog machine, same as pressing its own remote button)
+2. Wait 6–8s (tote fills)
 3. Mister OFF, fan ON
 4. Wait 2–3s (dump)
 5. Fan OFF
 
 **Built:** firmware is [`firmware/musicman_fog/musicman_fog.ino`](firmware/musicman_fog/musicman_fog.ino)
 (plain ESP32 sketch, no WLED — that engine's addressable-LED overhead has no
-use here) — compiles clean against a generic ESP32 devkit (69% flash, 14%
-RAM). `musicman.py` side is in too: `_fog_fire()`/`_fog_stop()` and a
-`fog_fire`/`fog_stop` macro action, keyed off a `fog_units` list in
-`config.yaml` (`[{id, name, ip}]`, empty until real units exist — completely
-inert on the live Pi until you add entries). **Not yet deployed to the live
-Pi** — no hardware to test the round trip against yet; happens once a unit's
-built and addressable.
+use here) — compiles clean against a generic ESP32 devkit. `musicman.py`
+side is in too: `_fog_fire()`/`_fog_stop()` and a `fog_fire`/`fog_stop` macro
+action, keyed off a `fog_units` list in `config.yaml` (`[{id, name, ip}]`,
+empty until a real unit exists — completely inert on the live Pi until you
+add an entry). **Not yet deployed to the live Pi** — no hardware to test the
+round trip against yet; happens once the unit's built and addressable.
 
 Physical wiring, matching the pins the firmware actually uses:
 
@@ -206,6 +213,7 @@ Physical wiring, matching the pins the firmware actually uses:
 |---|---|---|
 | Mister relay | GPIO26 | Logic-level N-MOSFET gate → mister driver board's power line |
 | Fan relay | GPIO27 | Logic-level N-MOSFET gate → fan power line (+ flyback diode across the fan — it's a motor, an inductive load, skipping this eventually kills the MOSFET on the switch-off spike) |
+| Fog machine trigger | GPIO14 | Relay module (dry contact) → fog machine's wired-remote jack |
 | ARM switch | GPIO32 | One leg of an SPDT toggle; other leg to GND. Internal pullup — closed to GND reads armed |
 | FIRE button | GPIO33 | One leg of a momentary pushbutton; other leg to GND. Internal pullup — press reads LOW |
 | Status LED | GPIO25 | LED + ~330Ω resistor to GND |
@@ -220,14 +228,14 @@ cutoff wired in series with the mister driver's own power line, upstream of
 the MOSFET. That way "don't run dry" holds even if the ESP32 crashes or
 reboots mid-show, instead of depending on firmware that might not be running.
 
-ESP32 runs off the pole's 12V via its own small 12V→5V buck (same part
-category as the one already feeding the pole node's ESP32) into the board's
+ESP32 runs off a small 110V→12V wall adapter at the EZ-Up (the same outlet
+the fog machine itself plugs into) into a 12V→5V buck feeding the board's
 5V/VIN pin — most ESP32 devkits have their own onboard 3.3V regulator from
-there, no separate 3.3V supply needed.
+there, no separate 3.3V supply needed. No Solix/battery involved, since this
+unit lives at the stage now, not out at a pole.
 
-Two units total, one per pole — flash each with its own `DEVICE_HOSTNAME`
-(`musicman-fog-a` / `musicman-fog-b`, set near the top of the .ino) before
-uploading, so they're distinguishable on the network.
+One unit total — `DEVICE_HOSTNAME` is just `musicman-fog` (no per-pole `-a`/
+`-b` split needed anymore).
 
 **OTA firmware updates:** once the pole is on the MusicMan WiFi, flash via
 `curl -X POST http://<pole-ip>/update -F "file=@firmware.bin"` (WLED's

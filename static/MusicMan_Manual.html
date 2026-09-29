@@ -296,7 +296,7 @@
       <li><a href="#slides-admin">Live Slides (admin builder)</a></li>
       <li><a href="#shell-game-admin">Shell Game configuration</a></li>
       <li><a href="#game-entries-admin">Game Entries configuration</a></li>
-      <li><a href="#interactive-games-admin">Interactive Games Library (Prize Wheel)</a></li>
+      <li><a href="#interactive-games-admin">Interactive Games Library</a></li>
       <li><a href="#head-to-head-admin">Scoreboard configuration</a></li>
       <li><a href="#karaoke-admin">Karaoke — processing &amp; uploading songs</a></li>
       <li><a href="#visualization-admin">Visualization — Music Viz &amp; Crowd Meter presets</a></li>
@@ -328,6 +328,8 @@
       <li><a href="#prize-wheel-run">Prize Wheel — live operation</a></li>
       <li><a href="#musical-chairs-run">Musical Chairs — live operation</a></li>
       <li><a href="#trivia-run">Trivia — live operation</a></li>
+      <li><a href="#timedcomp-run">Timed Competition — live operation</a></li>
+      <li><a href="#closest-run">Closest to the Mark — live operation</a></li>
       <li><a href="#usb-run">USB Playlist tab</a></li>
       <li><a href="#remote-run">The Physical Remote</a></li>
       <li><a href="#streamdeck-run">Stream Deck</a></li>
@@ -546,7 +548,7 @@
     <tr><td rowspan="5"><strong>SCREEN</strong></td><td><strong>📋 Slides</strong></td><td>Build and save custom text slides to push to the projector</td></tr>
     <tr><td><strong>⚔ VS Cards</strong></td><td>Street Fighter-style head-to-head matchup cards for the projector</td></tr>
     <tr><td><strong>🎯 Game Entries</strong></td><td>Named walk-up moments with their own music, video, and lighting</td></tr>
-    <tr><td><strong>🎮 Games</strong></td><td>Games Library (Prize Wheel, Shell Game, Musical Chairs configs), Scoreboard config, and the Skit Timer + presets</td></tr>
+    <tr><td><strong>🎮 Games</strong></td><td>Games Library (Prize Wheel, Shell Game, Musical Chairs, Trivia, Timed Competition, Closest to the Mark configs), Scoreboard config, and the Skit Timer + presets</td></tr>
     <tr><td><strong>🎤 Karaoke</strong></td><td>Songs with synced lyrics, duet tagging, and start-time trimming — processed offline, uploaded here</td></tr>
     <tr><td><strong>LIVE</strong></td><td><strong>📺 Visualizations</strong></td><td>Music Viz and Crowd Meter presets — display styles, colors, WLED/DMX lighting, climax</td></tr>
     <tr><td rowspan="3"><strong>CONTENT</strong></td><td><strong>♪ Audio</strong></td><td>Upload and manage the SFX library and Music library; audio normalization</td></tr>
@@ -1187,7 +1189,8 @@
   <h2 id="interactive-games-admin">Interactive Games Library</h2>
   <p>
     The <strong>Games Library</strong> lets you build named configurations for interactive audience
-    games — currently Prize Wheel, Shell Game, Musical Chairs, Trivia, and Timed Competition.
+    games — currently Prize Wheel, Shell Game, Musical Chairs, Trivia, Timed Competition, and
+    Closest to the Mark.
     Each configuration stores all the game's settings (segments, sounds, images)
     under a name, so you can have multiple themed versions ready to go (e.g., "Week 1 Prizes,"
     "Finale Round," "Pirate Trivia").
@@ -1202,6 +1205,7 @@
     <tr><td><strong>Musical Chairs</strong></td><td>Pick a song and play it; music stops on cue. Nothing from the game itself shows on HDMI — an optional Intro Game Entry, or a built-in headline/text/image, is what the audience actually sees.</td></tr>
     <tr><td><strong>Trivia</strong></td><td>A question-by-question trivia session, revealed one at a time on HDMI, with per-question Reveal/Next/Correct/Incorrect operator controls. "Trivia" is the game type — build as many themed sets as you like under it (e.g. "AG Trivia," "Pirate Trivia"), each with its own question list. Can optionally link to a Scoreboard game for a live team scoreboard, or run standalone with just a running session log.</td></tr>
     <tr><td><strong>Timed Competition</strong></td><td>A stopwatch-driven race/challenge game — the MC starts, stops, and resets the stopwatch from the physical remote while the console operator records each runner's name and time into a leaderboard. Supports fastest-wins (races) or longest-wins (e.g. a pull-up hold) sorting.</td></tr>
+    <tr><td><strong>Closest to the Mark</strong></td><td>One mechanic, reskinned per config — a value climbs (or bounces, or loops) toward a hidden target and each contestant tries to stop it as close as possible ("Guess the Snowfall," "Cook the Steak," any camp-themed challenge). The MC's remote has one job: STOP. Console owns starting each run, and results (closest wins, no ties) feed the same leaderboard system as every other game.</td></tr>
   </table>
 
   <h3>Creating a game configuration</h3>
@@ -1307,6 +1311,44 @@
     Launching a Timed Competition from Show Flow or a macro automatically switches the MC's
     physical remote into stopwatch mode — no manual navigation needed. See
     <a href="#remote-run">The Physical Remote</a>.
+  </div>
+
+  <h3>Closest to the Mark settings</h3>
+  <p>
+    One mechanic, reskinned per config: a value climbs toward a hidden target and each contestant
+    tries to stop it as close as possible. Build as many themed versions as you like under this one
+    game type — "Guess the Snowfall" (inches), "Cook the Steak" (degrees), or anything else a camp
+    theme calls for.
+  </p>
+  <table>
+    <tr><th>Setting</th><th>What it does</th></tr>
+    <tr><td>Title</td><td>The challenge's own headline, shown big on HDMI (e.g. "Cook the meat to the right temperature.")</td></tr>
+    <tr><td>Unit label (optional)</td><td>Shown after every number on HDMI and the controller — "°F", "inches", etc. Leave blank for a plain unitless number.</td></tr>
+    <tr><td>Look</td><td><strong>⏱ Digital Counter</strong> — a big plain number. <strong>📊 Rising Meter</strong> — a horizontal bar with a target line and start dot (see below). <strong>🎡 Light Ring</strong> — a ring of lights that fill in order, one lit at the target position.</td></tr>
+    <tr><td>Meter line/start-dot color</td><td>Rising Meter look only. Sets the color of the moving bar and the fixed start dot.</td></tr>
+    <tr><td>Movement</td><td><strong>Climbs once, holds at the top</strong> — reaches the end value and stays; <strong>Loops continuously</strong> — restarts from the bottom each pass; <strong>Bounces back and forth</strong> — reverses direction at each end, so a contestant has to time a stop on the way up <em>or</em> the way back down.</td></tr>
+    <tr><td>Start value / End value</td><td>The range the value travels across — e.g. 0 to 20 for "inches of snow," or 40 to 180 for a meat thermometer.</td></tr>
+    <tr><td>Target (the mark)</td><td>The hidden number contestants are trying to land on. Never shown on HDMI or the controller while the round is running — only "CLOSEST TO X WINS!" and, on a Rising Meter, a small label above the fixed target line.</td></tr>
+    <tr><td>Decimal places</td><td>How many decimals the live number and results show.</td></tr>
+    <tr><td>Seconds per pass</td><td>How long one full climb from start value to end value takes — the core difficulty knob. Shorter is harder to time.</td></tr>
+    <tr><td>Background (optional)</td><td>Picked from the Display Library — shows behind everything, e.g. a custom thermometer graphic for a "Cook the Steak" theme. On a Rising Meter, the bar's own track is transparent so a background like this shows through it cleanly.</td></tr>
+    <tr><td>Looping sound while running (optional)</td><td>Starts the moment a round actually begins (after the 3-2-1 countdown) and loops until STOP — a sizzle for a cooking theme, wind for a snowfall theme.</td></tr>
+    <tr><td>Sound on stop (optional)</td><td>A one-shot cue (a ding, a buzzer) that fires the instant STOP lands.</td></tr>
+    <tr><td>Lighting scene while running / on stop (optional)</td><td>Same idea as the sounds above, but a lighting scene instead.</td></tr>
+    <tr><td>Intro Game Entry / Screen Headline, Text, Image</td><td>Same as Musical Chairs and Timed Competition — fires on <kbd>↗ GO LIVE</kbd>, before the round itself starts.</td></tr>
+  </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">A 3-2-1 countdown always runs before the value starts moving</div>
+    Pressing <kbd>▶ START</kbd> doesn't move the bar/number instantly — it holds for a 3-2-1
+    (shown on both HDMI and the controller) first, so contestants get fair warning. The looping
+    run sound and lighting scene above don't start until the countdown finishes either.
+  </div>
+  <div class="callout callout-tip">
+    <div class="callout-title">The remote's only job here is STOP</div>
+    Starting a round, resetting between contestants, and recording results are all Console's job.
+    The MC's physical remote shows the live value and a big STOP prompt, and any press stops it —
+    there's no start/reset gesture on this screen at all, since a kid mid-reflex won't be timing a
+    precise gesture. See <a href="#remote-run">The Physical Remote</a>.
   </div>
 
   <h3>Launching from Show Flow</h3>
@@ -1835,7 +1877,7 @@
 
   <div class="callout callout-info">
     <div class="callout-title">Game steps are self-contained</div>
-    If a show flow step is a <strong>Game</strong> step (Prize Wheel, Shell Game, Musical Chairs), tapping it
+    If a show flow step is a <strong>Game</strong> step (Prize Wheel, Shell Game, Musical Chairs, Trivia, Timed Competition, Closest to the Mark), tapping it
     automatically navigates the HDMI display to that game and launches it. No separate
     "Open on Display" tap is needed — the whole sequence is one button press.
   </div>
@@ -1991,6 +2033,22 @@
     <li>Click <kbd>📺 SHOW SCORES</kbd> to display the leaderboard on HDMI.</li>
     <li>Click <kbd>✕ HIDE</kbd> to hide the scores overlay from HDMI — the recorded times themselves aren't cleared.</li>
   </ol>
+  <div class="callout callout-tip">
+    <div class="callout-title">+ ADD ALL CONTESTANTS — enter every name at once</div>
+    Next to <kbd>+ ADD RUNNER</kbd> is <kbd>+ ADD ALL CONTESTANTS</kbd> — paste or type every
+    contestant's name, one per line, and they're all added at once as <strong>pending</strong>
+    entries (shown dimmed, with no time/score yet). Do this during introductions, before anyone's
+    played. Then during the game, just record results the normal way using the exact same name —
+    it fills that person's pending entry in instead of creating a duplicate row. Pending entries
+    never show up on the HDMI scoreboard (an unplayed name isn't a result) and never outrank an
+    actual result in the list.
+    <br><br>
+    For <strong>Timed Competition</strong> and <strong>Closest to the Mark</strong>, the same
+    button is also right on that game's own controller header — no need to leave the screen you're
+    running the game from to enter names. Closest to the Mark goes a step further: once you've
+    stopped a round, the pending roster shows as a row of tap-able name chips — tap who just went
+    and their result is recorded instantly, no typing needed mid-round.
+  </div>
 
   <h2 id="game-entries-run">Game Entries</h2>
   <p>
@@ -2293,6 +2351,55 @@
     Reveal Answer. Correct/Incorrect and the Scoreboard scoring panel stay Console-only.
   </div>
 
+  <h2 id="timedcomp-run">Timed Competition — Live Operation</h2>
+  <p>
+    Launch a Timed Competition config from the Show Flow (Game step) or from
+    <span class="tab">GAMES</span> → Games Library, same as any other Library game. Tapping
+    <kbd>↗ GO LIVE</kbd> fires the config's Intro Game Entry (or a built-in Screen headline/text/
+    image) and starts a fresh session — stopwatch at zero, results bucket cleared.
+  </p>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Stopwatch START/STOP</td><td>Runs from the controller or the MC's physical remote (front short-press). Timing a runner is the remote's job so the console operator's hands are free for the name/record step below.</td></tr>
+    <tr><td>Stopwatch RESET</td><td>Zeroes the stopwatch — remote side short-press, a fast no-friction gesture since the MC resets between every single runner.</td></tr>
+    <tr><td>Name + RECORD</td><td>Type the runner's name (or tap a pending name — see <a href="#games-run">bulk contestant entry</a>) and record the stopped time into the leaderboard.</td></tr>
+    <tr><td>Sort badge</td><td>Toggle <strong>Fastest wins</strong> / <strong>Longest wins</strong> live without leaving the game.</td></tr>
+  </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">Remote auto-jumps to the stopwatch</div>
+    Launching a Timed Competition automatically switches the MC's <a href="#remote-run">physical
+    remote</a> into stopwatch mode, from wherever it currently was.
+  </div>
+
+  <h2 id="closest-run">Closest to the Mark — Live Operation</h2>
+  <p>
+    Launch a Closest to the Mark config from the Show Flow (Game step) or from
+    <span class="tab">GAMES</span> → Games Library. Tapping <kbd>↗ GO LIVE</kbd> fires the config's
+    Intro Game Entry (if set) and puts the challenge up on HDMI at its start value, waiting.
+  </p>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td><kbd>▶ START</kbd></td><td>Runs a 3-2-1 countdown (HDMI and the controller both show it), then the value actually starts moving. Pressing it again mid-countdown or mid-round stops/cancels instead.</td></tr>
+    <tr><td><kbd>⏹ STOP</kbd></td><td>Also fires from the MC's physical remote — any button press there stops it, whoever's holding it. Freezes the value and shows it on HDMI, ready to record.</td></tr>
+    <tr><td>Contestant chips</td><td>Every pending (not-yet-played) name from <a href="#games-run">bulk contestant entry</a> shows as a row of tap-able chips, grayed out until you STOP a round. Tap the person who just went — their result is recorded instantly, no typing.</td></tr>
+    <tr><td>"Not on the list?"</td><td>A collapsed fallback with a plain name field, for anyone not pre-entered — autocompletes against the pending roster so a name that matches fills their entry in rather than duplicating it.</td></tr>
+    <tr><td><kbd>↺ RESET</kbd></td><td>Clears the current round (not the recorded results) — back to the start value, ready for the next contestant.</td></tr>
+    <tr><td><kbd>📺 SHOW ON HDMI</kbd> / <kbd>🚫 HIDE FROM HDMI</kbd></td><td>Same leaderboard overlay every game uses — labeled "CLOSEST TO THE MARK" and excludes anyone who hasn't played yet.</td></tr>
+  </table>
+  <div class="callout callout-tip">
+    <div class="callout-title">Bring it back without restarting the round</div>
+    If something else gets shown on the projector (a walkup, a slide, a macro) and you want this
+    exact in-progress game back — not a fresh round — use <kbd>↻ REDISPLAY</kbd> next to GO LIVE in
+    the controller header. GO LIVE resets everything (fresh countdown, wiped progress); REDISPLAY
+    just pushes the screen back exactly as it was.
+  </div>
+  <div class="callout callout-tip">
+    <div class="callout-title">Remote: STOP only</div>
+    The MC's <a href="#remote-run">physical remote</a> auto-switches to this game's screen and
+    shows the live value with a big STOP prompt — that's its only job here. Starting, resetting,
+    and recording all stay on Console.
+  </div>
+
   <h2 id="usb-run">USB Playlist Tab</h2>
   <p>
     Play music folders directly from a USB drive — no configuration needed.
@@ -2350,10 +2457,24 @@
 
   <h3>Live game controls</h3>
   <p>
-    When a game with remote support is live (Musical Chairs, Trivia, Timed Competition), the
-    remote automatically switches to that game's own control screen — START/STOP for Musical
-    Chairs, NEXT/PREV/REVEAL for Trivia, START/STOP/RESET for the Timed Competition stopwatch.
-    Holding side backs out to the category picker without stopping the game itself.
+    When a game with remote support is live (Musical Chairs, Trivia, Timed Competition, Closest to
+    the Mark), the remote automatically switches to that game's own control screen — START/STOP for
+    Musical Chairs, NEXT/PREV/REVEAL for Trivia, START/STOP/RESET for the Timed Competition
+    stopwatch, and a single STOP for Closest to the Mark (any button press stops it — there's no
+    start/reset gesture on that screen at all; Console owns those). Holding side backs out to the
+    category picker without stopping the game itself. Relaunching the <em>same</em> game a second
+    time (a new round, or re-testing) pulls the remote's screen back to it again, same as the first
+    launch did.
+  </p>
+
+  <h3>Remote self-test mode</h3>
+  <p>
+    Before trusting a real round to the remote, check the whole round trip actually works: on any
+    remote-controlled game's controller, tap <kbd>🔊 TEST REMOTE</kbd> in the header. Both the
+    projector and the MC's remote switch to a "PRESS BUTTON TO TEST" screen — press any button on
+    the remote and a random short sound effect plays, confirming the remote is really reaching the
+    Pi. Tap the same button again (now labeled <kbd>✕ EXIT TEST MODE</kbd>) to end it and return to
+    whatever was live before.
   </p>
 
   <h2 id="streamdeck-run">Stream Deck</h2>
@@ -2613,6 +2734,21 @@
     <span class="flow-box">TAP SPIN</span>
     <span class="flow-arrow">→</span>
     <span class="flow-box">RESET / SPIN AGAIN</span>
+  </div>
+
+  <h3>Running Closest to the Mark</h3>
+  <div class="flow">
+    <span class="flow-box">ADD ALL CONTESTANTS</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">GO LIVE</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">START (3-2-1)</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">STOP (remote or console)</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">TAP THEIR NAME CHIP</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-box">RESET, NEXT CONTESTANT</span>
   </div>
 
   <h3>Smooth Track Ending</h3>
