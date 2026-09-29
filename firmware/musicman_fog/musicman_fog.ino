@@ -1,8 +1,10 @@
 /*
- * MusicMan Fog Unit — ESP32, one per pole
+ * MusicMan Fog Unit — ESP32, single unit at the EZ-Up
  *
- * DIY ultrasonic-mist fogger control. WiFi/HTTP, not DMX -- DMX only matters
- * for the commercial fixtures (Pinspot/Wash/PAR) that have no other
+ * DIY low-lying fog control: mister + fan + a real fog machine, feeding one
+ * accumulation tote behind the stage curtain, out through a tee into two
+ * slitted tubes spanning the EZ-Up's width. WiFi/HTTP, not DMX -- DMX only
+ * matters for the commercial fixtures (Pinspot/Wash/PAR) that have no other
  * interface. This is a from-scratch build, so it gets the same control path
  * as every other custom device in the system (pole nodes, WLED, the M5
  * remote): joins the MusicMan AP, runs a tiny HTTP server, musicman.py calls
@@ -10,20 +12,30 @@
  * see WIRING_GUIDE.md's "Fog unit" section for the full design writeup this
  * implements.
  *
- * Two relay outputs (mister, fan), MOSFET-switched -- silent, no mechanical
- * wear across a season of burst-fire cycles, unlike a relay module. Each 12V
- * DC load, so a logic-level N-channel MOSFET per channel is the right part;
- * the fan gets a flyback diode across its terminals since a motor is an
- * inductive load and switching it off without one will eventually kill the
- * MOSFET on a voltage spike.
+ * Three outputs, two different kinds of switching:
+ *   - Mister + fan: logic-level N-MOSFETs. Both are 12V DC loads (the mister
+ *     driver board's power line, the fan's power line) -- MOSFETs switch
+ *     them silently with no mechanical wear across a season of burst-fire
+ *     cycles, unlike a relay module. The fan gets a flyback diode across its
+ *     terminals since a motor is an inductive load and switching it off
+ *     without one will eventually kill the MOSFET on the voltage spike.
+ *   - Fog machine trigger: a plain relay module, NOT a MOSFET. Consumer fog
+ *     machines fire off a simple dry-contact short across their wired-remote
+ *     jack -- a relay's contacts mimic that momentary pushbutton closure
+ *     directly, polarity-agnostic to whatever's on the other side. The fog
+ *     machine's own 110V AC power is NOT switched by this unit at all -- it
+ *     just plugs into its own outlet at the EZ-Up and stays on; its internal
+ *     thermostat handles warm-up and keeping itself ready, exactly like
+ *     plugging in any consumer fog machine at a party. Only the trigger is
+ *     ours to control.
  *
  * ARM/DISARM is a real safety gate, not a UI nicety: checked before *any*
  * fire attempt, local button or network call alike, and re-checked every
- * loop while a sequence is mid-run -- flipping to DISARM mid-burst kills the
- * relays immediately rather than waiting for the sequence to finish. This
- * matters because the whole point is nobody can fire it into someone's
- * hands while the chamber's open for a water refill, regardless of whether
- * that "someone" is standing at the pole or driving it from Console across
+ * loop while a sequence is mid-run -- flipping to DISARM mid-burst kills
+ * every output immediately rather than waiting for the sequence to finish.
+ * This matters because the whole point is nobody can fire it into someone's
+ * hands while the tote's open for a water refill, regardless of whether
+ * that "someone" is standing at the EZ-Up or driving it from Console across
  * the field.
  *
  * The fire sequence runs as a non-blocking millis()-based state machine
@@ -37,8 +49,10 @@
  *   (WiFi.h and WebServer.h ship with the ESP32 board package, nothing extra)
  *
  * Board: any plain ESP32 dev board (no M5Stack/WLED needed -- this is a
- * 2-relay + 2-input device, WLED's addressable-LED engine would be dead
- * weight here).
+ * 3-relay + 2-input device, WLED's addressable-LED engine would be dead
+ * weight here). Powered off a small 110V-to-12V wall adapter at the EZ-Up
+ * (same outlet the fog machine itself uses) -- no Solix/battery involved
+ * now that this lives at the stage, not a pole.
  */
 
 #include <WiFi.h>
@@ -48,33 +62,36 @@
 // ── CONFIG ───────────────────────────────────────────────────────────────
 const char* WIFI_SSID  = "MusicMan";
 const char* WIFI_PASS  = "BrokenArrow";
-// Set per unit before flashing -- "musicman-fog-a" for Pole A, "-b" for Pole
-// B, so each is easy to find on the network by name (mDNS: <hostname>.local)
-// instead of hunting for its DHCP-assigned IP every time.
-const char* DEVICE_HOSTNAME = "musicman-fog-a";
+const char* DEVICE_HOSTNAME = "musicman-fog";  // one unit now, no pole A/B split
 
 const unsigned long WIFI_RETRY_MS = 4000;
 
 // Fire sequence timing -- see WIRING_GUIDE.md's Fog unit section for the
 // "charge then release" reasoning (a denser cloud dump than a continuous
-// stream). Tune these once the real chamber size/fan CFM is known; these are
+// stream). Tune these once the real tote size/fan CFM is known; these are
 // the spec's starting numbers.
-const unsigned long CHARGE_MS  = 7000;  // mister runs alone, builds the cloud
-const unsigned long RELEASE_MS = 2500;  // fan runs alone, dumps it out
+const unsigned long CHARGE_MS       = 7000;  // mister (+ fog machine pulse) build the cloud
+const unsigned long RELEASE_MS      = 2500;  // fan runs alone, dumps it out
+const unsigned long FOG_TRIGGER_MS  = 1500;  // fog machine remote is momentary -- a brief pulse
+                                              // fires one burst, same as pressing its own button
 
 // ── PINS ─────────────────────────────────────────────────────────────────
 // Avoids strapping pins (0/2/12/15) and flash pins (6-11) -- safe general-
 // purpose GPIOs on any standard ESP32 devkit.
-const int PIN_MISTER_GATE = 26;  // -> logic-level N-MOSFET gate -> mister driver board's power line
-const int PIN_FAN_GATE    = 27;  // -> logic-level N-MOSFET gate -> fan power line (+ flyback diode across the fan)
-const int PIN_ARM_SWITCH  = 32;  // SPDT toggle, other leg to GND -- INPUT_PULLUP, so closed-to-GND = armed
-const int PIN_FIRE_BUTTON = 33;  // momentary pushbutton, other leg to GND -- INPUT_PULLUP, pressed = LOW
-const int PIN_STATUS_LED  = 25;  // single LED + resistor to GND. Solid = armed, off = disarmed, blink = mid-sequence.
+const int PIN_MISTER_GATE  = 26;  // -> logic-level N-MOSFET gate -> mister driver board's power line
+const int PIN_FAN_GATE     = 27;  // -> logic-level N-MOSFET gate -> fan power line (+ flyback diode across the fan)
+const int PIN_FOG_TRIGGER  = 14;  // -> relay module (dry contact) -> fog machine's wired-remote jack
+const int PIN_ARM_SWITCH   = 32;  // SPDT toggle, other leg to GND -- INPUT_PULLUP, so closed-to-GND = armed
+const int PIN_FIRE_BUTTON  = 33;  // momentary pushbutton, other leg to GND -- INPUT_PULLUP, pressed = LOW
+const int PIN_STATUS_LED   = 25;  // single LED + resistor to GND. Solid = armed, off = disarmed, blink = mid-sequence.
 
 // ── STATE ────────────────────────────────────────────────────────────────
 enum FogStage { STAGE_IDLE, STAGE_CHARGING, STAGE_RELEASING };
 FogStage fogStage = STAGE_IDLE;
 unsigned long stageStartedAt = 0;
+
+bool fogTriggerActive = false;      // true while the momentary pulse relay is closed
+unsigned long fogTriggerStartedAt = 0;
 
 bool armed = false;              // live-read from PIN_ARM_SWITCH every loop
 bool lastFireBtnState = HIGH;    // for edge detection (debounced)
@@ -92,6 +109,15 @@ WebServer server(80);
 // elapsed millis() rather than delay()-ing through it. Safe to call even
 // when idle -- it's a no-op unless fogStage != STAGE_IDLE.
 void serviceFogSequence() {
+  // The trigger pulse is tracked independently of fogStage's charge/release
+  // split -- it only needs to stay closed for FOG_TRIGGER_MS at the start of
+  // the charge, then release, regardless of what the rest of the sequence
+  // is doing.
+  if (fogTriggerActive && millis() - fogTriggerStartedAt >= FOG_TRIGGER_MS) {
+    digitalWrite(PIN_FOG_TRIGGER, LOW);
+    fogTriggerActive = false;
+  }
+
   if (fogStage == STAGE_IDLE) return;
 
   // DISARM wins immediately, even mid-sequence -- see header comment.
@@ -119,15 +145,20 @@ void serviceFogSequence() {
 void startFogSequence() {
   digitalWrite(PIN_MISTER_GATE, HIGH);
   digitalWrite(PIN_FAN_GATE, LOW);
+  digitalWrite(PIN_FOG_TRIGGER, HIGH);
+  fogTriggerActive = true;
+  fogTriggerStartedAt = millis();
   fogStage = STAGE_CHARGING;
   stageStartedAt = millis();
 }
 
-// Immediate abort -- both relays off, no matter what stage we were in.
+// Immediate abort -- every output off, no matter what stage we were in.
 // Used by DISARM-mid-sequence and the /stop endpoint.
 void stopFogHard() {
   digitalWrite(PIN_MISTER_GATE, LOW);
   digitalWrite(PIN_FAN_GATE, LOW);
+  digitalWrite(PIN_FOG_TRIGGER, LOW);
+  fogTriggerActive = false;
   fogStage = STAGE_IDLE;
 }
 
@@ -227,9 +258,11 @@ void ensureWifi() {
 void setup() {
   pinMode(PIN_MISTER_GATE, OUTPUT);
   pinMode(PIN_FAN_GATE, OUTPUT);
+  pinMode(PIN_FOG_TRIGGER, OUTPUT);
   pinMode(PIN_STATUS_LED, OUTPUT);
   digitalWrite(PIN_MISTER_GATE, LOW);
   digitalWrite(PIN_FAN_GATE, LOW);
+  digitalWrite(PIN_FOG_TRIGGER, LOW);
   digitalWrite(PIN_STATUS_LED, LOW);
 
   pinMode(PIN_ARM_SWITCH, INPUT_PULLUP);
