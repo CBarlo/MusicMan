@@ -6612,7 +6612,7 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
     current_slide = {}   # a new game supersedes whatever slide was up (a later fallback screen re-sets it)
 
     if game_type_id == 'wheel':
-        _wheel_state.update(config_id=config_id, pool=None, last=None, busy_until=0.0)
+        _wheel_state.update(config_id=config_id, pool=None, last=None, busy_until=0.0, winners=[])
 
     if game_type_id == 'trivia' and config_id:
         # Every GO LIVE starts a fresh session at question 1 — a mid-session HDMI
@@ -7313,18 +7313,27 @@ def _wheel_fire_spin(entries, entry_colors, spin_ms, spin_scene, winner_scene, w
         if winner_scene:
             wled_set_scene(winner_scene)
     threading.Thread(target=_after_spin, daemon=True).start()
+    # One session history on the server (chronological): the projector's "previous winners" list,
+    # the controller's winners panel and the remote all read the same one.  The display used to
+    # have no list at all because only the controller tracked winners, in browser memory.
+    try:
+        _wheel_state['winners'].append(entries[winner_index])
+        del _wheel_state['winners'][:-100]
+    except Exception:
+        pass
     broadcast('wheel_spin', {
         'winner_index':  winner_index,
         'entries':       entries,
         'entry_colors':  entry_colors,
         'spin_duration': spin_ms,
+        'winners':       list(_wheel_state['winners']),
     })
 
 # Server-side view of the live wheel so the remote (which has no screen and no
 # client-side state) behaves like the controller: it works from the SAME pool the
 # controller last spun, and honours "Remove winner at next spin" instead of being
 # able to pick the same kid twice.  Reset on every wheel GO LIVE.
-_wheel_state = {'config_id': None, 'pool': None, 'last': None, 'busy_until': 0.0}
+_wheel_state = {'config_id': None, 'pool': None, 'last': None, 'busy_until': 0.0, 'winners': []}
 
 @app.route('/api/games/wheel/spin', methods=['POST'])
 def api_games_wheel_spin():
@@ -7344,6 +7353,15 @@ def api_games_wheel_spin():
     winner_scene = data.get('winner_scene') or w.get('winner_scene', '')
     _wheel_fire_spin(entries, data.get('entry_colors', {}), spin_ms,
                       spin_scene, winner_scene, data.get('winner_index', 0))
+    return jsonify({'ok': True})
+
+@app.route('/api/games/wheel/winners', methods=['GET'])
+def api_games_wheel_winners():
+    return jsonify({'winners': list(_wheel_state['winners'])})
+
+@app.route('/api/games/wheel/winners/reset', methods=['POST'])
+def api_games_wheel_winners_reset():
+    _wheel_state['winners'] = []
     return jsonify({'ok': True})
 
 @app.route('/api/games/wheel/remote_spin', methods=['POST'])

@@ -374,6 +374,9 @@ function stopIdle() {
     if (!_winnerScene) _winnerScene = wCfg.winner_scene || '';
   } catch(e) {}
 
+  // Restore the session's winner history (a display reload mid-session used to lose it).
+  try { const w = await fetch('/api/games/wheel/winners').then(r => r.json()); if (Array.isArray(w.winners)) winners = _winnersFromServer(w.winners); } catch(e) {}
+
   await initWheelAudio();
 
   if (!entries.length) entries = ['Add entries in Admin Games config'];
@@ -526,13 +529,15 @@ function renderWinners() {
   }
   const sl = document.getElementById('winnersStageList');
   if (sl) {
-    const prev = winners.slice(1);
+    // While a winner is showing in the bar, the list is the ones BEFORE it; otherwise (fresh load) all of them.
+    const barUp = !!document.querySelector('.result-banner.show');
+    const prev = barUp ? winners.slice(1) : winners;
     sl.innerHTML = prev.map(w => `<div class="winner-pill">${escHtml(w.name)}</div>`).join('');
     document.getElementById('winnersStage').style.display = prev.length ? '' : 'none';
   }
 }
 
-function resetWinners() { winners = []; pendingRemoval = null; renderWinners(); }
+function resetWinners() { winners = []; pendingRemoval = null; renderWinners(); fetch('/api/games/wheel/winners/reset', {method:'POST'}).catch(()=>{}); }
 
 // ── WHEEL AUDIO ──
 async function initWheelAudio() {
@@ -632,7 +637,10 @@ function spinWheel() {
 }
 
 // Display + controller: receive WS wheel_spin event and animate
+let _pendingServerWinners = null;
+function _winnersFromServer(list) { return list.slice().reverse().map(n => ({name: n, ts: 0})); }   // newest first
 function handleRemoteSpin(data) {
+  if (Array.isArray(data.winners)) _pendingServerWinners = data.winners;   // applied when the animation finishes (no spoiling)
   // BOTH the projector and the controller adopt the spin's own entry list.  Only the display
   // did before -- so after a remote spin (where the server has already dropped the previous
   // winner from the pool) the controller animated the server's winner_index over its OWN,
@@ -686,11 +694,16 @@ function finishSpin(index) {
   const name = entries[index];
   if (!_isDisplay) {
     // Controller tracks winners and pending removal
-    winners.unshift({name, ts: Date.now()});
+    if (_pendingServerWinners) { winners = _winnersFromServer(_pendingServerWinners); _pendingServerWinners = null; }
+    else winners.unshift({name, ts: Date.now()});
     const spinBtn = document.getElementById('spinBtn');
     if (spinBtn) spinBtn.disabled = entries.length < 2;
     if (document.getElementById('noRepeat').checked) pendingRemoval = {index, name};
     renderEntryList();
+    renderWinners();
+  }
+  if (_isDisplay) {
+    if (_pendingServerWinners) { winners = _winnersFromServer(_pendingServerWinners); _pendingServerWinners = null; }
     renderWinners();
   }
   document.getElementById('resultText').textContent = name;
