@@ -1686,7 +1686,6 @@ def _load_countdown_cfg():
 def _save_countdown_cfg():
     _write_json_atomic(COUNTDOWN_CFG_FILE, {k: countdown_state.get(k) for k in _COUNTDOWN_PERSIST_KEYS})
 
-_load_countdown_cfg()
 countdown_thread     = None
 countdown_stop_event = threading.Event()
 _cd_sound_stop          = threading.Event()
@@ -1945,6 +1944,9 @@ def _write_json_atomic(path: Path, data, indent=2):
         try: tmp.unlink()
         except OSError: pass
         return False
+
+# Needs _read_json_recover (defined above); countdown_state is defined earlier in the file.
+_load_countdown_cfg()
 
 def load_games() -> dict:
     with _games_lock:
@@ -12085,7 +12087,9 @@ def _proj_send(fn, *args):
     # then raise ConnectionClosed inside the loop where nobody sees it -- the operator pressed a
     # projector control, got an OK, and nothing happened.  Say so instead.
     snap = _proj_snapshot()
-    if not snap.get('connected'):
+    # is_on/current_app only ever arrive over a live link, so either one counts as connected even if the
+    # is-available callback hasn't fired (status showed connected=False with is_on=True and the app known).
+    if not snap.get('connected') and snap.get('is_on') is None:
         return False, ('Projector is not connected right now (' + (snap.get('error') or 'powered off, asleep, or not reachable') + ')')
     _projector_loop.call_soon_threadsafe(fn, remote, *args)
     return True, None
