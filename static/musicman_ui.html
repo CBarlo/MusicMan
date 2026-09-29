@@ -1168,6 +1168,9 @@
           <span style="color:var(--amber);font-weight:700;letter-spacing:2px;font-size:13px;text-transform:uppercase;">🎮 GAME CONTROLLER</span>
           <div style="display:flex;gap:8px">
             <button id="glOverlayGoLiveBtn" onclick="glOverlayGoLive()" style="display:none;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.5);color:#4ade80;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;" title="Nothing shown on the projector yet? This pushes it live.">⚡ GO LIVE</button>
+            <button id="glOverlayRedisplayBtn" onclick="glOverlayRedisplay()" style="display:none;background:rgba(148,163,184,0.15);border:1px solid rgba(148,163,184,0.5);color:#cbd5e1;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;" title="Something else got shown over the game on the projector? Pushes it back WITHOUT restarting the round -- GO LIVE would reset it.">↻ REDISPLAY</button>
+            <button id="glOverlayTestRemoteBtn" onclick="glOverlayToggleRemoteTest()" style="display:none;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.5);color:#38bdf8;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;" title="Puts the MC's remote screen and the projector into a self-test mode -- press the physical button, hear a random SFX, confirms the remote's actually reaching the Pi.">🔊 TEST REMOTE</button>
+            <button id="glOverlayAddAllBtn" onclick="glOverlayAddAllContestants()" style="display:none;background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.5);color:var(--amber);font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;" title="Enter every contestant's name at once -- e.g. read off during introductions, before anyone's played -- right here, no need to leave this screen.">+ ADD ALL CONTESTANTS</button>
             <button onclick="hideGameOverlay()" style="background:rgba(220,38,38,0.2);border:1px solid rgba(220,38,38,0.5);color:#f87171;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;">✕ CLOSE</button>
           </div>
         </div>
@@ -2546,7 +2549,7 @@ async function glUiGoLive(typeId, configId) {
       body: JSON.stringify({ game_type_id: typeId, config_id: configId }),
     });
     const d = await r.json();
-    if (d.ok) showGameOverlay(d.controller_url, typeId, configId);
+    if (d.ok) showGameOverlay(d.controller_url, typeId, configId, true);
     else showAlert('Launch failed', 2000);
   } catch(e) {
     showAlert('Launch error', 2000);
@@ -2891,27 +2894,40 @@ function updateGameSelect() {
   _selectedGame=sel.value;
 }
 
+// No ms/score/distance recorded yet -- a name-only placeholder seeded by
+// lbAddContestants(), not a real result. Mirrors _is_pending_entry() in
+// musicman.py -- keep both in sync if this definition ever changes.
+function _lbIsPending(e) { return !('ms' in e) && !('score' in e) && !('distance' in e); }
+
 function renderLeaderboard() {
   const game=document.getElementById('gameSelect')?document.getElementById('gameSelect').value:'';
   _selectedGame=game;
   const lb=document.getElementById('leaderboard');
   if(!lb) return;
   if(!game){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">SELECT A GAME TO VIEW TIMES</div>';return;}
-  const addBtnHtml = `<div style="padding:8px 10px;border-top:1px solid var(--border)">
-    <button onclick="lbAddRunner()" style="width:100%;padding:7px;border-radius:6px;border:1px dashed var(--border2);background:transparent;color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer">+ ADD RUNNER</button>
+  const addBtnHtml = `<div style="padding:8px 10px;border-top:1px solid var(--border);display:flex;gap:8px">
+    <button onclick="lbAddRunner()" style="flex:1;padding:7px;border-radius:6px;border:1px dashed var(--border2);background:transparent;color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer">+ ADD RUNNER</button>
+    <button onclick="lbAddContestants()" title="Enter every contestant's name at once -- e.g. read off during introductions, before anyone's played" style="flex:1;padding:7px;border-radius:6px;border:1px dashed var(--border2);background:transparent;color:var(--text-dim);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer">+ ADD ALL CONTESTANTS</button>
   </div>`;
   const raw=(_gamesData[game]||[]);
   if(!raw.length){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">NO ENTRIES YET</div>'+addBtnHtml;return;}
-  const isScore = raw.some(e => 'score' in e);
-  let sorted;
-  if (isScore) {
-    sorted = [...raw].sort((a,b) => (b.score||0)-(a.score||0));
+  const isScore    = raw.some(e => 'score' in e);
+  const isDistance = raw.some(e => 'distance' in e);
+  const played = raw.filter(e => !_lbIsPending(e)), pending = raw.filter(_lbIsPending);
+  let sortedPlayed;
+  if (isDistance) {
+    sortedPlayed = [...played].sort((a,b) => Math.abs(a.distance||0)-Math.abs(b.distance||0) || (a.at||0)-(b.at||0));
+  } else if (isScore) {
+    sortedPlayed = [...played].sort((a,b) => (b.score||0)-(a.score||0));
   } else {
-    sorted = [...raw].sort((a,b)=>_lbSortAsc?a.ms-b.ms:b.ms-a.ms);
+    sortedPlayed = [...played].sort((a,b)=>_lbSortAsc?a.ms-b.ms:b.ms-a.ms);
   }
-  const rows=sorted.map((t,i)=>{
+  const sortedPending = [...pending].sort((a,b) => (a.at||0)-(b.at||0));
+  const rankedRows = sortedPlayed.map((t,i)=>{
     let valStr;
-    if (isScore) {
+    if (isDistance) {
+      valStr = (t.value != null ? Number(t.value) : Math.abs(t.distance||0)).toString();
+    } else if (isScore) {
       valStr = Math.round(t.score||0) + (t.score != null && t.score <= 100 ? '%' : '');
     } else {
       const tot=t.ms/1000, min=Math.floor(tot/60), sec=Math.floor(tot%60), tenth=Math.floor((tot%1)*10);
@@ -2926,10 +2942,22 @@ function renderLeaderboard() {
         <button onclick='lbDeleteEntry(${idJson})' title="Remove" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:2px 5px">✕</button>
       </td></tr>`;
   }).join('');
-  const colHead = isScore ? 'SCORE' : 'TIME';
+  const pendingRows = sortedPending.map(t=>{
+    const idJson = escHtml(JSON.stringify(t.id||''));
+    return `<tr style="opacity:.6"><td style="padding:7px 10px;text-align:center;font-size:15px">–</td>
+      <td style="padding:7px 10px;font-weight:700;font-size:15px;letter-spacing:1px">${escHtml(t.label)}</td>
+      <td style="padding:7px 10px;text-align:right">
+        <button onclick='lbFillEntry(${idJson})' style="background:none;border:1px dashed var(--border2);border-radius:4px;color:var(--text-dim);cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1px;padding:3px 8px">TAP TO ENTER</button>
+      </td>
+      <td style="padding:7px 4px;text-align:right;white-space:nowrap">
+        <button onclick='lbRenameEntry(${idJson})' title="Rename" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:2px 5px">✎</button>
+        <button onclick='lbDeleteEntry(${idJson})' title="Remove" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:2px 5px">✕</button>
+      </td></tr>`;
+  }).join('');
+  const colHead = isDistance ? 'RESULT' : isScore ? 'SCORE' : 'TIME';
   lb.innerHTML=`<table class="lb-table"><thead><tr>
     <th style="text-align:center">#</th><th>NAME</th><th style="text-align:right">${colHead}</th><th></th>
-  </tr></thead><tbody>${rows}</tbody></table>${addBtnHtml}`;
+  </tr></thead><tbody>${rankedRows}${pendingRows}</tbody></table>${addBtnHtml}`;
 }
 
 async function lbRenameEntry(id) {
@@ -2986,6 +3014,99 @@ async function lbAddRunner() {
     const r=await fetch('/api/games/record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
     if (r.ok) { _gamesData=r.games; renderLeaderboard(); }
   } catch(e) {}
+}
+
+// Fills in an existing pending (name-only) entry's result -- NOT a new
+// /api/games/record call, which would just create a second row for the same
+// person next to the still-empty placeholder.
+async function lbFillEntry(id) {
+  const raw = (_gamesData[_selectedGame]||[]);
+  const entry = raw.find(e=>e.id===id);
+  const isScore = raw.some(e=>'score' in e);
+  const isDistance = raw.some(e=>'distance' in e);
+  const body = {game:_selectedGame, id};
+  if (isDistance) {
+    // No target value to compute an offset from here (that lives in the
+    // game config, not games.json) -- recording a Closest-to-the-Mark result
+    // has to happen from that game's own controller, same name, and it'll
+    // fill this exact placeholder in automatically.
+    showAlert('Record this one from the game’s own controller (same name)', 3500);
+    return;
+  }
+  if (isScore) {
+    const scoreStr = prompt('Score for ' + (entry ? entry.label : 'this contestant') + ':');
+    if (scoreStr === null) return;
+    const score = parseFloat(scoreStr);
+    if (isNaN(score)) { showAlert('Invalid score',2000); return; }
+    body.score = score;
+  } else {
+    const timeStr = prompt('Time for ' + (entry ? entry.label : 'this contestant') + ' — mm:ss or seconds:');
+    if (timeStr === null) return;
+    let ms;
+    if (timeStr.includes(':')) {
+      const parts = timeStr.split(':').map(s=>parseFloat(s));
+      ms = Math.round(((parts[0]||0)*60+(parts[1]||0))*1000);
+    } else {
+      ms = Math.round(parseFloat(timeStr)*1000);
+    }
+    if (!ms || isNaN(ms) || ms<=0) { showAlert('Invalid time',2000); return; }
+    body.ms = ms;
+  }
+  try {
+    const r = await fetch('/api/games/entry/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+    if (r.ok) { _gamesData=r.games; renderLeaderboard(); }
+  } catch(e) {}
+}
+
+// ── BULK CONTESTANT ENTRY ── enter every name at once (e.g. read off during
+// introductions, before anyone's played) as pending placeholders -- recording
+// a real result later under the same name fills the matching one in instead
+// of adding a duplicate row (see _is_pending_entry() in musicman.py).
+let _lbBulkTargetGame = '';
+function lbAddContestants(gameOverride) {
+  const game = gameOverride || _selectedGame;
+  if (!game) { showAlert('Select a game first',2000); return; }
+  _lbBulkTargetGame = game;
+  let modal = document.getElementById('lbBulkModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'lbBulkModal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML = `
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;max-width:420px;width:100%;font-family:'Barlow Condensed',sans-serif">
+        <div style="color:var(--amber);font-weight:700;letter-spacing:1px;font-size:14px;margin-bottom:10px">ADD ALL CONTESTANTS</div>
+        <div style="color:var(--text-dim);font-size:12px;margin-bottom:10px;line-height:1.5">One name per line. Each is added as a pending entry — recording a result under the same name later fills it in instead of adding a duplicate.</div>
+        <textarea id="lbBulkNames" rows="8" style="width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:inherit;font-size:13px;padding:8px;box-sizing:border-box;resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button onclick="_lbBulkCancel()" style="flex:1;padding:9px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text-dim);font-family:inherit;font-weight:700;font-size:13px;cursor:pointer">CANCEL</button>
+          <button onclick="_lbBulkSubmit()" style="flex:1;padding:9px;border-radius:6px;border:none;background:var(--amber);color:#1a1200;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer">ADD ALL</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('lbBulkNames').value = '';
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('lbBulkNames')?.focus(), 50);
+}
+function _lbBulkCancel() {
+  const modal = document.getElementById('lbBulkModal');
+  if (modal) modal.style.display = 'none';
+}
+async function _lbBulkSubmit() {
+  const raw = document.getElementById('lbBulkNames').value || '';
+  const labels = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+  if (!labels.length) { showAlert('No names entered',2000); return; }
+  try {
+    const r = await fetch('/api/games/entry/bulk_add',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({game:_lbBulkTargetGame, labels})}).then(r=>r.json());
+    if (r.ok) {
+      _gamesData=r.games;
+      if (_selectedGame === _lbBulkTargetGame) renderLeaderboard();   // no-op if the Games tab isn't even showing this bucket
+      _lbBulkCancel();
+      showAlert(labels.length + ' contestants added',2000);
+    }
+    else showAlert(r.error || 'Could not add',2000);
+  } catch(e) { showAlert('Error adding contestants',2000); }
 }
 
 async function gtNewGame() {
@@ -3127,7 +3248,7 @@ function playMusicTrack(filename, btn) {
 
 // ── SHOW FLOW GRID ─────────────────────────────────────────────────────────
 let showStep = null;  // index of last-pressed show step
-let _activeGameType = '', _activeGameConfigId = '';  // whatever showGameOverlay() last opened -- see _openActiveGame()
+let _activeGameType = '', _activeGameConfigId = '', _activeGameCtrlUrl = '';  // whatever showGameOverlay() last opened -- see _openActiveGame()
 
 let _sfgMacroCache = null;
 let _sfgFlowCache   = null;
@@ -4410,7 +4531,13 @@ fetch('/api/remote/status').then(r => r.json()).then(_renderRemoteStatus).catch(
 
 Promise.all([
   buildShowFlowGrid(), buildWalkupGrid(), buildRolesGrid(),
-  buildSfxGrid(), buildMacroGrid(), buildSceneGrid(), buildDisplayGrid()
+  buildSfxGrid(), buildMacroGrid(), buildSceneGrid(), buildDisplayGrid(),
+  // Eagerly loaded (not lazily on first Games-tab visit) so _glUiGameTypes is
+  // already populated the moment a game goes live via Show Flow/GO LIVE/a
+  // macro -- glUiJoinControls()'s route lookup and the TEST REMOTE button's
+  // visibility gate both depend on it, and a Console session's first game of
+  // the night is exactly when it would otherwise still be empty.
+  loadGlUi()
 ]).then(function() { initWebSocket(); });
 qfPrefetchAll().then(() => { if (_qfTab !== 'lights') qfSwitch(_qfTab); });
 qfSwitch('lights');
@@ -4777,7 +4904,7 @@ function initWebSocket() {
       else if (event === 'launch_game') {
         const ctrlUrl = data.controller_url || '';
         showAlert('🎮 ' + (data.name || 'GAME'), 6000);
-        if (ctrlUrl) showGameOverlay(ctrlUrl, data.game_type_id, data.game_config_id);
+        if (ctrlUrl) showGameOverlay(ctrlUrl, data.game_type_id, data.game_config_id, true);
       }
 
       else if (event === 'timer_preset_loaded') {
@@ -5531,27 +5658,97 @@ function wifiForget(name) {
 // takeover — keeps the top bar and left sidebar (timer/lighting/transport) usable
 // while a game is live.
 let _glOverlayType = '', _glOverlayConfig = '';
-function showGameOverlay(url, typeId, configId) {
+// alreadyLive=true means this call itself is the reason the game is live right
+// now (Show Flow fired it, a GO LIVE press just launched it) -- showing GO LIVE
+// again here would just invite a redundant relaunch. Only glUiJoinControls()'s
+// "peek at a game someone else already put live, without touching it" case
+// passes false, since there the operator genuinely may not have launched it yet.
+function showGameOverlay(url, typeId, configId, alreadyLive) {
   const sep = url.includes('?') ? '&' : '?';
   document.getElementById('gameOverlayFrame').src = url + sep + '_v=' + Date.now();
   _glOverlayType   = typeId   || '';
   _glOverlayConfig = configId || '';
-  document.getElementById('glOverlayGoLiveBtn').style.display = (_glOverlayType && _glOverlayConfig) ? '' : 'none';
+  document.getElementById('glOverlayGoLiveBtn').style.display = (_glOverlayType && _glOverlayConfig && !alreadyLive) ? '' : 'none';
+  document.getElementById('glOverlayRedisplayBtn').style.display = (_glOverlayType && _glOverlayConfig) ? '' : 'none';
+  _glOverlaySyncTestBtn();
+  _glOverlayRenderAddAllBtn();
   showPage('gamelive');
-  _setActiveGame(typeId, configId);
+  _setActiveGame(typeId, configId, url);
+}
+
+// ── REMOTE TEST MODE (button on any remote-controlled game's controls) ──
+let _remoteTestActive = false;
+function _glOverlayRenderTestBtn() {
+  const btn = document.getElementById('glOverlayTestRemoteBtn');
+  if (!btn) return;
+  const gt = _glUiGameTypes.find(g => g.id === _glOverlayType);
+  btn.style.display = (gt && gt.remote_controlled) ? '' : 'none';
+  btn.textContent = _remoteTestActive ? '✕ EXIT TEST MODE' : '🔊 TEST REMOTE';
+}
+// Pulls the server's actual remote_test flag on every overlay open, so a
+// Console reload/reopen mid-test doesn't show a stale "TEST REMOTE" label
+// while the projector and the MC's remote are still actually in test mode.
+function _glOverlaySyncTestBtn() {
+  _glOverlayRenderTestBtn();
+  fetch('/api/remote/state').then(r => r.json()).then(d => {
+    _remoteTestActive = !!d.remote_test;
+    _glOverlayRenderTestBtn();
+  }).catch(() => {});
+}
+async function glOverlayToggleRemoteTest() {
+  _remoteTestActive = !_remoteTestActive;
+  _glOverlayRenderTestBtn();
+  try { await fetch('/api/remote/test/' + (_remoteTestActive ? 'start' : 'stop'), {method: 'POST'}); }
+  catch(e) {}
+}
+
+// ── ADD ALL CONTESTANTS (button on any results-recording game's controls) ──
+// Right here on the controller, not the separate Games-tab leaderboard editor
+// -- the whole point is entering names during introductions without leaving
+// this screen. Only shown for game types whose config has its own
+// auto-created games.json bucket (named after the config); resolving that
+// name is why this needs _glUiConfigs, not just the type/config ids.
+function _glOverlayBucketName() {
+  const cfg = (_glUiConfigs[_glOverlayType] || []).find(c => c.id === _glOverlayConfig);
+  return cfg ? (cfg.name || '') : '';
+}
+function _glOverlayRenderAddAllBtn() {
+  const btn = document.getElementById('glOverlayAddAllBtn');
+  if (!btn) return;
+  const gt = _glUiGameTypes.find(g => g.id === _glOverlayType);
+  btn.style.display = (gt && gt.records_results && _glOverlayBucketName()) ? '' : 'none';
+}
+function glOverlayAddAllContestants() {
+  const bucket = _glOverlayBucketName();
+  if (!bucket) { showAlert('Could not resolve this game’s results bucket', 2500); return; }
+  lbAddContestants(bucket);
 }
 
 // Every path that opens a game's controller funnels through showGameOverlay()
 // above, so hooking the "jump to the active game" button there covers all of
 // them (Show Flow, GO LIVE, Games Library join-controls) with one call.
-function _setActiveGame(typeId, configId) {
+function _setActiveGame(typeId, configId, ctrlUrl) {
   _activeGameType = typeId || '';
   _activeGameConfigId = configId || '';
+  _activeGameCtrlUrl = ctrlUrl || '';
   const btn = document.getElementById('activeGameBtn');
   if (btn) btn.style.display = (_activeGameType && _activeGameConfigId) ? 'block' : 'none';
 }
+// Reopens the exact URL showGameOverlay() last used -- NOT glUiJoinControls()'s
+// route+typeId reconstruction, which guesses `/games/${typeId}` when
+// _glUiGameTypes hasn't been loaded yet (only happens once the operator visits
+// the Games tab this session) and 404s for any type whose route doesn't match
+// its id, e.g. closest_to_mark's real route is /games/closest.
+//
+// alreadyLive=false (not true) -- this fires every time the operator backs out
+// (CLOSE) and comes back to this same game, which could be seconds or an hour
+// later. Passing true here permanently hid GO LIVE the instant a game first
+// went live, with no way to get the button back short of re-firing the whole
+// Show Flow step -- caught live: something else got shown over the game on
+// the projector, and there was no way back in to relaunch it.
 function _openActiveGame() {
-  if (_activeGameType && _activeGameConfigId) glUiJoinControls(_activeGameType, _activeGameConfigId);
+  if (_activeGameCtrlUrl) showGameOverlay(_activeGameCtrlUrl, _activeGameType, _activeGameConfigId, false);
+  else if (_activeGameType && _activeGameConfigId) glUiJoinControls(_activeGameType, _activeGameConfigId);
 }
 // Header Go Live button — covers the case where controls were opened via
 // glUiJoinControls() (card tap, not the small GO LIVE button) and nothing
@@ -5566,10 +5763,23 @@ async function glOverlayGoLive() {
       body: JSON.stringify({ game_type_id: _glOverlayType, config_id: _glOverlayConfig }),
     });
     const d = await r.json();
-    if (d.ok) showGameOverlay(d.controller_url, _glOverlayType, _glOverlayConfig);
+    if (d.ok) showGameOverlay(d.controller_url, _glOverlayType, _glOverlayConfig, true);
     else showAlert('Launch failed', 2000);
   } catch(e) {
     showAlert('Launch error', 2000);
+  }
+}
+// Pushes the current game back to the projector as-is -- no reset, unlike
+// GO LIVE. Only meaningful for iframe-based game types (Wheel, Trivia,
+// Closest to the Mark); Chairs/Timed Competition show via a Game Entry
+// instead and have nothing here to redisplay, which the server just reports.
+async function glOverlayRedisplay() {
+  try {
+    const r = await fetch('/api/games/redisplay', {method: 'POST'});
+    const d = await r.json();
+    showAlert(d.ok ? '↻ Pushed back to the projector' : (d.error || 'Nothing to redisplay'), 2000);
+  } catch(e) {
+    showAlert('Redisplay error', 2000);
   }
 }
 function hideGameOverlay() {

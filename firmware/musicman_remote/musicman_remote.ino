@@ -97,7 +97,8 @@ const unsigned long AUTO_POWEROFF_AFTER_MS = 10UL * 60 * 1000;
 
 // ── MENU MODEL ───────────────────────────────────────────────────────────
 enum MenuLevel { LEVEL_CATEGORY, LEVEL_SHOWFLOW, LEVEL_SFX, LEVEL_CIRCLES, LEVEL_ROLES, LEVEL_TIMER,
-                 LEVEL_GAME_CHAIRS, LEVEL_GAME_TRIVIA, LEVEL_GAME_TIMEDCOMP, LEVEL_KARAOKE };
+                 LEVEL_GAME_CHAIRS, LEVEL_GAME_TRIVIA, LEVEL_GAME_TIMEDCOMP, LEVEL_GAME_CLOSEST, LEVEL_KARAOKE,
+                 LEVEL_REMOTE_TEST };
 MenuLevel menuLevel = LEVEL_CATEGORY;
 
 const char* CATEGORY_NAMES[] = {"SHOW FLOW", "SFX", "CIRCLES", "ROLES", "TIMER"};
@@ -139,6 +140,8 @@ long stopwatchElapsedMs = 0;
 String liveGameTypeId   = "";
 String liveGameConfigId = "";
 String lastSeenLiveGameTypeId = "";   // edge-detect a NEW game going live, don't re-force-navigate on every poll
+long liveGameSeq         = -1;
+long lastSeenLiveGameSeq = -1;        // catches a RElaunch of the same game_type_id, which the string above can't
 
 int  lastSeenStepIndex = -999;        // sentinel distinct from -1 (no step), forces first-poll sync
 bool haveSeenFirstStep = false;
@@ -152,6 +155,29 @@ String triviaAnswer   = "";
 
 bool chairsLive    = false;
 bool chairsPlaying = false;
+
+// Closest to the Mark: the remote's only job on this screen is the STOP press
+// (see fireClosestStop()) -- Console owns starting each contestant's run and
+// resetting between them. live_value/target/unit/decimals/title come
+// pre-computed from /api/remote/state's own closest.live_value (server does
+// the run/loop/bounce math, same reasoning as the stopwatch's elapsed_ms --
+// this device just displays what it's told).
+bool   closestLive        = false;
+bool   closestRunning     = false;
+float  closestLiveValue   = 0;
+float  closestTargetValue = 0;
+int    closestDecimals    = 0;
+String closestUnitLabel   = "";
+String closestTitle       = "";
+
+// Remote self-test mode -- independent of which game (if any) is live, so it
+// gets its own top-level field rather than living under game_live. Pulls
+// focus from ANYWHERE the same way karaoke/timer do (see the edge-wake block
+// below), and forces the screen back off LEVEL_REMOTE_TEST the instant
+// Console ends it, even if no game is live to fall back to.
+bool remoteTestActive       = false;
+bool lastSeenRemoteTest     = false;
+bool haveSeenRemoteTest     = false;
 
 // Karaoke isn't a GAME_TYPES game (no liveGameTypeId of its own) -- it's its
 // own state branch in /api/state, same shape as the timer/stopwatch below,
@@ -197,6 +223,16 @@ bool haveSeenTimerRunningGlobal = false;
 // pull the remote there too, not just leave it as a read-only footer number.
 bool lastSeenStopwatchRunningGlobal = false;
 bool haveSeenStopwatchRunningGlobal = false;
+
+// Same two-pair pattern as timer/stopwatch above: the in-screen pair tracks
+// a change while already on LEVEL_GAME_CLOSEST (updateGameStateWake), the
+// global pair catches a NEW run starting from wherever the remote currently
+// is (updateMenuLevelForLiveGame) -- needed because Console can start/reset
+// many rounds in a row within the same launched game, not just the first.
+bool lastSeenClosestRunning       = false;
+bool haveSeenClosestState         = false;
+bool lastSeenClosestRunningGlobal = false;
+bool haveSeenClosestRunningGlobal = false;
 
 enum ConnState { CONN_OK, CONN_RECONNECTING, CONN_OFFLINE };
 ConnState connState = CONN_OFFLINE;
@@ -260,7 +296,9 @@ void fireTimerToggleDisplay();
 void fireTimerReset();
 void fireStopwatchToggle();
 void fireStopwatchReset();
+void fireClosestStop();
 void fireKaraokeMuteToggle();
+void fireRemoteTestSfx();
 void updateMenuLevelForLiveGame();
 void updateGameStateWake();
 void handleStepChange();
@@ -431,6 +469,7 @@ bool fetchRemoteState() {
   JsonObject lg = doc["live_game"];
   liveGameTypeId   = String((const char*)(lg["game_type_id"] | ""));
   liveGameConfigId = String((const char*)(lg["config_id"] | ""));
+  liveGameSeq      = lg["seq"] | -1;
 
   JsonObject timer = doc["timer"];
   timerRunning          = timer["running"] | false;
@@ -470,6 +509,21 @@ bool fetchRemoteState() {
   } else {
     chairsLive = false;
   }
+
+  if (doc["closest"].is<JsonObject>()) {
+    closestLive = true;
+    JsonObject cl = doc["closest"];
+    closestRunning     = cl["running"] | false;
+    closestLiveValue   = cl["live_value"]   | 0.0f;
+    closestTargetValue = cl["target_value"] | 0.0f;
+    closestDecimals    = cl["decimals"] | 0;
+    closestUnitLabel   = String((const char*)(cl["unit_label"] | ""));
+    closestTitle       = String((const char*)(cl["title"] | ""));
+  } else {
+    closestLive = false;
+  }
+
+  remoteTestActive = doc["remote_test"] | false;
 
   // Timer/stopwatch values are only as fresh as the last poll (every 3s) --
   // stamping when THIS poll landed lets drawScreen() interpolate the live
@@ -537,10 +591,16 @@ bool fetchLibrary() {
 }
 
 void updateMenuLevelForLiveGame() {
-  if (liveGameTypeId != lastSeenLiveGameTypeId) {
-    Serial.printf("[updateMenuLevelForLiveGame] %s -> %s (triviaLive=%d chairsLive=%d)\n",
-                  lastSeenLiveGameTypeId.c_str(), liveGameTypeId.c_str(), triviaLive, chairsLive);
+  // seq (bumped server-side on every single launch) catches a RElaunch of the
+  // same game_type_id -- e.g. Console re-firing the same Show Flow game step
+  // for a second round -- which the type string alone can't, since it never
+  // changed. Without this, only the FIRST launch of a given type in a session
+  // pulled the remote's screen over; every relaunch after that silently no-op'd.
+  if (liveGameTypeId != lastSeenLiveGameTypeId || liveGameSeq != lastSeenLiveGameSeq) {
+    Serial.printf("[updateMenuLevelForLiveGame] %s -> %s (seq %ld -> %ld, triviaLive=%d chairsLive=%d)\n",
+                  lastSeenLiveGameTypeId.c_str(), liveGameTypeId.c_str(), lastSeenLiveGameSeq, liveGameSeq, triviaLive, chairsLive);
     lastSeenLiveGameTypeId = liveGameTypeId;
+    lastSeenLiveGameSeq    = liveGameSeq;
     bool enteredGame = false;
     if (liveGameTypeId == "trivia" && triviaLive) {
       menuLevel = LEVEL_GAME_TRIVIA;
@@ -553,6 +613,9 @@ void updateMenuLevelForLiveGame() {
       // stopwatch is a generic, always-present field in /api/remote/state,
       // so the live_game type alone is enough to know this game is up.
       menuLevel = LEVEL_GAME_TIMEDCOMP;
+      enteredGame = true;
+    } else if (liveGameTypeId == "closest_to_mark") {
+      menuLevel = LEVEL_GAME_CLOSEST;
       enteredGame = true;
     }
     // if it became something else / empty, don't force-navigate the user away
@@ -582,7 +645,7 @@ void updateMenuLevelForLiveGame() {
   // once per start, and skipped while genuinely in a different live game so
   // it doesn't steal focus from Trivia/Chairs/Timed Competition mid-play.
   bool inOtherLiveGame = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
-                           || menuLevel == LEVEL_GAME_TIMEDCOMP);
+                           || menuLevel == LEVEL_GAME_TIMEDCOMP || menuLevel == LEVEL_GAME_CLOSEST);
   if (timerRunning && !lastSeenTimerRunningGlobal && haveSeenTimerRunningGlobal
       && !inOtherLiveGame && menuLevel != LEVEL_TIMER) {
     menuLevel = LEVEL_TIMER;
@@ -603,7 +666,7 @@ void updateMenuLevelForLiveGame() {
   // would, rather than leaving it on whatever screen it was already showing
   // with only the read-only footer number.
   bool inOtherLiveGame2 = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
-                            || menuLevel == LEVEL_TIMER);
+                            || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_CLOSEST);
   if (stopwatchRunning && !lastSeenStopwatchRunningGlobal && haveSeenStopwatchRunningGlobal
       && !inOtherLiveGame2 && menuLevel != LEVEL_GAME_TIMEDCOMP) {
     menuLevel = LEVEL_GAME_TIMEDCOMP;
@@ -617,6 +680,26 @@ void updateMenuLevelForLiveGame() {
   lastSeenStopwatchRunningGlobal = stopwatchRunning;
   haveSeenStopwatchRunningGlobal = true;
 
+  // Same treatment for Closest to the Mark -- Console starts/resets every
+  // contestant's run itself (the remote's only job on this screen is the
+  // STOP press), so this is what pulls focus back to the screen for each
+  // new round within the same launched game -- "entered game" above only
+  // fires once, the moment the game TYPE first goes live.
+  bool inOtherLiveGameClosest = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
+                                  || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_TIMEDCOMP);
+  if (closestRunning && !lastSeenClosestRunningGlobal && haveSeenClosestRunningGlobal
+      && !inOtherLiveGameClosest && menuLevel != LEVEL_GAME_CLOSEST) {
+    menuLevel = LEVEL_GAME_CLOSEST;
+    if (!screenAwake) {
+      screenAwake = true;
+      M5.Axp.SetLDO2(true);
+      lastActivity = millis();
+    }
+    beepConfirm();
+  }
+  lastSeenClosestRunningGlobal = closestRunning;
+  haveSeenClosestRunningGlobal = true;
+
   // Karaoke going live pulls focus the same way, and likewise backs off if
   // the MC is genuinely mid-game elsewhere (Trivia/Chairs/Timer/Timed Comp) --
   // whichever of these got there first keeps the screen until its own
@@ -628,7 +711,8 @@ void updateMenuLevelForLiveGame() {
   // only catches false->true transitions and would otherwise never fire for
   // a state that was already true the first time this device ever looked.
   bool inOtherLiveGame3 = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
-                            || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_TIMEDCOMP);
+                            || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_TIMEDCOMP
+                            || menuLevel == LEVEL_GAME_CLOSEST);
   bool karaokeJustWentLive     = karaokeLive && !lastSeenKaraokeLiveGlobal && haveSeenKaraokeLiveGlobal;
   bool karaokeAlreadyLiveAtBoot = karaokeLive && !haveSeenKaraokeLiveGlobal;
   if ((karaokeJustWentLive || karaokeAlreadyLiveAtBoot)
@@ -643,6 +727,31 @@ void updateMenuLevelForLiveGame() {
   }
   lastSeenKaraokeLiveGlobal = karaokeLive;
   haveSeenKaraokeLiveGlobal = true;
+
+  // Remote test mode pulls focus from ANYWHERE, unconditionally -- Console
+  // triggered it as a deliberate, explicit action, so unlike karaoke/timed
+  // comp/closest above (which back off from each other), it should win over
+  // whatever game screen happens to already be up.
+  if (remoteTestActive && !lastSeenRemoteTest && haveSeenRemoteTest && menuLevel != LEVEL_REMOTE_TEST) {
+    menuLevel = LEVEL_REMOTE_TEST;
+    if (!screenAwake) {
+      screenAwake = true;
+      M5.Axp.SetLDO2(true);
+      lastActivity = millis();
+    }
+    beepConfirm();
+  } else if (!remoteTestActive && lastSeenRemoteTest && menuLevel == LEVEL_REMOTE_TEST) {
+    // Console ended test mode -- go home. Invalidating lastSeenLiveGameTypeId
+    // makes the type-edge check at the top of this same function re-fire on
+    // the NEXT poll and snap back to whatever game is actually live, if any
+    // (a brief flash of the home screen first, since that check already ran
+    // earlier in THIS call), rather than getting stuck on LEVEL_REMOTE_TEST
+    // forever because the type string itself never changed underneath it.
+    menuLevel = LEVEL_CATEGORY;
+    lastSeenLiveGameTypeId = "\x01__test_exit__";
+  }
+  lastSeenRemoteTest = remoteTestActive;
+  haveSeenRemoteTest = true;
 }
 
 // Wakes the screen for a meaningful change WITHIN an already-live game --
@@ -710,6 +819,20 @@ void updateGameStateWake() {
     haveSeenTimerState = false;
   }
 
+  if (menuLevel == LEVEL_GAME_CLOSEST && closestLive) {
+    bool changed = haveSeenClosestState && (closestRunning != lastSeenClosestRunning);
+    lastSeenClosestRunning = closestRunning;
+    haveSeenClosestState   = true;
+    if (changed && !screenAwake) {
+      screenAwake = true;
+      M5.Axp.SetLDO2(true);
+      lastActivity = millis();
+      beepConfirm();
+    }
+  } else {
+    haveSeenClosestState = false;
+  }
+
   if (menuLevel == LEVEL_KARAOKE && karaokeLive) {
     bool changed = haveSeenKaraokeState &&
                    (karaokePlaying != lastSeenKaraokePlaying || karaokeMuted != lastSeenKaraokeMuted);
@@ -772,8 +895,17 @@ void handleStepChange() {
     // backs out manually at any time; this is the automatic version of
     // that same exit, triggered by the show's own progression.
     menuLevel = LEVEL_CATEGORY;
+  } else if (menuLevel == LEVEL_GAME_CLOSEST) {
+    // Unlike Chairs/Trivia/Timed Competition just below (a multi-round
+    // session or an ongoing scoreboard, deliberately left up across an
+    // advancing step) a Closest to the Mark round is done the moment the
+    // show moves on to anything else -- the next circle's walkup, a macro,
+    // whatever's next. Chris's own call: this screen always hands control
+    // straight back to normal show-flow browsing here, unconditionally,
+    // same as Timer above -- no manual side-hold needed for the common case.
+    menuLevel = LEVEL_CATEGORY;
   } else if (currentStep.type != "game" && menuLevel != LEVEL_GAME_CHAIRS && menuLevel != LEVEL_GAME_TRIVIA
-      && menuLevel != LEVEL_GAME_TIMEDCOMP) {
+      && menuLevel != LEVEL_GAME_TIMEDCOMP && menuLevel != LEVEL_REMOTE_TEST) {
     if (wasAsleep) {
       menuLevel = LEVEL_SHOWFLOW;
       if (currentStep.index < flowStepCount) flowBrowseIndex = currentStep.index;
@@ -796,7 +928,9 @@ void moveSelection(int delta) {
     case LEVEL_GAME_TRIVIA: break;
     case LEVEL_GAME_CHAIRS: break;
     case LEVEL_GAME_TIMEDCOMP: break;
+    case LEVEL_GAME_CLOSEST: break;
     case LEVEL_KARAOKE: break;
+    case LEVEL_REMOTE_TEST: break;
   }
 }
 
@@ -913,12 +1047,32 @@ void fireStopwatchReset() {
   else    { beepFail(); showToast("STOPWATCH ACTION FAILED"); }
 }
 
+void fireClosestStop() {
+  bool ok = false;
+  httpPostJson("/api/games/closest/stop", "{}", &ok);
+  lastActivity = millis();
+  // Fires unconditionally even if the round already ended a moment ago --
+  // the server-side route itself is a safe no-op when nothing's running (see
+  // api_closest_stop() in musicman.py), so there's no local running-state
+  // check to get out of sync with reality.
+  if (ok) { beepConfirm(); fetchRemoteState(); }
+  else    { beepFail(); showToast("STOP FAILED"); }
+}
+
 void fireKaraokeMuteToggle() {
   bool ok = false;
   httpPostJson("/api/karaoke/vocal_mute_toggle", "{}", &ok);
   lastActivity = millis();
   if (ok) { beepConfirm(); fetchRemoteState(); }
   else    { beepFail(); showToast("KARAOKE ACTION FAILED"); }
+}
+
+void fireRemoteTestSfx() {
+  bool ok = false;
+  httpPostJson("/api/remote/test/fire", "{}", &ok);
+  lastActivity = millis();
+  if (ok) beepConfirm();
+  else    { beepFail(); showToast("TEST FIRE FAILED"); }
 }
 
 // ── INPUT ────────────────────────────────────────────────────────────────
@@ -1008,11 +1162,25 @@ void handleButtons() {
       if      (frontShort) fireStopwatchToggle();
       else if (sideShort)  fireStopwatchReset();
       break;
+    case LEVEL_GAME_CLOSEST:
+      // Contestant-only screen: the remote's one job is stopping the mark.
+      // Starting each run and resetting between contestants both live on
+      // Console -- there is deliberately no side/reset gesture here at all.
+      // Either press length fires it, since a kid mid-reflex won't be
+      // timing a precise short tap.
+      if (frontShort || frontLong) fireClosestStop();
+      break;
     case LEVEL_KARAOKE:
       // One job: mute/unmute the vocal guide so the MC can drop it out to
       // hear the crowd sing, then bring it back for effect. Either press
       // does it -- there's nothing else on this screen to disambiguate.
       if (frontShort || frontLong) fireKaraokeMuteToggle();
+      break;
+    case LEVEL_REMOTE_TEST:
+      // The whole point is "does pressing a button work" -- any of the three
+      // presses that don't mean "back" (sideLong, handled globally above)
+      // fires a test SFX, not just one specific gesture.
+      if (frontShort || frontLong || sideShort) fireRemoteTestSfx();
       break;
     case LEVEL_GAME_TRIVIA:
       // Correct/incorrect scoring lives at Console/the trivia controller now
@@ -1245,7 +1413,9 @@ void drawScreen() {
     case LEVEL_GAME_CHAIRS: screenBuf.print("MUSICAL CHAIRS - LIVE");  break;
     case LEVEL_GAME_TRIVIA: screenBuf.print("TRIVIA - LIVE");          break;
     case LEVEL_GAME_TIMEDCOMP: screenBuf.print("TIMED COMPETITION");   break;
+    case LEVEL_GAME_CLOSEST:   screenBuf.print("CLOSEST TO THE MARK"); break;
     case LEVEL_KARAOKE:     screenBuf.print("KARAOKE - LIVE");         break;
+    case LEVEL_REMOTE_TEST: screenBuf.print("REMOTE TEST");            break;
   }
   screenBuf.setTextColor(0x8410);
   screenBuf.setCursor(200, 2);
@@ -1340,6 +1510,36 @@ void drawScreen() {
       screenBuf.print("SIDE = RESET   HOLD SIDE = BACK");
       break;
     }
+    case LEVEL_GAME_CLOSEST: {
+      // Contestant-facing, not the MC's -- big, plain, one instruction.
+      // No RESET/SIDE hint at all: that control lives on Console, not here.
+      screenBuf.setTextColor(closestRunning ? 0x07E0 : 0x8410);
+      screenBuf.setCursor(4, 20);
+      screenBuf.print(closestRunning ? "GO!" : "GET READY");
+
+      char buf[16];
+      snprintf(buf, sizeof(buf), "%.*f", closestDecimals, closestLiveValue);
+      screenBuf.setTextSize(3);
+      screenBuf.setTextColor(WHITE);
+      int textW = strlen(buf) * 18;
+      screenBuf.setCursor((240 - textW) / 2, 42);
+      screenBuf.print(buf);
+      screenBuf.setTextSize(1);
+      if (closestUnitLabel.length()) {
+        screenBuf.setTextColor(0x8410);
+        int uw = closestUnitLabel.length() * 6;
+        screenBuf.setCursor((240 - uw) / 2, 78);
+        screenBuf.print(closestUnitLabel);
+      }
+
+      screenBuf.setTextColor(0xC618);
+      screenBuf.setCursor(4, 106);
+      screenBuf.print(closestRunning ? "PRESS FRONT TO STOP!" : "WAIT FOR CONSOLE");
+      screenBuf.setCursor(4, 118);
+      screenBuf.setTextColor(0x8410);
+      screenBuf.print("HOLD SIDE = BACK (game keeps going)");
+      break;
+    }
     case LEVEL_KARAOKE: {
       screenBuf.setTextColor(karaokePlaying ? 0x07E0 : 0xFD20);
       screenBuf.setCursor(4, 18);
@@ -1364,6 +1564,23 @@ void drawScreen() {
       screenBuf.setTextColor(0xC618);
       screenBuf.setCursor(4, 118);
       screenBuf.print("FRONT = TOGGLE MUTE   HOLD SIDE = BACK");
+      break;
+    }
+    case LEVEL_REMOTE_TEST: {
+      // Soundcheck screen -- press anything, hear a random SFX on the
+      // projector, confirms the remote is actually reaching the Pi.
+      screenBuf.setTextColor(0xFD20);
+      screenBuf.setCursor(4, 30);
+      screenBuf.print("PRESS ANY");
+      screenBuf.setCursor(4, 50);
+      screenBuf.print("BUTTON TO TEST");
+
+      screenBuf.setTextColor(0xC618);
+      screenBuf.setCursor(4, 106);
+      screenBuf.print("Console ends this mode");
+      screenBuf.setCursor(4, 118);
+      screenBuf.setTextColor(0x8410);
+      screenBuf.print("HOLD SIDE = BACK (test stays on)");
       break;
     }
     case LEVEL_GAME_TRIVIA: {
@@ -1414,7 +1631,7 @@ void drawScreen() {
   // silently drift from what's on screen (e.g. Console fires a step while
   // the MC is browsing SFX).
   bool gameMode = (menuLevel == LEVEL_GAME_CHAIRS || menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_TIMER
-                    || menuLevel == LEVEL_GAME_TIMEDCOMP || menuLevel == LEVEL_KARAOKE);
+                    || menuLevel == LEVEL_GAME_TIMEDCOMP || menuLevel == LEVEL_GAME_CLOSEST || menuLevel == LEVEL_KARAOKE);
   if (!gameMode) {
     if (millis() < toastUntil) {
       screenBuf.fillRect(0, 118, 240, 17, 0x2965);

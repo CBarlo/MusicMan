@@ -7658,6 +7658,17 @@ async function renderGlSchemaFields(dataObj) {
         <label class="field-label">${escHtml(field.label)}</label>
         <input type="number" id="glf-${escHtml(field.key)}" class="text-input" value="${num}" style="width:100px">
       </div>`;
+    } else if (field.type === 'color') {
+      const hex = val || field.default || '#F5A623';
+      return `<div>
+        <label class="field-label">${escHtml(field.label)}</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="color" id="glf-${escHtml(field.key)}" value="${escHtml(hex)}" style="width:44px;height:34px;padding:2px;background:var(--surface);border:1px solid var(--border);border-radius:5px;cursor:pointer"
+            oninput="document.getElementById('glf-${escHtml(field.key)}-hex').value=this.value">
+          <input type="text" id="glf-${escHtml(field.key)}-hex" class="text-input" value="${escHtml(hex)}" style="width:100px"
+            oninput="const c=document.getElementById('glf-${escHtml(field.key)}'); if(/^#[0-9a-fA-F]{6}$/.test(this.value)) c.value=this.value">
+        </div>
+      </div>`;
     } else if (field.type === 'select') {
       const cur = val !== undefined ? val : (field.default || '');
       const allOpts = [...(field.options||[]), ...(srcCache[field.source]||[])];

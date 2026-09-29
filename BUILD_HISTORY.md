@@ -869,4 +869,126 @@ one batch call and merges identical in-flight list requests.
 
 ---
 
-*Last updated: September 2026 — Phase 23*
+## Phase 24 — Fog Unit: Single EZ-Up Build, Real Fog Machine Trigger
+
+The fog unit design moved from two per-pole DIY misters to a single unit staged behind
+the EZ-Up, feeding one accumulation tote out through a tee into two slitted tubes
+spanning the canopy's width. It now drives three outputs instead of two: the mister and
+fan stay on logic-level N-MOSFETs (silent, no relay wear across a season of cycles; the
+fan keeps its flyback diode since it's an inductive load), and a new third output — a
+plain relay module, not a MOSFET — fires a real consumer fog machine by shorting its
+wired-remote jack, mimicking its own pushbutton. The fog machine's 110V power is never
+switched by this unit at all; it stays plugged into its own outlet at the EZ-Up and its
+internal thermostat handles warm-up, exactly like a fog machine at any party — only the
+trigger is ours. `startFogSequence()` now pulses that trigger for `FOG_TRIGGER_MS`
+(1.5s, tracked independently of the charge/release stage) at the moment charging
+begins. Hostname simplified to `musicman-fog` (no more `-a`/`-b` split — one unit now),
+and it's powered off a small wall adapter at the EZ-Up instead of a Solix battery, since
+it no longer lives out at a pole.
+
+## Phase 25 — Closest to the Mark Hardening, Remote Control Fixes, Bulk Contestant Entry
+
+A single live-testing session surfaced (and fixed) a cluster of real bugs in Closest to
+the Mark and the M5Stick remote's game integration, plus a new roster workflow built to
+get iPad typing out of the loop during a live round entirely.
+
+### Display wouldn't come up / got yanked back after a walkup
+`games_closest.html` reported itself as "the display's current page" over its own
+WebSocket every time it loaded — including when it's just an iframe embedded inside
+`/display`, which is how it always shows on the real kiosk. `shell_game.html` already
+guards this with `_inIframe = window.top !== window.self`; `games_closest.html` was
+missing the same guard. The false report overwrote the server's `_display_url` tracker,
+which then made the *next* walkup/circle/role step think the kiosk needed to "come
+home," silently re-hiding the game that had just loaded. Fixed by adding the same guard.
+
+### Console's GO LIVE button — wrong when it showed, then wrong when it didn't
+Three related bugs in the shared game-controller overlay chrome:
+- GO LIVE stayed visible even immediately after a game had already gone live (Show Flow
+  fired it), inviting a confusing, redundant relaunch. `showGameOverlay()` now takes an
+  `alreadyLive` flag; only the genuine "peek at a game someone else already put live"
+  path leaves it visible.
+- The overlay's "reopen the active game" path (🎮 button) reconstructed the controller
+  URL by guessing `/games/${game_type_id}`, which only works when a type's route
+  happens to match its id — Closest to the Mark's real route is `/games/closest`, so it
+  404'd. Fixed by having every launch path pass through the server's own
+  `controller_url` and reusing that exact string instead of reconstructing it.
+- The `alreadyLive` fix above then over-corrected: reopening a game's controller after
+  backing out (any time later, not just right after launch) also passed `alreadyLive`,
+  permanently hiding GO LIVE with no way back in short of re-firing the whole Show Flow
+  step. Fixed by only treating a *fresh* launch as "already live," not a reopen.
+- Added a non-destructive **↻ REDISPLAY** button alongside GO LIVE — re-pushes the
+  current game to the projector exactly as-is (server-side, just re-broadcasts the same
+  `display_navigate` `_launch_game()` sends on a real launch) without resetting the
+  round the way pressing GO LIVE again would.
+
+### Remote didn't refocus on a relaunch of the same game type
+The M5Stick's `updateMenuLevelForLiveGame()` edge-detects a game going live by watching
+`game_type_id` change. Relaunching the *same* type twice in a row (a second round, or
+just re-testing) never re-triggered it, since the string never changed. Fixed with a
+`seq` counter bumped server-side on every single launch (`_bump_live_game_seq()`,
+exposed via `/api/remote/state`'s `live_game.seq`); the firmware now edge-detects on
+either the type OR the seq changing.
+
+### Remote self-test mode
+A "🔊 TEST REMOTE" button on any remote-controlled game's controls puts the projector
+and the MC's M5Stick into a soundcheck screen ("PRESS BUTTON TO TEST") — pressing the
+physical button fires a random SFX, confirming the whole round trip actually works
+before a real round depends on it. SFX are filtered to clips ≤3s (`_short_sfx_files()`)
+so a press gets an instant blip, not a full effect playing out. New `LEVEL_REMOTE_TEST`
+menu screen on the firmware, pulls focus from anywhere unconditionally (an explicit
+Console action should win over whatever else is up), and survives ordinary show-flow
+advances so it only ends when Console explicitly ends it.
+
+### 3-2-1 countdown before a round starts
+Pressing START used to jump the meter moving instantly. `/api/games/closest/start` now
+holds for a 3-2-1 (`closest_state.countdown`, broadcast as `closest_countdown` ticks)
+before `running` flips true and the meter actually moves — shown as an overlay on the
+projector and "STARTING IN 3..." on Console. STOP/RESET/a relaunch mid-countdown cancel
+it cleanly via a token so two countdowns can't fight over `closest_state`.
+
+### Target line: cache-bust + a black-vs-white rendering bug
+Two separate projector-only display bugs, both invisible on the iPad:
+- The background art's URL had no cache-busting, so re-uploading a new version of the
+  same filename in Admin kept showing the OLD image on the kiosk (which stays on
+  `/display` for hours/days at a stretch) while a freshly-opened tab fetched the new
+  one. Fixed the same way `_gameFrame.src`/`_versioned_walkup_file()` already do —
+  `?_v=<timestamp>` on the image URL.
+- The target-value line itself rendered solid **black** on the projector's Android
+  WebView and correctly white everywhere else. Isolated to the line's `box-shadow`
+  glow specifically (`rgba(255,255,255,.9)`, inside a `transform`-promoted container) —
+  a translucent-white blur inside a GPU-composited layer is a known alpha-premultiply
+  bug on some Android GPU drivers; a colored glow (the red start-dot) just looks subtly
+  off instead of inverting outright. Fixed by dropping the glow, solid opaque line only.
+- Added a small target-value label above the line itself.
+
+### Bulk contestant entry + tap-to-record
+The actual goal: enter every contestant's name once, during introductions, then run the
+whole game without touching a keyboard on an iPad. `/api/games/entry/bulk_add` seeds a
+game's `games.json` bucket with name-only pending entries; `api_games_record()` now
+checks for a matching pending entry by name before creating a new one, so recording a
+real result later under the same name fills that placeholder in instead of duplicating
+it (`_is_pending_entry()`, mirrored client-side as `_lbIsPending`/`isPending`). The
+bulk-add UI lives both in Console's Games-tab leaderboard editor AND directly in the
+shared game-controller header (`records_results: True` in `GAME_TYPES`, resolved to a
+bucket name via the config's own `name`) — added there specifically so entering names
+doesn't mean leaving the screen the operator's already running the show from. Closest
+to the Mark's controller goes one step further: the pending roster renders as a grid of
+tappable chips (`renderPendingChips()`), disabled until a round is stopped, then one tap
+on the name who just went records their result immediately — no typing, no autocomplete,
+no attention split from running the game.
+
+Two related sort/display bugs, both from pending entries mixing with real ones:
+- A still-unplayed pending entry's missing value (0) could accidentally rank it ahead of
+  real results everywhere something sorted the bucket (Console's leaderboard, the
+  projector overlay, the game's own results list) — every sort key now puts
+  `_is_pending_entry()` first so pending always sorts last, never by its default value.
+- The projector's "SHOW ON HDMI" scoreboard went further and excluded pending entries
+  from the overlay entirely (an unplayed name was never a result, shouldn't appear even
+  ranked last), and its mode label (e.g. "CLOSEST TO THE MARK" vs "FASTEST TIMES") could
+  guess wrong when the bucket was empty or all-pending, since the server inferred mode
+  from whatever entries happened to exist. Fixed by having each game type's own
+  controller declare its scoring mode explicitly (`mode: 'distance'`) instead.
+
+---
+
+*Last updated: September 2026 — Phase 25*

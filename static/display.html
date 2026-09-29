@@ -856,6 +856,17 @@
   style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:30;display:none;background:#000"
   src="" allowfullscreen allow="autoplay"></iframe>
 
+<!-- REMOTE TEST OVERLAY — z-index 45, above everything (memes included); pure
+     overlay like a meme or the leaderboard, so whatever's underneath (a live
+     game, a walkup, standby) just reappears untouched once test mode ends. -->
+<div id="remote-test-overlay" style="position:fixed;inset:0;z-index:45;display:none;
+  background:rgba(6,8,20,.88);align-items:center;justify-content:center;flex-direction:column;
+  text-align:center;padding:0 5vw;box-sizing:border-box;font-family:'Barlow Condensed',sans-serif;color:#fff">
+  <div style="font-size:min(4vh,6vw);letter-spacing:.3vh;color:var(--amber,#F5A623);font-weight:800">REMOTE TEST MODE</div>
+  <div id="remote-test-prompt" style="font-size:min(9vh,13vw);font-weight:900;margin-top:2vh;text-shadow:0 6px 30px rgba(0,0,0,.8)">PRESS BUTTON TO TEST</div>
+  <div id="remote-test-fired" style="font-size:min(3.2vh,5vw);margin-top:3vh;color:rgba(255,255,255,.85);min-height:1.2em"></div>
+</div>
+
 <!-- WALKUP LAYER -->
 <div id="layer-walkup">
   <div id="wu-bg"></div>
@@ -1995,13 +2006,22 @@ function showLeaderboard(data) {
   const times = data.times || [];
   document.getElementById('lb-game-name').textContent = game.toUpperCase();
   document.getElementById('lb-sort-label').textContent =
-    data.score_mode ? 'TOP SCORES' : (data.sort === 'desc' ? 'LONGEST TIMES' : 'FASTEST TIMES');
+    data.score_mode ? 'TOP SCORES' : data.distance_mode ? 'CLOSEST TO THE MARK' : (data.sort === 'desc' ? 'LONGEST TIMES' : 'FASTEST TIMES');
   document.getElementById('lb-rows').innerHTML = times.slice(0, 8).map((t, i) => {
-    const tot   = t.ms / 1000;
-    const m     = Math.floor(tot / 60);
-    const s     = Math.floor(tot % 60);
-    const tenth = Math.floor((tot % 1) * 10);
-    const tStr  = m > 0 ? m+':'+String(s).padStart(2,'0')+'.'+tenth : s+'.'+tenth+'s';
+    let tStr;
+    if (data.distance_mode) {
+      const dec = data.decimals || 0;
+      const val = (t.value != null ? Number(t.value) : null);
+      tStr = (val != null ? val.toFixed(dec) : Math.abs(t.distance).toFixed(dec)) + (data.unit_label ? ' ' + data.unit_label : '');
+    } else if (data.score_mode) {
+      tStr = Math.round(t.score || 0) + (t.score != null && t.score <= 100 ? '%' : '');
+    } else {
+      const tot   = t.ms / 1000;
+      const m     = Math.floor(tot / 60);
+      const s     = Math.floor(tot % 60);
+      const tenth = Math.floor((tot % 1) * 10);
+      tStr = m > 0 ? m+':'+String(s).padStart(2,'0')+'.'+tenth : s+'.'+tenth+'s';
+    }
     const medal = (i + 1) + '.';
     const gold  = i === 0;
     const sz    = gold ? '5.2vw' : i < 3 ? '4.2vw' : '3.5vw';
@@ -2402,6 +2422,16 @@ function connectWS() {
       else if (msg.event === 'display_audio_delay') { _applyAudioDelay(data.ms); }
       else if (msg.event === 'display_reload')    { location.href = '/display?v=' + Date.now(); }
       else if (msg.event === 'display_meme_cleared') { _clearMemeOverlay(); }
+      else if (msg.event === 'display_remote_test') {
+        document.getElementById('remote-test-fired').textContent = '';
+        document.getElementById('remote-test-overlay').style.display = 'flex';
+      }
+      else if (msg.event === 'display_remote_test_hide') {
+        document.getElementById('remote-test-overlay').style.display = 'none';
+      }
+      else if (msg.event === 'display_remote_test_fired') {
+        document.getElementById('remote-test-fired').textContent = '🔊 played: ' + (data.name || '?');
+      }
       else if (msg.event === 'display_navigate')  {
         if (!data.url || data.url === '/display' || data.url.startsWith('/display?')) {
           hideGameFrame();

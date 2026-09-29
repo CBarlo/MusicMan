@@ -1353,6 +1353,47 @@ stopwatch_state = {
     'elapsed_ms': 0,
 }
 
+# ── CLOSEST TO THE MARK ──
+# A single live value climbing/looping between a config's min/max over its own
+# speed -- same "server holds start_ms, every client computes the current
+# value locally against its own clock" design as stopwatch_state above, so no
+# ticking loop is needed server-side. config_id persists across stop/reset so
+# a client that only calls /api/games/closest/stop (no body) still resolves
+# against the right config.
+closest_state = {
+    'running':       False,
+    'start_ms':      None,
+    'stopped_value': None,
+    'config_id':     None,
+    'countdown':     0,   # 3/2/1 while a START press is winding up, 0 once running (or idle)
+}
+# Bumped on every START press; a countdown thread bails after each second if
+# this no longer matches the token it captured -- a fast STOP/RESET/re-START
+# during the 3-2-1 (Console double-tap, or a Show Flow relaunch) supersedes
+# the in-flight countdown instead of two of them fighting over closest_state.
+_closest_countdown_token = 0
+
+def _closest_value_at(cfg, elapsed_ms):
+    """The live indicator's value after elapsed_ms since start, per this
+    config's range/speed/motion. Pure function, deliberately simple enough to
+    mirror exactly in JS -- server (scoring a STOP) and every client
+    (animating between WS syncs) must always agree on what the mark landed on.
+    """
+    lo   = float(cfg.get('min_value', 0))
+    hi   = float(cfg.get('max_value', 100))
+    span = hi - lo
+    secs = max(0.1, float(cfg.get('speed', 6)))
+    t = (elapsed_ms / 1000.0) / secs
+    motion = cfg.get('motion', 'once')
+    if motion == 'bounce':
+        cyc = t % 2.0
+        frac = cyc if cyc <= 1.0 else 2.0 - cyc
+    elif motion == 'loop':
+        frac = t % 1.0
+    else:  # 'once' -- climbs and holds at the top
+        frac = min(1.0, t)
+    return lo + span * frac
+
 # ── KARAOKE ──
 # Instrumental plays through the normal music channel (pygame.mixer.music) --
 # same as any playlist track, so the existing MUSIC volume slider controls it
@@ -1649,6 +1690,7 @@ GAME_TYPES = {
         'icon': '🪑',
         'controller_route': '/games/chairs',
         'display_route': '/games/chairs/display',
+        'remote_controlled': True,   # M5Stick MC remote has a dedicated menu screen for this type
         'schema': [
             {'key': 'song',              'type': 'select', 'label': 'Song',                  'source': 'music'},
             {'key': 'song_start_offset', 'type': 'number', 'label': 'Skip Intro (sec)',       'default': 0},
@@ -1669,6 +1711,8 @@ GAME_TYPES = {
         'icon': '⏱️',
         'controller_route': '/games/timedcomp',
         'display_route': '/games/timedcomp/display',
+        'remote_controlled': True,   # M5Stick MC remote has a dedicated menu screen for this type
+        'records_results': True,     # games.json bucket named after the config -- Console's bulk-add button applies
         # Same "no iframe ever reaches HDMI" shape as Musical Chairs -- the
         # Intro Game Entry (or fallback headline/text/image) is what shows
         # on screen, and it just stays up for the whole event. Results
@@ -1686,11 +1730,51 @@ GAME_TYPES = {
              'options': [{'value': 'asc', 'label': 'Fastest wins'}, {'value': 'desc', 'label': 'Longest wins'}]},
         ],
     },
+    'closest_to_mark': {
+        'label': 'Closest to the Mark',
+        'icon': '🎯',
+        'controller_route': '/games/closest',
+        'display_route': '/games/closest',
+        'remote_controlled': True,   # M5Stick MC remote has a dedicated menu screen for this type
+        'records_results': True,     # games.json bucket named after the config -- Console's bulk-add button applies
+        # One mechanic, reskinned per config -- "Guess the Snowfall" (inches),
+        # "Cook the Steak" (degrees), a plain countdown-style challenge,
+        # whatever a camp theme calls for. Set up once here; fired from Show
+        # Flow or Console like any other game, nothing configured live.
+        'schema': [
+            {'key': 'title',      'type': 'text', 'label': 'Title', 'placeholder': 'Guess the Snowfall'},
+            {'key': 'unit_label', 'type': 'text', 'label': 'Unit label (optional)', 'placeholder': 'inches'},
+            {'key': 'style', 'type': 'select', 'label': 'Look', 'default': 'timer',
+             'options': [{'value': 'timer', 'label': '⏱ Digital Counter'},
+                         {'value': 'meter', 'label': '📊 Rising Meter'},
+                         {'value': 'dial',  'label': '🎡 Light Ring'}]},
+            {'key': 'bar_color', 'type': 'color', 'label': 'Meter line/start-dot color (Rising Meter look only)', 'default': '#E83A3A'},
+            {'key': 'motion', 'type': 'select', 'label': 'Movement', 'default': 'once',
+             'options': [{'value': 'once',   'label': 'Climbs once, holds at the top'},
+                         {'value': 'loop',   'label': 'Loops around continuously'},
+                         {'value': 'bounce', 'label': 'Bounces back and forth'}]},
+            {'key': 'min_value',    'type': 'number', 'label': 'Start value', 'default': 0},
+            {'key': 'max_value',    'type': 'number', 'label': 'End value',   'default': 20},
+            {'key': 'target_value', 'type': 'number', 'label': 'Target (the mark)', 'default': 10},
+            {'key': 'decimals',     'type': 'number', 'label': 'Decimal places', 'default': 0},
+            {'key': 'speed',        'type': 'number', 'label': 'Seconds per pass', 'default': 6},
+            {'key': 'bg_image',   'type': 'select', 'label': 'Background (optional)',        'source': 'display_images'},
+            {'key': 'run_sfx',    'type': 'select', 'label': 'Looping sound while running (optional, e.g. a sizzle)', 'source': 'audio'},
+            {'key': 'stop_sfx',   'type': 'select', 'label': 'Sound on stop (optional, e.g. a ding)', 'source': 'audio'},
+            {'key': 'run_scene',  'type': 'select', 'label': 'Lighting scene while running (optional)', 'source': 'scenes'},
+            {'key': 'stop_scene', 'type': 'select', 'label': 'Lighting scene on stop (optional)', 'source': 'scenes'},
+            {'key': 'intro_entry',       'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
+            {'key': 'fallback_headline', 'type': 'text',   'label': 'Screen Headline (used if no Game Entry above)'},
+            {'key': 'fallback_text',     'type': 'text',   'label': 'Screen Text'},
+            {'key': 'fallback_image',    'type': 'select', 'label': 'Screen Image', 'source': 'display_images'},
+        ],
+    },
     'trivia': {
         'label': 'Trivia',
         'icon': '❓',
         'controller_route': '/games/trivia',
         'display_route': '/games/trivia',
+        'remote_controlled': True,   # M5Stick MC remote has a dedicated menu screen for this type
         # Real editor is bespoke (_renderGlTriviaEditor in musicman_admin.html) — this schema
         # is documentation-only, same relationship Wheel has to its own schema entry.
         'schema': [
@@ -1713,6 +1797,18 @@ GAME_TYPES = {
 # just reflects "most recently launched," the only source of truth that
 # exists anywhere else in the app either.
 _current_live_game = {'game_type_id': None, 'config_id': None}
+# Bumped on every launch (even a relaunch of the exact same type+config), so a
+# client that only edge-detects on game_type_id changing -- the M5Stick remote's
+# updateMenuLevelForLiveGame() -- can still tell a fresh GO LIVE apart from the
+# poll before it. Without this, firing "Closest to the Mark" twice in a row (or
+# any game type twice in a row -- rehearsing the same round again, or an
+# operator re-testing) left the remote's screen wherever it was: game_type_id
+# never changed, so the string-equality edge silently never re-fired.
+_live_game_seq = 0
+def _bump_live_game_seq():
+    global _live_game_seq
+    _live_game_seq += 1
+    return _live_game_seq
 
 def load_game_configs() -> list:
     try:
@@ -3366,7 +3462,7 @@ def shell_game():
 def shell_game_start():
     global _sg_session, _current_live_game
     _sg_session += 1
-    _current_live_game = {'game_type_id': 'shell_game', 'config_id': ''}
+    _current_live_game = {'game_type_id': 'shell_game', 'config_id': '', 'seq': _bump_live_game_seq()}
     broadcast('shell_game_start', {'session': _sg_session})
     return jsonify({'ok': True, 'session': _sg_session})
 
@@ -5075,6 +5171,7 @@ def api_state():
         'timer':      timer_state,
         'countdown':  countdown_state,
         'stopwatch':  stopwatch_state,
+        'closest':    closest_state,
         'karaoke':    karaoke_state,
         'meme':       _meme_state,
         'playlist':   playlist_state,
@@ -5130,6 +5227,18 @@ def api_remote_state():
         }}
     elif gtid == 'musical_chairs':
         game_live = {'chairs': chairs_state}
+    elif gtid == 'closest_to_mark':
+        cfg = _closest_config_data(cfg_id)[0]
+        cs  = dict(closest_state)
+        if cs.get('running') and cs.get('start_ms'):
+            cs['live_value'] = _closest_value_at(cfg, int(time.time() * 1000) - cs['start_ms'])
+        else:
+            cs['live_value'] = cs.get('stopped_value')
+        cs['target_value'] = cfg.get('target_value')
+        cs['unit_label']   = cfg.get('unit_label', '')
+        cs['decimals']     = cfg.get('decimals', 0)
+        cs['title']        = cfg.get('title') or 'Closest to the Mark'
+        game_live = {'closest': cs}
 
     # stopwatch_state['elapsed_ms'] is only ever updated at stop -- every
     # other consumer (Console, the game controllers) is a browser computing
@@ -5149,6 +5258,7 @@ def api_remote_state():
         'timer': timer_state,
         'stopwatch': stopwatch,
         'karaoke': karaoke_state,
+        'remote_test': remote_test_state.get('active', False),
         **game_live,
     })
 
@@ -5736,29 +5846,51 @@ def api_countdown_show():
 def api_games_list():
     return jsonify(load_games())
 
+def _is_pending_entry(e):
+    """No ms/score/distance recorded yet -- a name-only placeholder seeded by
+    /api/games/entry/bulk_add ahead of a round, not a real result."""
+    return 'ms' not in e and 'score' not in e and 'distance' not in e
+
 @app.route('/api/games/record', methods=['POST'])
 def api_games_record():
-    data  = request.json or {}
-    game  = data.get('game', '').strip()
-    label = data.get('label', '').strip() or 'Runner'
-    ms    = int(data.get('ms', 0))
-    score = data.get('score')   # optional: numeric score (for crowd/dB games)
+    data     = request.json or {}
+    game     = data.get('game', '').strip()
+    label    = data.get('label', '').strip() or 'Runner'
+    ms       = int(data.get('ms', 0))
+    score    = data.get('score')      # optional: numeric score (for crowd/dB games)
+    distance = data.get('distance')   # optional: signed offset from a target (Closest to the Mark)
     if not game:
         return jsonify({'ok': False, 'error': 'missing game'}), 400
-    if score is None and ms <= 0:
-        return jsonify({'ok': False, 'error': 'provide ms or score'}), 400
+    if score is None and distance is None and ms <= 0:
+        return jsonify({'ok': False, 'error': 'provide ms, score, or distance'}), 400
     games = load_games()
     if game not in games:
         games[game] = []
-    entry = {'id': uuid.uuid4().hex[:8], 'label': label, 'at': int(time.time())}
-    if score is not None:
-        entry['score'] = float(score)
+    # A pre-seeded pending entry with this exact name (see bulk_add below) gets
+    # filled in rather than duplicated -- lets an operator enter every
+    # contestant's name up front (at introductions) and then just record
+    # results as normal, by name, during play without a leftover empty row
+    # sitting next to a brand-new one for the same person.
+    existing = next((e for e in games[game]
+                      if _is_pending_entry(e) and e.get('label', '').strip().lower() == label.strip().lower()), None)
+    entry = existing if existing is not None else {'id': uuid.uuid4().hex[:8], 'label': label}
+    entry['at'] = int(time.time())
+    if existing is None:
         games[game].append(entry)
-        games[game].sort(key=lambda x: x.get('score', 0), reverse=True)
+    if distance is not None:
+        entry['distance'] = float(distance)
+        if data.get('value') is not None:
+            entry['value'] = data['value']   # the raw landed value -- display only, ranking is by distance
+        # _is_pending_entry(x) first in each key below -- a still-unplayed
+        # pre-seeded name (0 recorded value) must never outrank an actual
+        # result just because 0 happens to look like a winning number.
+        games[game].sort(key=lambda x: (_is_pending_entry(x), abs(x.get('distance', 0)), x.get('at', 0)))  # ties broken by who recorded first
+    elif score is not None:
+        entry['score'] = float(score)
+        games[game].sort(key=lambda x: (_is_pending_entry(x), -x.get('score', 0)))
     else:
         entry['ms'] = ms
-        games[game].append(entry)
-        games[game].sort(key=lambda x: x.get('ms', 0))
+        games[game].sort(key=lambda x: (_is_pending_entry(x), x.get('ms', 0)))
     save_games(games)
     broadcast('games_state', games)
     return jsonify({'ok': True, 'games': games})
@@ -5813,10 +5945,18 @@ def api_games_entry_update():
         entry['label'] = (data.get('label') or '').strip() or 'Runner'
     if 'ms' in data and data['ms'] is not None:
         entry['ms'] = int(data['ms'])
-        entries.sort(key=lambda x: x.get('ms', 0))
+        entry['at'] = int(time.time())
+        entries.sort(key=lambda x: (_is_pending_entry(x), x.get('ms', 0)))
     if 'score' in data and data['score'] is not None:
         entry['score'] = float(data['score'])
-        entries.sort(key=lambda x: x.get('score', 0), reverse=True)
+        entry['at'] = int(time.time())
+        entries.sort(key=lambda x: (_is_pending_entry(x), -x.get('score', 0)))
+    if 'distance' in data and data['distance'] is not None:
+        entry['distance'] = float(data['distance'])
+        if data.get('value') is not None:
+            entry['value'] = data['value']
+        entry['at'] = int(time.time())
+        entries.sort(key=lambda x: (_is_pending_entry(x), abs(x.get('distance', 0)), x.get('at', 0)))  # ties broken by who recorded first
     save_games(games)
     broadcast('games_state', games)
     return jsonify({'ok': True, 'games': games})
@@ -5837,19 +5977,65 @@ def api_games_entry_delete():
     broadcast('games_state', games)
     return jsonify({'ok': True, 'games': games})
 
+@app.route('/api/games/entry/bulk_add', methods=['POST'])
+def api_games_entry_bulk_add():
+    """Seed a game's leaderboard with every contestant's name in one shot --
+    e.g. read off during introductions, before anyone's actually played --
+    as name-only placeholder entries (no ms/score/distance yet). Recording a
+    real result later under the same name (api_games_record above) fills the
+    matching placeholder in instead of adding a duplicate row."""
+    data   = request.json or {}
+    game   = data.get('game', '').strip()
+    labels = [str(l).strip() for l in (data.get('labels') or []) if str(l).strip()]
+    if not game:
+        return jsonify({'ok': False, 'error': 'missing game'}), 400
+    if not labels:
+        return jsonify({'ok': False, 'error': 'no names given'}), 400
+    games = load_games()
+    if game not in games:
+        games[game] = []
+    now = int(time.time())
+    for label in labels:
+        games[game].append({'id': uuid.uuid4().hex[:8], 'label': label, 'at': now})
+    save_games(games)
+    broadcast('games_state', games)
+    return jsonify({'ok': True, 'games': games})
+
 @app.route('/api/games/display', methods=['POST'])
 def api_games_display():
     data    = request.json or {}
     game    = data.get('game', '').strip()
     sort    = data.get('sort', 'asc')
+    mode    = data.get('mode', '')   # optional -- see games_closest.html's showOnHDMI()
     games   = load_games()
-    entries = games.get(game, [])
-    is_score = any('score' in e for e in entries)
+    # A pre-seeded pending name (no recorded ms/score/distance -- see
+    # lbAddContestants()) isn't a result -- it never belongs on the projector's
+    # scoreboard at all, not even ranked last.
+    entries = [e for e in games.get(game, []) if not _is_pending_entry(e)]
+    # A caller that already knows its own mode (e.g. Closest to the Mark is
+    # ALWAYS distance-mode) should just say so -- sniffing the mode from
+    # `entries` guesses wrong the moment the bucket is empty or every entry is
+    # still pending, which is exactly "SHOW ON HDMI before anyone's played"
+    # and defaulted to the time-race label ("FASTEST TIMES") for a game that
+    # was never a race at all.
+    if mode == 'score':
+        is_score, is_distance = True, False
+    elif mode == 'distance':
+        is_score, is_distance = False, True
+    elif mode == 'ms':
+        is_score, is_distance = False, False
+    else:
+        is_score    = any('score' in e for e in entries)
+        is_distance = any('distance' in e for e in entries)
     if is_score:
-        times = sorted(entries, key=lambda t: t.get('score', 0), reverse=True)
+        times = sorted(entries, key=lambda t: -t.get('score', 0))
+    elif is_distance:
+        times = sorted(entries, key=lambda t: (abs(t.get('distance', 0)), t.get('at', 0)))  # ties broken by who recorded first
     else:
         times = sorted(entries, key=lambda t: t.get('ms', 0), reverse=(sort == 'desc'))
-    _ensure_display_for('display_leaderboard', {'game': game, 'times': times, 'score_mode': is_score, 'sort': sort})
+    _ensure_display_for('display_leaderboard', {'game': game, 'times': times, 'score_mode': is_score,
+                                                 'distance_mode': is_distance, 'unit_label': data.get('unit_label', ''),
+                                                 'decimals': data.get('decimals', 0), 'sort': sort})
     return jsonify({'ok': True})
 
 @app.route('/api/games/display/hide', methods=['POST'])
@@ -5968,7 +6154,7 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
     # reveal event left the display stuck on the intro walkup's last frame
     # with no way to recover short of a manual re-trigger.
     _current_live_game = {'game_type_id': game_type_id, 'config_id': config_id,
-                           'revealed': False, 'disp_url': None}
+                           'revealed': False, 'disp_url': None, 'seq': _bump_live_game_seq()}
 
     if game_type_id == 'trivia' and config_id:
         # Every GO LIVE starts a fresh session at question 1 — a mid-session HDMI
@@ -6045,6 +6231,19 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
                 threading.Thread(target=_fire_fallback_screen, args=(cfg_data,), daemon=True).start()
         return ctrl_url, ''
 
+    if game_type_id == 'closest_to_mark':
+        # Fresh session every GO LIVE, same contract as trivia/chairs/timedcomp
+        # above -- config_id has to be set here (not left over from whatever
+        # game last called /api/games/closest/start) so a remote/contestant
+        # pressing START as the very first action for this launch resolves
+        # against the config that's actually live, not a stale one.
+        global _closest_countdown_token
+        _closest_countdown_token += 1   # cancel a countdown left in flight from a prior launch
+        _closest_stop_loop()
+        closest_state.update({'running': False, 'start_ms': None, 'stopped_value': None,
+                               'config_id': config_id, 'countdown': 0})
+        broadcast('closest_state', closest_state)
+
     disp_base = gt.get('display_route', f'/games/{game_type_id}')
     disp_url  = disp_base + '?display=1' + (f'&config={config_id}' if config_id else '')
     _current_live_game['disp_url'] = disp_url
@@ -6117,6 +6316,26 @@ def api_games_launch():
     ctrl_url, disp_url = _launch_game(game_type_id, config_id, skip_intro=skip_intro)
     return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': disp_url})
 
+@app.route('/api/games/redisplay', methods=['POST'])
+def api_games_redisplay():
+    """Force the currently live game back onto the projector -- e.g. a walkup,
+    a slide, or a macro got shown over it and the operator wants it back --
+    WITHOUT restarting the round the way pressing GO LIVE again would
+    (fresh countdown, wiped progress, session reset). Just re-broadcasts the
+    same display_navigate _launch_game() already sends when a game first goes
+    live; no game-type-specific state (closest_state, trivia_state, the
+    stopwatch, chairs) is touched at all.
+
+    Only meaningful for the iframe-based game types (Wheel, Trivia, Closest to
+    the Mark) -- Musical Chairs/Timed Competition show through a Game Entry or
+    fallback screen instead, so there's no disp_url here to redisplay."""
+    disp_url = _current_live_game.get('disp_url')
+    if not disp_url:
+        return jsonify({'ok': False, 'error': 'no live game to redisplay'}), 400
+    _current_live_game['revealed'] = True
+    broadcast('display_navigate', {'url': disp_url})
+    return jsonify({'ok': True, 'display_url': disp_url})
+
 @app.route('/api/games/preload_intro', methods=['POST'])
 def api_games_preload_intro():
     """Warm a game's Intro Game Entry video on the display before GO LIVE is
@@ -6166,6 +6385,142 @@ def _timedcomp_config_data(config_id):
     if not match:
         return {}, ''
     return (match.get('data') or {}), match.get('name', '')
+
+@app.route('/games/closest')
+def games_closest():
+    return send_from_directory(STATIC_DIR, 'games_closest.html')
+
+def _closest_config_data(config_id):
+    if not config_id:
+        return {}, ''
+    match = next((c for c in load_game_configs() if c['id'] == config_id), None)
+    if not match:
+        return {}, ''
+    return (match.get('data') or {}), match.get('name', '')
+
+def _closest_play_cue(filename):
+    """run_sfx/stop_sfx values come from the merged sfx+music picker --
+    check both dirs, same as Musical Chairs' stop cue."""
+    for sub in ('sfx', 'music'):
+        fp = ASSETS_DIR / sub / filename
+        if fp.exists():
+            play_sfx(str(fp))
+            return
+    log.warning(f"Closest to the Mark cue file not found: {filename}")
+
+_closest_loop_channel = None
+
+def _closest_play_loop(filename):
+    """Loops the config's run_sfx (a sizzle, an engine idle, whatever) on its
+    own dedicated channel for as long as the round is running -- deliberately
+    NOT the shared _sfx_channel/play_sfx() path, so an unrelated SFX firing
+    elsewhere mid-round (or Console's own SFX stop button) can't silently
+    steal or cut this channel, and stopping it can't cut an unrelated SFX.
+    Intro sound belongs to the config's own Intro Game Entry, which already
+    plays before the round starts -- this is only ever the running loop."""
+    global _closest_loop_channel
+    _closest_stop_loop()
+    fp = None
+    for sub in ('sfx', 'music'):
+        cand = ASSETS_DIR / sub / filename
+        if cand.exists():
+            fp = cand
+            break
+    if not fp:
+        log.warning(f"Closest to the Mark run sound not found: {filename}")
+        return
+    try:
+        key = str(fp)
+        if key not in _sfx_cache:
+            _sfx_cache[key] = pygame.mixer.Sound(key)
+        sound = _sfx_cache[key]
+        sound.set_volume(sfx_state['volume'] / 100)
+        _closest_loop_channel = sound.play(loops=-1)
+        log.info(f"Closest to the Mark run sound looping: {fp}")
+    except Exception as e:
+        log.warning(f"Closest to the Mark run sound failed: {e}")
+
+def _closest_stop_loop():
+    global _closest_loop_channel
+    if _closest_loop_channel is not None:
+        try:
+            _closest_loop_channel.stop()
+            log.info("Closest to the Mark run sound stopped")
+        except Exception:
+            pass
+        _closest_loop_channel = None
+
+@app.route('/api/games/closest/start', methods=['POST'])
+def api_closest_start():
+    """A 3-2-1 countdown runs before the meter actually starts moving -- gives
+    contestants (and whoever's on the remote) fair warning instead of the bar
+    jumping the instant Console's START is pressed. running/start_ms don't
+    flip True until the countdown finishes, so the remote's own "GET READY"
+    vs "GO!" screen (which keys off running) already handles this for free."""
+    global _closest_countdown_token
+    data      = request.get_json(silent=True) or {}
+    config_id = data.get('config_id') or closest_state.get('config_id') or ''
+    cfg, _    = _closest_config_data(config_id)
+    _closest_countdown_token += 1
+    token = _closest_countdown_token
+    closest_state.update({'running': False, 'start_ms': None,
+                           'stopped_value': None, 'config_id': config_id, 'countdown': 3})
+    broadcast('closest_state', closest_state)
+
+    def _run_after_countdown(token=token, cfg=cfg, config_id=config_id):
+        for n in (3, 2, 1):
+            if token != _closest_countdown_token:
+                return   # superseded by a STOP/RESET/re-START while counting down
+            closest_state['countdown'] = n
+            broadcast('closest_countdown', {'n': n})
+            time.sleep(1)
+        if token != _closest_countdown_token:
+            return
+        closest_state.update({'running': True, 'start_ms': int(time.time() * 1000),
+                               'stopped_value': None, 'config_id': config_id, 'countdown': 0})
+        broadcast('closest_state', closest_state)
+        if cfg.get('run_sfx'):
+            threading.Thread(target=_closest_play_loop, args=(cfg['run_sfx'],), daemon=True).start()
+        if cfg.get('run_scene'):
+            threading.Thread(target=wled_set_scene, args=(cfg['run_scene'],), daemon=True).start()
+        log.info(f"Closest to the Mark started ({config_id})")
+
+    threading.Thread(target=_run_after_countdown, daemon=True).start()
+    return jsonify({'ok': True, 'closest': closest_state})
+
+@app.route('/api/games/closest/stop', methods=['POST'])
+def api_closest_stop():
+    global _closest_countdown_token
+    _closest_countdown_token += 1   # cancel a countdown still in flight, if any
+    if closest_state['running']:
+        cfg, _  = _closest_config_data(closest_state.get('config_id', ''))
+        elapsed = int(time.time() * 1000) - closest_state['start_ms']
+        value   = _closest_value_at(cfg, elapsed)
+        closest_state['running']       = False
+        closest_state['stopped_value'] = value
+        closest_state['countdown']     = 0
+        broadcast('closest_state', closest_state)
+        _closest_stop_loop()
+        if cfg.get('stop_sfx'):
+            threading.Thread(target=_closest_play_cue, args=(cfg['stop_sfx'],), daemon=True).start()
+        if cfg.get('stop_scene'):
+            threading.Thread(target=wled_set_scene, args=(cfg['stop_scene'],), daemon=True).start()
+        log.info(f"Closest to the Mark stopped at {value}")
+    elif closest_state['countdown']:
+        closest_state['countdown'] = 0
+        broadcast('closest_state', closest_state)
+        log.info("Closest to the Mark countdown cancelled")
+    return jsonify({'ok': True, 'closest': closest_state})
+
+@app.route('/api/games/closest/reset', methods=['POST'])
+def api_closest_reset():
+    global _closest_countdown_token
+    _closest_countdown_token += 1   # cancel a countdown still in flight, if any
+    _closest_stop_loop()
+    closest_state.update({'running': False, 'start_ms': None, 'stopped_value': None, 'countdown': 0})
+    broadcast('closest_state', closest_state)
+    log.info("Closest to the Mark reset")
+    return jsonify({'ok': True, 'closest': closest_state})
 
 def _chairs_play_cue_file(filename):
     """stop_sfx values come from the merged sfx+music picker — check both dirs."""
@@ -8889,6 +9244,64 @@ def api_remote_heartbeat():
     _set_remote_status(connected=True, last_seen=time.time(),
                         battery_pct=data.get('battery_pct'), ip=request.remote_addr or 'unknown')
     return jsonify({'ok': True})
+
+remote_test_state = {'active': False, 'short_files': []}  # see api_remote_test_start() below
+_REMOTE_TEST_MAX_SEC = 3.0   # "short clips" -- a quick confirmation blip, not a full effect playing out
+
+def _short_sfx_files():
+    """SFX under _REMOTE_TEST_MAX_SEC long -- a soundcheck button-press needs an
+    instant, obviously-a-blip response, not a 10s sizzle or a full stinger
+    playing out on every press. Computed once per test-mode session (here),
+    not per press -- loading every file in the library to check its length is
+    too slow to redo on each button tap."""
+    sfx_dir = ASSETS_DIR / 'sfx'
+    files = [f for f in sfx_dir.iterdir() if f.suffix.lower() in ('.mp3', '.wav', '.ogg', '.flac')] if sfx_dir.is_dir() else []
+    short = []
+    for f in files:
+        try:
+            if pygame.mixer.Sound(str(f)).get_length() <= _REMOTE_TEST_MAX_SEC:
+                short.append(str(f))
+        except Exception:
+            continue
+    return short or [str(f) for f in files]   # fall back to the full library if nothing qualifies as "short"
+
+@app.route('/api/remote/test/start', methods=['POST'])
+def api_remote_test_start():
+    """Console-only: puts every remote-controlled game's MC screen into a
+    self-test mode and shows a "press button to test" prompt on the projector
+    -- press the physical button, hear a random SFX, confirming the remote
+    is actually reaching the Pi before a real round is riding on it.
+
+    Deliberately a pure overlay on display.html (same shape as a meme or the
+    leaderboard) rather than navigating away from whatever's currently up --
+    nothing underneath is touched, so ending test mode is just hiding this
+    layer again, no snapshot/restore needed for "back to whatever it was on
+    before"."""
+    remote_test_state['active'] = True
+    remote_test_state['short_files'] = _short_sfx_files()
+    broadcast('display_remote_test', {})
+    return jsonify({'ok': True})
+
+@app.route('/api/remote/test/stop', methods=['POST'])
+def api_remote_test_stop():
+    remote_test_state['active'] = False
+    broadcast('display_remote_test_hide', {})
+    return jsonify({'ok': True})
+
+@app.route('/api/remote/test/fire', methods=['POST'])
+def api_remote_test_fire():
+    """Called BY the remote itself (not Console) when the MC presses a button
+    while test mode is active -- proves the whole round trip actually works,
+    not just that Console's own start button was clickable."""
+    if not remote_test_state.get('active'):
+        return jsonify({'ok': False, 'error': 'test mode not active'}), 400
+    files = remote_test_state.get('short_files') or _short_sfx_files()
+    if not files:
+        return jsonify({'ok': False, 'error': 'no sfx available'}), 404
+    pick = Path(random.choice(files))
+    play_sfx(str(pick))
+    broadcast('display_remote_test_fired', {'name': pick.stem})
+    return jsonify({'ok': True, 'name': pick.stem})
 
 @app.route('/api/remote/show_flow')
 def api_remote_show_flow():
