@@ -48,27 +48,33 @@
   .display-mode .admin        { display:none !important; }
   .display-mode .footer-hint  { display:none; }
   .display-mode .brand-name   { font-size:28px; }
-  .display-mode .stage        { height:100vh; padding:20px 28px; position:relative; align-items:flex-start; }
-  .display-mode .brand-row    { width:53vw; }
-  .display-mode .wheel-area   { width:min(calc(100vh - 160px), 53vw) !important; align-self:flex-start; margin:4px 0; }
-  .display-mode .winners-stage{ display:block !important; width:53vw; margin-top:10px; }
+  .display-mode .stage        { height:100vh; padding:16px 28px 0; position:relative; align-items:center; }
+  .display-mode .brand-row    { width:60vw; }
+  /* Wheel centred in the space above the winner bar (22vh) + the header row. */
+  .display-mode .wheel-area   { width:min(calc(78vh - 96px), 60vw) !important; align-self:center; margin:4px 0; }
+  /* Previous winners: a column on the right so the bottom of the screen belongs to the winner bar. */
+  .display-mode .winners-stage{ display:block !important; position:absolute; right:2.5vw; top:14vh; width:24vw; margin:0; max-width:none; }
   .display-mode .pointer      { border-left:44px solid transparent; border-right:44px solid transparent; border-top:80px solid var(--gold-hi); top:-16px; }
-  /* Winner panel: absolute, fills space from wheel edge to screen edge */
+  /* WINNER BAR: full screen width along the bottom on a black underlay, so the name always has the
+     whole width to fit into (it used to sit in a half-width panel and ran off the right edge). */
   .display-mode .result-banner{
-    position:absolute; top:0; right:0; bottom:0; left:calc(53vw + 36px);
-    margin:0; min-height:0;
+    position:fixed; left:0; right:0; bottom:0; height:22vh; z-index:20;
+    margin:0; min-height:0; max-width:none; width:100%;
     display:flex; align-items:center; justify-content:center;
-    padding:24px;
+    padding:0 3vw;
+    background:#000; border-top:3px solid var(--gold-hi);
+    opacity:0; visibility:hidden; transition:opacity .4s ease;
   }
+  .display-mode .result-banner.show { opacity:1; visibility:visible; }
   .display-mode .result-card  {
-    width:100%; height:100%; padding:24px;
+    width:100%; height:100%; padding:0;
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
     background:none; border:none; box-shadow:none;
   }
   .display-mode .result-sub   { display:none; }
   .display-mode #resultText   {
-    display:block; white-space:nowrap;
+    display:block; white-space:nowrap; max-width:100%; overflow:hidden;
     line-height:1.05; color:var(--gold-hi);
     text-shadow: 0 0 40px rgba(240,180,41,0.4), 0 4px 12px rgba(0,0,0,0.7);
   }
@@ -553,6 +559,7 @@ function playTick() {
 function hideResult() {
   const card = document.getElementById('resultCard');
   card.classList.remove('show');
+  const bn = document.querySelector('.result-banner'); if (bn) bn.classList.remove('show');
   document.getElementById('resultText').style.fontSize = '';
 }
 
@@ -561,43 +568,36 @@ function fitWinnerText() {
   const textEl = document.getElementById('resultText');
   const banner = document.querySelector('.result-banner');
   if (!textEl || !banner) return;
-  // banner padding (24 each side) AND the card's own padding (24 each side) both eat width,
-  // plus a 6% safety margin -- the old "- 48" ignored the card padding entirely.
-  const maxW = (banner.clientWidth  - 96) * 0.94;
-  const maxH = (banner.clientHeight - 96) * 0.94;
+  // Winner bar: full screen width, black underlay.  Fit the name to what the bar actually has --
+  // width minus its side padding, height 80% of the bar -- and then verify against the real
+  // element so it can never overflow the screen, however long the name is.
+  const cs   = getComputedStyle(banner);
+  const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  const maxW = (banner.clientWidth - padX) * 0.97;
+  const maxH = banner.clientHeight * 0.8;
   if (maxW <= 0 || maxH <= 0) return;
 
-  // Measure in a detached element so flexbox/block layout can't lie about width
-  const cs  = getComputedStyle(textEl);
+  // Measure in a detached element (same font, letter-spacing, transform as the real one).
+  const tcs = getComputedStyle(textEl);
   const tmp = document.createElement('span');
   tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;white-space:nowrap;visibility:hidden;';
-  tmp.style.fontFamily = cs.fontFamily;
-  tmp.style.fontWeight = cs.fontWeight;
-  // The detached span sits in <body>, so it does NOT inherit the card's letter-spacing /
-  // text-transform -- measuring without them under-counted the width and the name ran off
-  // the edge of the screen.
-  tmp.style.letterSpacing = cs.letterSpacing;
-  tmp.style.textTransform = cs.textTransform;
+  tmp.style.fontFamily    = tcs.fontFamily;
+  tmp.style.fontWeight    = tcs.fontWeight;
+  tmp.style.letterSpacing = tcs.letterSpacing;
+  tmp.style.textTransform = tcs.textTransform;
   tmp.textContent = textEl.textContent;
   document.body.appendChild(tmp);
-
-  let sz = 400;
+  let sz = Math.floor(maxH);            // never taller than the bar allows
   tmp.style.fontSize = sz + 'px';
-  while (sz > 36 && tmp.getBoundingClientRect().width > maxW) {
-    sz -= 4;
+  while (sz > 20 && tmp.getBoundingClientRect().width > maxW) {
+    sz -= 3;
     tmp.style.fontSize = sz + 'px';
   }
   document.body.removeChild(tmp);
-
   textEl.style.fontSize = sz + 'px';
-  // Height check with wrapping re-enabled
-  while (sz > 36 && textEl.getBoundingClientRect().height > maxH) {
-    sz -= 4;
-    textEl.style.fontSize = sz + 'px';
-  }
-  // Final guarantee on the real element: if its content is still wider than the banner, keep shrinking.
-  while (sz > 24 && textEl.scrollWidth > banner.clientWidth - 96) {
-    sz -= 4;
+  // Final guarantee on the real element.
+  while (sz > 16 && (textEl.scrollWidth > maxW || textEl.getBoundingClientRect().height > banner.clientHeight * 0.9)) {
+    sz -= 3;
     textEl.style.fontSize = sz + 'px';
   }
 }
@@ -695,6 +695,7 @@ function finishSpin(index) {
   }
   document.getElementById('resultText').textContent = name;
   document.getElementById('resultCard').classList.add('show');
+  const bn = document.querySelector('.result-banner'); if (bn) bn.classList.add('show');
   fitWinnerText();
 }
 </script>
