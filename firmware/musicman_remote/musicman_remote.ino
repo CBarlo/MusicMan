@@ -78,22 +78,27 @@ const char* DEVICE_HOSTNAME = "MusicMan-Remote";
 const unsigned long STATE_POLL_MS      = 3000;   // was 2000 -- battery
 const unsigned long LIBRARY_POLL_MS    = 45000;  // SFX/circles/roles, rarely change
 const unsigned long FLOW_POLL_MS       = 30000;  // show flow, rarely changes
-const unsigned long WIFI_RETRY_MS      = 4000;
+const unsigned long WIFI_RETRY_MS      = 8000;   // was 4000: WiFi.begin() every 4 s restarted an association/DHCP still in progress
 const unsigned long HEARTBEAT_MS       = 5000;   // matches _REMOTE_HEARTBEAT_STALE_S=15 on the Pi
 const unsigned long CONN_LOST_AFTER_MS = 12000;
-const unsigned long SCREEN_SLEEP_MS    = 12000;  // was 30000 -- backlight is the biggest power draw
+const unsigned long SCREEN_SLEEP_MS    = 20000;  // browsing screens: backlight is the biggest power draw
+// A game screen is picked up by kids/contestants and the MC mid-round -- a dark screen there
+// meant a wasted wake-press (the first press only wakes) at exactly the wrong moment.
+const unsigned long SCREEN_SLEEP_GAME_MS = 90000;
 // The screen sleeping already kills the biggest draw, but the ESP32 + WiFi
 // radio keep retrying every WIFI_RETRY_MS forever underneath -- real drain
 // left running unattended for hours after a show ends and MusicMan itself
-// is powered down. 10 minutes is long enough that a normal WiFi hiccup or a
-// lull between show segments never triggers it, short enough to actually
-// save battery if the remote gets left on.
-const unsigned long AUTO_POWEROFF_AFTER_MS = 10UL * 60 * 1000;
+// is powered down. 10 minutes was too short for a campfire: a remote set down
+// while the Pi rebooted (or carried out of AP range) was found dead. 30 minutes
+// still saves the battery if it's genuinely forgotten, and the last minute is
+// a visible countdown (any button cancels it), not a 2.5 s flash.
+const unsigned long AUTO_POWEROFF_AFTER_MS = 30UL * 60 * 1000;
+const unsigned long POWEROFF_WARN_MS       = 60UL * 1000;
 
-#define MAX_FLOW_STEPS 120
-#define MAX_SFX 100
-#define MAX_CIRCLES 24
-#define MAX_ROLES 24
+#define MAX_FLOW_STEPS 150
+#define MAX_SFX 150
+#define MAX_CIRCLES 40
+#define MAX_ROLES 40
 
 // ── MENU MODEL ───────────────────────────────────────────────────────────
 enum MenuLevel { LEVEL_CATEGORY, LEVEL_SHOWFLOW, LEVEL_SFX, LEVEL_CIRCLES, LEVEL_ROLES, LEVEL_TIMER,
@@ -126,6 +131,7 @@ struct {
   int    index = -1;
   String type;
   String name;
+  String gameTypeId;
   bool   hasTimer = false;
 } currentStep;
 
@@ -149,6 +155,14 @@ long lastSeenLiveGameSeq = -1;        // catches a RElaunch of the same game_typ
 // "the show moved on" and immediately kicked Closest to the Mark's screen
 // back to the menu -- the remote flipped and un-flipped before ever drawing.
 bool gameEnteredThisPoll = false;
+bool liveGameRevealed    = false;     // server: the live game is what's actually on the projector right now
+bool haveSeenLiveGame    = false;     // false until the first poll after boot -- see updateMenuLevelForLiveGame()
+unsigned long lastStateOkMs = 0;      // last time /api/remote/state parsed cleanly -- drives the STALE marker
+int  lastHttpCode = 0;                // <=0 = no reply at all (timeout/refused): the action MAY have worked
+bool listsTruncated = false;
+MenuLevel levelBeforeTest = LEVEL_CATEGORY;   // "back to whatever it was on before" when test mode ends
+bool powerOffWarning = false;
+unsigned long lastLowBattWarn = 0;
 
 int  lastSeenStepIndex = -999;        // sentinel distinct from -1 (no step), forces first-poll sync
 bool haveSeenFirstStep = false;
@@ -176,6 +190,7 @@ bool shellGameLive = false;
 // this device just displays what it's told).
 bool   closestLive        = false;
 bool   closestRunning     = false;
+int    closestCountdown   = 0;
 float  closestLiveValue   = 0;
 float  closestTargetValue = 0;
 int    closestDecimals    = 0;
@@ -327,8 +342,12 @@ void beepConfirm();
 void beepFail();
 void showToast(const String& msg);
 int  getBatteryPct();
-String httpGet(const String& path, bool* ok);
-String httpPostJson(const String& path, const String& jsonBody, bool* ok);
+String httpGet(const String& path, bool* ok, unsigned long timeoutMs = 2500);
+String httpPostJson(const String& path, const String& jsonBody, bool* ok, unsigned long timeoutMs = 2500);
+void failToast(const String& what);
+String urlEncode(const String& in);
+bool batteryCharging();
+void checkBatteryWarning();
 int printWrapped(const String& text, int x, int y, int maxCharsPerLine, int maxLines);
 
 // ── SETUP ────────────────────────────────────────────────────────────────
@@ -418,8 +437,12 @@ void loop() {
   handleButtons();
   updateScreenSleep();
   checkAutoPowerOff();
+  checkBatteryWarning();
   updateLed();
   drawScreen();
+
+  static bool truncToasted = false;
+  if (listsTruncated && !truncToasted) { truncToasted = true; showToast("LIST TOO LONG - SOME HIDDEN"); }
 }
 
 // ── WIFI ─────────────────────────────────────────────────────────────────
@@ -440,29 +463,58 @@ void sendHeartbeat() {
 }
 
 // ── HTTP HELPERS ─────────────────────────────────────────────────────────
-String httpGet(const String& path, bool* ok) {
+// Connect timeout is set explicitly: the core default (5 s) plus a 2.5 s read timeout meant a
+// hung Pi froze loop() -- and dropped every button press -- for up to ~7.5 s per call, several
+// calls in a row.  Actions get a longer READ timeout than polls: a server that is just busy
+// (audio lock, cold SFX load) still finishes the action, and a too-short timeout produced a
+// false "FAILED" for something that actually ran, so the MC pressed again and double-fired it.
+String httpGet(const String& path, bool* ok, unsigned long timeoutMs) {
   HTTPClient http;
   String url = String("http://") + PI_HOST + ":" + PI_PORT + path;
   http.begin(url);
-  http.setTimeout(2500);
+  http.setConnectTimeout(1500);
+  http.setTimeout(timeoutMs);
   int code = http.GET();
+  lastHttpCode = code;
   String body;
   if (code == 200) { body = http.getString(); *ok = true; } else { *ok = false; }
   http.end();
   return body;
 }
 
-String httpPostJson(const String& path, const String& jsonBody, bool* ok) {
+String httpPostJson(const String& path, const String& jsonBody, bool* ok, unsigned long timeoutMs) {
   HTTPClient http;
   String url = String("http://") + PI_HOST + ":" + PI_PORT + path;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(2500);
+  http.setConnectTimeout(1500);
+  http.setTimeout(timeoutMs);
   int code = http.POST(jsonBody);
+  lastHttpCode = code;
   String body;
   if (code == 200) { body = http.getString(); *ok = true; } else { *ok = false; }
   http.end();
   return body;
+}
+
+// A failed ACTION with no reply at all (timeout / connection dropped) may well have run on the
+// Pi -- saying plain "FAILED" invites a second press that double-fires it.  A real HTTP error
+// (the Pi answered "no") is a genuine failure.
+void failToast(const String& what) {
+  beepFail();
+  if (lastHttpCode <= 0) showToast(what + ": NO REPLY - CHECK SCREEN");
+  else                   showToast(what + " FAILED");
+}
+
+String urlEncode(const String& in) {
+  String out;
+  const char* hex = "0123456789ABCDEF";
+  for (unsigned i = 0; i < in.length(); i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_' || c == '.' || c == '~') out += (char)c;
+    else { out += '%'; out += hex[c >> 4]; out += hex[c & 15]; }
+  }
+  return out;
 }
 
 // ── STATE FETCH ──────────────────────────────────────────────────────────
@@ -478,12 +530,14 @@ bool fetchRemoteState() {
   currentStep.index    = step["index"] | -1;
   currentStep.type     = String((const char*)(step["type"] | ""));
   currentStep.name     = String((const char*)(step["name"] | ""));
+  currentStep.gameTypeId = String((const char*)(step["game_type_id"] | ""));
   currentStep.hasTimer = step["has_timer"] | false;
 
   JsonObject lg = doc["live_game"];
   liveGameTypeId   = String((const char*)(lg["game_type_id"] | ""));
   liveGameConfigId = String((const char*)(lg["config_id"] | ""));
   liveGameSeq      = lg["seq"] | -1;
+  liveGameRevealed = lg["revealed"] | false;
 
   JsonObject timer = doc["timer"];
   timerRunning          = timer["running"] | false;
@@ -539,6 +593,7 @@ bool fetchRemoteState() {
     closestLive = true;
     JsonObject cl = doc["closest"];
     closestRunning     = cl["running"] | false;
+    closestCountdown   = cl["countdown"] | 0;
     closestLiveValue   = cl["live_value"]   | 0.0f;
     closestTargetValue = cl["target_value"] | 0.0f;
     closestDecimals    = cl["decimals"] | 0;
@@ -555,6 +610,7 @@ bool fetchRemoteState() {
   // value locally between polls instead of the number visibly jumping in
   // 3-second steps, without polling any more often than it already does.
   lastStateFetchMs = millis();
+  lastStateOkMs    = lastStateFetchMs;
 
   return true;
 }
@@ -569,7 +625,7 @@ bool fetchShowFlow() {
 
   flowStepCount = 0;
   for (JsonObject s : doc["steps"].as<JsonArray>()) {
-    if (flowStepCount >= MAX_FLOW_STEPS) break;
+    if (flowStepCount >= MAX_FLOW_STEPS) { listsTruncated = true; break; }
     flowSteps[flowStepCount].index      = s["index"] | 0;
     flowSteps[flowStepCount].type       = String((const char*)(s["type"] | ""));
     flowSteps[flowStepCount].name       = String((const char*)(s["name"] | ""));
@@ -579,6 +635,8 @@ bool fetchShowFlow() {
   if (flowBrowseIndex < 0 && flowStepCount > 0) {
     flowBrowseIndex = (currentStep.index >= 0 && currentStep.index < flowStepCount) ? currentStep.index : 0;
   }
+  // Steps can be removed in Admin while this device is showing the list.
+  if (flowStepCount > 0 && flowBrowseIndex >= flowStepCount) flowBrowseIndex = flowStepCount - 1;
   return true;
 }
 
@@ -592,26 +650,29 @@ bool fetchLibrary() {
 
   sfxCount = 0;
   for (JsonObject s : doc["sfx"].as<JsonArray>()) {
-    if (sfxCount >= MAX_SFX) break;
+    if (sfxCount >= MAX_SFX) { listsTruncated = true; break; }
     sfxItems[sfxCount].id   = String((const char*)(s["id"]   | ""));
     sfxItems[sfxCount].name = String((const char*)(s["name"] | ""));
     sfxCount++;
   }
   circleCount = 0;
   for (JsonObject c : doc["circles"].as<JsonArray>()) {
-    if (circleCount >= MAX_CIRCLES) break;
+    if (circleCount >= MAX_CIRCLES) { listsTruncated = true; break; }
     circleItems[circleCount].id   = String((const char*)(c["id"]   | ""));
     circleItems[circleCount].name = String((const char*)(c["name"] | ""));
     circleCount++;
   }
   roleCount = 0;
   for (JsonObject r : doc["roles"].as<JsonArray>()) {
-    if (roleCount >= MAX_ROLES) break;
+    if (roleCount >= MAX_ROLES) { listsTruncated = true; break; }
     roleItems[roleCount].id   = String((const char*)(r["id"]   | ""));
     roleItems[roleCount].name = String((const char*)(r["name"] | ""));
     roleCount++;
   }
   Serial.printf("[fetchLibrary] sfx=%d circles=%d roles=%d\n", sfxCount, circleCount, roleCount);
+  if (sfxBrowseIndex    >= sfxCount    && sfxCount    > 0) sfxBrowseIndex    = sfxCount - 1;
+  if (circleBrowseIndex >= circleCount && circleCount > 0) circleBrowseIndex = circleCount - 1;
+  if (roleBrowseIndex   >= roleCount   && roleCount   > 0) roleBrowseIndex   = roleCount - 1;
   return true;
 }
 
@@ -622,7 +683,22 @@ void updateMenuLevelForLiveGame() {
   // for a second round -- which the type string alone can't, since it never
   // changed. Without this, only the FIRST launch of a given type in a session
   // pulled the remote's screen over; every relaunch after that silently no-op'd.
-  if (liveGameTypeId != lastSeenLiveGameTypeId || liveGameSeq != lastSeenLiveGameSeq) {
+  // First poll after boot: a game the server still calls "live" may have ended (or been
+  // covered by other content) hours ago -- the server never clears it.  Only jump into it if
+  // it is genuinely what's on the projector right now (revealed); otherwise just adopt the
+  // current state silently so a reboot doesn't land the MC on a dead game screen where the
+  // first press would fire a spin/start.
+  bool bootAdopt = false;
+  if (!haveSeenLiveGame) {
+    haveSeenLiveGame = true;
+    // "Actually in use" = on the projector (revealed) OR visibly mid-round (Chairs playing, stopwatch/meter running).
+    if (liveGameTypeId != "" && !liveGameRevealed && !chairsPlaying && !stopwatchRunning && !closestRunning) {
+      lastSeenLiveGameTypeId = liveGameTypeId;
+      lastSeenLiveGameSeq    = liveGameSeq;
+      bootAdopt = true;
+    }
+  }
+  if (!bootAdopt && (liveGameTypeId != lastSeenLiveGameTypeId || liveGameSeq != lastSeenLiveGameSeq)) {
     Serial.printf("[updateMenuLevelForLiveGame] %s -> %s (seq %ld -> %ld, triviaLive=%d chairsLive=%d)\n",
                   lastSeenLiveGameTypeId.c_str(), liveGameTypeId.c_str(), lastSeenLiveGameSeq, liveGameSeq, triviaLive, chairsLive);
     lastSeenLiveGameTypeId = liveGameTypeId;
@@ -650,7 +726,15 @@ void updateMenuLevelForLiveGame() {
       menuLevel = LEVEL_GAME_SHELLGAME;
       enteredGame = true;
     }
-    // if it became something else / empty, don't force-navigate the user away
+    // The server no longer has ANY live game (it restarted, or a fresh state): a game screen
+    // left up would strand the MC on stale data ("Q 1/0", a Chairs button that errors) until a
+    // manual side-hold.  Hand control back to the menu.
+    if (!enteredGame && liveGameTypeId == "" && menuLevel != LEVEL_REMOTE_TEST
+        && (menuLevel == LEVEL_GAME_CHAIRS || menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_TIMEDCOMP
+            || menuLevel == LEVEL_GAME_CLOSEST || menuLevel == LEVEL_GAME_WHEEL || menuLevel == LEVEL_GAME_SHELLGAME)) {
+      menuLevel = LEVEL_CATEGORY;
+    }
+    // if it became something else, don't force-navigate the user away
     if (enteredGame) {
       gameEnteredThisPoll = true;
       // A game going live has to wake the screen itself -- handleStepChange()
@@ -678,7 +762,9 @@ void updateMenuLevelForLiveGame() {
   // once per start, and skipped while genuinely in a different live game so
   // it doesn't steal focus from Trivia/Chairs/Timed Competition mid-play.
   bool inOtherLiveGame = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
-                           || menuLevel == LEVEL_GAME_TIMEDCOMP || menuLevel == LEVEL_GAME_CLOSEST);
+                           || menuLevel == LEVEL_GAME_TIMEDCOMP || menuLevel == LEVEL_GAME_CLOSEST
+                           || menuLevel == LEVEL_GAME_WHEEL || menuLevel == LEVEL_GAME_SHELLGAME
+                           || menuLevel == LEVEL_REMOTE_TEST);
   if (timerRunning && !lastSeenTimerRunningGlobal && haveSeenTimerRunningGlobal
       && !inOtherLiveGame && menuLevel != LEVEL_TIMER) {
     menuLevel = LEVEL_TIMER;
@@ -699,7 +785,9 @@ void updateMenuLevelForLiveGame() {
   // would, rather than leaving it on whatever screen it was already showing
   // with only the read-only footer number.
   bool inOtherLiveGame2 = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
-                            || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_CLOSEST);
+                            || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_CLOSEST
+                            || menuLevel == LEVEL_GAME_WHEEL || menuLevel == LEVEL_GAME_SHELLGAME
+                            || menuLevel == LEVEL_REMOTE_TEST);
   if (stopwatchRunning && !lastSeenStopwatchRunningGlobal && haveSeenStopwatchRunningGlobal
       && !inOtherLiveGame2 && menuLevel != LEVEL_GAME_TIMEDCOMP) {
     menuLevel = LEVEL_GAME_TIMEDCOMP;
@@ -719,7 +807,9 @@ void updateMenuLevelForLiveGame() {
   // new round within the same launched game -- "entered game" above only
   // fires once, the moment the game TYPE first goes live.
   bool inOtherLiveGameClosest = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
-                                  || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_TIMEDCOMP);
+                                  || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_TIMEDCOMP
+                                  || menuLevel == LEVEL_GAME_WHEEL || menuLevel == LEVEL_GAME_SHELLGAME
+                                  || menuLevel == LEVEL_REMOTE_TEST);
   if (closestRunning && !lastSeenClosestRunningGlobal && haveSeenClosestRunningGlobal
       && !inOtherLiveGameClosest && menuLevel != LEVEL_GAME_CLOSEST) {
     menuLevel = LEVEL_GAME_CLOSEST;
@@ -745,7 +835,8 @@ void updateMenuLevelForLiveGame() {
   // a state that was already true the first time this device ever looked.
   bool inOtherLiveGame3 = (menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_CHAIRS
                             || menuLevel == LEVEL_TIMER || menuLevel == LEVEL_GAME_TIMEDCOMP
-                            || menuLevel == LEVEL_GAME_CLOSEST);
+                            || menuLevel == LEVEL_GAME_CLOSEST || menuLevel == LEVEL_GAME_WHEEL
+                            || menuLevel == LEVEL_GAME_SHELLGAME || menuLevel == LEVEL_REMOTE_TEST);
   bool karaokeJustWentLive     = karaokeLive && !lastSeenKaraokeLiveGlobal && haveSeenKaraokeLiveGlobal;
   bool karaokeAlreadyLiveAtBoot = karaokeLive && !haveSeenKaraokeLiveGlobal;
   if ((karaokeJustWentLive || karaokeAlreadyLiveAtBoot)
@@ -766,6 +857,7 @@ void updateMenuLevelForLiveGame() {
   // comp/closest above (which back off from each other), it should win over
   // whatever game screen happens to already be up.
   if (remoteTestActive && !lastSeenRemoteTest && haveSeenRemoteTest && menuLevel != LEVEL_REMOTE_TEST) {
+    levelBeforeTest = menuLevel;   // remembered so ending test mode really goes "back to whatever it was on before"
     menuLevel = LEVEL_REMOTE_TEST;
     if (!screenAwake) {
       screenAwake = true;
@@ -774,14 +866,11 @@ void updateMenuLevelForLiveGame() {
     }
     beepConfirm();
   } else if (!remoteTestActive && lastSeenRemoteTest && menuLevel == LEVEL_REMOTE_TEST) {
-    // Console ended test mode -- go home. Invalidating lastSeenLiveGameTypeId
-    // makes the type-edge check at the top of this same function re-fire on
-    // the NEXT poll and snap back to whatever game is actually live, if any
-    // (a brief flash of the home screen first, since that check already ran
-    // earlier in THIS call), rather than getting stuck on LEVEL_REMOTE_TEST
-    // forever because the type string itself never changed underneath it.
-    menuLevel = LEVEL_CATEGORY;
-    lastSeenLiveGameTypeId = "\x01__test_exit__";
+    // Console ended test mode -- restore the screen the MC was on before it started
+    // (the old code went home and then re-ran the game-live edge check, which could
+    // resurrect a stale game instead).
+    menuLevel = levelBeforeTest;
+    if (menuLevel == LEVEL_REMOTE_TEST) menuLevel = LEVEL_CATEGORY;
   }
   lastSeenRemoteTest = remoteTestActive;
   haveSeenRemoteTest = true;
@@ -913,10 +1002,16 @@ void handleStepChange() {
     lastActivity = millis();
   }
 
-  if (gameEnteredThisPoll) {
-    // The step that just changed IS what launched the game the remote was
-    // just pulled onto (see gameEnteredThisPoll) -- updateMenuLevelForLiveGame()
-    // already owns this jump, nothing here should undo it.
+  // The step that just changed IS the live game's own launching step -- true in the poll that
+  // pulled the remote onto the game (gameEnteredThisPoll), but ALSO whenever the step index and
+  // the game land in different polls (a remote-fired step, or a poll falling between the server
+  // launching the game and recording the step).  Either way this is not "the show moved on".
+  bool stepIsLiveGame = (currentStep.type == "game" && currentStep.gameTypeId.length() > 0
+                          && currentStep.gameTypeId == liveGameTypeId);
+  if (gameEnteredThisPoll || stepIsLiveGame) {
+    // updateMenuLevelForLiveGame() already owns this jump, nothing here should undo it.
+  } else if (menuLevel == LEVEL_REMOTE_TEST) {
+    // Test mode is an explicit Console action -- a step firing must not yank the MC off it.
   } else if (currentStep.hasTimer) {
     // A skit/macro firing its own timer_start is exactly like a game going
     // live from the MC's perspective -- jump straight to the Timer screen
@@ -977,37 +1072,55 @@ void moveSelection(int delta) {
 void fireBrowsedStep() {
   if (flowBrowseIndex < 0 || flowBrowseIndex >= flowStepCount) return;
   bool ok = false;
-  httpGet("/api/show/fire?index=" + String(flowBrowseIndex), &ok);
+  // ?expect= = the name being shown: the browsed list can be up to FLOW_POLL_MS old, and if the
+  // flow was reordered in Admin since, index N is a different step.  The Pi refuses (409)
+  // rather than firing the wrong thing.
+  String name = flowSteps[flowBrowseIndex].name;
+  httpGet("/api/show/fire?index=" + String(flowBrowseIndex) + "&expect=" + urlEncode(name), &ok, 4000);
   lastActivity = millis();
-  if (ok) { beepConfirm(); showToast("FIRED: " + flowSteps[flowBrowseIndex].name); fetchRemoteState(); updateMenuLevelForLiveGame(); }
-  else    { beepFail(); showToast("FAILED TO FIRE"); }
+  if (ok) {
+    beepConfirm();
+    fetchRemoteState();
+    updateMenuLevelForLiveGame();
+    // Run the step-change logic NOW, in the same breath as the game-entry check.  Otherwise the
+    // step index change is only noticed on the next poll -- by which time gameEnteredThisPoll
+    // is long false and a Closest screen just entered was kicked straight back to the menu.
+    handleStepChange();
+    showToast("FIRED: " + name);
+  } else if (lastHttpCode == 409) {
+    beepFail();
+    showToast("SHOW CHANGED - LIST REFRESHED");
+    fetchShowFlow();
+  } else {
+    failToast("FIRE");
+  }
 }
 
 void fireSfx() {
   if (sfxBrowseIndex < 0 || sfxBrowseIndex >= sfxCount) return;
   bool ok = false;
-  httpGet("/api/sfx/play?name=" + sfxItems[sfxBrowseIndex].id, &ok);
+  httpGet("/api/sfx/play?name=" + sfxItems[sfxBrowseIndex].id, &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); showToast("SFX: " + sfxItems[sfxBrowseIndex].name); }
-  else    { beepFail(); showToast("SFX FAILED"); }
+  else    { failToast("SFX"); }
 }
 
 void fireWalkupCircle() {
   if (circleBrowseIndex < 0 || circleBrowseIndex >= circleCount) return;
   bool ok = false;
-  httpGet("/api/macro/walkup?circle=" + circleItems[circleBrowseIndex].id, &ok);
+  httpGet("/api/macro/walkup?circle=" + circleItems[circleBrowseIndex].id, &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); showToast("WALKUP: " + circleItems[circleBrowseIndex].name); }
-  else    { beepFail(); showToast("WALKUP FAILED"); }
+  else    { failToast("WALKUP"); }
 }
 
 void fireWalkupRole() {
   if (roleBrowseIndex < 0 || roleBrowseIndex >= roleCount) return;
   bool ok = false;
-  httpGet("/api/macro/walkup?role=" + roleItems[roleBrowseIndex].id, &ok);
+  httpGet("/api/macro/walkup?role=" + roleItems[roleBrowseIndex].id, &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); showToast("WALKUP: " + roleItems[roleBrowseIndex].name); }
-  else    { beepFail(); showToast("WALKUP FAILED"); }
+  else    { failToast("WALKUP"); }
 }
 
 void fireTriviaAction(const String& action) {
@@ -1016,41 +1129,44 @@ void fireTriviaAction(const String& action) {
   doc["action"] = action;
   String body; serializeJson(doc, body);
   bool ok = false;
-  httpPostJson("/api/games/trivia/action", body, &ok);
+  httpPostJson("/api/games/trivia/action", body, &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); fetchRemoteState(); }
-  else    { beepFail(); showToast("TRIVIA ACTION FAILED"); }
+  else    { failToast("TRIVIA"); }
 }
 
 void fireWheelSpin() {
   bool ok = false;
-  httpPostJson("/api/games/wheel/remote_spin", "{}", &ok);
+  String body = httpPostJson("/api/games/wheel/remote_spin", "{}", &ok, 4000);
   lastActivity = millis();
-  if (ok) { beepConfirm(); fetchRemoteState(); }
-  else    { beepFail(); showToast("SPIN FAILED (no saved entries?)"); }
+  if (ok && body.indexOf("spinning") >= 0) { showToast("STILL SPINNING..."); }   // server ignored a second press mid-spin
+  else if (ok) { beepConfirm(); fetchRemoteState(); }
+  else if (lastHttpCode == 400) { beepFail(); showToast("WHEEL: NEEDS 2+ ENTRIES"); }
+  else    { failToast("SPIN"); }
 }
 
 void fireShellGameStart() {
   bool ok = false;
-  httpPostJson("/api/shell-game/start", "{}", &ok);
+  httpPostJson("/api/shell-game/start", "{}", &ok, 4000);
   lastActivity = millis();
   if (ok) beepConfirm();
-  else    { beepFail(); showToast("SHELL GAME START FAILED"); }
+  else    { failToast("SHELL GAME"); }
 }
 
 void fireChairsToggle() {
   bool ok = false;
   if (chairsPlaying) {
-    httpPostJson("/api/games/chairs/stop", "{}", &ok);
+    httpPostJson("/api/games/chairs/stop", "{}", &ok, 4000);
   } else {
     JsonDocument doc;
     doc["config_id"] = liveGameConfigId;
     String body; serializeJson(doc, body);
-    httpPostJson("/api/games/chairs/start", body, &ok);
+    httpPostJson("/api/games/chairs/start", body, &ok, 4000);
   }
   lastActivity = millis();
   if (ok) { beepConfirm(); fetchRemoteState(); }
-  else    { beepFail(); showToast("CHAIRS ACTION FAILED"); }
+  else if (lastHttpCode == 400) { beepFail(); showToast("CHAIRS: NO SONG SET"); }
+  else    { failToast("CHAIRS"); }
 }
 
 // Toggle mirrors Console's own START button exactly -- /api/timer/toggle
@@ -1058,10 +1174,10 @@ void fireChairsToggle() {
 // remote doesn't need to duplicate that logic or care which state it's in.
 void fireTimerToggle() {
   bool ok = false;
-  httpGet("/api/timer/toggle", &ok);
+  httpGet("/api/timer/toggle", &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); fetchRemoteState(); }
-  else    { beepFail(); showToast("TIMER ACTION FAILED"); }
+  else    { failToast("TIMER"); }
 }
 
 // Toggles the countdown's visibility on HDMI -- reads the server's own
@@ -1071,56 +1187,62 @@ void fireTimerToggle() {
 void fireTimerToggleDisplay() {
   bool ok = false;
   const char* path = timerVisibleOnDisplay ? "/api/timer/hide" : "/api/timer/show";
-  httpGet(path, &ok);
+  httpGet(path, &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); showToast(timerVisibleOnDisplay ? "TIMER HIDDEN" : "TIMER SHOWN"); fetchRemoteState(); }
-  else    { beepFail(); showToast("TIMER ACTION FAILED"); }
+  else    { failToast("TIMER"); }
 }
 
 void fireTimerReset() {
   bool ok = false;
-  httpGet("/api/timer/reset", &ok);
+  httpGet("/api/timer/reset", &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); showToast("TIMER RESET"); fetchRemoteState(); }
-  else    { beepFail(); showToast("TIMER ACTION FAILED"); }
+  else    { failToast("TIMER"); }
 }
 
 // Timed Competition's stopwatch -- MC start/stops per runner from here;
 // results (name + time) get recorded by MM at Console, not on the remote.
 void fireStopwatchToggle() {
   bool ok = false;
-  httpGet(stopwatchRunning ? "/api/stopwatch/stop" : "/api/stopwatch/start", &ok);
+  // display=0: Timed Competition's stopwatch is NOT put on the projector by starting it (Console's
+  // START passes the same) -- the server default is display=1, which used to flash the stopwatch
+  // onto the HDMI screen every time the MC pressed front.  Showing it stays an explicit
+  // SHOW button on Console.
+  httpGet(stopwatchRunning ? "/api/stopwatch/stop" : "/api/stopwatch/start?display=0", &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); fetchRemoteState(); }
-  else    { beepFail(); showToast("STOPWATCH ACTION FAILED"); }
+  else    { failToast("STOPWATCH"); }
 }
 
 void fireStopwatchReset() {
   bool ok = false;
-  httpGet("/api/stopwatch/reset", &ok);
+  httpGet("/api/stopwatch/reset", &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); showToast("STOPWATCH RESET"); fetchRemoteState(); }
-  else    { beepFail(); showToast("STOPWATCH ACTION FAILED"); }
+  else    { failToast("STOPWATCH"); }
 }
 
 void fireClosestStop() {
   bool ok = false;
-  httpPostJson("/api/games/closest/stop", "{}", &ok);
+  // src=remote: the Pi ignores this press while the 3-2-1 is still counting down -- a kid
+  // mashing the button early used to cancel the whole round (only Console's own STOP may).
+  httpPostJson("/api/games/closest/stop?src=remote", "{}", &ok, 4000);
   lastActivity = millis();
   // Fires unconditionally even if the round already ended a moment ago --
   // the server-side route itself is a safe no-op when nothing's running (see
   // api_closest_stop() in musicman.py), so there's no local running-state
   // check to get out of sync with reality.
   if (ok) { beepConfirm(); fetchRemoteState(); }
-  else    { beepFail(); showToast("STOP FAILED"); }
+  else    { failToast("STOP"); }
 }
 
 void fireKaraokeMuteToggle() {
   bool ok = false;
-  httpPostJson("/api/karaoke/vocal_mute_toggle", "{}", &ok);
+  httpPostJson("/api/karaoke/vocal_mute_toggle", "{}", &ok, 4000);
   lastActivity = millis();
   if (ok) { beepConfirm(); fetchRemoteState(); }
-  else    { beepFail(); showToast("KARAOKE ACTION FAILED"); }
+  else    { failToast("KARAOKE"); }
 }
 
 void fireRemoteTestSfx() {
@@ -1144,6 +1266,14 @@ void handleButtons() {
   bool sideShort  = M5.BtnB.wasReleased();
   // Power-chip "top" button deliberately unused for navigation -- see
   // header comment. Reading it here would just reintroduce the flakiness.
+
+  // Tick the instant a hold crosses the long-press threshold, so the MC can FEEL where "short"
+  // ends and "long" (fire / back) begins -- without a cue, a hesitant tap that ran past 450 ms
+  // fired a step, and a slightly short intended fire just scrolled.  pressedFor() has no side
+  // effect on the release logic above.
+  static bool cueA = false, cueB = false;
+  if (M5.BtnA.isPressed() && M5.BtnA.pressedFor(LONG_PRESS_MS)) { if (!cueA) { cueA = true; if (screenAwake) M5.Beep.tone(3200, 25); } } else cueA = false;
+  if (M5.BtnB.isPressed() && M5.BtnB.pressedFor(LONG_PRESS_MS)) { if (!cueB) { cueB = true; if (screenAwake) M5.Beep.tone(3200, 25); } } else cueB = false;
 
   if (!frontShort && !frontLong && !sideShort && !sideLong) return;
   lastActivity = millis();
@@ -1313,7 +1443,11 @@ void updateLed() {
 }
 
 void updateScreenSleep() {
-  if (screenAwake && millis() - lastActivity > SCREEN_SLEEP_MS) {
+  bool onGameScreen = (menuLevel == LEVEL_GAME_CHAIRS || menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_GAME_TIMEDCOMP
+                        || menuLevel == LEVEL_GAME_CLOSEST || menuLevel == LEVEL_GAME_WHEEL || menuLevel == LEVEL_GAME_SHELLGAME
+                        || menuLevel == LEVEL_REMOTE_TEST || menuLevel == LEVEL_KARAOKE || menuLevel == LEVEL_TIMER);
+  unsigned long sleepAfter = onGameScreen ? SCREEN_SLEEP_GAME_MS : SCREEN_SLEEP_MS;
+  if (screenAwake && millis() - lastActivity > sleepAfter) {
     screenAwake = false;
     M5.Axp.SetLDO2(false);
     return;
@@ -1323,7 +1457,8 @@ void updateScreenSleep() {
     M5.IMU.getAccelData(&ax, &ay, &az);
     if (!haveWakeBaseline) { wakeBaseAx = ax; wakeBaseAy = ay; wakeBaseAz = az; haveWakeBaseline = true; }
     float delta = fabs(ax - wakeBaseAx) + fabs(ay - wakeBaseAy) + fabs(az - wakeBaseAz);
-    if (delta > 0.25) {
+    // 0.25 g woke it from just walking with it in a pocket -- constant wake-ups, battery drain.
+    if (delta > 0.45) {
       screenAwake = true;
       lastActivity = millis();
       M5.Axp.SetLDO2(true);
@@ -1335,35 +1470,81 @@ void updateScreenSleep() {
 // Fully cuts power (not just the screen) once the remote's been both
 // unreachable AND untouched for AUTO_POWEROFF_AFTER_MS -- gated on activity
 // too so someone actively troubleshooting with WiFi down doesn't get the
-// remote yanked out from under them. Ground it back in by pressing either
-// button (it's off, not asleep -- the same power button that turns it back on).
+// remote yanked out from under them.  The last POWEROFF_WARN_MS is a visible,
+// counting-down warning (any button press cancels it -- handleButtons() resets
+// lastActivity).  It is OFF, not asleep: bringing it back takes the POWER
+// button (the small one on the side of the case), not either of the two
+// navigation buttons.
 void checkAutoPowerOff() {
-  if (connState != CONN_OFFLINE) return;
+  if (connState != CONN_OFFLINE) { powerOffWarning = false; return; }
   unsigned long idleFor = millis() - lastActivity;
-  if (idleFor < AUTO_POWEROFF_AFTER_MS) return;
+  if (idleFor < AUTO_POWEROFF_AFTER_MS - POWEROFF_WARN_MS) { powerOffWarning = false; return; }
 
-  M5.Axp.SetLDO2(true);  // screen may already be asleep -- wake it so the message is actually seen
+  powerOffWarning = true;
+  if (idleFor < AUTO_POWEROFF_AFTER_MS) {
+    if (!screenAwake) { screenAwake = true; M5.Axp.SetLDO2(true); }
+    long secsLeft = (long)((AUTO_POWEROFF_AFTER_MS - idleFor) / 1000);
+    screenBuf.fillSprite(BLACK);
+    screenBuf.setTextColor(RED);
+    screenBuf.setTextSize(2);
+    screenBuf.setCursor(14, 24);
+    screenBuf.print("NO CONNECTION");
+    screenBuf.setTextColor(WHITE);
+    screenBuf.setCursor(14, 52);
+    screenBuf.printf("OFF IN %lds", secsLeft);
+    screenBuf.setTextSize(1);
+    screenBuf.setTextColor(0xC618);
+    screenBuf.setCursor(14, 84);
+    screenBuf.print("Press any button to stay on.");
+    screenBuf.setCursor(14, 98);
+    screenBuf.print("To turn back on: POWER button.");
+    screenBuf.pushSprite(0, 0);
+    return;
+  }
+
+  M5.Axp.SetLDO2(true);
   screenBuf.fillSprite(BLACK);
   screenBuf.setTextColor(RED);
   screenBuf.setTextSize(2);
   screenBuf.setCursor(20, 40);
-  screenBuf.print("NO CONNECTION");
-  screenBuf.setTextSize(1);
-  screenBuf.setTextColor(0xC618);
-  screenBuf.setCursor(20, 70);
-  screenBuf.print("Powering off to save battery.");
-  screenBuf.setCursor(20, 84);
-  screenBuf.print("Press power button to turn back on.");
+  screenBuf.print("POWERING OFF");
   screenBuf.pushSprite(0, 0);
   beepFail();
-  delay(2500);
+  delay(1200);
   M5.Axp.PowerOff();
 }
 
+// LiPo discharge is far from linear: the old straight 3.0-4.2 V line said ~42% at 3.5 V, where the
+// cell is nearly empty, so Console's LOW alert came with only minutes left.  Piecewise-linear
+// through typical resting-voltage points instead.
 int getBatteryPct() {
+  static const float V[]   = {3.30f, 3.50f, 3.60f, 3.70f, 3.80f, 3.90f, 4.00f, 4.10f, 4.20f};
+  static const float PCT[] = {0.0f,  4.0f,  10.0f, 25.0f, 45.0f, 65.0f, 80.0f, 90.0f, 100.0f};
   float v = M5.Axp.GetBatVoltage();
-  float pct = (v - 3.0) / (4.2 - 3.0) * 100.0;
-  return (int)constrain(pct, 0.0f, 100.0f);
+  if (v <= V[0]) return 0;
+  if (v >= V[8]) return 100;
+  for (int i = 0; i < 8; i++) {
+    if (v <= V[i + 1]) return (int)(PCT[i] + (PCT[i + 1] - PCT[i]) * (v - V[i]) / (V[i + 1] - V[i]));
+  }
+  return 100;
+}
+
+// USB power inflates the voltage reading (and the % with it) and can't run down the cell.
+bool batteryCharging() {
+  return M5.Axp.GetVBusVoltage() > 4.0f;
+}
+
+// The remote itself now says so when it's getting low (it used to show only a % in the header,
+// hidden entirely behind the full-screen OFFLINE/RECONNECTING states).
+void checkBatteryWarning() {
+  if (batteryCharging()) return;
+  int pct = getBatteryPct();
+  if (pct > 15) return;
+  unsigned long now = millis();
+  if (lastLowBattWarn != 0 && now - lastLowBattWarn < 5UL * 60 * 1000) return;
+  lastLowBattWarn = now;
+  beepFail();
+  showToast(String("LOW BATTERY ") + pct + "%");
 }
 
 // ── DISPLAY ──────────────────────────────────────────────────────────────
@@ -1448,6 +1629,7 @@ void drawNamedList(String (*getName)(int), int count, int highlightIdx, const ch
 
 void drawScreen() {
   if (!screenAwake) return;
+  if (powerOffWarning) return;   // checkAutoPowerOff() is painting the countdown itself
 
   static unsigned long lastDraw = 0;
   if (millis() - lastDraw < 120) return;
@@ -1491,9 +1673,20 @@ void drawScreen() {
     case LEVEL_GAME_WHEEL:     screenBuf.print("PRIZE WHEEL - LIVE");  break;
     case LEVEL_GAME_SHELLGAME: screenBuf.print("SHELL GAME - LIVE");   break;
   }
-  screenBuf.setTextColor(0x8410);
-  screenBuf.setCursor(200, 2);
-  screenBuf.printf("%d%%", getBatteryPct());
+  // Never show a confident wrong answer: if the last good state poll is old (parse failure, slow
+  // Pi) say STALE rather than presenting frozen data as current.
+  if (lastStateOkMs != 0 && millis() - lastStateOkMs > 10000) {
+    screenBuf.setTextColor(RED);
+    screenBuf.setCursor(150, 2);
+    screenBuf.print("STALE");
+  }
+  {
+    int bp = getBatteryPct();
+    bool chg = batteryCharging();
+    screenBuf.setTextColor((!chg && bp <= 15) ? RED : 0x8410);
+    screenBuf.setCursor(chg ? 188 : 200, 2);
+    if (chg) screenBuf.printf("+%d%%", bp); else screenBuf.printf("%d%%", bp);
+  }
 
   switch (menuLevel) {
     case LEVEL_CATEGORY: {
@@ -1589,10 +1782,11 @@ void drawScreen() {
       // No RESET/SIDE hint at all: that control lives on Console, not here.
       screenBuf.setTextColor(closestRunning ? 0x07E0 : 0x8410);
       screenBuf.setCursor(4, 20);
-      screenBuf.print(closestRunning ? "GO!" : "GET READY");
+      screenBuf.print(closestRunning ? "GO!" : (closestCountdown > 0 ? "GET READY..." : "GET READY"));
 
       char buf[16];
-      snprintf(buf, sizeof(buf), "%.*f", closestDecimals, closestLiveValue);
+      if (closestCountdown > 0 && !closestRunning) snprintf(buf, sizeof(buf), "%d", closestCountdown);   // show the 3-2-1 here too
+      else snprintf(buf, sizeof(buf), "%.*f", closestDecimals, closestLiveValue);
       screenBuf.setTextSize(3);
       screenBuf.setTextColor(WHITE);
       int textW = strlen(buf) * 18;
@@ -1608,7 +1802,7 @@ void drawScreen() {
 
       screenBuf.setTextColor(0xC618);
       screenBuf.setCursor(4, 106);
-      screenBuf.print(closestRunning ? "PRESS FRONT TO STOP!" : "WAIT FOR CONSOLE");
+      screenBuf.print(closestRunning ? "PRESS FRONT TO STOP!" : (closestCountdown > 0 ? "WAIT FOR GO..." : "WAIT FOR CONSOLE"));
       screenBuf.setCursor(4, 118);
       screenBuf.setTextColor(0x8410);
       screenBuf.print("HOLD SIDE = BACK (game keeps going)");
@@ -1733,7 +1927,7 @@ void drawScreen() {
   // the MC is browsing SFX).
   bool gameMode = (menuLevel == LEVEL_GAME_CHAIRS || menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_TIMER
                     || menuLevel == LEVEL_GAME_TIMEDCOMP || menuLevel == LEVEL_GAME_CLOSEST || menuLevel == LEVEL_KARAOKE
-                    || menuLevel == LEVEL_GAME_WHEEL || menuLevel == LEVEL_GAME_SHELLGAME);
+                    || menuLevel == LEVEL_GAME_WHEEL || menuLevel == LEVEL_GAME_SHELLGAME || menuLevel == LEVEL_REMOTE_TEST);
   if (!gameMode) {
     if (millis() < toastUntil) {
       screenBuf.fillRect(0, 118, 240, 17, 0x2965);

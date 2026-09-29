@@ -152,6 +152,7 @@
   #dm-reveal-msg { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:min(9vh,12vw); letter-spacing:.2vh; text-align:center; text-shadow:0 6px 30px rgba(0,0,0,.8); max-width:100%; word-break:break-word; }
   #dm-reveal-sub { margin-top:2vh; font-size:min(3.2vh,5vw); color:rgba(255,255,255,.85); letter-spacing:.1vh; text-align:center; max-width:100%; word-break:break-word; }
 </style>
+<script src="/static/clock.js"></script>
 </head>
 <body>
 
@@ -252,6 +253,9 @@ function unitSuffix() { return _cfgData.unit_label ? ' ' + _cfgData.unit_label :
 
 // ── STATE (mirrors games_timedcomp.html's stopwatch handling) ──
 let cmRunning = false, cmStartMs = null, cmStoppedValue = null, cmInterval = null, cmCountdown = 0;
+// One recorded result per stopped run: set the instant a name is tapped (before the
+// network round-trip) so a double-tap or a second chip can't record the same run twice.
+let cmRecorded = false;
 
 function cmToggle() {
   if (!cmRunning && !cmCountdown) {
@@ -271,6 +275,7 @@ function applyClosestState(cs) {
   cmCountdown = cs.countdown || 0;
   cmStartMs = cs.start_ms || null;
   cmStoppedValue = (cs.stopped_value != null) ? cs.stopped_value : null;
+  if (cmStoppedValue == null) cmRecorded = false;   // new run / reset -> the next stop is recordable again
   setButtons();
   // 3-2-1 runs before running flips true -- the meter/timer/dial simply
   // doesn't move yet (liveValue() only reacts to cmRunning), so no separate
@@ -278,12 +283,16 @@ function applyClosestState(cs) {
   if (cmCountdown) showCountdown(cmCountdown);
   else if (wasCountdown) hideCountdown();   // STOP/RESET cancelled it before running began
   if (cmRunning && !wasRunning) { hideCountdown(); hideReveal(); }
+  // RESET (or a fresh launch) with nothing stopped: clear the previous contestant's
+  // reveal off the projector instead of leaving it up until the next START.
+  if (!cmRunning && !cmCountdown && cmStoppedValue == null && _isDisplay) hideReveal();
+  renderPendingChips();
   if (!cmRunning && wasRunning && cmStoppedValue != null) showReveal(cmStoppedValue);
   tick();
 }
 
 function liveValue() {
-  if (cmRunning && cmStartMs) return closestValueAt(_cfgData, Date.now() - cmStartMs);
+  if (cmRunning && cmStartMs) return closestValueAt(_cfgData, srvNow() - cmStartMs);
   if (cmStoppedValue != null) return cmStoppedValue;
   return Number(_cfgData.min_value ?? 0);
 }
@@ -385,12 +394,23 @@ function renderPendingChips() {
   }
   if (!grid) return;
   if (!pending.length) { grid.innerHTML = '<div class="chip-empty">No contestants entered yet</div>'; return; }
-  const canRecord = cmStoppedValue != null;
-  grid.innerHTML = pending.map(r => {
-    const labelJson = JSON.stringify(r.label).replace(/"/g, '&quot;');
-    return `<button class="chip" ${canRecord ? '' : 'disabled'} onclick='recordResult(${labelJson})'>${escHtmlCm(r.label)}</button>`;
-  }).join('');
+  const canRecord = cmStoppedValue != null && !cmRecorded;
+  // Names travel in data-label (HTML-escaped), never inside an inline JS string --
+  // an apostrophe (O'Brien) used to terminate the onclick attribute and kill the chip.
+  grid.innerHTML = pending.map(r =>
+    `<button class="chip" ${canRecord ? '' : 'disabled'} data-label="${escHtmlCm(r.label)}">${escHtmlCm(r.label)}</button>`
+  ).join('');
 }
+document.addEventListener('click', (ev) => {
+  const act = ev.target.closest && ev.target.closest('#resultsList button[data-act]');
+  if (act) {
+    if (act.dataset.act === 'undo') undoResult(act.dataset.id);
+    else if (confirm('Delete this result?')) deleteResult(act.dataset.id);
+    return;
+  }
+  const chip = ev.target.closest && ev.target.closest('#pendingChips .chip');
+  if (chip && !chip.disabled) recordResult(chip.dataset.label);
+});
 
 function renderResults() {
   const el = document.getElementById('resultsList');
@@ -402,12 +422,15 @@ function renderResults() {
   const sorted = [...played].sort((a, b) => Math.abs(a.distance || 0) - Math.abs(b.distance || 0) || (a.at || 0) - (b.at || 0));
   const rows = sorted.map((r, i) => {
     const valStr = (r.value != null ? Number(r.value).toFixed(Number(_cfgData.decimals ?? 0)) : Math.abs(r.distance).toFixed(1)) + unitSuffix();
-    const idJson = JSON.stringify(r.id || '').replace(/"/g, '&quot;');
+    const rid = escHtmlCm(r.id || '');
     return `<tr>
       <td style="text-align:center;color:${i === 0 ? 'var(--amber)' : 'var(--text)'}">${i + 1}.</td>
       <td style="font-weight:700">${escHtmlCm(r.label)}</td>
       <td style="font-family:'Share Tech Mono',monospace;text-align:right;color:${i === 0 ? 'var(--amber)' : 'var(--text)'}">${valStr}</td>
-      <td style="text-align:right"><button onclick='deleteResult(${idJson})' style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:2px 5px">✕</button></td>
+      <td style="text-align:right;white-space:nowrap">
+        <button data-act="undo" data-id="${rid}" title="Undo -- put back on the list" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:17px;padding:6px 9px">↺</button>
+        <button data-act="del" data-id="${rid}" title="Delete" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:17px;padding:6px 9px">✕</button>
+      </td>
     </tr>`;
   }).join('');
   el.innerHTML = `<table class="lb-table"><thead><tr><th style="text-align:center">#</th><th>Name</th><th style="text-align:right">Result</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -418,6 +441,8 @@ function escHtmlCm(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&
 // no argument, falls back to whatever's typed in the "Not on the list?" field.
 async function recordResult(labelOverride) {
   if (cmStoppedValue == null) { alert('Stop it first'); return; }
+  if (cmRecorded) return;   // this run already has a name on it
+  cmRecorded = true; renderPendingChips();
   const label = (labelOverride != null ? labelOverride : (document.getElementById('nameInput').value || '')).trim() || 'Player';
   const target = Number(_cfgData.target_value ?? 0);
   const distance = cmStoppedValue - target;
@@ -427,6 +452,19 @@ async function recordResult(labelOverride) {
       body: JSON.stringify({ game: _bucket, label, distance, value: cmStoppedValue }),
     }).then(r => r.json());
     if (r.ok) { _results = r.games[_bucket] || []; renderResults(); document.getElementById('nameInput').value = ''; }
+    else { cmRecorded = false; renderPendingChips(); }
+  } catch (e) { cmRecorded = false; renderPendingChips(); }
+}
+
+// Undo a mis-tap: the row goes back to a name-only "waiting" chip (not deleted),
+// and this stopped run can be recorded again under the right name.
+async function undoResult(id) {
+  try {
+    const r = await fetch('/api/games/entry/update', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ game: _bucket, id, clear_result: true }),
+    }).then(r => r.json());
+    if (r.ok) { _results = r.games[_bucket] || []; cmRecorded = false; renderResults(); }
   } catch (e) {}
 }
 
@@ -519,18 +557,23 @@ function setupDisplayTheme() {
 
 // ── WEBSOCKET ──
 let _ws = null;
+// Last server event id seen -- sent as ?since= on reconnect so the server replays anything missed in the gap.
+let _lastEvtId = null;
 function connectWS() {
-  _ws = new WebSocket('ws://' + location.host + '/ws');
+  _ws = new WebSocket('ws://' + location.host + '/ws' + (_lastEvtId != null ? '?since=' + _lastEvtId : ''));
   _ws.onopen  = () => { if (_isDisplay && !_inIframe) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); refreshResults(); };
   _ws.onclose = () => setTimeout(connectWS, 3000);
   _ws.onerror = () => _ws.close();
   _ws.onmessage = (evt) => {
     try {
       const msg = JSON.parse(evt.data);
+      if (msg.id != null) _lastEvtId = msg.id;   // replay cursor for the next reconnect (?since=)
       if (msg.event === 'closest_state') {
         applyClosestState(msg.data || {});
       } else if (msg.event === 'closest_countdown') {
-        showCountdown((msg.data || {}).n);
+        cmCountdown = (msg.data || {}).n || 0;
+        setButtons();
+        showCountdown(cmCountdown);
       } else if (msg.event === 'games_state' && _bucket) {
         _results = (msg.data || {})[_bucket] || [];
         renderResults();

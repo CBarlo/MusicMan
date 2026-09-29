@@ -1065,6 +1065,60 @@ Deliberately **not** shipped: a Trivia remote "start game" press (built, then re
 Chris's request — leaving the lobby stays a Console action), and a Belly Flop game modelled
 on brokenarrow.best/arcade/belly-flop (prototyped, then shelved).
 
+## Phase 27 — Reliability / usability pass (2026-09-29)
+
+Four read-only audits (regression review of Phases 25–26, unaudited crowd-facing systems,
+operator/Admin usability, firmware + server load) produced ~60 findings; tiers 1–2 were fixed.
+
+**Server robustness.** `broadcast()` no longer blocks: every WebSocket client has a bounded
+queue and its own sender thread, so a stuck iPad tab or frozen kiosk is dropped instead of
+freezing audio locks, the timer thread and Kill All. Events carry an id and a 90 s replay
+buffer; clients reconnect with `?since=<last id>` so anything broadcast during the 10-minute
+socket recycle is replayed. `games.json`, `game_configs.json`, `vs_cards.json`,
+`head_to_head.json` are written atomically (temp + fsync + rename, previous good copy kept as
+`.bak`); a corrupt file is preserved as `*.corrupt-<ts>` and recovered from `.bak` instead of
+being silently treated as empty; games/h2h read-modify-write is serialised. `config.yaml` is
+validated before every save and before an OTA upload, and boot falls back to `config.bak` /
+`backups/` instead of crash-looping. `static/clock.js` gives pages a server-clock offset so
+lyrics, countdowns, the stopwatch and the Closest meter don't depend on the (offline) Pi and
+the projector agreeing on the time.
+
+**Games.** GO LIVE on an already-live game asks first (it resets the round); Timed Competition
+GO LIVE keeps bulk-added names; Musical Chairs launches clean (no previous config's song) and
+the controller reports its chosen song/skip-intro to the server so a remote START plays it;
+Wheel remote spins honour "remove winner", are ignored while spinning, and the controller
+adopts the spin's entry list (it used to land on a different name than the projector);
+winner text is measured with the card's real letter-spacing/padding; Closest: countdown taps
+from the remote are ignored, chips are attribute-driven (apostrophes), double-tap guarded,
+per-row undo, Console leaderboard mode comes from the game's config (distance entry uses the
+config's target), game configs validated, Timed/Closest names unique, renaming migrates the
+results bucket. Leaderboard is a true top-most overlay (HIDE uncovers what was there).
+`current_slide` is cleared when other content takes the screen (a display reload showed a
+stale "Let's Race" slide over a walkup).
+
+**Karaoke / timers / crowd.** Starting karaoke stops the playlist properly; KILL ALL ends
+karaoke and stops running meters; song scene fires at song start; timer/countdown tickers are
+drift-corrected and survive exceptions; timer RESET hides the overlay; settings edits no longer
+reset a live timer; countdown settings persist; crowd Auto mode follows in seconds not
+minutes and drives the lights; double CLIMAX ignored; multiplier resets on Trivia GO LIVE.
+
+**Operator UI.** Game-overlay header wraps (CLOSE never leaves the screen); KILL ALL two-tap;
+Show Flow taps report failure; Admin generic game editors autosave, accept 0, Game steps must
+name a game, macro rename repoints references and delete warns about users; pre-show check
+covers games and the remote.
+
+**Remote firmware.** Fires ?expect= so a stale list can't fire the wrong step; "NO REPLY"
+instead of a false FAILED; timer/stopwatch/closest fixes above; boot no longer enters a stale
+game; 30-min auto-off with a 60 s countdown; piecewise LiPo curve + low-battery warning;
+long-press tick; test mode restores the previous screen.
+
+**Battery / projector.** A dead battery unit no longer restarts Bluetooth (and drops the
+healthy one) every minute; projector controls report "not connected" instead of silently
+succeeding.
+
+Not done (tier 3): AP-status subprocess timeouts, gunicorn log rotation, deleting the orphan
+`vs_card` "AG Trivia" configs, Stream Deck pages for Timed Competition/Closest.
+
 ---
 
-*Last updated: September 2026 — Phase 26*
+*Last updated: September 2026 — Phase 27*

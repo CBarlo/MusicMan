@@ -258,7 +258,21 @@
     .page-tabs-top { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
     .page-tabs-top .page-tab { flex: 0 0 auto; overflow: visible; text-overflow: clip; padding: 10px 12px; font-size: 12px; }
   }
+
+/* Game controller overlay header: CLOSE always sits on the top row (never pushed
+   off-screen at iPad-portrait widths); the action buttons wrap on their own row. */
+.gl-head{padding:8px 14px;background:var(--bg2);border-bottom:2px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+.gl-head-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.gl-title{color:var(--amber);font-weight:700;letter-spacing:2px;font-size:13px;text-transform:uppercase}
+.gl-head-actions{display:flex;flex-wrap:wrap;gap:8px}
+.gl-btn{font-family:inherit;font-weight:700;font-size:14px;letter-spacing:1px;padding:8px 16px;min-height:42px;border-radius:6px;cursor:pointer;white-space:nowrap;flex:0 0 auto}
+.gl-close{background:rgba(220,38,38,0.2);border:1px solid rgba(220,38,38,0.5);color:#f87171}
+.gl-golive{background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.5);color:#4ade80}
+.gl-redisplay{background:rgba(148,163,184,0.15);border:1px solid rgba(148,163,184,0.5);color:#cbd5e1}
+.gl-test{background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.5);color:#38bdf8}
+.gl-addall{background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.5);color:var(--amber)}
 </style>
+<script src="/static/clock.js"></script>
 </head>
 <body>
 <div class="header">
@@ -325,7 +339,7 @@
         <button class="btn-transport" onclick="fetch('/api/display/clear').catch(()=>{});showAlert('Display cleared',1500)" style="flex:1;font-size:10px;letter-spacing:1px">&#9723; CLEAR</button>
       </div>
       <button onclick="fetch('/api/macro/run?name=macro_1782024642418').catch(()=>{});showAlert('🛠 TECHNICAL DIFFICULTIES',2000)" style="width:100%;margin-top:8px;height:38px;border-radius:8px;border:2px solid #f5a623;background:#2d1f05;color:#f5a623;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;letter-spacing:2px;cursor:pointer">&#128295; TECHNICAL DIFFICULTIES</button>
-      <button onclick="killAll()" style="width:100%;margin-top:8px;height:42px;border-radius:8px;border:2px solid #c0392b;background:#2d0a0a;color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;cursor:pointer">&#9760; KILL ALL</button>
+      <button onclick="killAll(event)" style="width:100%;margin-top:8px;height:48px;border-radius:8px;border:2px solid #c0392b;background:#2d0a0a;color:#e74c3c;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;cursor:pointer">&#9760; KILL ALL</button>
 
       <div class="vol-row">
         <span class="vol-label">MUSIC</span>
@@ -1164,14 +1178,16 @@
 
     <div class="page" id="page-gamelive" style="padding:0">
       <div style="display:flex;flex-direction:column;height:100%">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--bg2);border-bottom:2px solid var(--border);flex-shrink:0;">
-          <span style="color:var(--amber);font-weight:700;letter-spacing:2px;font-size:13px;text-transform:uppercase;">🎮 GAME CONTROLLER</span>
-          <div style="display:flex;gap:8px">
-            <button id="glOverlayGoLiveBtn" onclick="glOverlayGoLive()" style="display:none;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.5);color:#4ade80;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;" title="Nothing shown on the projector yet? This pushes it live.">⚡ GO LIVE</button>
-            <button id="glOverlayRedisplayBtn" onclick="glOverlayRedisplay()" style="display:none;background:rgba(148,163,184,0.15);border:1px solid rgba(148,163,184,0.5);color:#cbd5e1;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;" title="Something else got shown over the game on the projector? Pushes it back WITHOUT restarting the round -- GO LIVE would reset it.">↻ REDISPLAY</button>
-            <button id="glOverlayTestRemoteBtn" onclick="glOverlayToggleRemoteTest()" style="display:none;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.5);color:#38bdf8;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;" title="Puts the MC's remote screen and the projector into a self-test mode -- press the physical button, hear a random SFX, confirms the remote's actually reaching the Pi.">🔊 TEST REMOTE</button>
-            <button id="glOverlayAddAllBtn" onclick="glOverlayAddAllContestants()" style="display:none;background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.5);color:var(--amber);font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;" title="Enter every contestant's name at once -- e.g. read off during introductions, before anyone's played -- right here, no need to leave this screen.">+ ADD ALL CONTESTANTS</button>
-            <button onclick="hideGameOverlay()" style="background:rgba(220,38,38,0.2);border:1px solid rgba(220,38,38,0.5);color:#f87171;font-family:inherit;font-weight:700;font-size:13px;letter-spacing:1px;padding:6px 16px;border-radius:6px;cursor:pointer;">✕ CLOSE</button>
+        <div class="gl-head">
+          <div class="gl-head-top">
+            <span class="gl-title">🎮 GAME CONTROLLER</span>
+            <button class="gl-btn gl-close" onclick="hideGameOverlay()">✕ CLOSE</button>
+          </div>
+          <div class="gl-head-actions" id="glHeadActions">
+            <button id="glOverlayGoLiveBtn" class="gl-btn gl-golive" onclick="glOverlayGoLive()" style="display:none" title="Nothing shown on the projector yet? This pushes it live.">⚡ GO LIVE</button>
+            <button id="glOverlayRedisplayBtn" class="gl-btn gl-redisplay" onclick="glOverlayRedisplay()" style="display:none" title="Something else got shown over the game on the projector? Pushes it back WITHOUT restarting the round -- GO LIVE would reset it.">↻ REDISPLAY</button>
+            <button id="glOverlayTestRemoteBtn" class="gl-btn gl-test" onclick="glOverlayToggleRemoteTest()" style="display:none" title="Puts the MC's remote screen and the projector into a self-test mode -- press the physical button, hear a random SFX, confirms the remote's actually reaching the Pi.">🔊 TEST REMOTE</button>
+            <button id="glOverlayAddAllBtn" class="gl-btn gl-addall" onclick="glOverlayAddAllContestants()" style="display:none" title="Enter every contestant's name at once -- e.g. read off during introductions, before anyone's played -- right here, no need to leave this screen.">+ ADD CONTESTANTS</button>
           </div>
         </div>
         <iframe id="gameOverlayFrame" src="" style="flex:1;border:none;width:100%;background:#0b1a3d;"></iframe>
@@ -1841,7 +1857,27 @@ function togglePause() {
   document.getElementById('pauseBtn').classList.toggle('active',paused);
 }
 function fadeOut() { fetch('/api/audio/fade').catch(()=>{}); showAlert('FADING OUT…',2000); }
-function killAll() { fetch('/api/kill').catch(()=>{}); showAlert('⚠ KILL ALL FIRED',2500); }
+// Two-tap arm: KILL ALL sits right under TECHNICAL DIFFICULTIES, and a stray tap
+// mid-show stops audio, timers, lights and blanks the projector.  First tap arms
+// it (button changes), second tap within 3 s fires -- no modal to fumble in the dark.
+let _killArmed = false, _killArmTimer = null;
+function killAll(ev) {
+  const btn = ev && ev.currentTarget;
+  if (!_killArmed) {
+    _killArmed = true;
+    if (btn) { btn.dataset.orig = btn.innerHTML; btn.innerHTML = '&#9760; TAP AGAIN TO KILL ALL'; btn.style.background = '#7a1414'; btn.style.color = '#fff'; }
+    _killArmTimer = setTimeout(() => _killDisarm(btn), 3000);
+    return;
+  }
+  clearTimeout(_killArmTimer);
+  _killDisarm(btn);
+  fetch('/api/kill').then(r => { if (!r.ok) showAlert('⚠ KILL ALL failed', 4000); }).catch(() => showAlert('⚠ KILL ALL failed — no connection', 4000));
+  showAlert('⚠ KILL ALL FIRED',2500);
+}
+function _killDisarm(btn) {
+  _killArmed = false;
+  if (btn && btn.dataset.orig) { btn.innerHTML = btn.dataset.orig; btn.style.background = '#2d0a0a'; btn.style.color = '#e74c3c'; }
+}
 function trackNext() { fetch('/api/playlist/next').catch(()=>{}); }
 function trackPrev() { fetch('/api/playlist/prev').catch(()=>{}); }
 function updateVol(v) { document.getElementById('volVal').textContent=v; fetch('/api/audio/volume?v='+v).catch(()=>{}); }
@@ -2059,7 +2095,7 @@ function _renderH2hGameList() {
           <div class="circle-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">${escHtml(g.name)}</div>
           <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;font-weight:700">${n} CONTESTANT${n===1?'':'S'}</div>
         </div>
-        <button class="games-btn primary" onclick="event.stopPropagation();h2hGoLive('${escHtml(g.id)}')" style="font-size:11px;padding:5px 12px;flex-shrink:0">GO LIVE</button>
+        <button class="games-btn primary" onclick="event.stopPropagation();h2hGoLive('${escHtml(g.id)}')" style="font-size:13px;padding:10px 16px;min-height:42px;flex-shrink:0">GO LIVE</button>
       </div>
     </div>`;
   }).join('');
@@ -2321,7 +2357,7 @@ function kkRestoreDisplay() {
 // immediately, not start over from 0:00.
 let _kkLpProgressInterval = null;
 function _kkLpTick(startMs, durationSecs) {
-  const elapsed = (Date.now() - startMs) / 1000;
+  const elapsed = (srvNow() - startMs) / 1000;
   const pct = durationSecs > 0 ? Math.min(elapsed / durationSecs * 100, 100) : 0;
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('timeElapsed').textContent = fmtTime(Math.max(0, elapsed));
@@ -2528,7 +2564,7 @@ function _renderAllGlUiConfigs() {
             <div class="circle-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">${escHtml(c.name)}</div>
             <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;font-weight:700">${escHtml((gt.label||'').toUpperCase())}</div>
           </div>
-          <button class="games-btn primary" onclick="event.stopPropagation();glUiGoLive('${escHtml(gt.id)}','${escHtml(c.id)}')" style="font-size:11px;padding:5px 12px;flex-shrink:0">GO LIVE</button>
+          <button class="games-btn primary" onclick="event.stopPropagation();glUiGoLive('${escHtml(gt.id)}','${escHtml(c.id)}')" style="font-size:13px;padding:10px 16px;min-height:42px;flex-shrink:0">GO LIVE</button>
         </div>
         ${strip}
       </div>`);
@@ -2541,7 +2577,23 @@ function _renderAllGlUiConfigs() {
   el.innerHTML = tiles.join('');
 }
 
+// Relaunching a game that's already live resets the round (scores, question
+// position, Closest state, Timed Competition results...).  GO LIVE used to do
+// that with a single tap -- and reappears after CLOSE -> OPEN GAME CONTROLS --
+// so a stray tap mid-game wiped the round.  Ask first, but only when this exact
+// game really is the live one; a first launch goes straight through.
+async function _confirmRelaunchIfLive(typeId, configId) {
+  try {
+    const st = await fetch('/api/state').then(r => r.json());
+    const lg = st.live_game || {};
+    if (lg.game_type_id === typeId && (lg.config_id || '') === (configId || '')) {
+      return confirm('This game is already live.\n\nRestart it? That resets the round and clears its scores.\n\n(To just put it back on the projector without resetting, use REDISPLAY.)');
+    }
+  } catch(e) {}
+  return true;
+}
 async function glUiGoLive(typeId, configId) {
+  if (!(await _confirmRelaunchIfLive(typeId, configId))) return;
   try {
     const r = await fetch('/api/games/launch', {
       method: 'POST',
@@ -2550,9 +2602,9 @@ async function glUiGoLive(typeId, configId) {
     });
     const d = await r.json();
     if (d.ok) showGameOverlay(d.controller_url, typeId, configId, true);
-    else showAlert('Launch failed', 2000);
+    else showAlert('Launch failed' + (d.error ? ': ' + d.error : ''), 3500);
   } catch(e) {
-    showAlert('Launch error', 2000);
+    showAlert('Launch error — check connection', 3000);
   }
 }
 
@@ -2774,15 +2826,15 @@ function cdToggle() {
 }
 
 function cdTick() {
-  cdSecs--; renderCd();
+  // The server is authoritative (it pushes countdown_state every second and
+  // countdown_expired at zero).  This local tick only keeps the number moving
+  // between pushes if one is late -- it must never reach 0 on its own, or a
+  // countdown started from the Stream Deck / remote showed TIME IS UP about a
+  // second early.  Zero + the alert come from the server's countdown_expired.
+  if (cdSecs > 1) cdSecs--;
+  renderCd();
   const d=document.getElementById('cdDisplay');
   d.style.color = cdSecs<=5?'var(--red)':cdSecs<=10?'#FF8800':'var(--amber)';
-  if(cdSecs<=0) {
-    clearInterval(cdInterval); cdRunning=false; cdSecs=0;
-    document.getElementById('cdStartBtn').textContent='▶ START';
-    document.getElementById('cdStartBtn').classList.remove('running');
-    showAlert('🚨 TIME IS UP!',4000);
-  }
 }
 
 function renderCd() {
@@ -2820,14 +2872,14 @@ let swRunning=false, swStartMs=null, swElapsedMs=0, swInterval=null;
 
 function swToggle() {
   if(!swRunning) {
-    swRunning=true; swStartMs=Date.now()-swElapsedMs;
+    swRunning=true; swStartMs=srvNow()-swElapsedMs;
     swInterval=setInterval(renderSw,100);
     document.getElementById('swStartBtn').textContent='⏸ STOP';
     document.getElementById('swStartBtn').classList.add('running');
     _setSwOnDisplay(true); _setTimerOnDisplay(false); _setCdOnDisplay(false);
     fetch('/api/stopwatch/start').catch(()=>{});
   } else {
-    clearInterval(swInterval); swElapsedMs=Date.now()-swStartMs; swRunning=false;
+    clearInterval(swInterval); swElapsedMs=srvNow()-swStartMs; swRunning=false;
     renderSw();
     document.getElementById('swStartBtn').textContent='▶ START';
     document.getElementById('swStartBtn').classList.remove('running');
@@ -2855,7 +2907,7 @@ function swHideToggle() {
 }
 
 function renderSw() {
-  const ms=swRunning?Date.now()-swStartMs:swElapsedMs;
+  const ms=swRunning?srvNow()-swStartMs:swElapsedMs;
   const tot=ms/1000;
   const m=Math.floor(tot/60), s=Math.floor(tot%60), t=Math.floor((tot%1)*10);
   document.getElementById('swDisplay').textContent=
@@ -2899,9 +2951,42 @@ function updateGameSelect() {
 // musicman.py -- keep both in sync if this definition ever changes.
 function _lbIsPending(e) { return !('ms' in e) && !('score' in e) && !('distance' in e); }
 
+// Which game type owns a results bucket.  The bucket is named after its game
+// config (Timed Competition / Closest to the Mark), so the config -- not a
+// sniff of whatever entries happen to exist -- says whether it's a time or a
+// distance board.  Sniffing was wrong for an empty/all-pending Closest bucket
+// (it prompted for a TIME and ranked the fake result #1).
+function _lbBucketConfig(game) {
+  for (const typeId of ['closest_to_mark', 'timed_competition']) {
+    const c = (_glUiConfigs[typeId] || []).find(c => (c.name || c.id) === game);
+    if (c) return {type: typeId, cfg: c};
+  }
+  return {type: '', cfg: null};
+}
+function _lbModeFor(game, raw) {
+  const t = _lbBucketConfig(game).type;
+  if (t === 'closest_to_mark') return 'distance';
+  if (raw.some(e => 'distance' in e)) return 'distance';
+  if (raw.some(e => 'score' in e)) return 'score';
+  return 'time';
+}
+let _lbLastGame = '';
+
 function renderLeaderboard() {
   const game=document.getElementById('gameSelect')?document.getElementById('gameSelect').value:'';
   _selectedGame=game;
+  if (game !== _lbLastGame) {
+    _lbLastGame = game;
+    // A Timed Competition config says whether fastest or longest wins -- start
+    // from that instead of always "fastest first" (which put the wrong ranking
+    // on the projector for "Longest wins" games).
+    const bc = _lbBucketConfig(game);
+    if (bc.type === 'timed_competition' && bc.cfg && bc.cfg.data && bc.cfg.data.sort_mode) {
+      _lbSortAsc = bc.cfg.data.sort_mode !== 'desc';
+      const btn = document.getElementById('lbSortBtn');
+      if (btn) btn.textContent = _lbSortAsc ? '▲ FASTEST FIRST' : '▼ LONGEST FIRST';
+    }
+  }
   const lb=document.getElementById('leaderboard');
   if(!lb) return;
   if(!game){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">SELECT A GAME TO VIEW TIMES</div>';return;}
@@ -2911,8 +2996,9 @@ function renderLeaderboard() {
   </div>`;
   const raw=(_gamesData[game]||[]);
   if(!raw.length){lb.innerHTML='<div style="color:var(--text-dim);font-size:11px;font-family:\'Share Tech Mono\',monospace;padding:16px;text-align:center;letter-spacing:2px">NO ENTRIES YET</div>'+addBtnHtml;return;}
-  const isScore    = raw.some(e => 'score' in e);
-  const isDistance = raw.some(e => 'distance' in e);
+  const mode       = _lbModeFor(game, raw);
+  const isScore    = mode === 'score';
+  const isDistance = mode === 'distance';
   const played = raw.filter(e => !_lbIsPending(e)), pending = raw.filter(_lbIsPending);
   let sortedPlayed;
   if (isDistance) {
@@ -2970,7 +3056,8 @@ async function lbRenameEntry(id) {
     const r=await fetch('/api/games/entry/update',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({game:_selectedGame,id,label})}).then(r=>r.json());
     if (r.ok) { _gamesData=r.games; renderLeaderboard(); }
-  } catch(e) {}
+    else showAlert(r.error||'Could not rename',2500);
+  } catch(e) { showAlert('Could not rename — check connection',2500); }
 }
 
 async function lbDeleteEntry(id) {
@@ -2980,40 +3067,68 @@ async function lbDeleteEntry(id) {
     const r=await fetch('/api/games/entry/delete',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({game:_selectedGame,id})}).then(r=>r.json());
     if (r.ok) { _gamesData=r.games; renderLeaderboard(); }
-  } catch(e) {}
+    else showAlert(r.error||'Could not remove',2500);
+  } catch(e) { showAlert('Could not remove — check connection',2500); }
+}
+
+// Prompts for a landed value in a Closest-to-the-Mark board and returns
+// {distance, value} using the config's own target -- so Console can enter a
+// result without going back to the game's controller.
+function _lbAskDistance(game, who) {
+  const bc = _lbBucketConfig(game);
+  const target = Number(bc.cfg && bc.cfg.data ? (bc.cfg.data.target_value ?? 0) : 0);
+  const unit = (bc.cfg && bc.cfg.data && bc.cfg.data.unit_label) || '';
+  const str = prompt('Value ' + who + ' landed on' + (unit ? ' (' + unit + ')' : '') + ':');
+  if (str === null) return null;
+  const v = parseFloat(str);
+  if (isNaN(v)) { showAlert('Invalid number',2000); return null; }
+  return {distance: v - target, value: v};
+}
+function _lbAskTimeMs(who) {
+  const timeStr = prompt('Time for ' + who + ' — mm:ss or seconds:');
+  if (timeStr === null) return null;
+  let ms;
+  if (timeStr.includes(':')) {
+    const parts = timeStr.split(':').map(s=>parseFloat(s));
+    ms = Math.round(((parts[0]||0)*60+(parts[1]||0))*1000);
+  } else {
+    ms = Math.round(parseFloat(timeStr)*1000);
+  }
+  if (!ms || isNaN(ms) || ms<=0) { showAlert('Invalid time',2000); return null; }
+  return ms;
 }
 
 async function lbAddRunner() {
   if (!_selectedGame) { showAlert('Select a game first',2000); return; }
-  const name=prompt('Runner name:');
+  // One dialog for the name, one for the number -- typed on the iPad keyboard.
+  // Nothing is sent until BOTH are answered, so cancelling the second step
+  // drops the whole entry cleanly instead of half-recording.
+  const name=prompt('Name:');
   if (name===null) return;
   const label=name.trim()||'Runner';
   const raw=(_gamesData[_selectedGame]||[]);
-  const isScore=raw.some(e=>'score' in e);
+  const mode=_lbModeFor(_selectedGame, raw);
   const body={game:_selectedGame,label};
-  if (isScore) {
+  if (mode==='score') {
     const scoreStr=prompt('Score:');
     if (scoreStr===null) return;
     const score=parseFloat(scoreStr);
     if (isNaN(score)) { showAlert('Invalid score',2000); return; }
     body.score=score;
+  } else if (mode==='distance') {
+    const d=_lbAskDistance(_selectedGame, label);
+    if (!d) return;
+    body.distance=d.distance; body.value=d.value;
   } else {
-    const timeStr=prompt('Time — mm:ss or seconds:');
-    if (timeStr===null) return;
-    let ms;
-    if (timeStr.includes(':')) {
-      const parts=timeStr.split(':').map(s=>parseFloat(s));
-      ms=Math.round(((parts[0]||0)*60+(parts[1]||0))*1000);
-    } else {
-      ms=Math.round(parseFloat(timeStr)*1000);
-    }
-    if (!ms || isNaN(ms) || ms<=0) { showAlert('Invalid time',2000); return; }
+    const ms=_lbAskTimeMs(label);
+    if (!ms) return;
     body.ms=ms;
   }
   try {
     const r=await fetch('/api/games/record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
     if (r.ok) { _gamesData=r.games; renderLeaderboard(); }
-  } catch(e) {}
+    else showAlert(r.error||'Could not save',2500);
+  } catch(e) { showAlert('Could not save — check connection',2500); }
 }
 
 // Fills in an existing pending (name-only) entry's result -- NOT a new
@@ -3022,40 +3137,29 @@ async function lbAddRunner() {
 async function lbFillEntry(id) {
   const raw = (_gamesData[_selectedGame]||[]);
   const entry = raw.find(e=>e.id===id);
-  const isScore = raw.some(e=>'score' in e);
-  const isDistance = raw.some(e=>'distance' in e);
+  const who = entry ? entry.label : 'this contestant';
+  const mode = _lbModeFor(_selectedGame, raw);
   const body = {game:_selectedGame, id};
-  if (isDistance) {
-    // No target value to compute an offset from here (that lives in the
-    // game config, not games.json) -- recording a Closest-to-the-Mark result
-    // has to happen from that game's own controller, same name, and it'll
-    // fill this exact placeholder in automatically.
-    showAlert('Record this one from the game’s own controller (same name)', 3500);
-    return;
-  }
-  if (isScore) {
-    const scoreStr = prompt('Score for ' + (entry ? entry.label : 'this contestant') + ':');
+  if (mode === 'distance') {
+    const d = _lbAskDistance(_selectedGame, who);
+    if (!d) return;
+    body.distance = d.distance; body.value = d.value;
+  } else if (mode === 'score') {
+    const scoreStr = prompt('Score for ' + who + ':');
     if (scoreStr === null) return;
     const score = parseFloat(scoreStr);
     if (isNaN(score)) { showAlert('Invalid score',2000); return; }
     body.score = score;
   } else {
-    const timeStr = prompt('Time for ' + (entry ? entry.label : 'this contestant') + ' — mm:ss or seconds:');
-    if (timeStr === null) return;
-    let ms;
-    if (timeStr.includes(':')) {
-      const parts = timeStr.split(':').map(s=>parseFloat(s));
-      ms = Math.round(((parts[0]||0)*60+(parts[1]||0))*1000);
-    } else {
-      ms = Math.round(parseFloat(timeStr)*1000);
-    }
-    if (!ms || isNaN(ms) || ms<=0) { showAlert('Invalid time',2000); return; }
+    const ms = _lbAskTimeMs(who);
+    if (!ms) return;
     body.ms = ms;
   }
   try {
     const r = await fetch('/api/games/entry/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
     if (r.ok) { _gamesData=r.games; renderLeaderboard(); }
-  } catch(e) {}
+    else showAlert(r.error||'Could not save',2500);
+  } catch(e) { showAlert('Could not save — check connection',2500); }
 }
 
 // ── BULK CONTESTANT ENTRY ── enter every name at once (e.g. read off during
@@ -3122,7 +3226,7 @@ async function gtNewGame() {
 async function gtRecord() {
   const game=document.getElementById('gameSelect').value;
   if(!game){showAlert('Select a game first',2000);return;}
-  const ms=swRunning?Date.now()-swStartMs:swElapsedMs;
+  const ms=swRunning?srvNow()-swStartMs:swElapsedMs;
   if(ms<=0){showAlert('Start the stopwatch first',2000);return;}
   const label=(document.getElementById('gtLabel').value||'').trim()||'Runner';
   try {
@@ -3174,6 +3278,9 @@ function setScene(name,btn) {
 
 let alertTimeout;
 function showAlert(msg,duration=3000) {
+  // Dark, noisy campfire: nothing readable in under 2.5 s, and anything that
+  // reports a problem stays up long enough to actually be read.
+  duration = Math.max(duration, /fail|error|could not|invalid|⚠/i.test(msg) ? 4500 : 2500);
   const bar=document.getElementById('alertBar');
   bar.textContent=msg; bar.classList.add('show');
   clearTimeout(alertTimeout);
@@ -3421,11 +3528,28 @@ function _renderShowFlowGrid() {
   grid.appendChild(rst);
 }
 
-function fireShowStep(i, step, total) {
-  fetch('/api/show/fire?index=' + i).catch(()=>{});
+// A fired step runs a whole macro/walk-up/game launch: a double-tap re-fires it.
+// Ignore repeat taps for a beat, and if the server rejects it (or can't be
+// reached) say so and put the highlight back -- the old code showed "▶ name"
+// no matter what happened.
+let _showFireBusy = false;
+async function fireShowStep(i, step, total) {
+  if (_showFireBusy) return;
+  _showFireBusy = true;
+  setTimeout(() => { _showFireBusy = false; }, 900);
+  const prev = showStep;
   showStep = i;
   showAlert('▶ ' + step.name, 2500);
   _renderShowFlowGrid();
+  try {
+    const r = await fetch('/api/show/fire?index=' + i);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+  } catch (e) {
+    showStep = prev;
+    _renderShowFlowGrid();
+    showAlert('⚠ ' + step.name + ' did not fire: ' + (e.message || 'no connection'), 5000);
+  }
 }
 
 // ── ROLES GRID ─────────────────────────────────────────────────────────────
@@ -4544,9 +4668,11 @@ qfSwitch('lights');
 
 // ── WEBSOCKET SYNC ─────────────────────────────────────────────────────────
 // Keeps the UI in sync when Stream Deck (or anything else) calls the API remotely.
+// Last server event id seen -- sent as ?since= on reconnect so the server replays anything missed in the gap.
+let _lastEvtId = null;
 let _wsBackoff = 1000;
 function initWebSocket() {
-  const ws = new WebSocket('ws://' + location.host + '/ws');
+  const ws = new WebSocket('ws://' + location.host + '/ws' + (_lastEvtId != null ? '?since=' + _lastEvtId : ''));
 
   ws.onopen = function() {
     _wsBackoff = 1000; // reset on successful connect
@@ -4637,6 +4763,7 @@ function initWebSocket() {
   ws.onmessage = function(evt) {
     try {
       const msg  = JSON.parse(evt.data);
+      if (msg.id != null) _lastEvtId = msg.id;   // replay cursor for the next reconnect (?since=)
       const event = msg.event;
       const data  = msg.data || {};
 
@@ -4940,7 +5067,7 @@ function initWebSocket() {
         const wasRun = swRunning;
         swRunning = !!data.running;
         if (data.running) {
-          swStartMs = data.start_ms || Date.now();
+          swStartMs = data.start_ms || srvNow();
           if (!wasRun) {
             clearInterval(swInterval); swInterval=setInterval(renderSw,100);
             const b=document.getElementById('swStartBtn'); if(b){b.textContent='⏸ STOP';b.classList.add('running');}
@@ -5669,9 +5796,10 @@ function showGameOverlay(url, typeId, configId, alreadyLive) {
   _glOverlayType   = typeId   || '';
   _glOverlayConfig = configId || '';
   document.getElementById('glOverlayGoLiveBtn').style.display = (_glOverlayType && _glOverlayConfig && !alreadyLive) ? '' : 'none';
-  document.getElementById('glOverlayRedisplayBtn').style.display = (_glOverlayType && _glOverlayConfig) ? '' : 'none';
+  document.getElementById('glOverlayRedisplayBtn').style.display = (_glOverlayType && _glOverlayConfig && !['musical_chairs','timed_competition'].includes(_glOverlayType)) ? '' : 'none';
   _glOverlaySyncTestBtn();
   _glOverlayRenderAddAllBtn();
+  _glOverlaySyncHeader();
   showPage('gamelive');
   _setActiveGame(typeId, configId, url);
 }
@@ -5683,6 +5811,7 @@ function _glOverlayRenderTestBtn() {
   if (!btn) return;
   const gt = _glUiGameTypes.find(g => g.id === _glOverlayType);
   btn.style.display = (gt && gt.remote_controlled) ? '' : 'none';
+  _glOverlaySyncHeader();
   btn.textContent = _remoteTestActive ? '✕ EXIT TEST MODE' : '🔊 TEST REMOTE';
 }
 // Pulls the server's actual remote_test flag on every overlay open, so a
@@ -5717,6 +5846,14 @@ function _glOverlayRenderAddAllBtn() {
   if (!btn) return;
   const gt = _glUiGameTypes.find(g => g.id === _glOverlayType);
   btn.style.display = (gt && gt.records_results && _glOverlayBucketName()) ? '' : 'none';
+  _glOverlaySyncHeader();
+}
+// Hide the whole action row when none of its buttons apply (no empty gap under the title).
+function _glOverlaySyncHeader() {
+  const row = document.getElementById('glHeadActions');
+  if (!row) return;
+  const any = [...row.children].some(b => b.style.display !== 'none');
+  row.style.display = any ? 'flex' : 'none';
 }
 function glOverlayAddAllContestants() {
   const bucket = _glOverlayBucketName();
@@ -5756,6 +5893,7 @@ function _openActiveGame() {
 // the controller so it picks up the fresh session.
 async function glOverlayGoLive() {
   if (!_glOverlayType || !_glOverlayConfig) return;
+  if (!(await _confirmRelaunchIfLive(_glOverlayType, _glOverlayConfig))) return;
   try {
     const r = await fetch('/api/games/launch', {
       method: 'POST',
@@ -5764,9 +5902,9 @@ async function glOverlayGoLive() {
     });
     const d = await r.json();
     if (d.ok) showGameOverlay(d.controller_url, _glOverlayType, _glOverlayConfig, true);
-    else showAlert('Launch failed', 2000);
+    else showAlert('Launch failed' + (d.error ? ': ' + d.error : ''), 3500);
   } catch(e) {
-    showAlert('Launch error', 2000);
+    showAlert('Launch error — check connection', 3000);
   }
 }
 // Pushes the current game back to the projector as-is -- no reset, unlike
@@ -5784,7 +5922,9 @@ async function glOverlayRedisplay() {
 }
 function hideGameOverlay() {
   document.getElementById('gameOverlayFrame').src = '';
-  showPage('games');
+  const tab = document.querySelector(`.page-tab[onclick*="showPage('games'"]`);
+  showPage('games', tab);
+  loadGamesOnlyTab();   // fresh list/results -- the Games tab was stale after a game
 }
 </script>
 <script src="/static/preshow.js"></script>

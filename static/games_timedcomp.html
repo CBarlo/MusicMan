@@ -104,6 +104,7 @@
      it just stays up for the whole event. This iframe just stays blank. */
   .display-mode .stage { display:none !important; }
 </style>
+<script src="/static/clock.js"></script>
 </head>
 <body>
 
@@ -168,14 +169,14 @@ let swRunning = false, swStartMs = null, swElapsedMs = 0, swInterval = null;
 
 function swToggle() {
   if (!swRunning) {
-    swRunning = true; swStartMs = Date.now() - swElapsedMs;
+    swRunning = true; swStartMs = srvNow() - swElapsedMs;
     swInterval = setInterval(renderSw, 100);
     setSwButtons();
     // display=0 always -- this game's stopwatch never shows on HDMI on its
     // own; SHOW/HIDE below are the only way it reaches the projector.
     fetch('/api/stopwatch/start?display=0').catch(() => {});
   } else {
-    clearInterval(swInterval); swElapsedMs = Date.now() - swStartMs; swRunning = false;
+    clearInterval(swInterval); swElapsedMs = srvNow() - swStartMs; swRunning = false;
     renderSw(); setSwButtons();
     fetch('/api/stopwatch/stop').catch(() => {});
   }
@@ -190,7 +191,7 @@ function swReset() {
 }
 
 function renderSw() {
-  const ms = swRunning ? Date.now() - swStartMs : swElapsedMs;
+  const ms = swRunning ? srvNow() - swStartMs : swElapsedMs;
   const tot = ms / 1000;
   const m = Math.floor(tot / 60), s = Math.floor(tot % 60), t = Math.floor((tot % 1) * 10);
   document.getElementById('swDisplay').textContent =
@@ -249,7 +250,7 @@ function renderResults() {
 function escHtmlTc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 async function recordTime() {
-  const ms = swRunning ? Date.now() - swStartMs : swElapsedMs;
+  const ms = swRunning ? srvNow() - swStartMs : swElapsedMs;
   if (ms <= 0) { alert('Start the stopwatch first'); return; }
   const label = (document.getElementById('nameInput').value || '').trim() || 'Runner';
   try {
@@ -290,8 +291,10 @@ function hideFromHDMI() {
 
 // ── WEBSOCKET ──
 let _ws = null;
+// Last server event id seen -- sent as ?since= on reconnect so the server replays anything missed in the gap.
+let _lastEvtId = null;
 function connectWS() {
-  _ws = new WebSocket('ws://' + location.host + '/ws');
+  _ws = new WebSocket('ws://' + location.host + '/ws' + (_lastEvtId != null ? '?since=' + _lastEvtId : ''));
   // Only the projector iframe instance (?display=1) reports its location --
   // the operator's own controller tab must never do this, see games_trivia.html.
   _ws.onopen  = () => { if (_isDisplay && !_inIframe) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); refreshResults(); };
@@ -300,12 +303,13 @@ function connectWS() {
   _ws.onmessage = (evt) => {
     try {
       const msg = JSON.parse(evt.data);
+      if (msg.id != null) _lastEvtId = msg.id;   // replay cursor for the next reconnect (?since=)
       if (msg.event === 'stopwatch_state') {
         const data = msg.data || {};
         const wasRun = swRunning;
         swRunning = !!data.running;
         if (swRunning) {
-          swStartMs = data.start_ms || Date.now();
+          swStartMs = data.start_ms || srvNow();
           if (!wasRun) { clearInterval(swInterval); swInterval = setInterval(renderSw, 100); }
         } else {
           clearInterval(swInterval);

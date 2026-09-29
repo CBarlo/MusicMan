@@ -280,8 +280,10 @@ let _lastTickSeg = -1;
 
 // ── WEBSOCKET ──
 let _ws = null;
+// Last server event id seen -- sent as ?since= on reconnect so the server replays anything missed in the gap.
+let _lastEvtId = null;
 function connectWS() {
-  _ws = new WebSocket('ws://' + location.host + '/ws');
+  _ws = new WebSocket('ws://' + location.host + '/ws' + (_lastEvtId != null ? '?since=' + _lastEvtId : ''));
   // Only the projector iframe instance (?display=1) reports its location --
   // the operator's own controller tab must never do this, see games_trivia.html.
   _ws.onopen  = () => { if (_isDisplay && !_inIframe) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); };
@@ -290,6 +292,7 @@ function connectWS() {
   _ws.onmessage = (evt) => {
     try {
       const msg = JSON.parse(evt.data);
+      if (msg.id != null) _lastEvtId = msg.id;   // replay cursor for the next reconnect (?since=)
       if (msg.event === 'wheel_spin') handleRemoteSpin(msg.data || {});
       // spin_sfx is decoded once into an in-browser AudioBuffer at init()
       // (see below) -- re-uploading a new tick sound in Admin otherwise kept
@@ -558,8 +561,10 @@ function fitWinnerText() {
   const textEl = document.getElementById('resultText');
   const banner = document.querySelector('.result-banner');
   if (!textEl || !banner) return;
-  const maxW = banner.clientWidth  - 48;
-  const maxH = banner.clientHeight - 48;
+  // banner padding (24 each side) AND the card's own padding (24 each side) both eat width,
+  // plus a 6% safety margin -- the old "- 48" ignored the card padding entirely.
+  const maxW = (banner.clientWidth  - 96) * 0.94;
+  const maxH = (banner.clientHeight - 96) * 0.94;
   if (maxW <= 0 || maxH <= 0) return;
 
   // Measure in a detached element so flexbox/block layout can't lie about width
@@ -568,6 +573,11 @@ function fitWinnerText() {
   tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;white-space:nowrap;visibility:hidden;';
   tmp.style.fontFamily = cs.fontFamily;
   tmp.style.fontWeight = cs.fontWeight;
+  // The detached span sits in <body>, so it does NOT inherit the card's letter-spacing /
+  // text-transform -- measuring without them under-counted the width and the name ran off
+  // the edge of the screen.
+  tmp.style.letterSpacing = cs.letterSpacing;
+  tmp.style.textTransform = cs.textTransform;
   tmp.textContent = textEl.textContent;
   document.body.appendChild(tmp);
 
@@ -582,6 +592,11 @@ function fitWinnerText() {
   textEl.style.fontSize = sz + 'px';
   // Height check with wrapping re-enabled
   while (sz > 36 && textEl.getBoundingClientRect().height > maxH) {
+    sz -= 4;
+    textEl.style.fontSize = sz + 'px';
+  }
+  // Final guarantee on the real element: if its content is still wider than the banner, keep shrinking.
+  while (sz > 24 && textEl.scrollWidth > banner.clientWidth - 96) {
     sz -= 4;
     textEl.style.fontSize = sz + 'px';
   }
@@ -618,12 +633,17 @@ function spinWheel() {
 
 // Display + controller: receive WS wheel_spin event and animate
 function handleRemoteSpin(data) {
-  if (_isDisplay) {
-    entries = Array.isArray(data.entries) ? data.entries.slice() : entries;
-    if (data.entry_colors && typeof data.entry_colors === 'object') entryColors = Object.assign({}, data.entry_colors);
-    if (!spinning) drawWheel(currentRotation);
-  }
+  // BOTH the projector and the controller adopt the spin's own entry list.  Only the display
+  // did before -- so after a remote spin (where the server has already dropped the previous
+  // winner from the pool) the controller animated the server's winner_index over its OWN,
+  // longer list and landed on a different name than the projector showed.
   if (spinning) return; // already spinning (e.g. controller got its own broadcast back)
+  if (Array.isArray(data.entries) && data.entries.length) {
+    entries = data.entries.slice();
+    if (data.entry_colors && typeof data.entry_colors === 'object') entryColors = Object.assign({}, data.entry_colors);
+    if (!_isDisplay) { pendingRemoval = null; renderEntryList(); }   // the server already applied any removal for this spin
+    drawWheel(currentRotation);
+  }
   _runSpinAnimation(entries, data.winner_index || 0, data.spin_duration || _spinDuration);
 }
 

@@ -725,6 +725,7 @@
     image-rendering: optimizeSpeed;
   }
 </style>
+<script src="/static/clock.js"></script>
 </head>
 <body>
 
@@ -752,15 +753,15 @@
 </div>
 
 <!-- CHRONO OVERLAY (countdown timer + stopwatch) -->
-<div id="layer-timer" style="position:fixed;inset:0;z-index:10;pointer-events:none;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5vh;opacity:0;transition:opacity 0.8s ease">
-  <div style="background:rgba(0,0,0,0.72);border-radius:16px;padding:2vw 5vw 1.5vw;text-align:center;backdrop-filter:blur(6px)">
-    <div id="timer-num" style="font-size:16vw;font-weight:900;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;letter-spacing:0.04em;line-height:0.85;color:#F5A623;text-shadow:0 0 5vw currentColor;transition:color 0.4s"></div>
+<div id="layer-timer" style="position:fixed;inset:0;z-index:31;pointer-events:none;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5vh;opacity:0;transition:opacity 0.8s ease">
+  <div style="background:rgba(0,0,0,0.72);border-radius:16px;padding:2vw 5vw 1.5vw;text-align:center">
+    <div id="timer-num" style="font-size:16vw;font-weight:900;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;letter-spacing:0.04em;line-height:0.85;color:#F5A623;text-shadow:0 0 2vw currentColor;transition:color 0.4s"></div>
     <div id="chrono-label" style="font-size:1.8vw;letter-spacing:0.4em;color:rgba(255,255,255,0.5);margin-top:0.5vw;font-weight:600">REMAINING</div>
   </div>
 </div>
 
 <!-- LEADERBOARD OVERLAY -->
-<div id="layer-leaderboard" style="position:fixed;inset:0;z-index:8;pointer-events:none;opacity:0;transition:opacity 0.7s ease;background:#060504;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4vw 8vw">
+<div id="layer-leaderboard" style="position:fixed;inset:0;z-index:33;pointer-events:none;opacity:0;transition:opacity 0.7s ease;background:#060504;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4vw 8vw">
   <div id="lb-game-name" style="font-size:3.5vw;font-weight:900;letter-spacing:0.18em;text-transform:uppercase;color:#F5A623;text-shadow:0 0 4vw #F5A62344;text-align:center;margin-bottom:0.6vw"></div>
   <div id="lb-sort-label" style="font-size:1.4vw;letter-spacing:0.45em;color:rgba(255,255,255,0.35);margin-bottom:3.5vw;font-weight:600">FASTEST TIMES</div>
   <div id="lb-rows" style="width:100%;max-width:72vw"></div>
@@ -2001,7 +2002,6 @@ function _escHtml(s) {
 }
 
 function showLeaderboard(data) {
-  hideSlide();
   const game  = data.game  || '';
   const times = data.times || [];
   document.getElementById('lb-game-name').textContent = game.toUpperCase();
@@ -2037,6 +2037,7 @@ function showLeaderboard(data) {
   layerLb.style.pointerEvents = 'auto';
 }
 
+const _LB_DISMISSERS = new Set(['display_walkup','display_step','display_animation','display_clear','display_standby','display_slide','display_vs_card','display_karaoke_lobby','display_karaoke_countdown','display_karaoke','display_h2h','display_h2h_winner','viz_show','display_reveal_game']);
 function hideLeaderboard() {
   layerLb.style.opacity = '0';
   layerLb.style.pointerEvents = 'none';
@@ -2139,11 +2140,11 @@ function showKaraokeCountdown(data) {
   document.getElementById('kk-title').textContent  = data.title  || '';
   document.getElementById('kk-artist').textContent = data.artist || '';
 
-  const startMs   = data.countdown_start_ms || Date.now();
+  const startMs   = data.countdown_start_ms || srvNow();
   const totalSecs = data.countdown_seconds || 4;
   const el = document.getElementById('kk-countdown');
   const tick = () => {
-    const remaining = totalSecs - (Date.now() - startMs) / 1000;
+    const remaining = totalSecs - (srvNow() - startMs) / 1000;
     const n = Math.ceil(remaining);
     el.textContent = n > 3 ? 'GET READY' : (n > 0 ? String(n) : '');
   };
@@ -2166,7 +2167,7 @@ function showKaraoke(data) {
   document.getElementById('kk-title').textContent  = data.title || '';
   document.getElementById('kk-artist').textContent = '';
   _kkLyrics      = data.lyrics || [];
-  _kkStartMs     = data.start_ms || Date.now();
+  _kkStartMs     = data.start_ms || srvNow();
   _kkLastLineIdx = -1;
   // Wipe whatever the previous song left on screen right now, rather than
   // rely on the tick loop's "line index changed" diff to notice -- if the
@@ -2195,7 +2196,7 @@ function _kkSetSingerClass(el, singer) {
 
 function _updateKaraokeLyrics() {
   if (!_kkLyrics.length) return;
-  const elapsed = (Date.now() - _kkStartMs) / 1000;
+  const elapsed = (srvNow() - _kkStartMs) / 1000;
   let idx = -1;
   for (let i = 0; i < _kkLyrics.length; i++) {
     if (_kkLyrics[i].t <= elapsed) idx = i; else break;
@@ -2217,6 +2218,8 @@ function hideKaraoke() {
   layerKaraoke.classList.remove('karaoke-active', 'kk-lobby-view', 'kk-countdown-view', 'kk-blank-lobby');
   clearInterval(_kkInterval);
   clearInterval(_kkCountdownInterval);
+  // The lobby walk-up video kept playing (audibly, when unmuted) in the hidden layer.
+  try { kkVideo.pause(); } catch (e) {}
 }
 
 // ── CHRONO OVERLAY (countdown + stopwatch) ────────────────────────────────────
@@ -2236,7 +2239,7 @@ function showChronoOverlay(mode, data, source) {
   if (mode === 'stopwatch') {
     timerNum.style.color = '#3CB96A';
     chronoLabel.textContent = 'ELAPSED';
-    _swStartMs = data.start_ms || Date.now();
+    _swStartMs = data.start_ms || srvNow();
     clearInterval(_swInterval);
     _swInterval = setInterval(_updateSwNum, 100);
   } else {
@@ -2271,7 +2274,7 @@ function _updateTimerNum(sec) {
 
 function _updateSwNum() {
   if (!_swStartMs) return;
-  const elapsed = (Date.now() - _swStartMs) / 1000;
+  const elapsed = (srvNow() - _swStartMs) / 1000;
   const m = Math.floor(elapsed / 60);
   const s = Math.floor(elapsed % 60);
   const t = Math.floor((elapsed % 1) * 10);
@@ -2300,7 +2303,17 @@ function handleCountdownState(data) {
 // the frozen number when STOP lands while already visible, never touches
 // visibility itself.
 function handleStopwatchState(data) {
-  if (!_timerVisible || _chronoSource !== 'stopwatch' || data.running) return;
+  if (!_timerVisible || _chronoSource !== 'stopwatch') return;
+  if (data.running) {
+    // SHOW was pressed while stopped (frozen 0.0 up), then START: only stopwatch_state
+    // arrives (display=0 -- no second stopwatch_show).  Start ticking off it, or the
+    // preview number sat frozen at 0.0 for the whole run.
+    _swStartMs = data.start_ms || _swStartMs;
+    clearInterval(_swInterval);
+    _swInterval = setInterval(_updateSwNum, 100);
+    _updateSwNum();
+    return;
+  }
   clearInterval(_swInterval);
   const elapsed = (data.elapsed_ms || 0) / 1000;
   const m = Math.floor(elapsed / 60);
@@ -2318,11 +2331,19 @@ function _freezeSwNum(elapsedMs) {
 }
 
 // ── WEBSOCKET ─────────────────────────────────────────────────────────────────
+function _syncRemoteTestOverlay(on) {
+  const el = document.getElementById('remote-test-overlay');
+  if (!el) return;
+  if (on && el.style.display !== 'flex') { document.getElementById('remote-test-fired').textContent = ''; el.style.display = 'flex'; }
+  else if (!on && el.style.display === 'flex') el.style.display = 'none';
+}
 let _pingTimer       = null;
 let _wsFirstConnect  = true; // true until we've had one successful connection
 
+// Last server event id seen -- sent as ?since= on reconnect so the server replays anything missed in the gap.
+let _lastEvtId = null;
 function connectWS() {
-  const ws = new WebSocket('ws://' + location.host + '/ws');
+  const ws = new WebSocket('ws://' + location.host + '/ws' + (_lastEvtId != null ? '?since=' + _lastEvtId : ''));
 
   ws.onopen = () => {
     ws.send(JSON.stringify({event: 'page_ready', url: '/display'}));
@@ -2339,6 +2360,11 @@ function connectWS() {
       fetch('/api/state').then(r=>r.json()).then(s=>{
         _startupId = s.startup_id || null;
         if (s.slide && s.slide.template) showSlide(s.slide);
+        // A page load mid-show (REFRESH DISPLAY, kiosk restart) used to come back on
+        // standby even though karaoke / a remote self-test was live. Re-derive both
+        // from server state.
+        if (s.karaoke && s.karaoke.live) fetch('/api/karaoke/restore_display', {method:'POST'}).catch(()=>{});
+        _syncRemoteTestOverlay(!!s.remote_test);
       }).catch(()=>{});
     } else {
       // Reconnect: check if the service actually restarted (startup_id changed)
@@ -2360,6 +2386,7 @@ function connectWS() {
         // the server has no way to know their exact reveal moment either.
         const lg = s.live_game || {};
         if (lg.revealed && lg.disp_url) revealGameFrame(lg.disp_url);
+        _syncRemoteTestOverlay(!!s.remote_test);
       }).catch(()=>{});
     }
   };
@@ -2367,8 +2394,12 @@ function connectWS() {
   ws.onmessage = (evt) => {
     try {
       const msg  = JSON.parse(evt.data);
+      if (msg.id != null) _lastEvtId = msg.id;   // replay cursor for the next reconnect (?since=)
       const data = msg.data || {};
 
+      // The leaderboard is a top-most overlay now; any deliberate content change must clear it
+      // (it used to sit UNDER the content layers, so this happened for free).
+      if (_LB_DISMISSERS.has(msg.event) && !(msg.event === 'display_step' && data.meme) && !(msg.event === 'display_animation' && data.meme)) hideLeaderboard();
       if      (msg.event === 'preload_assets')    { preloadAssets(data.urls); }
       else if (msg.event === 'walkup_preload')    { preloadWalkupVideo(data); }
       else if (msg.event === 'display_walkup')    { if (!_gamePreloading) hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showWalkup(data); }
@@ -2393,7 +2424,7 @@ function connectWS() {
       else if (msg.event === 'display_band_slideshow_start') { showBandSlideshow(data); }
       else if (msg.event === 'display_band_slideshow_stop')  { hideBandSlideshow(); hideKaraoke(); }
       else if (msg.event === 'display_vs_card')   { hideGameFrame(); hideChronoOverlay(); hideViz(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showVsCard(data); }
-      else if (msg.event === 'display_leaderboard') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke(); showLeaderboard(data); }
+      else if (msg.event === 'display_leaderboard') { showLeaderboard(data); }   // a pure overlay (z-index above the game frame/slide): nothing underneath is torn down, so HIDE uncovers exactly what was there -- it used to hide the game frame/slide first, leaving a blank screen after HIDE
       else if (msg.event === 'display_karaoke_lobby')     { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraokeLobby(data); }
       else if (msg.event === 'display_karaoke_countdown') { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraokeCountdown(data); }
       else if (msg.event === 'display_karaoke')           { hideGameFrame(); hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideLeaderboard(); showKaraoke(data); }
@@ -2436,6 +2467,7 @@ function connectWS() {
         if (!data.url || data.url === '/display' || data.url.startsWith('/display?')) {
           hideGameFrame();
         } else {
+          hideLeaderboard();
           hideChronoOverlay(); hideViz(); hideVsCard(); hideH2H(); hideH2HWinner(); hideBandSlideshow(); hideKaraoke();
           _clearMemeOverlay(); // a lingering meme sits above the game iframe (z-index 40 vs 30) -- would otherwise block it
           showGameFrame(data.url);
@@ -3393,9 +3425,14 @@ function showCrowdViz(settings) {
   _lightningArcs = [];
   if (settings) {
     if (settings.display_type)  _crowdVizType = settings.display_type;
-    if (settings.color_low)     _crowdColors.low  = settings.color_low;
-    if (settings.color_mid)     _crowdColors.mid  = settings.color_mid;
-    if (settings.color_high)    _crowdColors.high = settings.color_high;
+    // The crowd palette is saved as crowd_color_*; color_* is the MUSIC palette (always
+    // present on a preset), which the crowd meter used to pick up instead.
+    const _cl = settings.crowd_color_low || settings.color_low;
+    const _cm = settings.crowd_color_mid || settings.color_mid;
+    const _ch = settings.crowd_color_high || settings.color_high;
+    if (_cl) _crowdColors.low  = _cl;
+    if (_cm) _crowdColors.mid  = _cm;
+    if (_ch) _crowdColors.high = _ch;
   }
   _vizClearStageLayers();
   _activeViz = 'crowd';

@@ -1529,7 +1529,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             </select>
             <label class="field-label">SAVED CONFIG <span style="font-weight:400;color:var(--text-dim)">(optional — pick at showtime if blank)</span></label>
             <select id="sf-game-config" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;margin-bottom:10px">
-              <option value="">— open picker on console —</option>
+              <option value="">— choose a game —</option>
             </select>
           </div>
 
@@ -1784,7 +1784,7 @@ input[type=color] { width:34px; height:34px; border:1px solid var(--border2); bo
             <select id="kk-song-scene" onchange="saveKaraokeWalkupSettings()" style="width:100%">
               <option value="">— none —</option>
             </select>
-            <div style="font-size:10px;color:var(--muted);margin-top:3px">Fires at the same moment as Walk-Up Scene</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">Fires when each song starts (Walk-Up Scene fires at GO LIVE)</div>
           </div>
         </div>
         <div style="margin-top:12px">
@@ -6170,10 +6170,9 @@ async function saveMacro() {
     loop:  document.getElementById('mc-loop').checked,
     steps: collectSteps()
   };
-  if (id !== selectedMacroId) {
-    macros = macros.filter(m => m.id !== selectedMacroId);
-    await fetch('/api/admin/macro/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:selectedMacroId})}).catch(()=>{});
-  }
+  // A changed ID is a RENAME: the server moves the macro and repoints every Show Flow / Run Macro
+  // step that used the old ID (it used to delete-then-create and leave those steps dangling).
+  if (selectedMacroId && id !== selectedMacroId) data.old_id = selectedMacroId;
   try {
     const res = await fetch('/api/admin/macro', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
     const r   = await res.json();
@@ -6182,7 +6181,7 @@ async function saveMacro() {
       selectedMacroId = id;
       await loadMacros();
       populateMacroEditor(id);
-    } else { toast('Save failed', 'err'); }
+    } else { toast(r.error || 'Save failed', 'err'); }
   } catch(e) { toast('Save failed', 'err'); }
 }
 
@@ -6190,7 +6189,13 @@ async function deleteMacro() {
   if (!selectedMacroId) return;
   if (!confirm('Delete macro "' + (macros.find(m=>m.id===selectedMacroId)||{}).name + '"?')) return;
   try {
-    await fetch('/api/admin/macro/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:selectedMacroId})});
+    let res = await fetch('/api/admin/macro/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:selectedMacroId})});
+    if (res.status === 409) {
+      const d = await res.json().catch(() => ({}));
+      const list = (d.in_use || []).map(x => '  • ' + x).join('\n');
+      if (!confirm('This macro is still used by:\n' + list + '\n\nDelete it anyway? Those steps will break.')) return;
+      res = await fetch('/api/admin/macro/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:selectedMacroId, force:true})});
+    }
     selectedMacroId = null;
     document.getElementById('macro-editor').style.display = 'none';
     document.getElementById('macro-editor-placeholder').style.display = '';
@@ -7436,7 +7441,19 @@ function renderGlTypeTabs() {
   ).join('');
 }
 
+// Flush a pending debounced autosave BEFORE the editor is re-pointed at a different
+// config/type -- otherwise the timer fires afterwards, reads the NEW editor's fields, and
+// the edit made in the last 1.5 s to the previous config is silently lost.
+async function _glFlushAutoSave() {
+  if (_glAutoSaveTimer) {
+    clearTimeout(_glAutoSaveTimer);
+    _glAutoSaveTimer = null;
+    if (glSelectedConfigId) await glSaveSelectedConfig(true);
+  }
+}
+
 async function glSelectType(typeId) {
+  await _glFlushAutoSave();
   glSelectedType     = typeId;
   glSelectedConfigId = '';
   const highlightIds = ['__all__', ...glGameTypes.map(g => g.id)];
@@ -7536,6 +7553,7 @@ function renderGlConfigGrid() {
 }
 
 async function selectGlConfig(id) {
+  await _glFlushAutoSave();
   let c = (glConfigs[glSelectedType] || []).find(x => x.id === id);
   if (!c) return;
   if (glSelectedType === '__all__' && c.game_type_id) {
@@ -7558,6 +7576,7 @@ async function selectGlConfig(id) {
 
 async function glNewConfig() {
   if (glSelectedType === '__all__') { toast('Pick a specific game type first', 'err'); return; }
+  await _glFlushAutoSave();
   glSelectedConfigId = '';
   renderGlConfigGrid();
   document.getElementById('gl-editor-placeholder').style.display = 'none';
@@ -7574,6 +7593,10 @@ async function renderGlSchemaFields(dataObj) {
   if (!el) return;
   const gt = glGameTypes.find(g => g.id === glSelectedType);
   if (!gt) { el.innerHTML = ''; return; }
+  // Every field edit autosaves (debounced) -- only Wheel and Trivia used to, so an edit to
+  // Chairs / Timed Competition / Closest vanished if you switched config or tab before
+  // pressing SAVE, and GO LIVE from Admin launched the old saved values.
+  el.oninput = el.onchange = () => _glScheduleAutoSave();
 
   // Wheel gets a custom per-entry color editor instead of the generic list field
   if (glSelectedType === 'wheel') {
@@ -8097,7 +8120,7 @@ function glReadSchemaData() {
     return {
       entries,
       entry_colors,
-      spin_duration: spinEl      ? (parseFloat(spinEl.value) || 6) : 6,
+      spin_duration: spinEl      ? (isNaN(parseFloat(spinEl.value)) || parseFloat(spinEl.value) <= 0 ? 6 : parseFloat(spinEl.value)) : 6,
       auto_remove:   autoEl      ? autoEl.checked : true,
       spin_scene:    spinSceneEl ? spinSceneEl.value : '',
       winner_scene:  winSceneEl  ? winSceneEl.value  : '',
@@ -8136,7 +8159,7 @@ function glReadSchemaData() {
     if (!el) return;
     if (field.type === 'list')   data[field.key] = el.value.split('\n').map(s => s.trim()).filter(Boolean);
     else if (field.type === 'bool')   data[field.key] = el.checked;
-    else if (field.type === 'number') data[field.key] = parseFloat(el.value) || (field.default ?? 0);
+    else if (field.type === 'number') { const n = parseFloat(el.value); data[field.key] = isNaN(n) ? (field.default ?? 0) : n; }   // 0 is a legal value -- `|| default` silently turned it into the default
     else                              data[field.key] = el.value.trim();
   });
   return data;
@@ -8172,8 +8195,8 @@ async function glSaveSelectedConfig(silent = false) {
       if (!silent) toast('Saved: ' + name, 'ok');
       else _glFlashSaved();
       await glSelectTypeReload();
-    } else { if (!silent) toast(d.error || 'Save failed', 'err'); }
-  } catch(e) { if (!silent) toast('Save failed', 'err'); }
+    } else { if (!silent || d.error) toast(d.error || 'Save failed', 'err'); }   // a validation message is worth showing even from an autosave
+  } catch(e) { toast(silent ? 'Autosave failed -- check the connection' : 'Save failed', 'err'); }
 }
 
 function _glFlashSaved() {
@@ -8840,7 +8863,11 @@ function sfDrop(e, i) {
 
 function sfMoveUp(i)   { if (i > 0) { [showFlow[i-1], showFlow[i]] = [showFlow[i], showFlow[i-1]]; renderShowFlow(); saveShowFlow(); } }
 function sfMoveDown(i) { if (i < showFlow.length-1) { [showFlow[i+1], showFlow[i]] = [showFlow[i], showFlow[i+1]]; renderShowFlow(); saveShowFlow(); } }
-function sfRemove(i)   { showFlow.splice(i, 1); renderShowFlow(); saveShowFlow(); }
+function sfRemove(i)   {
+  // Every Show Flow edit auto-saves, so a removal is immediate -- ask first.
+  if (!confirm('Remove step "' + (showFlow[i] && showFlow[i].name || 'this step') + '" from the Show Flow?')) return;
+  showFlow.splice(i, 1); renderShowFlow(); saveShowFlow();
+}
 async function sfFire(i) {
   try {
     const r = await fetch(`/api/show/fire?index=${i}`);
@@ -8923,7 +8950,7 @@ function sfMacroChanged() {
 async function sfGameTypeChanged() {
   const gtId = document.getElementById('sf-game-type').value;
   const sel  = document.getElementById('sf-game-config');
-  sel.innerHTML = '<option value="">— open picker on console —</option>';
+  sel.innerHTML = '<option value="">— choose a game —</option>';
   if (!gtId) return;
   // Auto-fill name from game type label if name is blank
   const gt = glGameTypes.find(g => g.id === gtId);
@@ -8932,7 +8959,7 @@ async function sfGameTypeChanged() {
   // Load saved configs for this type
   try {
     const configs = await fetch(`/api/game_configs?game_type_id=${gtId}`).then(r => r.json());
-    sel.innerHTML = '<option value="">— open picker on console —</option>' +
+    sel.innerHTML = '<option value="">— choose a game —</option>' +
       configs.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`).join('');
   } catch(e) {}
 }
@@ -8993,7 +9020,7 @@ function sfCancelEdit() {
   document.getElementById('sf-cancel-edit-btn').style.display = 'none';
   document.getElementById('sf-macro-select').value  = '';
   document.getElementById('sf-game-type').value     = '';
-  document.getElementById('sf-game-config').innerHTML = '<option value="">— open picker on console —</option>';
+  document.getElementById('sf-game-config').innerHTML = '<option value="">— choose a game —</option>';
   document.getElementById('sf-vs-select').value     = '';
   document.getElementById('sf-step-name').value     = '';
   document.getElementById('sf-step-desc').value     = '';
@@ -9012,6 +9039,9 @@ function confirmAddStep() {
     const gtId   = document.getElementById('sf-game-type').value;
     const gcId   = document.getElementById('sf-game-config').value;
     if (!gtId) { toast('Select a game type first', 'err'); return; }
+    // There is no "pick on console" flow -- a blank game made the step fire with no game and no
+    // way to open its controls.  A game step must point at a real, saved game.
+    if (!gcId) { toast('Pick which game this step launches (create one in Games first if the list is empty)', 'err'); return; }
     const gt = glGameTypes.find(g => g.id === gtId);
     stepObj = {
       type:           'game',

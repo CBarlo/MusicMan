@@ -29,6 +29,10 @@ game_configs.json
 vs_cards.json
 head_to_head.json
 backup_state.json
+countdown_config.json
+*.bak
+*.corrupt-*
+*.upload
 *.tmp
 *.corrupt
 *.zip

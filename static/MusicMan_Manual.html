@@ -1014,8 +1014,9 @@
 
   <div class="callout callout-warn">
     <div class="callout-title">Always save the Show Flow</div>
-    The Show Flow requires you to click <kbd>SAVE SHOW FLOW</kbd> before your order is persisted.
-    If you reorder items and close the browser without saving, the order reverts.
+    Show Flow edits (add, move, remove) save automatically as you make them, and removing a step asks first.
+    A <strong>Game</strong> step must be pointed at a saved game — there is no "choose on the console" option.
+    The remote refuses to fire a step whose name no longer matches what it was showing (the flow changed in Admin).
   </div>
 
   <p>
@@ -1335,7 +1336,7 @@
     <tr><td>Looping sound while running (optional)</td><td>Starts the moment a round actually begins (after the 3-2-1 countdown) and loops until STOP — a sizzle for a cooking theme, wind for a snowfall theme.</td></tr>
     <tr><td>Sound on stop (optional)</td><td>A one-shot cue (a ding, a buzzer) that fires the instant STOP lands.</td></tr>
     <tr><td>Lighting scene while running / on stop (optional)</td><td>Same idea as the sounds above, but a lighting scene instead.</td></tr>
-    <tr><td>Intro Game Entry / Screen Headline, Text, Image</td><td>Same as Musical Chairs and Timed Competition — fires on <kbd>↗ GO LIVE</kbd>, before the round itself starts.</td></tr>
+    <tr><td>Intro Game Entry / Screen Headline, Text, Image</td><td>Intro Game Entry only — fires on <kbd>↗ GO LIVE</kbd>, before the round itself starts. (The Screen Headline/Text/Image fields no longer apply to this game.)</td></tr>
   </table>
   <div class="callout callout-tip">
     <div class="callout-title">A 3-2-1 countdown always runs before the value starts moving</div>
@@ -2029,7 +2030,7 @@
   <ol class="steps">
     <li>Create a game with <kbd>+ NEW</kbd>.</li>
     <li>After each run, enter the participant's name and click <kbd>⏱ RECORD</kbd> to save the stopwatch time.</li>
-    <li>Click <kbd>▲ FASTEST FIRST</kbd> / <kbd>▼ MOST RECENT</kbd> to sort. The HDMI leaderboard updates automatically.</li>
+    <li>Click <kbd>▲ FASTEST FIRST</kbd> / <kbd>▼ LONGEST FIRST</kbd> to sort (a Timed Competition game starts in whichever order its "Ranking" setting says). The HDMI leaderboard updates automatically.</li>
     <li>Click <kbd>📺 SHOW SCORES</kbd> to display the leaderboard on HDMI.</li>
     <li>Click <kbd>✕ HIDE</kbd> to hide the scores overlay from HDMI — the recorded times themselves aren't cleared.</li>
   </ol>
@@ -2306,9 +2307,11 @@
     When a Prize Wheel goes live (the intro plays first, if the config has one, then the wheel sits
     ready on screen), the MC's <a href="#remote-run">physical remote</a> flips to a Prize Wheel
     screen by itself — its front button spins. One thing to know: the remote has no screen to edit
-    entries on, so it always spins from the config's <strong>saved</strong> entries. If you've been
-    adding or removing names in the controller, tap <kbd>💾 SAVE ENTRIES</kbd> first. Also,
-    "remove winner at next spin" only applies to spins from the controller, not the remote.
+    entries on, so it spins from the config's <strong>saved</strong> entries (or, once a spin has
+    happened, from the same pool the last spin used). If you've been adding or removing names in
+    the controller, tap <kbd>💾 SAVE ENTRIES</kbd> first. "Remove winner at next spin" now works for
+    spins from the remote too — the previous winner drops out of the next spin on the remote,
+    the controller and the projector alike. A second press while the wheel is still turning is ignored.
   </div>
 
   <h2 id="musical-chairs-run">Musical Chairs — Live Operation</h2>
@@ -2672,7 +2675,9 @@
   <div class="callout callout-warn">
     <div class="callout-title">Kill All</div>
     <kbd>KILL ALL</kbd> is the big red emergency button. Press it if something goes badly wrong.
-    It stops all audio, resets the skit timer, clears the display, and turns off active lights.
+    It stops all audio (including karaoke), the timers, and any running game meter, clears the display,
+    and turns off active lights. To prevent accidents it takes <strong>two taps</strong>: the first arms
+    it (the button changes to "TAP AGAIN TO KILL ALL"), the second within 3 seconds fires it.
     It does <strong>not</strong> reset the show flow position — you can pick back up exactly where you were.
   </div>
 </div>

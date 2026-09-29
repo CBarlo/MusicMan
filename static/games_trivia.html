@@ -426,8 +426,10 @@ async function _loadH2hScoreboard() {
   } catch(e) { console.error('Head to Head load failed', e); }
 }
 
+// Last server event id seen -- sent as ?since= on reconnect so the server replays anything missed in the gap.
+let _lastEvtId = null;
 function connectWS() {
-  _ws = new WebSocket('ws://' + location.host + '/ws');
+  _ws = new WebSocket('ws://' + location.host + '/ws' + (_lastEvtId != null ? '?since=' + _lastEvtId : ''));
   _ws.onopen  = () => {
     // Only the TOP-LEVEL kiosk page should ever report its own location --
     // this same page also runs as a separate controller tab (caught by the
@@ -447,6 +449,7 @@ function connectWS() {
   _ws.onmessage = (evt) => {
     try {
       const msg = JSON.parse(evt.data);
+      if (msg.id != null) _lastEvtId = msg.id;   // replay cursor for the next reconnect (?since=)
       if (msg.event === 'trivia_state' && (!msg.data.config_id || msg.data.config_id === _configId)) {
         applyState(msg.data.index, msg.data.revealed, msg.data.timer_end, msg.data.log, msg.data.show_score, msg.data.order, msg.data.started);
       } else if (h2hGameId && msg.event === 'h2h_score' && msg.data.game_id === h2hGameId) {

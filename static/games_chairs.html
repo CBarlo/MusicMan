@@ -131,10 +131,10 @@
 
   <div class="admin">
     <label class="field-label" for="songSelect">Song</label>
-    <select id="songSelect" class="mm-select"><option value="">— select a song —</option></select>
+    <select id="songSelect" class="mm-select" onchange="chairsReportSong()"><option value="">— select a song —</option></select>
 
     <label class="field-label" for="skipIntroInput">Skip Intro (sec)</label>
-    <input type="number" id="skipIntroInput" class="mm-select" min="0" step="1" value="0"
+    <input type="number" id="skipIntroInput" class="mm-select" onchange="chairsReportSong()" min="0" step="1" value="0"
       style="-moz-appearance:textfield">
 
     <div class="settings-row" id="settingsRow"></div>
@@ -159,8 +159,10 @@ let _state     = { round: 0, playing: false, song: '', song_label: '' };
 
 // ── WEBSOCKET ──
 let _ws = null;
+// Last server event id seen -- sent as ?since= on reconnect so the server replays anything missed in the gap.
+let _lastEvtId = null;
 function connectWS() {
-  _ws = new WebSocket('ws://' + location.host + '/ws');
+  _ws = new WebSocket('ws://' + location.host + '/ws' + (_lastEvtId != null ? '?since=' + _lastEvtId : ''));
   // Only the projector iframe instance (?display=1) reports its location --
   // the operator's own controller tab must never do this, see games_trivia.html.
   _ws.onopen  = () => { if (_isDisplay && !_inIframe) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); };
@@ -169,6 +171,7 @@ function connectWS() {
   _ws.onmessage = (evt) => {
     try {
       const msg = JSON.parse(evt.data);
+      if (msg.id != null) _lastEvtId = msg.id;   // replay cursor for the next reconnect (?since=)
       if (msg.event === 'chairs_state') applyState(msg.data || {});
     } catch(e) {}
   };
@@ -239,6 +242,16 @@ function renderSettings() {
   if (_cfgData.stop_sfx)     bits.push('Stop SFX <b>set</b>');
   if (_cfgData.stop_scene)   bits.push('Stop scene <b>set</b>');
   row.innerHTML = bits.map(b => `<span>${b}</span>`).join('<span>&middot;</span>');
+}
+
+// Tell the server the moment the operator picks a song / skip-intro, so a START from the handheld
+// remote (which sends no song) plays THIS song, not the config's Admin default.
+function chairsReportSong() {
+  const song = document.getElementById('songSelect').value;
+  if (!song) return;
+  const skip = parseFloat(document.getElementById('skipIntroInput').value) || 0;
+  fetch('/api/games/chairs/song', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ song, song_start_offset: skip })}).catch(() => {});
 }
 
 async function chairsStart() {

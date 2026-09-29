@@ -32,6 +32,9 @@ import itertools
 import datetime
 import subprocess
 import threading
+import collections
+import functools
+import queue
 import logging
 from logging.handlers import RotatingFileHandler
 import requests
@@ -117,9 +120,72 @@ def load_config():
         return _read_config_files()
     with _cfg_cache_lock:
         if _cfg_cache['key'] != key:
-            _cfg_cache['cfg'] = _read_config_files()
-            _cfg_cache['key'] = key
+            try:
+                _cfg_cache['cfg'] = _read_config_files()
+                _cfg_cache['key'] = key
+            except Exception as e:
+                # A hand edit / partial write left config.yaml unparseable while
+                # the app is running.  Keep serving the last good copy rather
+                # than 500-ing every endpoint (and the show with them).
+                if _cfg_cache.get('cfg') is None:
+                    raise
+                log.error(f"config.yaml unreadable ({e}) -- serving last good in-memory copy")
         return copy.deepcopy(_cfg_cache['cfg'])
+
+def validate_config(cfg):
+    """Return None if cfg has the minimum structure the app needs to boot and run,
+    else a human-readable reason.  Deliberately shallow: it exists to stop a
+    truncated/empty/garbage config from ever being written or booted from, not to
+    police every field."""
+    if not isinstance(cfg, dict):
+        return 'config is not a mapping'
+    exp = cfg.get('expedition')
+    if not isinstance(exp, dict) or not exp.get('name'):
+        return "missing 'expedition.name'"
+    aud = cfg.get('audio')
+    if not isinstance(aud, dict) or 'default_volume' not in aud:
+        return "missing 'audio.default_volume'"
+    for field in ('circles', 'roles', 'macros', 'scenes', 'show_flow', 'slides', 'sfx', 'battery_units'):
+        if field in cfg and not isinstance(cfg[field], list):
+            return f"'{field}' must be a list"
+    return None
+
+def _load_config_or_recover():
+    """Boot-time load with fallback.  If config.yaml is missing/corrupt/invalid,
+    restore the newest good copy (config.bak, then backups/, newest first) instead
+    of crash-looping under systemd until someone SSHes in.  The damaged file is
+    kept as config.yaml.corrupt-<ts> for inspection."""
+    problem = None
+    try:
+        cfg = load_config()
+        problem = validate_config(cfg)
+        if problem is None:
+            return cfg
+    except Exception as e:
+        problem = f'unreadable: {e}'
+    log.error(f"config.yaml is not usable ({problem}) -- looking for a good backup")
+    candidates = [CONFIG_PATH.with_suffix('.bak')]
+    try:
+        candidates += sorted((BASE_DIR / 'backups').glob('config_*.yaml'), reverse=True)
+    except Exception:
+        pass
+    for cand in candidates:
+        try:
+            if not Path(cand).exists():
+                continue
+            with open(cand) as f:
+                trial = yaml.load(f, Loader=_YAML_LOADER)
+            if validate_config(trial) is not None:
+                continue
+            if CONFIG_PATH.exists():
+                shutil.copy2(CONFIG_PATH, str(CONFIG_PATH) + f'.corrupt-{int(time.time())}')
+            shutil.copy2(cand, CONFIG_PATH)
+            log.error(f"config.yaml RESTORED from {Path(cand).name}")
+            _cfg_cache['key'] = None
+            return load_config()
+        except Exception as e:
+            log.error(f"backup {cand} unusable: {e}")
+    raise RuntimeError(f"config.yaml unusable ({problem}) and no valid backup found")
 
 def _collect_show_flow_assets(cfg):
     """Return all walkup video URLs — every circle, role, and game entry with a video asset.
@@ -198,6 +264,10 @@ def _write_config_backups(src_path):
 
 def save_config(cfg):
     global config
+    problem = validate_config(cfg)
+    if problem:
+        # Never persist something the app couldn't boot from.
+        raise ValueError(f'refusing to save invalid config: {problem}')
     with _config_lock:
         bak = CONFIG_PATH.with_suffix('.bak')
         tmp = CONFIG_PATH.with_suffix('.tmp')
@@ -255,7 +325,7 @@ def _bump_backup_change_counter():
     except Exception as e:
         log.debug(f'backup change counter skipped: {e}')
 
-config = load_config()
+config = _load_config_or_recover()
 log.info(f"Music Man Console starting — {config['expedition']['name']}")
 
 # ── FLASK APP ──
@@ -383,6 +453,10 @@ def _navigate_home_if_needed():
 
 _last_display_state = {'event': None, 'data': None}  # see api_display_show_file()/stop_meme
 
+_SLIDE_SUPERSEDERS = {'display_walkup', 'display_step', 'display_animation', 'display_clear', 'display_standby',
+                      'display_vs_card', 'display_karaoke_lobby', 'display_karaoke_countdown', 'display_karaoke',
+                      'display_h2h', 'display_h2h_winner'}
+
 def _ensure_display_for(event, data, delay=1.2, remember=True):
     """Send a display event, navigating home first if not on display.html.
 
@@ -391,7 +465,14 @@ def _ensure_display_for(event, data, delay=1.2, remember=True):
     a later "back to what was there" reverts to -- see _last_display_state,
     which always holds the last *remembered* event/data, i.e. effectively
     "what was showing right before the current transient thing fired"."""
-    global _display_url, _last_display_state
+    global _display_url, _last_display_state, current_slide
+    # current_slide is "the slide on the projector right now" and is what a display page shows when it
+    # (re)loads.  Any OTHER content taking the screen (walkup, step banner, karaoke, scoreboard...)
+    # supersedes it -- it used to linger, so a display/iPad reloaded after a walkup came up on the
+    # stale slide ("Let's Race" instead of the Vikings walkup) and a refresh didn't help.
+    # Overlays that sit on top of a slide (leaderboard, timers) don't count.
+    if event in _SLIDE_SUPERSEDERS:
+        current_slide = {}
     # Every non-game display event (walkup, slide, standby, H2H, ...) goes
     # through here -- the one shared choke point outside the game-iframe path
     # itself. Clearing 'revealed' here means a WS-reconnect self-heal (see
@@ -416,28 +497,104 @@ def _ensure_display_for(event, data, delay=1.2, remember=True):
     else:
         broadcast(event, data)
 
-def broadcast(event, data):
-    """Push state update to all connected WebSocket clients."""
-    msg = json.dumps({'event': event, 'data': data})
+# Per-client outbound queues.  Each WebSocket client gets its own bounded queue
+# and a daemon sender thread, so broadcast() NEVER blocks on a socket.  A client
+# that stops reading (locked iPad tab, kiosk that froze, WiFi walk-off without a
+# FIN) fills its own queue and gets dropped -- it can no longer stall audio
+# locks, the 1 Hz timer thread, the viz stream or the remote heartbeat.
+_WS_QUEUE_MAX = 300
+_ws_queues = {}   # ws -> queue.Queue of pre-serialised JSON strings
+
+def _ws_sender(ws, q):
+    """Drain one client's queue onto its socket.  None = shut down."""
+    try:
+        while True:
+            msg = q.get()
+            if msg is None:
+                return
+            ws.send(msg)
+    except Exception as e:
+        log.debug(f"WebSocket sender exiting: {e}")
+    finally:
+        _ws_drop(ws)
+
+def _ws_drop(ws):
+    """Forget a client and wake its handler thread so it exits.  Safe to call twice."""
     with ws_lock:
-        clients = list(ws_clients)
-    dead = set()
-    for client in clients:
+        ws_clients.discard(ws)
+        q = _ws_queues.pop(ws, None)
+    if q is not None:
         try:
-            client.send(msg)
-        except Exception as e:
-            log.debug(f"WebSocket send failed ({event}): {e}")
-            dead.add(client)
-    if dead:
-        with ws_lock:
-            ws_clients.difference_update(dead)
+            q.put_nowait(None)
+        except Exception:
+            pass
+        # Closing can block on a wedged peer -- never do it inline.
+        threading.Thread(target=lambda: _ws_close_quiet(ws), daemon=True).start()
+
+def _ws_close_quiet(ws):
+    try:
+        ws.close()
+    except Exception:
+        pass
+
+def _ws_enqueue(ws, msg):
+    q = _ws_queues.get(ws)
+    if q is None:
+        return False
+    try:
+        q.put_nowait(msg)
+        return True
+    except queue.Full:
+        log.warning("WebSocket client not reading -- dropping it")
+        _ws_drop(ws)
+        return False
+
+# Short replay buffer.  The server recycles every WebSocket every 10 minutes (and
+# WiFi hiccups drop them too); anything broadcast during the few seconds a client
+# is reconnecting used to be lost for good -- a timer start, a game reveal, a
+# karaoke pause.  Every event now carries a monotonically increasing id, and a
+# reconnecting client passes ?since=<last id it saw> so the server replays exactly
+# what it missed.  High-frequency streams are excluded (they self-correct within a
+# frame or two anyway).
+_evt_seq = 0
+_evt_buf = collections.deque(maxlen=400)   # (id, ts, json_msg)
+_EVT_NO_REPLAY = {'viz_music', 'viz_crowd', 'applause_level', 'ping', 'preload_assets',
+                  'walkup_preload', 'remote_status', 'display_preload_game'}
+_EVT_REPLAY_WINDOW_SEC = 90
+
+def broadcast(event, data):
+    """Push state update to all connected WebSocket clients (non-blocking)."""
+    global _evt_seq
+    with ws_lock:
+        _evt_seq += 1
+        eid = _evt_seq
+        msg = json.dumps({'event': event, 'data': data, 'id': eid})
+        if event not in _EVT_NO_REPLAY:
+            _evt_buf.append((eid, time.time(), msg))
+        clients = list(ws_clients)
+    for client in clients:
+        _ws_enqueue(client, msg)
 
 @sock.route('/ws')
 def websocket(ws):
     remote_ip = request.remote_addr or 'unknown'
+    q = queue.Queue(maxsize=_WS_QUEUE_MAX)
+    since = request.args.get('since', type=int)
     with ws_lock:
+        # Replay + register under the same lock broadcast() stamps ids under, so a
+        # reconnecting client gets every missed event exactly once, in order.
+        if since is not None and 0 <= since <= _evt_seq:
+            cutoff = time.time() - _EVT_REPLAY_WINDOW_SEC
+            for eid, ts, emsg in _evt_buf:
+                if eid > since and ts >= cutoff:
+                    try:
+                        q.put_nowait(emsg)
+                    except queue.Full:
+                        break
         ws_clients.add(ws)
+        _ws_queues[ws] = q
         ws_client_ips[remote_ip] = ws_client_ips.get(remote_ip, 0) + 1
+    threading.Thread(target=_ws_sender, args=(ws, q), daemon=True).start()
     log.info(f"WebSocket client connected ({len(ws_clients)} total)")
     # Each connection lives at most 10 minutes, then the client auto-reconnects.
     # Every 25s we attempt a send; if it fails the connection is dead and we exit,
@@ -450,10 +607,10 @@ def websocket(ws):
                 msg = ws.receive(timeout=25)
             except Exception:
                 break
+            if ws not in ws_clients:
+                break   # dropped by the sender (stuck/slow client)
             if msg is None:
-                try:
-                    ws.send(json.dumps({'event': 'ping', 'data': {}}))
-                except Exception:
+                if not _ws_enqueue(ws, json.dumps({'event': 'ping', 'data': {}})):
                     break
             else:
                 try:
@@ -468,8 +625,8 @@ def websocket(ws):
                 except Exception:
                     pass
     finally:
+        _ws_drop(ws)
         with ws_lock:
-            ws_clients.discard(ws)
             ws_client_ips[remote_ip] = max(0, ws_client_ips.get(remote_ip, 1) - 1)
             if ws_client_ips[remote_ip] == 0:
                 ws_client_ips.pop(remote_ip, None)
@@ -590,6 +747,7 @@ _last_scene_dmx  = {}    # node_id → [{start, channels}] (unscaled) from last 
 # ── VIZ STATE ─────────────────────────────────────────────────────────────────
 _viz_scene   = None   # 'music' | 'crowd' | None
 _crowd_state        = {'level': 0, 'climax': False}
+_crowd_climax_until = 0.0        # monotonic-ish guard: ignore a second CLIMAX press until this time
 _crowd_mode         = 'manual'   # 'manual' | 'auto' (auto = driven by pole mic dB)
 _crowd_post_climax  = False      # blocks anim + auto-poll until operator re-engages crowd
 _wled_udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -974,7 +1132,7 @@ _sound_levels    = {}    # node_id → {'level': 0-100, 'name': str, 'ip': str}
 _sound_poll_on   = False
 _crowd_anim_running = False  # separate flag so crowd LED anim can be stopped independently
 _sound_ema       = {}    # node_id → smoothed float (0-100); EMA across poll cycles
-_SOUND_EMA_ALPHA = 0.15  # ~13 s time constant at 2 s poll interval
+_SOUND_EMA_ALPHA = 0.5   # per 5 s poll: ~90% of a step within ~3 polls (was 0.15 -- tuned for a 2 s poll that no longer exists, so ~75 s to follow a cheer)
 
 # ── PLAYLIST ENGINE ──
 AUDIO_EXTS = {'.mp3', '.flac', '.ogg', '.wav', '.m4a', '.aac', '.opus'}
@@ -1270,8 +1428,12 @@ def fade_audio(duration=None):
 
 def _stop_music():
     """Stop music/playlist without touching the SFX channel."""
-    global _playlist_advance_id
+    global _playlist_advance_id, _audio_session
     _playlist_advance_id += 1
+    # Bump BEFORE taking _music_lock: any fade in progress (timer expiry, wheel spin
+    # music, a crossfade) checks _audio_session each step and bails, releasing the
+    # lock -- otherwise KILL ALL / a Chairs STOP sat waiting for a multi-second fade.
+    _audio_session += 1
     playlist_state['active']     = False
     playlist_state['track_name'] = ''
     with _music_lock:
@@ -1504,6 +1666,27 @@ countdown_state = {
     'end_display': '',
     'countdown_leds': False,
 }
+# The Games countdown's settings (duration, sounds, end display, LEDs) lived only in this
+# in-memory dict, so every service restart put them back to 180 s / no sounds.  Persist them
+# in a small file of their own (not config.yaml -- saving that snapshots backups and
+# re-broadcasts asset preloads, far too heavy for a settings tweak).
+COUNTDOWN_CFG_FILE = BASE_DIR / 'countdown_config.json'
+_COUNTDOWN_PERSIST_KEYS = ('duration', 'start_sound', 'start_sound_duration', 'start_sound_fade',
+                           'start_sound_loop', 'end_sound', 'end_display', 'show_end_display',
+                           'countdown_leds')
+
+def _load_countdown_cfg():
+    saved = _read_json_recover(COUNTDOWN_CFG_FILE, {})
+    if isinstance(saved, dict):
+        for k in _COUNTDOWN_PERSIST_KEYS:
+            if k in saved:
+                countdown_state[k] = saved[k]
+        countdown_state['seconds_remaining'] = countdown_state.get('duration', 180)
+
+def _save_countdown_cfg():
+    _write_json_atomic(COUNTDOWN_CFG_FILE, {k: countdown_state.get(k) for k in _COUNTDOWN_PERSIST_KEYS})
+
+_load_countdown_cfg()
 countdown_thread     = None
 countdown_stop_event = threading.Event()
 _cd_sound_stop          = threading.Event()
@@ -1515,81 +1698,96 @@ _timer_sound_looping    = False  # True only while a looping skit timer sound is
 _timer_sound_paused     = threading.Event()  # set while skit timer sound is pause-held
 _timer_pre_end_slide    = {}     # display state saved just before the end display fires
 
-def timer_worker():
+def _timer_tick():
     global timer_state
-    while not timer_stop_event.is_set():
-        time.sleep(1)
-        if not timer_state['running']:
-            continue
-        timer_state['seconds_remaining'] -= 1
-        broadcast('timer_state', timer_state)
-        # Warning
+    if not timer_state['running']:
+        return
+    timer_state['seconds_remaining'] -= 1
+    broadcast('timer_state', timer_state)
+    # Warning
+    tcfg = config.get('timer', {})
+    # LED strip countdown fill — runs every tick inside the warning window
+    if (tcfg.get('countdown_leds')
+            and 0 < timer_state['seconds_remaining'] <= tcfg.get('warning_at', 15)):
+        threading.Thread(target=_update_countdown_leds,
+                         args=(timer_state['seconds_remaining'],
+                               tcfg.get('warning_at', 15), tcfg),
+                         daemon=True).start()
+    if timer_state['seconds_remaining'] <= tcfg.get('warning_at', 15) \
+            and not timer_state['warning_fired']:
+        timer_state['warning_fired'] = True
+        sfx_name = tcfg.get('warning_sound', '')
+        if sfx_name:
+            sfx_path = _resolve_audio_file(sfx_name)
+            if sfx_path:
+                play_sfx(str(sfx_path))
+        warn_scene = tcfg.get('warning_scene', '')
+        if warn_scene:
+            wled_set_scene(warn_scene)
+        disp_file = tcfg.get('warning_display', '')
+        if disp_file:
+            _broadcast_timer_display(disp_file)
+        timer_state['visible_on_display'] = True
+        broadcast('timer_warning', {'seconds_remaining': timer_state['seconds_remaining'],
+                                    'warning_fired': True, 'running': True})
+        log.info("Timer: warning fired")
+    # Expired
+    if timer_state['seconds_remaining'] <= 0:
+        timer_state['seconds_remaining'] = 0
+        timer_state['running'] = False
+        timer_state['expired'] = True
         tcfg = config.get('timer', {})
-        # LED strip countdown fill — runs every tick inside the warning window
-        if (tcfg.get('countdown_leds')
-                and 0 < timer_state['seconds_remaining'] <= tcfg.get('warning_at', 15)):
-            threading.Thread(target=_update_countdown_leds,
-                             args=(timer_state['seconds_remaining'],
-                                   tcfg.get('warning_at', 15), tcfg),
-                             daemon=True).start()
-        if timer_state['seconds_remaining'] <= tcfg.get('warning_at', 15) \
-                and not timer_state['warning_fired']:
-            timer_state['warning_fired'] = True
-            sfx_name = tcfg.get('warning_sound', '')
-            if sfx_name:
-                sfx_path = _resolve_audio_file(sfx_name)
-                if sfx_path:
-                    play_sfx(str(sfx_path))
-            warn_scene = tcfg.get('warning_scene', '')
-            if warn_scene:
-                wled_set_scene(warn_scene)
-            disp_file = tcfg.get('warning_display', '')
-            if disp_file:
-                _broadcast_timer_display(disp_file)
-            timer_state['visible_on_display'] = True
-            broadcast('timer_warning', {'seconds_remaining': timer_state['seconds_remaining'],
-                                        'warning_fired': True, 'running': True})
-            log.info("Timer: warning fired")
-        # Expired
-        if timer_state['seconds_remaining'] <= 0:
-            timer_state['seconds_remaining'] = 0
-            timer_state['running'] = False
-            timer_state['expired'] = True
-            tcfg = config.get('timer', {})
-            # If start sound is still playing, fade it out before the end sound
-            if _timer_sound_looping:
-                _timer_sound_stop.set()
-                time.sleep(0.1)  # let the sound thread exit its loop
-                fade_sec = float(timer_state.get('start_sound_fade', 3))
-                my_audio_session = _audio_session
-                with _music_lock:
-                    if fade_sec > 0:
-                        vol = pygame.mixer.music.get_volume()
-                        steps = max(10, int(fade_sec * 20))
-                        interval = fade_sec / steps
-                        for i in range(steps - 1, -1, -1):
-                            if _audio_session != my_audio_session:
-                                break  # a newer play_audio took over
-                            pygame.mixer.music.set_volume(vol * i / steps)
-                            time.sleep(interval)
-                    pygame.mixer.music.stop()
-                    pygame.mixer.music.set_volume(1.0)
-            sfx_name = tcfg.get('end_sound', '')
-            if sfx_name:
-                sfx_path = _resolve_audio_file(sfx_name)
-                if sfx_path:
-                    play_sfx(str(sfx_path))
-            end_scene = tcfg.get('end_scene', '')
-            if end_scene:
-                wled_set_scene(end_scene)
-            disp_file = tcfg.get('end_display', '')
-            if disp_file and timer_state.get('show_end_display', True):
-                global _timer_pre_end_slide
-                _timer_pre_end_slide = dict(current_slide)
-                _broadcast_timer_display(disp_file)
-            timer_state['visible_on_display'] = False
-            broadcast('timer_expired', {})
-            log.info("Timer: expired")
+        # If start sound is still playing, fade it out before the end sound
+        if _timer_sound_looping:
+            _timer_sound_stop.set()
+            time.sleep(0.1)  # let the sound thread exit its loop
+            fade_sec = float(timer_state.get('start_sound_fade', 3))
+            my_audio_session = _audio_session
+            with _music_lock:
+                if fade_sec > 0:
+                    vol = pygame.mixer.music.get_volume()
+                    steps = max(10, int(fade_sec * 20))
+                    interval = fade_sec / steps
+                    for i in range(steps - 1, -1, -1):
+                        if _audio_session != my_audio_session:
+                            break  # a newer play_audio took over
+                        pygame.mixer.music.set_volume(vol * i / steps)
+                        time.sleep(interval)
+                pygame.mixer.music.stop()
+                pygame.mixer.music.set_volume(1.0)
+        sfx_name = tcfg.get('end_sound', '')
+        if sfx_name:
+            sfx_path = _resolve_audio_file(sfx_name)
+            if sfx_path:
+                play_sfx(str(sfx_path))
+        end_scene = tcfg.get('end_scene', '')
+        if end_scene:
+            wled_set_scene(end_scene)
+        disp_file = tcfg.get('end_display', '')
+        if disp_file and timer_state.get('show_end_display', True):
+            global _timer_pre_end_slide
+            _timer_pre_end_slide = dict(current_slide)
+            _broadcast_timer_display(disp_file)
+        timer_state['visible_on_display'] = False
+        broadcast('timer_expired', {})
+        log.info("Timer: expired")
+
+def timer_worker():
+    """Drift-corrected 1 Hz ticker.  One bad tick (a pygame/WLED exception) used to
+    kill this thread for good -- the timer then silently froze until the service
+    restarted.  Each tick now runs guarded, and sleeps to a monotonic schedule so the
+    work inside a tick (WLED HTTP, SFX loads) doesn't accumulate as drift."""
+    next_t = time.monotonic()
+    while not timer_stop_event.is_set():
+        next_t += 1.0
+        now = time.monotonic()
+        if next_t < now - 2.0:      # fell far behind (long stall): don't burst-decrement to catch up
+            next_t = now
+        time.sleep(max(0.0, next_t - now))
+        try:
+            _timer_tick()
+        except Exception:
+            log.exception("timer_worker: tick failed (continuing)")
 
 def start_timer_thread():
     global timer_thread, timer_stop_event
@@ -1597,36 +1795,51 @@ def start_timer_thread():
     timer_thread = threading.Thread(target=timer_worker, daemon=True)
     timer_thread.start()
 
+def _countdown_tick():
+    if not countdown_state['running']:
+        return
+    countdown_state['seconds_remaining'] -= 1
+    broadcast('countdown_state', countdown_state)
+    # LED strip countdown fill — runs the full duration for games countdown
+    if (countdown_state.get('countdown_leds')
+            and 0 < countdown_state['seconds_remaining']):
+        threading.Thread(target=_update_countdown_leds,
+                         args=(countdown_state['seconds_remaining'],
+                               countdown_state['duration'], countdown_state),
+                         daemon=True).start()
+    if countdown_state['seconds_remaining'] <= 0:
+        countdown_state['seconds_remaining'] = 0
+        countdown_state['running'] = False
+        countdown_state['expired'] = True
+        sfx_name = countdown_state.get('end_sound', '')
+        if sfx_name:
+            sfx_path = _resolve_audio_file(sfx_name)
+            if sfx_path:
+                play_sfx(str(sfx_path))
+        disp_file = countdown_state.get('end_display', '')
+        if disp_file and countdown_state.get('show_end_display', True):
+            global _cd_pre_end_slide
+            _cd_pre_end_slide = dict(current_slide)
+            _broadcast_timer_display(disp_file)
+        broadcast('countdown_expired', {})
+        log.info("Countdown: expired")
+
 def countdown_worker():
+    """Drift-corrected 1 Hz ticker.  One bad tick (a pygame/WLED exception) used to
+    kill this thread for good -- the timer then silently froze until the service
+    restarted.  Each tick now runs guarded, and sleeps to a monotonic schedule so the
+    work inside a tick (WLED HTTP, SFX loads) doesn't accumulate as drift."""
+    next_t = time.monotonic()
     while not countdown_stop_event.is_set():
-        time.sleep(1)
-        if not countdown_state['running']:
-            continue
-        countdown_state['seconds_remaining'] -= 1
-        broadcast('countdown_state', countdown_state)
-        # LED strip countdown fill — runs the full duration for games countdown
-        if (countdown_state.get('countdown_leds')
-                and 0 < countdown_state['seconds_remaining']):
-            threading.Thread(target=_update_countdown_leds,
-                             args=(countdown_state['seconds_remaining'],
-                                   countdown_state['duration'], countdown_state),
-                             daemon=True).start()
-        if countdown_state['seconds_remaining'] <= 0:
-            countdown_state['seconds_remaining'] = 0
-            countdown_state['running'] = False
-            countdown_state['expired'] = True
-            sfx_name = countdown_state.get('end_sound', '')
-            if sfx_name:
-                sfx_path = _resolve_audio_file(sfx_name)
-                if sfx_path:
-                    play_sfx(str(sfx_path))
-            disp_file = countdown_state.get('end_display', '')
-            if disp_file and countdown_state.get('show_end_display', True):
-                global _cd_pre_end_slide
-                _cd_pre_end_slide = dict(current_slide)
-                _broadcast_timer_display(disp_file)
-            broadcast('countdown_expired', {})
-            log.info("Countdown: expired")
+        next_t += 1.0
+        now = time.monotonic()
+        if next_t < now - 2.0:      # fell far behind (long stall): don't burst-decrement to catch up
+            next_t = now
+        time.sleep(max(0.0, next_t - now))
+        try:
+            _countdown_tick()
+        except Exception:
+            log.exception("countdown_worker: tick failed (continuing)")
 
 def start_countdown_thread():
     global countdown_thread, countdown_stop_event
@@ -1645,31 +1858,115 @@ def _resolve_audio_file(name: str, prefer_music: bool = False):
             return p
     return None
 
-def load_games() -> dict:
+# Guards every read-modify-write of games.json.  Re-entrant so load_games()'s
+# id backfill can call save_games() from inside a handler that already holds it.
+_games_lock = threading.RLock()
+
+def _games_txn(fn):
+    """Decorator: run a route handler that mutates games.json under _games_lock,
+    so two overlapping record/edit calls can't clobber each other's write."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _games_lock:
+            return fn(*args, **kwargs)
+    return wrapper
+
+_h2h_lock = threading.RLock()
+
+def _h2h_txn(fn):
+    """Serialise head_to_head.json read-modify-write: two near-simultaneous score
+    presses (Console, Stream Deck, Trivia) both loaded the same file and the later
+    save dropped the earlier point while the display still showed it."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _h2h_lock:
+            return fn(*args, **kwargs)
+    return wrapper
+
+_game_configs_lock = threading.RLock()
+
+def _game_configs_txn(fn):
+    """Serialise game_configs.json read-modify-write (autosave vs SAVE ENTRIES)."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _game_configs_lock:
+            return fn(*args, **kwargs)
+    return wrapper
+
+def _read_json_recover(path: Path, default):
+    """Read a JSON data file, recovering instead of silently treating damage as empty.
+
+    Missing file -> default (first run).  Unparseable file (power cut mid-write,
+    SD glitch) -> the damaged file is preserved as <name>.corrupt-<ts>, the last
+    good <name>.bak is used if it parses, and the problem is logged loudly.  The
+    old behaviour returned an empty value, so the very next save overwrote the
+    survivors with a near-empty file and every result/config was gone.
+    """
+    if not Path(path).exists():
+        return default
     try:
-        with open(GAMES_FILE) as f:
-            games = json.load(f)
-    except Exception:
-        return {}
-    # Backfill a stable id onto any entry recorded before entries had one —
-    # renaming/deleting a specific runner needs something to target that
-    # isn't just "same label", since duplicate names are the normal case.
-    changed = False
-    for entries in games.values():
-        for entry in entries:
-            if 'id' not in entry:
-                entry['id'] = uuid.uuid4().hex[:8]
-                changed = True
-    if changed:
-        save_games(games)
-    return games
+        with open(path) as f:
+            return json.load(f)
+    except Exception as e:
+        log.error(f"{Path(path).name} is unreadable ({e}) -- attempting recovery from backup")
+        try:
+            shutil.copy2(path, str(path) + f'.corrupt-{int(time.time())}')
+        except Exception:
+            pass
+        bak = Path(str(path) + '.bak')
+        try:
+            with open(bak) as f:
+                data = json.load(f)
+            log.error(f"{Path(path).name}: recovered from {bak.name}")
+            return data
+        except Exception:
+            log.error(f"{Path(path).name}: no usable backup -- starting empty (damaged copy kept)")
+            return default
+
+def _write_json_atomic(path: Path, data, indent=2):
+    """Atomic JSON write: temp file + fsync + rename, keeping the previous good
+    version as <name>.bak.  Survives a power cut at any point."""
+    path = Path(path)
+    tmp  = path.with_name(path.name + '.tmp')
+    try:
+        with open(tmp, 'w') as f:
+            json.dump(data, f, indent=indent)
+            f.flush()
+            os.fsync(f.fileno())
+        if path.exists():
+            try:
+                shutil.copy2(path, str(path) + '.bak')
+            except Exception:
+                pass
+        os.replace(tmp, path)
+        return True
+    except Exception as e:
+        log.error(f"write {path.name}: {e}")
+        try: tmp.unlink()
+        except OSError: pass
+        return False
+
+def load_games() -> dict:
+    with _games_lock:
+        games = _read_json_recover(GAMES_FILE, {})
+        if not isinstance(games, dict):
+            return {}
+        # Backfill a stable id onto any entry recorded before entries had one —
+        # renaming/deleting a specific runner needs something to target that
+        # isn't just "same label", since duplicate names are the normal case.
+        changed = False
+        for entries in games.values():
+            for entry in entries:
+                if 'id' not in entry:
+                    entry['id'] = uuid.uuid4().hex[:8]
+                    changed = True
+        if changed:
+            save_games(games)
+        return games
 
 def save_games(data: dict):
-    try:
-        with open(GAMES_FILE, 'w') as f:
-            json.dump(data, f, indent=2)
-    except Exception as e:
-        log.error(f"save_games: {e}")
+    with _games_lock:
+        _write_json_atomic(GAMES_FILE, data)
 
 # ── GAME CONFIG REGISTRY ──
 GAME_TYPES = {
@@ -1765,9 +2062,6 @@ GAME_TYPES = {
             {'key': 'run_scene',  'type': 'select', 'label': 'Lighting scene while running (optional)', 'source': 'scenes'},
             {'key': 'stop_scene', 'type': 'select', 'label': 'Lighting scene on stop (optional)', 'source': 'scenes'},
             {'key': 'intro_entry',       'type': 'select', 'label': 'Intro Game Entry (optional)', 'source': 'game_entries'},
-            {'key': 'fallback_headline', 'type': 'text',   'label': 'Screen Headline (used if no Game Entry above)'},
-            {'key': 'fallback_text',     'type': 'text',   'label': 'Screen Text'},
-            {'key': 'fallback_image',    'type': 'select', 'label': 'Screen Image', 'source': 'display_images'},
         ],
     },
     'trivia': {
@@ -1812,11 +2106,8 @@ def _bump_live_game_seq():
     return _live_game_seq
 
 def load_game_configs() -> list:
-    try:
-        with open(GAME_CONFIGS_FILE) as f:
-            return json.load(f)
-    except Exception:
-        return []
+    data = _read_json_recover(GAME_CONFIGS_FILE, [])
+    return data if isinstance(data, list) else []
 
 def _vs_card_resolve_images(card: dict, card_id: str) -> dict:
     """Inject image_url for any side where a photo file actually exists on disk."""
@@ -1832,11 +2123,8 @@ def _vs_card_resolve_images(card: dict, card_id: str) -> dict:
     return card
 
 def load_vs_cards() -> list:
-    try:
-        with open(VS_CARDS_FILE) as f:
-            return json.load(f)
-    except Exception:
-        return []
+    data = _read_json_recover(VS_CARDS_FILE, [])
+    return data if isinstance(data, list) else []
 
 def save_vs_cards(data: list):
     tmp = VS_CARDS_FILE.with_suffix('.tmp')
@@ -1851,11 +2139,8 @@ def save_vs_cards(data: list):
         except OSError: pass
 
 def load_head_to_head() -> list:
-    try:
-        with open(HEAD_TO_HEAD_FILE) as f:
-            return json.load(f)
-    except Exception:
-        return []
+    data = _read_json_recover(HEAD_TO_HEAD_FILE, [])
+    return data if isinstance(data, list) else []
 
 def save_head_to_head(data: list):
     tmp = HEAD_TO_HEAD_FILE.with_suffix('.tmp')
@@ -1870,16 +2155,8 @@ def save_head_to_head(data: list):
         except OSError: pass
 
 def save_game_configs(data: list):
-    tmp = GAME_CONFIGS_FILE.with_suffix('.tmp')
-    try:
-        with _config_lock:
-            with open(tmp, 'w') as f:
-                json.dump(data, f, indent=2)
-            os.replace(tmp, GAME_CONFIGS_FILE)
-    except Exception as e:
-        log.error(f"save_game_configs: {e}")
-        try: tmp.unlink()
-        except OSError: pass
+    with _config_lock:
+        _write_json_atomic(GAME_CONFIGS_FILE, data)
 
 # ── WLED HTTP API ──
 _ip_resolve_cache    = {}    # hostname -> (ip, resolved_at)
@@ -2505,8 +2782,29 @@ def kill_everything():
     _walkup_fade_cancel = threading.Event()
     _macro_cancel.set()  # stops any running macro, including a looping one
     _macro_cancel.clear()
+    # Karaoke's channels get stopped by stop_audio() below, but karaoke_state stayed
+    # "live/playing" -- Console kept the karaoke bar up, the lyric ticker ran on
+    # silence, and the operator had to hunt for END KARAOKE.  End it properly first.
+    end_karaoke(show_standby=False)
     stop_audio()
     timer_state['running'] = False
+    # Same for the game meters/rounds: stop what's running instead of leaving the
+    # Console controller looking live while everything else went dark.
+    global _closest_countdown_token
+    if closest_state.get('running') or closest_state.get('countdown'):
+        _closest_countdown_token += 1
+        _closest_stop_loop()
+        closest_state.update({'running': False, 'start_ms': None, 'stopped_value': None, 'countdown': 0})
+        broadcast('closest_state', closest_state)
+    if chairs_state.get('playing'):
+        with _chairs_lock:
+            global _chairs_stop_token
+            _chairs_stop_token += 1
+            chairs_state['playing'] = False
+        broadcast('chairs_state', chairs_state)
+    if countdown_state.get('running'):
+        countdown_state['running'] = False
+        broadcast('countdown_state', countdown_state)
     kill_lights()
     # Stopping the macro thread doesn't undo whatever it last put on the
     # projector (a slide, video, viz overlay) -- display.html never had a
@@ -2812,11 +3110,13 @@ def fire_karaoke_live():
     _karaoke_session += 1
     system_cfg   = config.get('system', {})
     walkup_scene = system_cfg.get('karaoke_walkup_scene')
-    song_scene   = system_cfg.get('karaoke_song_scene')
+    # Only the walk-up scene fires here.  The song scene used to fire in a second
+    # thread at the same instant, and wled_set_scene's epoch check lets whichever
+    # thread lands last cancel the other -- nondeterministic, and the walk-up scene
+    # mostly never appeared.  The song scene now fires when the song actually starts
+    # (see _begin_karaoke_playback).
     if walkup_scene:
         threading.Thread(target=wled_set_scene, args=(walkup_scene,), daemon=True).start()
-    if song_scene and song_scene != walkup_scene:
-        threading.Thread(target=wled_set_scene, args=(song_scene,), daemon=True).start()
 
     karaoke_state['live']              = True
     karaoke_state['revealed']          = False
@@ -2972,8 +3272,10 @@ def _begin_karaoke_playback(song, instrumental_sound, vocal_sound, my_session):
     putting both tracks on the identical Channel-based timing path is the
     actual fix."""
     try:
-        with _music_lock:
-            pygame.mixer.music.stop()  # silence any regular background music karaoke is replacing
+        # _stop_music(), not a bare mixer.music.stop(): that also clears the playlist
+        # state and bumps the advance id, so the playlist watcher doesn't see "not busy"
+        # a second later and start the next background track over the karaoke song.
+        _stop_music()
         karaoke_state['vocal_muted'] = False  # fresh start -- always unmuted, before the volume calc below reads it
         _karaoke_instrumental_channel.set_volume(audio_state.get('volume', 80) / 100)
         _karaoke_vocal_channel.set_volume(_karaoke_vocal_target_volume())
@@ -2996,6 +3298,9 @@ def _begin_karaoke_playback(song, instrumental_sound, vocal_sound, my_session):
     broadcast('karaoke_state', karaoke_state)
     _ensure_display_for('display_karaoke', dict(karaoke_state))
     log.info(f"Karaoke started: {song.get('title')}")
+    song_scene = config.get('system', {}).get('karaoke_song_scene')
+    if song_scene:
+        threading.Thread(target=wled_set_scene, args=(song_scene,), daemon=True).start()
 
     duration = song.get('duration', 0)
     if duration > 0:
@@ -3184,8 +3489,7 @@ def end_karaoke(show_standby=True):
     _karaoke_session += 1
     _karaoke_stop_event.set()
     _karaoke_stop_event.clear()
-    with _music_lock:
-        pygame.mixer.music.stop()
+    _stop_music()   # not a bare mixer.music.stop() -- see _begin_karaoke_playback
     if _karaoke_instrumental_channel:
         _karaoke_instrumental_channel.stop()
     if _karaoke_vocal_channel:
@@ -4317,6 +4621,7 @@ def api_head_to_head_get(game_id):
     return jsonify({**game, 'contestants_resolved': _h2h_resolve_contestants(game)})
 
 @app.route('/api/head_to_head', methods=['POST'])
+@_h2h_txn
 def api_head_to_head_save():
     game = request.get_json() or {}
     if not game.get('name', '').strip():
@@ -4349,6 +4654,7 @@ def api_head_to_head_save():
     return jsonify({'ok': True, 'id': gid})
 
 @app.route('/api/head_to_head/<game_id>', methods=['DELETE'])
+@_h2h_txn
 def api_head_to_head_delete(game_id):
     import shutil
     games = [g for g in load_head_to_head() if g['id'] != game_id]
@@ -4370,6 +4676,7 @@ def api_h2h_asset(game_id, contestant_id):
     return '', 404
 
 @app.route('/api/head_to_head/<game_id>/asset/<contestant_id>', methods=['DELETE'])
+@_h2h_txn
 def api_h2h_asset_delete(game_id, contestant_id):
     if '..' in game_id or '..' in contestant_id:
         return jsonify({'ok': False}), 400
@@ -4390,6 +4697,7 @@ def api_h2h_asset_delete(game_id, contestant_id):
     return jsonify({'ok': True})
 
 @app.route('/api/head_to_head/<game_id>/asset/<contestant_id>/link', methods=['POST'])
+@_h2h_txn
 def api_h2h_asset_link(game_id, contestant_id):
     """Copy a display-library image into a contestant's photo slot."""
     import shutil as _shutil
@@ -4423,6 +4731,7 @@ def api_h2h_asset_link(game_id, contestant_id):
     return jsonify({'ok': True})
 
 @app.route('/api/head_to_head/<game_id>/score', methods=['POST'])
+@_h2h_txn
 def api_head_to_head_score(game_id):
     data = request.get_json() or {}
     contestant_id = data.get('contestant_id', '')
@@ -4456,6 +4765,7 @@ def api_head_to_head_score(game_id):
     return jsonify({'ok': True, 'score': scores[contestant_id]})
 
 @app.route('/api/head_to_head/<game_id>/set_score', methods=['POST'])
+@_h2h_txn
 def api_head_to_head_set_score(game_id):
     data = request.get_json() or {}
     contestant_id = data.get('contestant_id', '')
@@ -4486,6 +4796,7 @@ def api_head_to_head_multiplier(game_id):
     return jsonify({'ok': True, 'value': _h2h_multiplier})
 
 @app.route('/api/head_to_head/<game_id>/reset', methods=['POST'])
+@_h2h_txn
 def api_head_to_head_reset(game_id):
     games = load_head_to_head()
     game  = next((g for g in games if g['id'] == game_id), None)
@@ -4527,9 +4838,15 @@ def _show_head_to_head(game_id):
     if entry:
         duration = entry.get('walkup', {}).get('duration', 30)
         fire_game_entry(intro_id)
+        # fire_game_entry() hands back a fresh cancel event (same trick _launch_game uses):
+        # if the operator advances to another step during the intro, that step's own
+        # walkup/slide replaces it and sets this event, and the scoreboard must NOT
+        # then pop up over the new content when the timer runs out.
+        cancel_ev = _walkup_fade_cancel
         def _reveal():
-            time.sleep(duration)
-            broadcast('display_h2h', payload)
+            if cancel_ev.wait(timeout=duration):
+                return
+            _ensure_display_for('display_h2h', payload)
         threading.Thread(target=_reveal, daemon=True).start()
     else:
         _ensure_display_for('display_h2h', payload)
@@ -4560,6 +4877,7 @@ def api_head_to_head_winner(game_id):
     return jsonify({'ok': True})
 
 @app.route('/api/head_to_head/<game_id>/contestant/<contestant_id>', methods=['POST'])
+@_h2h_txn
 def api_h2h_update_contestant(game_id, contestant_id):
     """Live rename (or recolor) a contestant from the Console, without needing Admin."""
     data = request.get_json() or {}
@@ -4964,6 +5282,8 @@ def _end_meme():
     broadcast('meme_state', _meme_state)
     if was_overlay:
         broadcast('display_meme_cleared', {})
+    elif _restore_karaoke_display():
+        pass   # karaoke live: re-derive from CURRENT state -- the remembered snapshot is stale after a pause/resume
     elif _last_display_state.get('event'):
         _ensure_display_for(_last_display_state['event'], _last_display_state['data'])
     else:
@@ -5201,6 +5521,12 @@ def api_state():
         'viz_scene':  _viz_scene,
         'startup_id': _startup_id,
         'live_game':  _current_live_game,
+        'remote_test': bool(remote_test_state.get('active')),
+        # Server wall-clock at response time.  Clients compute offset = server_now - Date.now()
+        # so time-based displays (lyrics, countdown, stopwatch) don't depend on the Pi and
+        # the projector agreeing on what time it is -- the Pi is offline at the campfire and
+        # can boot with a stale clock.
+        'server_now_ms': int(time.time() * 1000),
         'display_state': {
             'circle': current_circle,
             'slide':  current_slide,
@@ -5212,6 +5538,11 @@ def api_state():
             'expedition': config['expedition']['name'],
         }
     })
+
+@app.route('/api/time')
+def api_time():
+    """Server wall-clock in ms -- lets clients compute an offset (see static/clock.js)."""
+    return jsonify({'now_ms': int(time.time() * 1000)})
 
 @app.route('/api/remote/state')
 def api_remote_state():
@@ -5257,6 +5588,8 @@ def api_remote_state():
             cs['live_value'] = _closest_value_at(cfg, int(time.time() * 1000) - cs['start_ms'])
         else:
             cs['live_value'] = cs.get('stopped_value')
+            if cs['live_value'] is None:
+                cs['live_value'] = cfg.get('min_value', 0)   # idle/reset: show the start value, not a null the firmware renders as 0
         cs['target_value'] = cfg.get('target_value')
         cs['unit_label']   = cfg.get('unit_label', '')
         cs['decimals']     = cfg.get('decimals', 0)
@@ -5280,7 +5613,9 @@ def api_remote_state():
         'live_game': live_game,
         'timer': timer_state,
         'stopwatch': stopwatch,
-        'karaoke': karaoke_state,
+        # Only what the remote reads.  karaoke_state carries the whole lyrics array (several KB)
+        # and it was re-sent and re-parsed on the ESP32 every 3 s poll.
+        'karaoke': {k: karaoke_state.get(k) for k in ('live', 'playing', 'vocal_muted', 'title', 'artist')},
         'remote_test': remote_test_state.get('active', False),
         **game_live,
     })
@@ -5573,6 +5908,11 @@ def api_timer_reset():
             _ensure_display_for('display_slide', saved)
         else:
             _ensure_display_for('display_standby', {})
+    # RESET also takes the timer off the projector.  It used to leave the frozen
+    # full-duration number up while Console (which assumed it was hidden) flipped its
+    # button to "SHOW" -- so the next tap on it re-showed instead of hiding.
+    timer_state['visible_on_display'] = False
+    broadcast('timer_hide', {})
     log.info("Timer reset")
     return jsonify({'ok': True})
 
@@ -5726,6 +6066,7 @@ def api_countdown_set():
         countdown_state['countdown_leds'] = bool(data['countdown_leds'])
         changed = True
     if changed:
+        _save_countdown_cfg()
         broadcast('countdown_state', countdown_state)
     return jsonify({'ok': True, 'countdown': countdown_state})
 
@@ -5865,6 +6206,7 @@ def api_countdown_reset():
             _ensure_display_for('display_slide', saved)
         else:
             _ensure_display_for('display_standby', {})
+    broadcast('timer_hide', {})   # same as the skit timer: RESET clears the overlay so Console's SHOW/HIDE button stays truthful
     return jsonify({'ok': True, 'countdown': countdown_state})
 
 @app.route('/api/countdown/show')
@@ -5889,6 +6231,7 @@ def _is_pending_entry(e):
     return 'ms' not in e and 'score' not in e and 'distance' not in e
 
 @app.route('/api/games/record', methods=['POST'])
+@_games_txn
 def api_games_record():
     data     = request.json or {}
     game     = data.get('game', '').strip()
@@ -5933,6 +6276,7 @@ def api_games_record():
     return jsonify({'ok': True, 'games': games})
 
 @app.route('/api/games/new', methods=['POST'])
+@_games_txn
 def api_games_new():
     data = request.json or {}
     name = data.get('name', '').strip()
@@ -5946,6 +6290,7 @@ def api_games_new():
     return jsonify({'ok': True, 'games': games})
 
 @app.route('/api/games/clear', methods=['POST'])
+@_games_txn
 def api_games_clear():
     data = request.json or {}
     name = data.get('name', '').strip()
@@ -5957,6 +6302,7 @@ def api_games_clear():
     return jsonify({'ok': True})
 
 @app.route('/api/games/delete', methods=['POST'])
+@_games_txn
 def api_games_delete():
     data = request.json or {}
     name = data.get('name', '').strip()
@@ -5968,6 +6314,7 @@ def api_games_delete():
     return jsonify({'ok': True})
 
 @app.route('/api/games/entry/update', methods=['POST'])
+@_games_txn
 def api_games_entry_update():
     """Rename a recorded runner, or correct their recorded time/score."""
     data  = request.json or {}
@@ -5980,6 +6327,12 @@ def api_games_entry_update():
         return jsonify({'ok': False, 'error': 'entry not found'}), 404
     if 'label' in data:
         entry['label'] = (data.get('label') or '').strip() or 'Runner'
+    if data.get('clear_result'):
+        # Undo a recorded result: keep the name, drop the number -- back to a
+        # name-only "still waiting" entry (same shape bulk_add creates).
+        for k in ('ms', 'score', 'distance', 'value'):
+            entry.pop(k, None)
+        entries.sort(key=_is_pending_entry)   # stable: ranked rows keep their order, pending sinks to the end
     if 'ms' in data and data['ms'] is not None:
         entry['ms'] = int(data['ms'])
         entry['at'] = int(time.time())
@@ -5999,6 +6352,7 @@ def api_games_entry_update():
     return jsonify({'ok': True, 'games': games})
 
 @app.route('/api/games/entry/delete', methods=['POST'])
+@_games_txn
 def api_games_entry_delete():
     """Remove a single runner from a game's leaderboard (not the whole game)."""
     data  = request.json or {}
@@ -6015,6 +6369,7 @@ def api_games_entry_delete():
     return jsonify({'ok': True, 'games': games})
 
 @app.route('/api/games/entry/bulk_add', methods=['POST'])
+@_games_txn
 def api_games_entry_bulk_add():
     """Seed a game's leaderboard with every contestant's name in one shot --
     e.g. read off during introductions, before anyone's actually played --
@@ -6097,16 +6452,52 @@ def api_get_game_configs():
         configs = [c for c in configs if c.get('game_type_id') == gt]
     return jsonify(configs)
 
+_RESULTS_BUCKET_TYPES = ('timed_competition', 'closest_to_mark')
+
+def _validate_game_config(game_type_id, name, data, exclude_id=None):
+    """Return an error string for a config that can't work, else None.  Only catches
+    settings that make the game unplayable or corrupt its results -- an in-progress
+    edit (e.g. a wheel with one entry so far) is not an error here."""
+    if game_type_id in _RESULTS_BUCKET_TYPES:
+        # The results bucket in games.json is keyed by the config NAME, so two configs
+        # with the same name would share (and GO LIVE would wipe) one leaderboard.
+        nm = (name or '').strip().lower()
+        for c in load_game_configs():
+            if c.get('id') != exclude_id and c.get('game_type_id') in _RESULTS_BUCKET_TYPES \
+                    and (c.get('name') or '').strip().lower() == nm:
+                return f'another Timed Competition / Closest game is already named "{name}" -- names must be unique (results are stored under the name)'
+    if game_type_id == 'closest_to_mark' and isinstance(data, dict):
+        try:
+            lo = float(data.get('min_value', 0)); hi = float(data.get('max_value', 20))
+            tgt = float(data.get('target_value', 10)); spd = float(data.get('speed', 6))
+            dec = int(float(data.get('decimals', 0) or 0))
+        except (TypeError, ValueError):
+            return 'Start, End, Target, Seconds per pass and Decimal places must all be numbers'
+        if hi <= lo:
+            return 'End value must be greater than Start value'
+        if not (lo <= tgt <= hi):
+            return f'Target ({tgt:g}) must be between Start ({lo:g}) and End ({hi:g}) -- otherwise nobody can win'
+        if spd <= 0:
+            return 'Seconds per pass must be greater than 0'
+        if not (0 <= dec <= 4):
+            return 'Decimal places must be between 0 and 4'
+    return None
+
 @app.route('/api/game_configs', methods=['POST'])
+@_game_configs_txn
 def api_create_game_config():
     data = request.json or {}
     if not data.get('game_type_id') or data['game_type_id'] not in GAME_TYPES:
         return jsonify({'ok': False, 'error': 'invalid game_type_id'}), 400
     now = int(time.time())
+    _nm = (data.get('name') or GAME_TYPES[data['game_type_id']]['label']).strip()
+    _err = _validate_game_config(data['game_type_id'], _nm, data.get('data', {}))
+    if _err:
+        return jsonify({'ok': False, 'error': _err}), 400
     cfg_entry = {
         'id':           str(uuid.uuid4()),
         'game_type_id': data['game_type_id'],
-        'name':         (data.get('name') or GAME_TYPES[data['game_type_id']]['label']).strip(),
+        'name':         _nm,
         'data':         data.get('data', {}),
         'created_at':   now,
         'updated_at':   now,
@@ -6125,12 +6516,28 @@ def api_get_game_config(config_id):
     return jsonify(match)
 
 @app.route('/api/game_configs/<config_id>', methods=['PUT'])
+@_game_configs_txn
 def api_update_game_config(config_id):
     data    = request.json or {}
     configs = load_game_configs()
     for c in configs:
         if c['id'] == config_id:
-            if 'name' in data: c['name'] = data['name'].strip()
+            _new_name = data['name'].strip() if 'name' in data else c.get('name', '')
+            _merged   = dict(c.get('data') or {}); _merged.update(data.get('data') or {})
+            _err = _validate_game_config(c.get('game_type_id'), _new_name, _merged, exclude_id=config_id)
+            if _err:
+                return jsonify({'ok': False, 'error': _err}), 400
+            if 'name' in data:
+                _old_name = c.get('name', '')
+                c['name'] = _new_name
+                # Results live in games.json under the config's NAME: renaming used to strand them.
+                if c.get('game_type_id') in _RESULTS_BUCKET_TYPES and _old_name and _new_name != _old_name:
+                    with _games_lock:
+                        _g = load_games()
+                        if _old_name in _g and _new_name not in _g:
+                            _g[_new_name] = _g.pop(_old_name)
+                            save_games(_g)
+                            broadcast('games_state', _g)
             # Merge, not replace -- a narrow save (e.g. games_wheel.html's
             # "SAVE ENTRIES" button, which only ever sends {entries,
             # entry_colors}) used to silently wipe every OTHER field
@@ -6144,6 +6551,7 @@ def api_update_game_config(config_id):
     return jsonify({'ok': False, 'error': 'not found'}), 404
 
 @app.route('/api/game_configs/<config_id>', methods=['DELETE'])
+@_game_configs_txn
 def api_delete_game_config(config_id):
     configs = load_game_configs()
     new = [c for c in configs if c['id'] != config_id]
@@ -6198,6 +6606,11 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
     # with no way to recover short of a manual re-trigger.
     _current_live_game = {'game_type_id': game_type_id, 'config_id': config_id,
                            'revealed': False, 'disp_url': None, 'seq': _bump_live_game_seq()}
+    global current_slide
+    current_slide = {}   # a new game supersedes whatever slide was up (a later fallback screen re-sets it)
+
+    if game_type_id == 'wheel':
+        _wheel_state.update(config_id=config_id, pool=None, last=None, busy_until=0.0)
 
     if game_type_id == 'trivia' and config_id:
         # Every GO LIVE starts a fresh session at question 1 — a mid-session HDMI
@@ -6225,6 +6638,12 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
                 h2h_game['scores'] = {c['id']: 0 for c in h2h_game.get('contestants', [])}
                 save_head_to_head(h2h_games)
                 broadcast('h2h_reset', {'game_id': h2h_game_id, 'scores': h2h_game['scores']})
+        # The multiplier is one process-wide value; a "3x round" left it at 3 while the
+        # fresh Trivia controller (and Console) both start showing 1x -- every correct answer
+        # then silently added 3.  A new session starts at 1x everywhere.
+        global _h2h_multiplier
+        _h2h_multiplier = 1
+        broadcast('h2h_multiplier', {'value': 1})
 
         # Push the fresh session (question 1, started=False -- back to the
         # lobby) to any already-connected trivia clients right away. Without
@@ -6240,6 +6659,20 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
 
     if game_type_id == 'musical_chairs':
         cfg_data, _ = _chairs_config_data(config_id)
+        # Fresh session every GO LIVE, like the other game types.  chairs_state
+        # used to carry the PREVIOUS config's song/round over, and the remote
+        # (which sends no song of its own) then played config A's song in
+        # config B's game.  Bumping the token also cancels a still-pending
+        # auto-stop from the earlier round.
+        global chairs_state, _chairs_stop_token, _chairs_audio_session
+        with _chairs_lock:
+            _chairs_stop_token += 1
+        if chairs_state.get('playing') and not skip_intro:
+            stop_audio()
+        _chairs_audio_session = -1
+        chairs_state = {'round': 0, 'playing': False, 'config_id': config_id,
+                        'config_name': '', 'song': '', 'song_label': ''}
+        broadcast('chairs_state', chairs_state)
         if not skip_intro:
             if cfg_data.get('intro_entry'):
                 threading.Thread(target=fire_game_entry, kwargs={'entry_id': cfg_data['intro_entry']}, daemon=True).start()
@@ -6262,9 +6695,14 @@ def _launch_game(game_type_id, config_id='', skip_intro=False):
 
         bucket = cfg_name or config_id
         if bucket:
-            games = load_games()
-            games[bucket] = []
-            save_games(games)
+            with _games_lock:
+                games = load_games()
+                # Old results go, but a roster the operator entered ahead of time
+                # (name-only "pending" entries from ADD ALL CONTESTANTS) survives
+                # -- wiping those made GO LIVE throw away the exact list Phase 25
+                # built the bulk-entry flow for.
+                games[bucket] = [e for e in games.get(bucket, []) if _is_pending_entry(e)]
+                save_games(games)
             broadcast('games_state', games)
 
         if not skip_intro:
@@ -6356,6 +6794,8 @@ def api_games_launch():
     skip_intro   = bool(data.get('skip_intro', False))
     if game_type_id not in GAME_TYPES:
         return jsonify({'ok': False, 'error': 'unknown game_type_id'}), 400
+    if config_id and not any(c.get('id') == config_id for c in load_game_configs()):
+        return jsonify({'ok': False, 'error': 'that game no longer exists'}), 404
     ctrl_url, disp_url = _launch_game(game_type_id, config_id, skip_intro=skip_intro)
     return jsonify({'ok': True, 'controller_url': ctrl_url, 'display_url': disp_url})
 
@@ -6534,6 +6974,12 @@ def api_closest_start():
 @app.route('/api/games/closest/stop', methods=['POST'])
 def api_closest_stop():
     global _closest_countdown_token
+    # A contestant mashing the handheld remote during the 3-2-1 must NOT cancel
+    # the round -- only Console's own STOP/RESET (no src=remote) may.  Otherwise
+    # every impatient kid silently aborts the countdown and the operator has to
+    # figure out why nothing started.
+    if request.args.get('src') == 'remote' and closest_state.get('countdown') and not closest_state['running']:
+        return jsonify({'ok': True, 'ignored': 'countdown', 'closest': closest_state})
     _closest_countdown_token += 1   # cancel a countdown still in flight, if any
     if closest_state['running']:
         cfg, _  = _closest_config_data(closest_state.get('config_id', ''))
@@ -6618,6 +7064,29 @@ def _chairs_do_stop(cfg_data):
 def api_games_chairs_state():
     return jsonify(chairs_state)
 
+@app.route('/api/games/chairs/song', methods=['POST'])
+def api_games_chairs_song():
+    """The controller's song dropdown / skip-intro box report their value here the moment they
+    change, not only when START is pressed on the controller.  The handheld remote has no song
+    picker and sends no song of its own -- it used to fall back to the config's Admin default
+    even after the operator had chosen a different song on Console."""
+    data = request.get_json(silent=True) or {}
+    song = (data.get('song') or '').strip()
+    if song:
+        fp = (ASSETS_DIR / 'music' / song).resolve()
+        if not fp.is_relative_to((ASSETS_DIR / 'music').resolve()) or not fp.exists():
+            return jsonify({'ok': False, 'error': 'Song file not found'}), 404
+        with _chairs_lock:
+            chairs_state['song']       = song
+            chairs_state['song_label'] = Path(song).stem
+    if data.get('song_start_offset') is not None:
+        try:
+            chairs_state['song_start_offset'] = float(data['song_start_offset'])
+        except (TypeError, ValueError):
+            pass
+    broadcast('chairs_state', chairs_state)
+    return jsonify({'ok': True})
+
 @app.route('/api/games/chairs/start', methods=['POST'])
 def api_games_chairs_start():
     global chairs_state, _chairs_stop_token, _chairs_audio_session
@@ -6666,6 +7135,8 @@ def api_games_chairs_start():
         # not whatever offset was tuned for the config's original song — so an
         # explicit override always wins, even 0 (no trim), over the config default.
         offset_override = data.get('song_start_offset')
+        if offset_override is None:
+            offset_override = chairs_state.get('song_start_offset')   # the operator's skip-intro from the controller (remote starts send none)
         start_pos = float(offset_override) if offset_override is not None else float(cfg_data.get('song_start_offset', 0) or 0)
         def _play():
             global _chairs_audio_session
@@ -6847,11 +7318,24 @@ def _wheel_fire_spin(entries, entry_colors, spin_ms, spin_scene, winner_scene, w
         'spin_duration': spin_ms,
     })
 
+# Server-side view of the live wheel so the remote (which has no screen and no
+# client-side state) behaves like the controller: it works from the SAME pool the
+# controller last spun, and honours "Remove winner at next spin" instead of being
+# able to pick the same kid twice.  Reset on every wheel GO LIVE.
+_wheel_state = {'config_id': None, 'pool': None, 'last': None, 'busy_until': 0.0}
+
 @app.route('/api/games/wheel/spin', methods=['POST'])
 def api_games_wheel_spin():
     data = request.get_json(silent=True) or {}
     spin_ms = int(data.get('spin_duration', 6000))
     entries = data.get('entries', [])
+    # Track what the controller just spun so a later remote spin continues from it.
+    try:
+        wi = int(data.get('winner_index', 0))
+        _wheel_state.update(pool=list(entries), last=(entries[wi] if 0 <= wi < len(entries) else None),
+                            busy_until=time.time() + spin_ms / 1000.0 + 1.0)
+    except Exception:
+        pass
     w = load_config().get('wheel', {})
     # Per-config scenes take priority over global wheel config
     spin_scene   = data.get('spin_scene')   or w.get('spin_scene',   '')
@@ -6869,22 +7353,37 @@ def api_games_wheel_remote_spin():
     not live-edited-but-unsaved entries in some open controller tab. That's a
     real constraint, not an oversight -- there's no other source of truth to
     read from a physical button with no screen."""
-    config_id = _current_live_game.get('config_id', '') if _current_live_game.get('game_type_id') == 'wheel' else ''
+    if _current_live_game.get('game_type_id') != 'wheel':
+        return jsonify({'ok': False, 'error': 'the wheel is not the live game'}), 400
+    # A second press while the wheel is still turning used to launch a second spin: two
+    # music loops, two tick threads, and the first spin's cleanup cutting the music
+    # mid-way through the second.
+    if time.time() < _wheel_state['busy_until']:
+        return jsonify({'ok': True, 'ignored': 'spinning'})
+    config_id = _current_live_game.get('config_id', '')
     cfg_data = {}
     if config_id:
         match = next((c for c in load_game_configs() if c['id'] == config_id), None)
         cfg_data = (match.get('data') or {}) if match else {}
-    entries = cfg_data.get('entries') or []
-    if not entries:
+    saved = cfg_data.get('entries') or []
+    if not saved:
         return jsonify({'ok': False, 'error': 'no saved entries for the live wheel config'}), 400
+    if _wheel_state['config_id'] != config_id or _wheel_state['pool'] is None:
+        _wheel_state.update(config_id=config_id, pool=list(saved), last=None)
+    pool = list(_wheel_state['pool'])
+    if cfg_data.get('auto_remove', True) and _wheel_state['last'] in pool:
+        pool.remove(_wheel_state['last'])   # "Remove winner at next spin"
+    if len(pool) < 2:
+        return jsonify({'ok': False, 'error': 'wheel is down to one entry -- reset the wheel from Console'}), 400
     entry_colors = cfg_data.get('entry_colors') or {}
     spin_ms      = int((cfg_data.get('spin_duration') or 6) * 1000)
     w            = load_config().get('wheel', {})
     spin_scene   = cfg_data.get('spin_scene')   or w.get('spin_scene',   '')
     winner_scene = cfg_data.get('winner_scene') or w.get('winner_scene', '')
-    winner_index = random.randrange(len(entries))
-    _wheel_fire_spin(entries, entry_colors, spin_ms, spin_scene, winner_scene, winner_index)
-    return jsonify({'ok': True, 'winner_index': winner_index, 'winner': entries[winner_index]})
+    winner_index = random.randrange(len(pool))
+    _wheel_state.update(pool=pool, last=pool[winner_index], busy_until=time.time() + spin_ms / 1000.0 + 1.0)
+    _wheel_fire_spin(pool, entry_colors, spin_ms, spin_scene, winner_scene, winner_index)
+    return jsonify({'ok': True, 'winner_index': winner_index, 'winner': pool[winner_index]})
 
 # ── AG TRIVIA ──
 @app.route('/games/trivia')
@@ -7684,12 +8183,40 @@ def api_console_order_save(kind):
     broadcast('console_order_updated', {'kind': kind, 'order': order})
     return jsonify({'ok': True})
 
+def _macro_refs(cfg, macro_id):
+    """Where a macro is used: Show Flow steps and other macros' Run Macro steps."""
+    refs = []
+    for e in cfg.get('show_flow', []):
+        if (e.get('type', 'macro') == 'macro') and e.get('macro_id') == macro_id:
+            refs.append(f'Show Flow step "{e.get("name") or macro_id}"')
+    for m in cfg.get('macros', []):
+        if m.get('id') == macro_id:
+            continue
+        if any(st.get('action') == 'run_macro' and st.get('macro_id') == macro_id for st in m.get('steps', [])):
+            refs.append(f'Macro "{m.get("name") or m.get("id")}"')
+    return refs
+
 @app.route('/api/admin/macro', methods=['POST'])
 def api_save_macro():
     global config
-    data = request.get_json()
+    data = request.get_json() or {}
+    old_id = data.pop('old_id', None)
     cfg  = load_config()
     macros = cfg.get('macros', [])
+    if old_id and old_id != data.get('id'):
+        # Renaming the ID: move the macro AND repoint everything that referenced the old ID.
+        # The old flow deleted the macro and left every Show Flow step / Run Macro step
+        # pointing at an ID that no longer existed (pre-show check catches it -- if run).
+        if any(m['id'] == data.get('id') for m in macros):
+            return jsonify({'ok': False, 'error': f'a macro with ID "{data.get("id")}" already exists'}), 409
+        macros = [m for m in macros if m['id'] != old_id]
+        for e in cfg.get('show_flow', []):
+            if e.get('macro_id') == old_id:
+                e['macro_id'] = data['id']
+        for m in macros:
+            for st in m.get('steps', []):
+                if st.get('action') == 'run_macro' and st.get('macro_id') == old_id:
+                    st['macro_id'] = data['id']
     existing = next((m for m in macros if m['id'] == data.get('id')), None)
     if existing:
         existing.update(data)
@@ -7703,8 +8230,12 @@ def api_save_macro():
 @app.route('/api/admin/macro/delete', methods=['POST'])
 def api_delete_macro():
     global config
-    data = request.get_json()
+    data = request.get_json() or {}
     cfg  = load_config()
+    if not data.get('force'):
+        refs = _macro_refs(cfg, data.get('id'))
+        if refs:
+            return jsonify({'ok': False, 'in_use': refs}), 409
     cfg['macros'] = [m for m in cfg.get('macros', []) if m['id'] != data.get('id')]
     save_config(cfg)
     config = cfg
@@ -7851,6 +8382,25 @@ def api_show_fire():
     entry     = flow[idx]
     step_type = entry.get('type', 'macro')
     step_desc = entry.get('desc', '')
+    # The remote browses a copy of the flow that can be up to 30 s old; if Admin reordered or
+    # edited it since, index N is now a DIFFERENT step.  The remote sends the name it is
+    # showing as ?expect= and we refuse to fire something else in its place.
+    _expect = request.args.get('expect')
+    if _expect is not None and _expect != _remote_step_name(entry):
+        return jsonify({'ok': False, 'error': 'show flow changed', 'changed': True}), 409
+    # Validate a game step BEFORE any side effect (macro cancel, karaoke end, timer
+    # reset) so a step pointing at a removed game type or a deleted/blank config
+    # fails loudly here instead of navigating the projector to a 404 page or
+    # launching a game with empty defaults.
+    if step_type == 'game':
+        _gt_id  = entry.get('game_type_id', '')
+        _cfg_id = entry.get('game_config_id', '')
+        if _gt_id not in GAME_TYPES:
+            return jsonify({'ok': False, 'error': f'unknown game type: {_gt_id or "(none)"}'}), 400
+        if not _cfg_id:
+            return jsonify({'ok': False, 'error': 'this Show Flow game step has no game chosen -- pick one in Admin > Show Flow'}), 400
+        if not any(c.get('id') == _cfg_id and c.get('game_type_id') == _gt_id for c in load_game_configs()):
+            return jsonify({'ok': False, 'error': 'the game this step points at no longer exists'}), 404
     # Warm whatever walkup video comes right after this step, regardless of what
     # *this* step is. Previously the only way a next-step video got preloaded was
     # via fire_walkup()'s own display_walkup payload -- which chains fine walkup to
@@ -7912,6 +8462,11 @@ def api_show_fire():
         game_config_id = entry.get('game_config_id', '')
         gt             = GAME_TYPES.get(game_type_id, {})
         step_name      = entry.get('name') or gt.get('label', 'Game')
+        # Record the step FIRST, then launch: a remote poll landing between the two
+        # used to see the new game in poll N and the step change in poll N+1 and
+        # treat that step change as "leave the game" (flip the remote back to the menu).
+        _set_current_show_step(index=idx, type='game', name=step_name, desc=step_desc,
+                                game_type_id=game_type_id, game_config_id=game_config_id)
         ctrl_url, disp_url = _launch_game(game_type_id, game_config_id)
         _set_current_show_step(index=idx, type='game', name=step_name, desc=step_desc,
                                 game_type_id=game_type_id, game_config_id=game_config_id,
@@ -8256,7 +8811,15 @@ def execute_macro(macro, cancel=None, show_flow_idx=None, is_nested=False):
                     _viz_scene = scene
                     payload = {'scene': scene}
                     if preset:
-                        payload['settings'] = preset.get('settings', {})
+                        # Same center-media resolution as /api/viz/show -- the macro path
+                        # sent the raw settings, so a Show Flow viz step never showed its
+                        # logo/video.
+                        settings = dict(preset.get('settings', {}))
+                        if settings.get('center_media_library_file'):
+                            settings['center_media_url'] = f"/assets/display/{settings['center_media_library_file']}"
+                        elif settings.get('center_media_type'):
+                            settings['center_media_url'] = f"/api/viz/presets/{preset_id}/logo"
+                        payload['settings'] = settings
                     broadcast('viz_show', payload)
                     if scene == 'music':
                         _start_audio_analyzer()
@@ -8434,7 +8997,10 @@ def api_config_save():
     for field in ('circles', 'roles', 'macros', 'scenes', 'show_flow', 'slides', 'sfx', 'battery_units'):
         if field in data and not isinstance(data[field], list):
             return jsonify({'ok': False, 'error': f'{field} must be a list'}), 400
-    save_config(data)  # save_config already updates global config
+    try:
+        save_config(data)  # save_config already updates global config
+    except ValueError as e:
+        return jsonify({'ok': False, 'error': str(e)}), 400
     log.info("Config saved and reloaded")
     return jsonify({'ok': True})
 
@@ -9350,22 +9916,46 @@ def api_remote_heartbeat():
 remote_test_state = {'active': False, 'short_files': []}  # see api_remote_test_start() below
 _REMOTE_TEST_MAX_SEC = 3.0   # "short clips" -- a quick confirmation blip, not a full effect playing out
 
+_sfx_len_cache = {}   # path -> (mtime_ns, seconds); lengths never re-read unless the file changes
+
+def _sfx_length_sec(path):
+    """Length in seconds from the file header (mutagen) -- no decode, so scanning a
+    big SFX library takes milliseconds instead of loading every clip into memory
+    (which stalled the request for seconds and made the remote report a failure)."""
+    try:
+        mt = os.stat(path).st_mtime_ns
+    except OSError:
+        return None
+    hit = _sfx_len_cache.get(path)
+    if hit and hit[0] == mt:
+        return hit[1]
+    length = None
+    try:
+        import mutagen
+        mf = mutagen.File(path)
+        if mf is not None and getattr(mf, 'info', None) is not None:
+            length = float(mf.info.length)
+    except Exception:
+        length = None
+    if length is None:
+        try:
+            length = pygame.mixer.Sound(path).get_length()
+        except Exception:
+            return None
+    _sfx_len_cache[path] = (mt, length)
+    return length
+
 def _short_sfx_files():
     """SFX under _REMOTE_TEST_MAX_SEC long -- a soundcheck button-press needs an
     instant, obviously-a-blip response, not a 10s sizzle or a full stinger
-    playing out on every press. Computed once per test-mode session (here),
-    not per press -- loading every file in the library to check its length is
-    too slow to redo on each button tap."""
+    playing out on every press."""
     sfx_dir = ASSETS_DIR / 'sfx'
-    files = [f for f in sfx_dir.iterdir() if f.suffix.lower() in ('.mp3', '.wav', '.ogg', '.flac')] if sfx_dir.is_dir() else []
-    short = []
-    for f in files:
-        try:
-            if pygame.mixer.Sound(str(f)).get_length() <= _REMOTE_TEST_MAX_SEC:
-                short.append(str(f))
-        except Exception:
-            continue
-    return short or [str(f) for f in files]   # fall back to the full library if nothing qualifies as "short"
+    files = [str(f) for f in sfx_dir.iterdir() if f.suffix.lower() in ('.mp3', '.wav', '.ogg', '.flac')] if sfx_dir.is_dir() else []
+    short = [f for f in files if (_sfx_length_sec(f) or 999) <= _REMOTE_TEST_MAX_SEC]
+    return short or files   # fall back to the full library if nothing qualifies as "short"
+
+_REMOTE_TEST_AUTO_OFF_SEC = 600   # safety net: a forgotten test mode must not sit on the projector all night
+_remote_test_token = 0
 
 @app.route('/api/remote/test/start', methods=['POST'])
 def api_remote_test_start():
@@ -9379,13 +9969,29 @@ def api_remote_test_start():
     nothing underneath is touched, so ending test mode is just hiding this
     layer again, no snapshot/restore needed for "back to whatever it was on
     before"."""
+    global _remote_test_token
+    # Build the clip list BEFORE flipping active: the remote sees active=True on
+    # its very next poll, and a press while the list was still being built used
+    # to re-scan inside /fire and time out ("TEST FIRE FAILED").
+    files = _short_sfx_files()
+    remote_test_state['short_files'] = files
     remote_test_state['active'] = True
-    remote_test_state['short_files'] = _short_sfx_files()
+    _remote_test_token += 1
+    token = _remote_test_token
+    def _auto_off():
+        time.sleep(_REMOTE_TEST_AUTO_OFF_SEC)
+        if remote_test_state.get('active') and _remote_test_token == token:
+            remote_test_state['active'] = False
+            broadcast('display_remote_test_hide', {})
+            log.info('Remote test mode auto-expired')
+    threading.Thread(target=_auto_off, daemon=True).start()
     broadcast('display_remote_test', {})
     return jsonify({'ok': True})
 
 @app.route('/api/remote/test/stop', methods=['POST'])
 def api_remote_test_stop():
+    global _remote_test_token
+    _remote_test_token += 1   # cancels the auto-expiry timer
     remote_test_state['active'] = False
     broadcast('display_remote_test_hide', {})
     return jsonify({'ok': True})
@@ -9405,29 +10011,33 @@ def api_remote_test_fire():
     broadcast('display_remote_test_fired', {'name': pick.stem})
     return jsonify({'ok': True, 'name': pick.stem})
 
+def _remote_step_name(entry):
+    """The label the remote shows for a Show Flow entry.  Shared by /api/remote/show_flow and
+    /api/show/fire's ?expect= check, so they can never disagree about what a step is called."""
+    macros = {m['id']: m for m in config.get('macros', [])}
+    step_type = entry.get('type', 'macro')
+    if step_type in ('circle', 'role'):
+        return entry.get('name') or entry.get('target_id', '')
+    if step_type == 'game':
+        gt = GAME_TYPES.get(entry.get('game_type_id', ''), {})
+        return entry.get('name') or gt.get('label', 'Game')
+    if step_type == 'vs_card':
+        return entry.get('name', 'VS')
+    if step_type == 'action':
+        return entry.get('name') or (entry.get('step') or {}).get('action', 'Action')
+    macro_obj = macros.get(entry.get('macro_id', ''))
+    return entry.get('name') or (macro_obj.get('name', '') if macro_obj else entry.get('macro_id', ''))
+
 @app.route('/api/remote/show_flow')
 def api_remote_show_flow():
     """Compact show-flow listing (index/type/name only) for the M5Stick to
     browse locally with up/down. Deliberately not /api/config — that returns
     every circle/role/macro/scene in the whole expedition, far more than an
     ESP32 needs to parse just to know step names."""
-    macros = {m['id']: m for m in config.get('macros', [])}
     out = []
     for idx, entry in enumerate(config.get('show_flow', [])):
-        step_type = entry.get('type', 'macro')
-        if step_type in ('circle', 'role'):
-            name = entry.get('name') or entry.get('target_id', '')
-        elif step_type == 'game':
-            gt   = GAME_TYPES.get(entry.get('game_type_id', ''), {})
-            name = entry.get('name') or gt.get('label', 'Game')
-        elif step_type == 'vs_card':
-            name = entry.get('name', 'VS')
-        elif step_type == 'action':
-            name = entry.get('name') or (entry.get('step') or {}).get('action', 'Action')
-        else:
-            macro_obj = macros.get(entry.get('macro_id', ''))
-            name = entry.get('name') or (macro_obj.get('name', '') if macro_obj else entry.get('macro_id', ''))
-        out.append({'index': idx, 'type': step_type, 'name': name, 'game_type_id': entry.get('game_type_id', '')})
+        out.append({'index': idx, 'type': entry.get('type', 'macro'), 'name': _remote_step_name(entry),
+                    'game_type_id': entry.get('game_type_id', '')})
     return jsonify({'ok': True, 'steps': out})
 
 @app.route('/api/remote/library')
@@ -10028,12 +10638,15 @@ def api_playlist_prev():
 @app.route('/api/audio/reset-mixer', methods=['POST'])
 def api_audio_reset_mixer():
     global _sfx_cache, _sfx_channel
+    end_karaoke(show_standby=False)   # its channels die with the mixer -- don't leave karaoke "playing"
     stop_audio()
     _sfx_cache.clear()
     _sfx_channel = None
     pygame.mixer.quit()
-    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=2048)
-    pygame.mixer.set_num_channels(8)
+    # _init_mixer() (not a bare init): it also reserves the two karaoke channels and
+    # re-creates their handles.  The bare re-init dropped set_reserved(2), so a later
+    # SFX could grab a karaoke channel mid-song.
+    _init_mixer(retries=3, delay=1)
     log.info("Mixer reset")
     return jsonify({'ok': True})
 
@@ -10294,10 +10907,15 @@ def _apply_timer_config_update(data):
     save_config(cfg)
     # Sync all params into live timer_state
     new_ts = _timer_state_from_cfg(cfg)
-    was_running = timer_state['running']
-    secs = timer_state['seconds_remaining'] if was_running else new_ts['duration']
+    # A settings edit (e.g. Console's start-sound-loop checkbox) must never disturb a
+    # timer that's mid-skit.  _timer_state_from_cfg() resets paused / warning_fired /
+    # expired / visible_on_display to their idle values, so toggling a checkbox on a
+    # paused timer restarted it from the full duration and re-armed the warning sound.
+    live = {k: timer_state.get(k) for k in ('running', 'paused', 'warning_fired', 'expired', 'visible_on_display')}
+    in_progress = live['running'] or live['paused'] or live['expired']
+    secs = timer_state['seconds_remaining'] if in_progress else new_ts['duration']
     timer_state.update(new_ts)
-    timer_state['running'] = was_running
+    timer_state.update(live)
     timer_state['seconds_remaining'] = secs
     broadcast('timer_state', timer_state)
 
@@ -10739,10 +11357,27 @@ def api_update_file():
     if f.filename not in allowed:
         return jsonify({'ok': False, 'error': f'File not allowed: {f.filename}'}), 400
     dest = allowed[f.filename]
+    # Stage to a temp file and check it BEFORE it replaces the live file: a
+    # truncated upload or a syntax error here used to put the service into a
+    # boot crash loop with no way back short of SSH.
+    tmp = dest.with_name(dest.name + '.upload')
+    f.save(str(tmp))
+    try:
+        if f.filename == 'config.yaml':
+            with open(tmp) as fh:
+                problem = validate_config(yaml.load(fh, Loader=_YAML_LOADER))
+            if problem:
+                raise ValueError(problem)
+        elif f.filename == 'musicman.py':
+            compile(open(tmp).read(), f.filename, 'exec')
+    except Exception as e:
+        try: tmp.unlink()
+        except OSError: pass
+        return jsonify({'ok': False, 'error': f'{f.filename} rejected: {e}'}), 400
     if dest.exists():
         backup = dest.with_suffix(dest.suffix + '.bak')
         shutil.copy2(str(dest), str(backup))
-    f.save(str(dest))
+    os.replace(str(tmp), str(dest))
     log.info(f"System file updated: {f.filename}")
     if f.filename == 'config.yaml':
         global config
@@ -11063,6 +11698,28 @@ async def _reset_bt_adapter():
         log.info('Battery: Bluetooth reset complete')
 
 
+def _other_unit_connected(address):
+    """True if some OTHER battery unit currently holds a live connection -- proof the
+    Bluetooth adapter itself is healthy."""
+    with _battery_lock:
+        return any(a != address for a in _battery_devices)
+
+async def _reset_bt_unless_peer_ok(address, label):
+    """Restart BlueZ only when it's plausibly the ADAPTER that's broken.  If the other unit is
+    connected and streaming, the adapter is fine and this unit is simply unreachable (powered
+    off, out of range, or already held by another client such as the Anker phone app).
+    Restarting Bluetooth in that case -- which the old code did every three failed attempts,
+    forever -- just dropped the healthy unit's connection too, so one dead pole kept knocking
+    the working one offline every minute.  Returns True if it actually reset."""
+    if _other_unit_connected(address):
+        log.info(f'Battery [Pole {label}]: unreachable while the other unit is fine -- '
+                 f'not resetting Bluetooth (check it is powered on, in range, and not connected to the Anker app)')
+        _batt_update(address, {'status': 'offline',
+                                'error': 'Not answering -- check power, range, and that no phone is connected to it'})
+        return False
+    await _reset_bt_adapter()
+    return True
+
 _batt_scan_sem = None  # set to Semaphore(1) inside the event loop
 
 
@@ -11223,12 +11880,14 @@ async def _monitor_unit(address, label):
             else:
                 ble_dev = None
                 fail_count += 1
+                backoff = 10
                 if fail_count >= 3:
-                    await _reset_bt_adapter()
+                    if not await _reset_bt_unless_peer_ok(address, label):
+                        backoff = 60   # dead unit, healthy adapter: retry gently
                     fail_count = 0
                 wake_evt.clear()
                 try:
-                    await _asyncio.wait_for(wake_evt.wait(), 10)
+                    await _asyncio.wait_for(wake_evt.wait(), backoff)
                 except _asyncio.TimeoutError:
                     pass
             continue
@@ -11241,7 +11900,8 @@ async def _monitor_unit(address, label):
             log.warning(f'Battery [Pole {label}]: {err}')
             fail_count += 1
             if fail_count >= 3:
-                await _reset_bt_adapter()
+                if not await _reset_bt_unless_peer_ok(address, label):
+                    await _asyncio.sleep(45)   # dead unit, healthy adapter: retry gently (plus the 10 s below)
                 fail_count = 0
 
         finally:
@@ -11421,6 +12081,12 @@ def _proj_send(fn, *args):
         remote = _projector_remote
     if remote is None:
         return False, 'not connected -- pair in Admin first'
+    # Sending while the link is down used to "succeed" here (the call is queued onto the loop) and
+    # then raise ConnectionClosed inside the loop where nobody sees it -- the operator pressed a
+    # projector control, got an OK, and nothing happened.  Say so instead.
+    snap = _proj_snapshot()
+    if not snap.get('connected'):
+        return False, ('Projector is not connected right now (' + (snap.get('error') or 'powered off, asleep, or not reachable') + ')')
     _projector_loop.call_soon_threadsafe(fn, remote, *args)
     return True, None
 
@@ -11616,6 +12282,70 @@ def _preshow_system_items(add):
             add('Lighting', f'{name} reachable' if ok else f'{name} not reachable', 'ok' if ok else 'info',
                 '' if ok else 'Fine if the poles are switched off tonight.')
 
+def _preshow_game_items(cfg, add):
+    """Games + the MC remote.  The Show Flow check only verified that a game step's *type*
+    existed; a step pointing at a deleted config, a wheel with no entries, a Chairs game
+    with no song, or a Closest target outside its range all passed and failed live."""
+    scenes = {x.get('id') for x in cfg.get('scenes', [])}
+    gents  = {x.get('id') for x in cfg.get('game_entries', [])}
+    configs = load_game_configs()
+    by_id   = {c.get('id'): c for c in configs}
+    used    = set()
+    for i, e in enumerate(cfg.get('show_flow', [])):
+        if e.get('type') != 'game':
+            continue
+        where = f"#{i + 1} {e.get('name')!r}"
+        cid = e.get('game_config_id', '')
+        if not cid:
+            add('Games', f'{where}: no game chosen for this step', 'fail', 'Admin > Show Flow: pick a game.')
+        elif cid not in by_id:
+            add('Games', f'{where}: the game it launches no longer exists', 'fail', 'Admin > Show Flow: pick another game.')
+        else:
+            used.add(cid)
+            if by_id[cid].get('game_type_id') != e.get('game_type_id'):
+                add('Games', f'{where}: game type does not match the chosen game', 'fail', 'Admin > Show Flow: re-pick the game.')
+    checked = 0
+    for c in configs:
+        gt = c.get('game_type_id')
+        d  = c.get('data') or {}
+        where = f'Game "{c.get("name")}"'
+        sev = 'fail' if c.get('id') in used else 'warn'   # only a game the show actually launches is a hard failure
+        if gt not in GAME_TYPES:
+            add('Games', f'{where}: unknown game type "{gt}" (left over from an old version)', 'warn', 'Admin > Games > ALL: delete it.')
+            continue
+        checked += 1
+        if gt == 'wheel' and len(d.get('entries') or []) < 2:
+            add('Games', f'{where}: the wheel needs at least 2 entries', sev, 'Admin > Games > Prize Wheel.')
+        if gt == 'trivia' and not (d.get('questions') or []):
+            add('Games', f'{where}: no questions', sev, 'Admin > Games > Trivia.')
+        if gt == 'musical_chairs' and not d.get('song'):
+            add('Games', f'{where}: no song chosen', sev, 'Admin > Games > Musical Chairs.')
+        err = _validate_game_config(gt, c.get('name'), d, exclude_id=c.get('id'))
+        if err:
+            add('Games', f'{where}: {err}', sev, 'Admin > Games.')
+        for field in GAME_TYPES[gt].get('schema', []):
+            val = d.get(field.get('key'))
+            if not val or field.get('type') != 'select':
+                continue
+            src = field.get('source')
+            ok = True
+            if src == 'scenes':            ok = val in scenes
+            elif src == 'game_entries':    ok = val in gents
+            elif src in ('audio', 'music'): ok = _resolve_audio_file(val, prefer_music=(src == 'music')) is not None
+            elif src == 'display_images':  ok = (ASSETS_DIR / 'display' / val).exists()
+            if not ok:
+                add('Games', f'{where}: "{field.get("label", field.get("key"))}" points at something that no longer exists ({val})', sev, 'Admin > Games: re-pick it.')
+    # The MC remote: is it up, and does it have juice?
+    with _remote_status_lock:
+        rs = dict(_remote_status)
+    if not rs.get('connected'):
+        add('MC remote', 'MC remote is not connected', 'warn', 'Wake it (power button) and check it is on the MusicMan WiFi.')
+    else:
+        pct = rs.get('battery_pct')
+        if isinstance(pct, (int, float)) and pct < 30:
+            add('MC remote', f'MC remote battery is low ({int(pct)}%)', 'warn', 'Charge it before the show -- a full charge lasts only a few hours.')
+    return checked
+
 def _preshow_content_items(cfg, add):
     scenes  = {x.get('id') for x in cfg.get('scenes', [])}
     macros  = {m['id']: m for m in cfg.get('macros', [])}
@@ -11742,9 +12472,16 @@ def api_preshow_check():
         steps, vids = _preshow_content_items(config, add)
     except Exception as e:
         add('Show flow', f'Show-flow check crashed: {e}', 'fail')
-    t2 = time.time()
     if len(items) == before:
         add('Show flow', f'{steps} steps checked, {vids} videos all OK', 'ok')
+    gbefore = len(items)
+    try:
+        gchecked = _preshow_game_items(config, add)
+        if len(items) == gbefore:
+            add('Games', f'{gchecked} games checked, all OK', 'ok')
+    except Exception as e:
+        add('Games', f'Game check crashed: {e}', 'fail')
+    t2 = time.time()
     fails = sum(1 for i in items if i['status'] == 'fail')
     warns = sum(1 for i in items if i['status'] == 'warn')
     return jsonify({'ok': fails == 0, 'fails': fails, 'warns': warns, 'items': items,
@@ -11988,7 +12725,7 @@ def _start_sound_poll():
                 # Circle colour animation owns the strips — stand aside
                 time.sleep(1 / 8)
                 continue
-            if config.get('crowd_lights') and config.get('crowd_climb_mode', False) and not _crowd_state.get('climax') and not _crowd_post_climax:
+            if _viz_scene == 'crowd' and config.get('crowd_lights') and config.get('crowd_climb_mode', False) and not _crowd_state.get('climax') and not _crowd_post_climax:
                 target = _crowd_state.get('level', 0) / 100.0
                 diff   = target - _crowd_led_display
                 alpha  = ATTACK if diff > 0 else DECAY
@@ -12036,10 +12773,15 @@ def _start_sound_poll():
                 updated[nid] = {'level': display_level, 'name': name, 'ip': ip}
             _sound_levels.update(updated)
             broadcast('sound_levels', _sound_levels)
-            if _crowd_mode == 'auto' and count > 0 and not _crowd_post_climax:
+            # Only while the crowd meter is actually on screen -- it used to track room
+            # noise all night (and leave the strips at the old level for the next crowd viz).
+            if _crowd_mode == 'auto' and count > 0 and not _crowd_post_climax and _viz_scene == 'crowd':
                 avg = int(total / count)
                 _crowd_state['level'] = avg
                 broadcast('viz_crowd', _crowd_state)
+                # Auto mode also has to drive the lights (DMX fixtures and non-climb WLED were
+                # only ever updated by the manual slider path).
+                threading.Thread(target=_send_crowd_lights, args=(avg, False), daemon=True).start()
             time.sleep(5.0)  # secondary feature (crowd meter input) — deliberately
                               # infrequent so it can't compete with the lighting
                               # paths for pole node attention/traffic
@@ -12282,10 +13024,17 @@ def api_viz_preset_activate(pid):
 
 @app.route('/api/crowd/level', methods=['POST'])
 def api_crowd_level():
-    global _crowd_post_climax
+    global _crowd_post_climax, _crowd_climax_until
     data   = request.json or {}
     level  = max(0, min(100, int(data.get('level', 0))))
     climax = bool(data.get('climax', False))
+    if climax:
+        # A double-tap on CLIMAX fired the climax macro (SFX, fog...) and the revert
+        # macro twice.  Ignore repeats while one is still playing out.
+        now = time.time()
+        if now < _crowd_climax_until:
+            return jsonify({'ok': True, 'ignored': 'climax already running'})
+        _crowd_climax_until = now + max(6.0, load_config().get('crowd_climax_duration_ms', 2500) / 1000.0 + 4.0)
     if level > 0 or climax:
         _crowd_post_climax = False   # operator actively re-engaged crowd
     _crowd_state['level']  = level
