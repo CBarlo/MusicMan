@@ -1613,7 +1613,7 @@ function showSlide(data) {
   } else if (data.template === 'next_event') {
     html = `<div class="sl-nxt"><div class="sl-label">${H(data.label||'NEXT CAMP')}</div><div class="sl-rule"></div><div class="sl-name">${H(data.event_name)}</div>${data.date_text?`<div class="sl-date">${H(data.date_text)}</div>`:''}</div>`;
   } else if (data.template === 'spotlight') {
-    const img = data.image ? `<img class="sl-img" src="/assets/${H(data.image)}" alt="">` : '';
+    const img = data.image ? `<img class="sl-img" src="/assets/${H(data.image)}?t=${Date.now()}" alt="">` : '';
     html = `<div class="sl-spot">${img}<div class="sl-txt"><div class="sl-head">${H(data.headline)}</div>${data.subtitle?`<div class="sl-sub">${H(data.subtitle)}</div>`:''}</div></div>`;
   } else if (data.template === 'qr') {
     const qimg = data.qr_data_url ? `<img class="sl-qimg" src="${data.qr_data_url}" alt="QR">` : '';

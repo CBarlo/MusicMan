@@ -123,15 +123,15 @@
   </div>
 
   <div class="admin">
-    <div style="display:flex;align-items:center;gap:8px;margin-top:14px">
-      <input type="checkbox" id="swShowDisplay" style="width:16px;height:16px">
-      <label for="swShowDisplay" style="font-size:11px;color:var(--text-dim);letter-spacing:.5px;cursor:pointer">Show the running stopwatch on HDMI (otherwise the static screen stays up the whole time)</label>
-    </div>
-    <div class="btn-row" style="margin-top:10px">
+    <div class="btn-row" style="margin-top:14px">
       <button class="mm-btn start" id="swStartBtn" onclick="swToggle()">▶ START</button>
     </div>
     <div class="reset-row">
       <button class="mm-btn" onclick="swReset()">↺ RESET STOPWATCH</button>
+    </div>
+    <div class="reset-row" title="The stopwatch itself stays off HDMI by default -- the config's Intro Game Entry / fallback screen is what the audience sees. Works any time, running or not.">
+      <button class="mm-btn small" onclick="swShowOnHDMI()">📺 SHOW STOPWATCH ON HDMI</button>
+      <button class="mm-btn small" onclick="swHideFromHDMI()">🚫 HIDE FROM HDMI</button>
     </div>
 
     <label class="field-label" for="nameInput" style="margin-top:18px;display:block">Name</label>
@@ -155,6 +155,7 @@
 
 <script>
 let _isDisplay = false;
+const _inIframe = window.top !== window.self;
 let _configId  = null;
 let _cfgData   = {};
 let _bucket    = '';
@@ -170,14 +171,17 @@ function swToggle() {
     swRunning = true; swStartMs = Date.now() - swElapsedMs;
     swInterval = setInterval(renderSw, 100);
     setSwButtons();
-    const showOnHdmi = document.getElementById('swShowDisplay')?.checked ? '1' : '0';
-    fetch('/api/stopwatch/start?display=' + showOnHdmi).catch(() => {});
+    // display=0 always -- this game's stopwatch never shows on HDMI on its
+    // own; SHOW/HIDE below are the only way it reaches the projector.
+    fetch('/api/stopwatch/start?display=0').catch(() => {});
   } else {
     clearInterval(swInterval); swElapsedMs = Date.now() - swStartMs; swRunning = false;
     renderSw(); setSwButtons();
     fetch('/api/stopwatch/stop').catch(() => {});
   }
 }
+function swShowOnHDMI() { fetch('/api/stopwatch/show').catch(() => {}); }
+function swHideFromHDMI() { fetch('/api/timer/hide').catch(() => {}); }
 
 function swReset() {
   clearInterval(swInterval); swRunning = false; swStartMs = null; swElapsedMs = 0;
@@ -290,7 +294,7 @@ function connectWS() {
   _ws = new WebSocket('ws://' + location.host + '/ws');
   // Only the projector iframe instance (?display=1) reports its location --
   // the operator's own controller tab must never do this, see games_trivia.html.
-  _ws.onopen  = () => { if (_isDisplay) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); refreshResults(); };
+  _ws.onopen  = () => { if (_isDisplay && !_inIframe) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); refreshResults(); };
   _ws.onclose = () => setTimeout(connectWS, 3000);
   _ws.onerror = () => _ws.close();
   _ws.onmessage = (evt) => {

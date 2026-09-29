@@ -989,6 +989,82 @@ Two related sort/display bugs, both from pending entries mixing with real ones:
   from whatever entries happened to exist. Fixed by having each game type's own
   controller declare its scoring mode explicitly (`mode: 'distance'`) instead.
 
+## Phase 26 — Crowd-Facing Audit: Fixes, Wheel & Shell Game on the Remote
+
+A read-only audit of everything the audience sees (each game type, the display's layer
+engine, slides/VS cards/memes) turned up a handful of real bugs — most of them the same
+few patterns Closest to the Mark had already hit — plus two games the MC's remote couldn't
+drive. All fixed/added in one pass.
+
+### Games could be yanked off the projector (Wheel, Trivia; latent in Chairs/Timed Comp)
+Same root cause as Phase 25's Closest to the Mark bug: `games_wheel.html` and
+`games_trivia.html` reported their own path to the server as "the display's current page"
+even when running inside display.html's game iframe (missing the `_inIframe` guard Shell
+Game and Closest to the Mark already had). Because the server drops a fresh WebSocket every
+~10 minutes and the page reconnects, this could hide a live Wheel/Trivia round *on its own*,
+not just after some other display event. The guard is now in all four affected pages
+(Musical Chairs and Timed Competition were latent — they never load into the iframe today —
+but got it too so they can't regress if that ever changes).
+
+### Timed Competition: the "show stopwatch on HDMI" checkbox did nothing
+The checkbox sent `?display=0/1`, but `/api/stopwatch/start` never read it, so the stopwatch
+always popped onto the projector on START with no way to hide it from that page — the
+opposite of the game's documented design. `/api/stopwatch/start` now honours `display`
+(defaulting to 1 so the Games tab's plain Stopwatch is unchanged), Timed Competition always
+passes `display=0`, and the checkbox is replaced by SHOW / HIDE buttons that work in any
+state (`/api/stopwatch/show` now reflects the true running state instead of always sending a
+frozen value).
+
+### Prize Wheel
+- Re-uploading the spin tick sound kept playing the old one: uploads always land on the same
+  fixed path, so both the server's `_sfx_cache` and the display's in-browser AudioBuffer
+  (decoded once at page load) stayed stale. Upload now evicts the cache entry and broadcasts
+  `wheel_game_reload` (mirrors Shell Game's `shell_game_reload`).
+- The post-spin timer called its own HTTP route at `http://127.0.0.1/…` with no port and no
+  error handling; on any port but 80 it failed silently and also skipped the winner lighting
+  scene. Replaced with a direct call to a shared `_wheel_audio_stop()`.
+- `PUT /api/game_configs/<id>` replaced the whole `data` object, so the controller's "SAVE
+  ENTRIES" (which only sends entries/colors) silently wiped spin time, intro entry and scenes
+  set in Admin. It now merges.
+
+### Smaller fixes
+- `_get_next_walkup_preload()`: a lights/SFX-only macro in the show flow ended the lookahead
+  chain, so the walkup right after it cold-started. It now skips past such macros like
+  vs_card/action steps already did.
+- Cache-busting (`?t=`) added to the slide Spotlight image (display, Console preview, Admin
+  preview) and Trivia's lobby image — same "kiosk keeps showing the old file" class as the
+  Closest to the Mark background fix.
+
+### Remote: Prize Wheel and Shell Game
+Both now have `LEVEL_GAME_*` screens that the remote flips to on its own when the game goes
+live, with the front button as the one action. Shell Game reuses `/api/shell-game/start`
+(its `_current_live_game` entry already carried the launch `seq`). The Wheel needed one new
+endpoint, `POST /api/games/wheel/remote_spin`, because a physical button has no browser to
+pick a winner in: it reads the live config's *saved* entries, picks the winner server-side,
+and runs the same `_wheel_fire_spin()` the controller's spin now shares. Consequence worth
+remembering: the remote can only spin saved entries, and "remove winner at next spin" is a
+controller-side behaviour that doesn't apply to remote spins.
+
+Two things surfaced while wiring this up, both about the remote *flipping by itself*:
+- **Shell Game only registered as the live game inside `/api/shell-game/start`**, so the
+  remote's Shell Game screen appeared only after someone had already started it from Console.
+  It's now registered (`_register_shell_game_live()`, with a fresh launch `seq`) the moment it
+  is put on the display — Console's OPEN ON DISPLAY, the macro step, or any
+  `/api/display/navigate` to `/shell-game` — and START no longer re-bumps the `seq`.
+- **A Show Flow game step raced the remote's own auto-exit.** A game launched from Show Flow
+  changes the live game *and* the current step index in the same 3-second poll; the firmware
+  ran `updateMenuLevelForLiveGame()` (flip to the game) and then `handleStepChange()`, which
+  read that same step change as "the show moved on" and, for Closest to the Mark, kicked the
+  remote straight back to the menu before the game screen ever drew. That is the "remote didn't
+  flip when I called the game" report. `gameEnteredThisPoll` now makes `handleStepChange()`
+  leave a game the remote was just pulled onto alone; a *later* step still exits Closest to the
+  Mark as before. (Wheel/Shell Game/Chairs/Trivia/Timed Competition stay up across later steps
+  by design — hold side to leave.)
+
+Deliberately **not** shipped: a Trivia remote "start game" press (built, then reverted at
+Chris's request — leaving the lobby stays a Console action), and a Belly Flop game modelled
+on brokenarrow.best/arcade/belly-flop (prototyped, then shelved).
+
 ---
 
-*Last updated: September 2026 — Phase 25*
+*Last updated: September 2026 — Phase 26*

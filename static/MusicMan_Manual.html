@@ -2270,6 +2270,14 @@
     <tr><td><kbd>RESET TO LOBBY</kbd></td><td>Resets for another round, returns to the lobby screen</td></tr>
   </table>
   <p>When done, the HDMI returns to the normal display page automatically.</p>
+  <div class="callout callout-tip">
+    <div class="callout-title">Start it from the remote</div>
+    Once the Shell Game is up on the display, the MC's <a href="#remote-run">physical remote</a>
+    flips to a Shell Game screen and its front button does the same thing as
+    <kbd>START GAME</kbd>. Getting the display <em>onto</em> the Shell Game is still Console's job
+    (a macro step or <kbd>OPEN ON DISPLAY</kbd>) — pressing the remote's button before that has no
+    visible effect.
+  </div>
 
   <h2 id="prize-wheel-run">Prize Wheel — Live Operation</h2>
   <p>
@@ -2292,6 +2300,15 @@
     <div class="callout-title">Multiple rounds</div>
     If you want to spin multiple times in a row, just tap <kbd>RESET</kbd> after each result
     and spin again — no need to re-launch the game.
+  </div>
+  <div class="callout callout-tip">
+    <div class="callout-title">Spin from the remote</div>
+    When a Prize Wheel goes live (the intro plays first, if the config has one, then the wheel sits
+    ready on screen), the MC's <a href="#remote-run">physical remote</a> flips to a Prize Wheel
+    screen by itself — its front button spins. One thing to know: the remote has no screen to edit
+    entries on, so it always spins from the config's <strong>saved</strong> entries. If you've been
+    adding or removing names in the controller, tap <kbd>💾 SAVE ENTRIES</kbd> first. Also,
+    "remove winner at next spin" only applies to spins from the controller, not the remote.
   </div>
 
   <h2 id="musical-chairs-run">Musical Chairs — Live Operation</h2>
@@ -2348,7 +2365,9 @@
     <div class="callout-title">Next/Prev/Reveal from the remote</div>
     A live Trivia session shows up on the MC's <a href="#remote-run">physical remote</a> as its own
     control screen — front short-press for Next, side short-press for Prev, front long-press to
-    Reveal Answer. Correct/Incorrect and the Scoreboard scoring panel stay Console-only.
+    Reveal Answer. Correct/Incorrect and the Scoreboard scoring panel stay Console-only, and so
+    does <kbd>▶ Start Game</kbd> — leaving the lobby for question 1 is deliberately a Console
+    action, never something the remote can do by accident.
   </div>
 
   <h2 id="timedcomp-run">Timed Competition — Live Operation</h2>
@@ -2362,6 +2381,7 @@
     <tr><th>Control</th><th>What it does</th></tr>
     <tr><td>Stopwatch START/STOP</td><td>Runs from the controller or the MC's physical remote (front short-press). Timing a runner is the remote's job so the console operator's hands are free for the name/record step below.</td></tr>
     <tr><td>Stopwatch RESET</td><td>Zeroes the stopwatch — remote side short-press, a fast no-friction gesture since the MC resets between every single runner.</td></tr>
+    <tr><td><kbd>📺 SHOW STOPWATCH ON HDMI</kbd> / <kbd>🚫 HIDE FROM HDMI</kbd></td><td>The stopwatch stays <em>off</em> the projector by default — the Intro Game Entry / static screen is what the audience watches, and pressing START never changes that. Tap SHOW any time (before, during, or after a run) if you want the ticking number up for suspense, and HIDE to take it away again.</td></tr>
     <tr><td>Name + RECORD</td><td>Type the runner's name (or tap a pending name — see <a href="#games-run">bulk contestant entry</a>) and record the stopped time into the leaderboard.</td></tr>
     <tr><td>Sort badge</td><td>Toggle <strong>Fastest wins</strong> / <strong>Longest wins</strong> live without leaving the game.</td></tr>
   </table>
@@ -2457,11 +2477,14 @@
 
   <h3>Live game controls</h3>
   <p>
-    When a game with remote support is live (Musical Chairs, Trivia, Timed Competition, Closest to
-    the Mark), the remote automatically switches to that game's own control screen — START/STOP for
-    Musical Chairs, NEXT/PREV/REVEAL for Trivia, START/STOP/RESET for the Timed Competition
-    stopwatch, and a single STOP for Closest to the Mark (any button press stops it — there's no
-    start/reset gesture on that screen at all; Console owns those). Holding side backs out to the
+    When a game with remote support is live (Prize Wheel, Shell Game, Musical Chairs, Trivia, Timed
+    Competition, Closest to the Mark), the remote automatically switches to that game's own control
+    screen — SPIN for the Prize Wheel (from the config's <em>saved</em> entries), START for the Shell
+    Game, START/STOP for Musical Chairs, NEXT/PREV/REVEAL for Trivia (starting the game from the
+    lobby stays on Console), START/STOP/RESET for the Timed Competition stopwatch, and a single STOP
+    for Closest to the Mark (any button press stops it — there's no start/reset gesture on that
+    screen at all; Console owns those). Every one of these actions also has a button on Console, so
+    the remote is a convenience, never the only way. Holding side backs out to the
     category picker without stopping the game itself. Relaunching the <em>same</em> game a second
     time (a new round, or re-testing) pulls the remote's screen back to it again, same as the first
     launch did.

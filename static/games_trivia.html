@@ -376,6 +376,7 @@ function currentQuestion() {
 }
 let _configId   = null;
 let _isDisplay  = false;
+const _inIframe = window.top !== window.self;
 
 // Optional Head to Head team scoreboard link
 let h2hGameId      = '';
@@ -428,13 +429,17 @@ async function _loadH2hScoreboard() {
 function connectWS() {
   _ws = new WebSocket('ws://' + location.host + '/ws');
   _ws.onopen  = () => {
-    // Only the actual projector iframe instance (?display=1) should ever
-    // report its location -- this same page is also opened as a separate
-    // controller tab on the operator's own device, and that instance
-    // reporting itself here corrupted the server's idea of what the kiosk
-    // was showing, which cascaded into hiding the real game frame on the
-    // real projector the next time anything fired a display event.
-    if (_isDisplay) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname}));
+    // Only the TOP-LEVEL kiosk page should ever report its own location --
+    // this same page also runs as a separate controller tab (caught by the
+    // _isDisplay check) AND, when a live trivia round is actually up, as the
+    // ?display=1 instance embedded in display.html's own game iframe (caught
+    // by _inIframe). Either one falsely reporting itself corrupts the
+    // server's idea of what the kiosk is showing, which cascades into
+    // hiding the real game frame the next time anything fires a display
+    // event -- confirmed live: this was happening on every single trivia
+    // round, not just the controller-tab edge case the _isDisplay check
+    // alone was written for.
+    if (_isDisplay && !_inIframe) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname}));
     _loadH2hScoreboard();
   };
   _ws.onclose = () => setTimeout(connectWS, 3000);
@@ -815,7 +820,7 @@ async function triviaMark(action) {
         const lobbyImage = (cfg.data || {}).lobby_image || '';
         if (lobbyImage) {
           const img = document.getElementById('lobbyImage');
-          img.src = '/assets/display/' + encodeURIComponent(lobbyImage);
+          img.src = '/assets/display/' + encodeURIComponent(lobbyImage) + '?t=' + Date.now();
           img.style.display = 'block';
           document.getElementById('lobbyTextGroup').style.display = 'none';
           document.getElementById('lobbyView').classList.add('has-image');

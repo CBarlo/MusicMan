@@ -98,7 +98,7 @@ const unsigned long AUTO_POWEROFF_AFTER_MS = 10UL * 60 * 1000;
 // ── MENU MODEL ───────────────────────────────────────────────────────────
 enum MenuLevel { LEVEL_CATEGORY, LEVEL_SHOWFLOW, LEVEL_SFX, LEVEL_CIRCLES, LEVEL_ROLES, LEVEL_TIMER,
                  LEVEL_GAME_CHAIRS, LEVEL_GAME_TRIVIA, LEVEL_GAME_TIMEDCOMP, LEVEL_GAME_CLOSEST, LEVEL_KARAOKE,
-                 LEVEL_REMOTE_TEST };
+                 LEVEL_REMOTE_TEST, LEVEL_GAME_WHEEL, LEVEL_GAME_SHELLGAME };
 MenuLevel menuLevel = LEVEL_CATEGORY;
 
 const char* CATEGORY_NAMES[] = {"SHOW FLOW", "SFX", "CIRCLES", "ROLES", "TIMER"};
@@ -142,6 +142,13 @@ String liveGameConfigId = "";
 String lastSeenLiveGameTypeId = "";   // edge-detect a NEW game going live, don't re-force-navigate on every poll
 long liveGameSeq         = -1;
 long lastSeenLiveGameSeq = -1;        // catches a RElaunch of the same game_type_id, which the string above can't
+// True only for the poll in which updateMenuLevelForLiveGame() pulled the
+// remote onto a game's screen. A Show Flow game step changes BOTH the live
+// game and the current step index in that same poll, so handleStepChange()
+// (which runs right after) used to read the game's OWN launching step as
+// "the show moved on" and immediately kicked Closest to the Mark's screen
+// back to the menu -- the remote flipped and un-flipped before ever drawing.
+bool gameEnteredThisPoll = false;
 
 int  lastSeenStepIndex = -999;        // sentinel distinct from -1 (no step), forces first-poll sync
 bool haveSeenFirstStep = false;
@@ -155,6 +162,11 @@ String triviaAnswer   = "";
 
 bool chairsLive    = false;
 bool chairsPlaying = false;
+
+bool wheelLive       = false;
+int  wheelEntryCount = 0;
+
+bool shellGameLive = false;
 
 // Closest to the Mark: the remote's only job on this screen is the STOP press
 // (see fireClosestStop()) -- Console owns starting each contestant's run and
@@ -291,6 +303,8 @@ void fireWalkupCircle();
 void fireWalkupRole();
 void fireTriviaAction(const String& action);
 void fireChairsToggle();
+void fireWheelSpin();
+void fireShellGameStart();
 void fireTimerToggle();
 void fireTimerToggleDisplay();
 void fireTimerReset();
@@ -499,6 +513,17 @@ bool fetchRemoteState() {
   } else {
     triviaLive = false;
   }
+
+  if (doc["wheel"].is<JsonObject>()) {
+    wheelLive       = true;
+    wheelEntryCount = doc["wheel"]["entry_count"] | 0;
+  } else {
+    wheelLive = false;
+  }
+  // Shell Game has no per-game_live sub-object (nothing dynamic worth
+  // polling -- it's just "ready" or not) -- liveGameTypeId alone is enough,
+  // same reasoning timed_competition's own liveGameTypeId-only check uses.
+  shellGameLive = (liveGameTypeId == "shell_game");
   Serial.printf("[fetchRemoteState] liveGameTypeId=%s triviaLive=%d qlen=%d alen=%d menuLevel=%d heap=%u\n",
                 liveGameTypeId.c_str(), triviaLive, triviaQuestion.length(), triviaAnswer.length(),
                 (int)menuLevel, (unsigned)ESP.getFreeHeap());
@@ -591,6 +616,7 @@ bool fetchLibrary() {
 }
 
 void updateMenuLevelForLiveGame() {
+  gameEnteredThisPoll = false;
   // seq (bumped server-side on every single launch) catches a RElaunch of the
   // same game_type_id -- e.g. Console re-firing the same Show Flow game step
   // for a second round -- which the type string alone can't, since it never
@@ -617,9 +643,16 @@ void updateMenuLevelForLiveGame() {
     } else if (liveGameTypeId == "closest_to_mark") {
       menuLevel = LEVEL_GAME_CLOSEST;
       enteredGame = true;
+    } else if (liveGameTypeId == "wheel" && wheelLive) {
+      menuLevel = LEVEL_GAME_WHEEL;
+      enteredGame = true;
+    } else if (liveGameTypeId == "shell_game") {
+      menuLevel = LEVEL_GAME_SHELLGAME;
+      enteredGame = true;
     }
     // if it became something else / empty, don't force-navigate the user away
     if (enteredGame) {
+      gameEnteredThisPoll = true;
       // A game going live has to wake the screen itself -- handleStepChange()
       // does this for ordinary step changes, but this is a separate edge
       // trigger and drawScreen() bails out completely while asleep. Without
@@ -880,7 +913,11 @@ void handleStepChange() {
     lastActivity = millis();
   }
 
-  if (currentStep.hasTimer) {
+  if (gameEnteredThisPoll) {
+    // The step that just changed IS what launched the game the remote was
+    // just pulled onto (see gameEnteredThisPoll) -- updateMenuLevelForLiveGame()
+    // already owns this jump, nothing here should undo it.
+  } else if (currentStep.hasTimer) {
     // A skit/macro firing its own timer_start is exactly like a game going
     // live from the MC's perspective -- jump straight to the Timer screen
     // (same as Trivia/Chairs already do) instead of making them navigate
@@ -905,7 +942,8 @@ void handleStepChange() {
     // same as Timer above -- no manual side-hold needed for the common case.
     menuLevel = LEVEL_CATEGORY;
   } else if (currentStep.type != "game" && menuLevel != LEVEL_GAME_CHAIRS && menuLevel != LEVEL_GAME_TRIVIA
-      && menuLevel != LEVEL_GAME_TIMEDCOMP && menuLevel != LEVEL_REMOTE_TEST) {
+      && menuLevel != LEVEL_GAME_TIMEDCOMP && menuLevel != LEVEL_REMOTE_TEST
+      && menuLevel != LEVEL_GAME_WHEEL && menuLevel != LEVEL_GAME_SHELLGAME) {
     if (wasAsleep) {
       menuLevel = LEVEL_SHOWFLOW;
       if (currentStep.index < flowStepCount) flowBrowseIndex = currentStep.index;
@@ -931,6 +969,8 @@ void moveSelection(int delta) {
     case LEVEL_GAME_CLOSEST: break;
     case LEVEL_KARAOKE: break;
     case LEVEL_REMOTE_TEST: break;
+    case LEVEL_GAME_WHEEL: break;
+    case LEVEL_GAME_SHELLGAME: break;
   }
 }
 
@@ -980,6 +1020,22 @@ void fireTriviaAction(const String& action) {
   lastActivity = millis();
   if (ok) { beepConfirm(); fetchRemoteState(); }
   else    { beepFail(); showToast("TRIVIA ACTION FAILED"); }
+}
+
+void fireWheelSpin() {
+  bool ok = false;
+  httpPostJson("/api/games/wheel/remote_spin", "{}", &ok);
+  lastActivity = millis();
+  if (ok) { beepConfirm(); fetchRemoteState(); }
+  else    { beepFail(); showToast("SPIN FAILED (no saved entries?)"); }
+}
+
+void fireShellGameStart() {
+  bool ok = false;
+  httpPostJson("/api/shell-game/start", "{}", &ok);
+  lastActivity = millis();
+  if (ok) beepConfirm();
+  else    { beepFail(); showToast("SHELL GAME START FAILED"); }
 }
 
 void fireChairsToggle() {
@@ -1185,10 +1241,26 @@ void handleButtons() {
     case LEVEL_GAME_TRIVIA:
       // Correct/incorrect scoring lives at Console/the trivia controller now
       // (where the team scoreboard actually is) -- the remote is just a
-      // page-turner: next/prev question, reveal on request.
+      // page-turner: next/prev question, reveal on request. Starting the
+      // game from the lobby is deliberately Console-only, not the remote --
+      // Chris's own call.
       if      (frontShort) fireTriviaAction("next");
       else if (sideShort)  fireTriviaAction("prev");
       else if (frontLong)  fireTriviaAction("reveal");
+      break;
+    case LEVEL_GAME_WHEEL:
+      // One job: spin. Picks a winner from whatever's currently SAVED for
+      // this config server-side (see api_games_wheel_remote_spin) -- there's
+      // no screen here to show/edit entries, so live-but-unsaved changes in
+      // some open controller tab aren't visible to this button.
+      if (frontShort || frontLong) fireWheelSpin();
+      break;
+    case LEVEL_GAME_SHELLGAME:
+      // One job: start (shuffle/reveal). Console owns navigating the display
+      // there in the first place -- pressing this before that happens is a
+      // safe no-op server-side (see api_shell_game_start), same as pressing
+      // Console's own START button too early would be.
+      if (frontShort || frontLong) fireShellGameStart();
       break;
   }
 }
@@ -1416,6 +1488,8 @@ void drawScreen() {
     case LEVEL_GAME_CLOSEST:   screenBuf.print("CLOSEST TO THE MARK"); break;
     case LEVEL_KARAOKE:     screenBuf.print("KARAOKE - LIVE");         break;
     case LEVEL_REMOTE_TEST: screenBuf.print("REMOTE TEST");            break;
+    case LEVEL_GAME_WHEEL:     screenBuf.print("PRIZE WHEEL - LIVE");  break;
+    case LEVEL_GAME_SHELLGAME: screenBuf.print("SHELL GAME - LIVE");   break;
   }
   screenBuf.setTextColor(0x8410);
   screenBuf.setCursor(200, 2);
@@ -1583,6 +1657,33 @@ void drawScreen() {
       screenBuf.print("HOLD SIDE = BACK (test stays on)");
       break;
     }
+    case LEVEL_GAME_WHEEL: {
+      screenBuf.setTextColor(0x07E0);
+      screenBuf.setCursor(4, 30);
+      screenBuf.print("PRIZE WHEEL READY");
+      screenBuf.setTextColor(WHITE);
+      screenBuf.setCursor(4, 52);
+      screenBuf.printf("%d saved entries", wheelEntryCount);
+      screenBuf.setTextColor(0xC618);
+      screenBuf.setCursor(4, 106);
+      screenBuf.print("PRESS TO SPIN");
+      screenBuf.setCursor(4, 118);
+      screenBuf.setTextColor(0x8410);
+      screenBuf.print("Uses the SAVED entries, not live edits");
+      break;
+    }
+    case LEVEL_GAME_SHELLGAME: {
+      screenBuf.setTextColor(0x07E0);
+      screenBuf.setCursor(4, 30);
+      screenBuf.print("SHELL GAME READY");
+      screenBuf.setTextColor(0xC618);
+      screenBuf.setCursor(4, 106);
+      screenBuf.print("PRESS TO START");
+      screenBuf.setCursor(4, 118);
+      screenBuf.setTextColor(0x8410);
+      screenBuf.print("Console must already be showing it");
+      break;
+    }
     case LEVEL_GAME_TRIVIA: {
       // The answer is a host cheat-sheet -- shown on the remote the instant
       // the question is live, regardless of "revealed". "Revealed" only
@@ -1631,7 +1732,8 @@ void drawScreen() {
   // silently drift from what's on screen (e.g. Console fires a step while
   // the MC is browsing SFX).
   bool gameMode = (menuLevel == LEVEL_GAME_CHAIRS || menuLevel == LEVEL_GAME_TRIVIA || menuLevel == LEVEL_TIMER
-                    || menuLevel == LEVEL_GAME_TIMEDCOMP || menuLevel == LEVEL_GAME_CLOSEST || menuLevel == LEVEL_KARAOKE);
+                    || menuLevel == LEVEL_GAME_TIMEDCOMP || menuLevel == LEVEL_GAME_CLOSEST || menuLevel == LEVEL_KARAOKE
+                    || menuLevel == LEVEL_GAME_WHEEL || menuLevel == LEVEL_GAME_SHELLGAME);
   if (!gameMode) {
     if (millis() < toastUntil) {
       screenBuf.fillRect(0, 118, 240, 17, 0x2965);

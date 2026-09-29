@@ -264,6 +264,7 @@ let spinning       = false;
 let idleRafId      = null;
 let _configId      = null;
 let _isDisplay     = false;
+const _inIframe    = window.top !== window.self;
 
 // Per-config settings
 let _spinDuration = 6000;
@@ -283,13 +284,18 @@ function connectWS() {
   _ws = new WebSocket('ws://' + location.host + '/ws');
   // Only the projector iframe instance (?display=1) reports its location --
   // the operator's own controller tab must never do this, see games_trivia.html.
-  _ws.onopen  = () => { if (_isDisplay) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); };
+  _ws.onopen  = () => { if (_isDisplay && !_inIframe) _ws.send(JSON.stringify({event:'page_ready', url: location.pathname})); };
   _ws.onclose = () => setTimeout(connectWS, 3000);
   _ws.onerror = () => _ws.close();
   _ws.onmessage = (evt) => {
     try {
       const msg = JSON.parse(evt.data);
       if (msg.event === 'wheel_spin') handleRemoteSpin(msg.data || {});
+      // spin_sfx is decoded once into an in-browser AudioBuffer at init()
+      // (see below) -- re-uploading a new tick sound in Admin otherwise kept
+      // playing the OLD one on an already-open kiosk indefinitely. Same
+      // reload-not-mid-game guard as shell_game.html's own asset-swap handler.
+      else if (msg.event === 'wheel_game_reload' && !spinning) location.reload();
     } catch(e) {}
   };
 }

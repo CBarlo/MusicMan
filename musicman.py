@@ -1678,6 +1678,7 @@ GAME_TYPES = {
         'icon': '🎡',
         'controller_route': '/games/wheel',
         'display_route': '/games/wheel',
+        'remote_controlled': True,   # M5Stick MC remote has a dedicated menu screen for this type
         'schema': [
             {'key': 'entries',       'type': 'list',   'label': 'Entries (one per line)', 'placeholder': 'One name per line'},
             {'key': 'spin_duration', 'type': 'number', 'label': 'Spin Time (sec)',         'default': 6},
@@ -3458,11 +3459,27 @@ def shell_game():
     resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return resp
 
+def _register_shell_game_live():
+    """Mark the Shell Game as the live game the moment it's put on the display
+    (its lobby), not only once START is pressed. The M5Stick remote flips to a
+    game's screen off _current_live_game, so registering it only inside
+    /api/shell-game/start meant the remote's Shell Game screen never appeared
+    until someone had ALREADY started the game from Console -- the remote
+    could never be the thing that starts it. Bumps seq every time so opening
+    it a second time in the same show still re-focuses the remote."""
+    global _current_live_game
+    _current_live_game = {'game_type_id': 'shell_game', 'config_id': '', 'revealed': True,
+                           'disp_url': None, 'seq': _bump_live_game_seq()}
+
 @app.route('/api/shell-game/start', methods=['POST'])
 def shell_game_start():
-    global _sg_session, _current_live_game
+    global _sg_session
     _sg_session += 1
-    _current_live_game = {'game_type_id': 'shell_game', 'config_id': '', 'seq': _bump_live_game_seq()}
+    # Normally already registered by whatever opened it (see
+    # _register_shell_game_live); only fill it in if it wasn't, and never bump
+    # seq here -- the remote would re-beep and re-focus a screen it's already on.
+    if _current_live_game.get('game_type_id') != 'shell_game':
+        _register_shell_game_live()
     broadcast('shell_game_start', {'session': _sg_session})
     return jsonify({'ok': True, 'session': _sg_session})
 
@@ -4105,6 +4122,8 @@ def api_display_navigate():
     url = data.get('url', '/display')
     with _display_url_lock:
         _display_url = url
+    if url.startswith('/shell-game'):
+        _register_shell_game_live()   # Console's OPEN ON DISPLAY -- see _register_shell_game_live
     broadcast('display_navigate', {'url': url})
     return jsonify({'ok': True})
 
@@ -5227,6 +5246,10 @@ def api_remote_state():
         }}
     elif gtid == 'musical_chairs':
         game_live = {'chairs': chairs_state}
+    elif gtid == 'wheel':
+        match = next((c for c in load_game_configs() if c['id'] == cfg_id), None)
+        wcfg  = (match.get('data') or {}) if match else {}
+        game_live = {'wheel': {'entry_count': len(wcfg.get('entries') or [])}}
     elif gtid == 'closest_to_mark':
         cfg = _closest_config_data(cfg_id)[0]
         cs  = dict(closest_state)
@@ -5618,22 +5641,36 @@ def api_timer_console_set():
 # ── STOPWATCH ──
 @app.route('/api/stopwatch/start')
 def api_stopwatch_start():
+    """display=1 (default) shows on HDMI the instant it starts, matching
+    Countdown's own start behavior -- the Games tab's plain Stopwatch relies
+    on this bare default. Timed Competition's own page explicitly passes
+    display=0 on every start instead: that game's stopwatch is an MC/console
+    timing detail, never meant to reach HDMI on its own (the config's Intro
+    Game Entry / fallback screen is what the audience sees) -- visibility
+    there is opt-in only, via the separate SHOW/HIDE buttons below, which
+    work regardless of running state."""
+    show = request.args.get('display', '1') not in ('0', 'false', '')
     if not stopwatch_state['running']:
         stopwatch_state['running'] = True
         stopwatch_state['start_ms'] = int(time.time() * 1000) - stopwatch_state['elapsed_ms']
-        # Unconditional show on start, matching Countdown's own start behavior —
-        # display visibility is otherwise controlled only by SHOW/HIDE, never
-        # implied by running state, so this is the one deliberate exception.
-        broadcast('stopwatch_show', {'running': True, 'start_ms': stopwatch_state['start_ms']})
+        if show:
+            broadcast('stopwatch_show', {'running': True, 'start_ms': stopwatch_state['start_ms']})
         broadcast('stopwatch_state', stopwatch_state)
         log.info("Stopwatch started")
     return jsonify({'ok': True, 'stopwatch': stopwatch_state})
 
 @app.route('/api/stopwatch/show')
 def api_stopwatch_show():
-    """Show the current stopwatch value on the display without starting it."""
-    broadcast('stopwatch_show', {'running': False, 'elapsed_ms': stopwatch_state['elapsed_ms']})
-    log.info("Stopwatch shown (not started)")
+    """Show the stopwatch on the display -- reflects whatever it's actually
+    doing right now (ticking live if running, frozen if not), so this same
+    one route works to reveal an already-running stopwatch that started
+    hidden (Timed Competition's default) just as well as to preview a
+    stopped one before starting it."""
+    if stopwatch_state['running']:
+        broadcast('stopwatch_show', {'running': True, 'start_ms': stopwatch_state['start_ms']})
+    else:
+        broadcast('stopwatch_show', {'running': False, 'elapsed_ms': stopwatch_state['elapsed_ms']})
+    log.info("Stopwatch shown")
     return jsonify({'ok': True, 'stopwatch': stopwatch_state})
 
 @app.route('/api/stopwatch/stop')
@@ -6094,7 +6131,13 @@ def api_update_game_config(config_id):
     for c in configs:
         if c['id'] == config_id:
             if 'name' in data: c['name'] = data['name'].strip()
-            if 'data' in data: c['data'] = data['data']
+            # Merge, not replace -- a narrow save (e.g. games_wheel.html's
+            # "SAVE ENTRIES" button, which only ever sends {entries,
+            # entry_colors}) used to silently wipe every OTHER field
+            # (spin_duration, intro_entry, scenes, ...) the operator had set
+            # via Admin's own full schema editor, since a bare replace here
+            # has no way to tell "the rest is unchanged" from "clear the rest".
+            if 'data' in data: c.setdefault('data', {}).update(data['data'])
             c['updated_at'] = int(time.time())
             save_game_configs(configs)
             return jsonify({'ok': True, 'config': c})
@@ -6690,8 +6733,15 @@ def api_games_wheel_audio_start():
                      kwargs={'loops': -1, 'crossfade_ms': 0}, daemon=True).start()
     return jsonify({'ok': True})
 
-@app.route('/api/games/wheel/audio/stop', methods=['POST'])
-def api_games_wheel_audio_stop():
+def _wheel_audio_stop():
+    """Fades out spin music (and any live tick SFX). Shared by the HTTP route
+    below and _after_spin()'s own timer -- that used to hit this exact route
+    over a hardcoded http://127.0.0.1 with NO PORT, which only worked by
+    coincidence if the app happened to run on port 80. On any other port it
+    raised silently (the call site had no try/except), and since it sat
+    right before the winner-scene line, a spin's winner lighting scene never
+    fired either. Calling the function directly removes the self-HTTP-call
+    entirely -- no port to get wrong."""
     global _wheel_fade_token, _sfx_channel
     _wheel_fade_token += 1
     my_token = _wheel_fade_token
@@ -6717,6 +6767,10 @@ def api_games_wheel_audio_stop():
                 pygame.mixer.music.stop()
                 pygame.mixer.music.set_volume(orig)
     threading.Thread(target=_fade, daemon=True).start()
+
+@app.route('/api/games/wheel/audio/stop', methods=['POST'])
+def api_games_wheel_audio_stop():
+    _wheel_audio_stop()
     return jsonify({'ok': True})
 
 def _schedule_wheel_ticks(n, spin_ms):
@@ -6762,6 +6816,37 @@ def _schedule_wheel_ticks(n, spin_ms):
 
     threading.Thread(target=_run, daemon=True).start()
 
+def _wheel_fire_spin(entries, entry_colors, spin_ms, spin_scene, winner_scene, winner_index):
+    """The actual spin: lighting, spin music, timed tick SFX, the post-spin
+    stop+winner-scene timer, and the wheel_spin broadcast the display animates
+    off of. Shared by the controller's own spin (winner picked client-side,
+    by whoever's editing the wheel live) and the remote's spin (winner picked
+    server-side, since the M5Stick has no rendering of its own to pick one)."""
+    if spin_scene:
+        threading.Thread(target=wled_set_scene, args=(spin_scene,), daemon=True).start()
+    wheel_dir = ASSETS_DIR / 'games' / 'wheel'
+    fname = _wheel_find_file(wheel_dir, 'spin_music')
+    if fname:
+        fpath = wheel_dir / fname
+        threading.Thread(target=play_audio, args=(str(fpath),),
+                         kwargs={'loops': -1, 'crossfade_ms': 0}, daemon=True).start()
+    _schedule_wheel_ticks(len(entries), spin_ms)
+    def _after_spin():
+        time.sleep((spin_ms + 800) / 1000.0)
+        try:
+            _wheel_audio_stop()
+        except Exception as e:
+            log.error(f"Wheel post-spin audio stop failed: {e}")
+        if winner_scene:
+            wled_set_scene(winner_scene)
+    threading.Thread(target=_after_spin, daemon=True).start()
+    broadcast('wheel_spin', {
+        'winner_index':  winner_index,
+        'entries':       entries,
+        'entry_colors':  entry_colors,
+        'spin_duration': spin_ms,
+    })
+
 @app.route('/api/games/wheel/spin', methods=['POST'])
 def api_games_wheel_spin():
     data = request.get_json(silent=True) or {}
@@ -6771,33 +6856,35 @@ def api_games_wheel_spin():
     # Per-config scenes take priority over global wheel config
     spin_scene   = data.get('spin_scene')   or w.get('spin_scene',   '')
     winner_scene = data.get('winner_scene') or w.get('winner_scene', '')
-    # Spin scene lighting
-    if spin_scene:
-        threading.Thread(target=wled_set_scene, args=(spin_scene,), daemon=True).start()
-    # Start spin music
-    wheel_dir = ASSETS_DIR / 'games' / 'wheel'
-    fname = _wheel_find_file(wheel_dir, 'spin_music')
-    if fname:
-        fpath = wheel_dir / fname
-        threading.Thread(target=play_audio, args=(str(fpath),),
-                         kwargs={'loops': -1, 'crossfade_ms': 0}, daemon=True).start()
-    # Tick SFX timed to wheel physics
-    _schedule_wheel_ticks(len(entries), spin_ms)
-    # After spin: stop music + winner lighting
-    def _after_spin():
-        time.sleep((spin_ms + 800) / 1000.0)
-        requests.post('http://127.0.0.1/api/games/wheel/audio/stop')
-        if winner_scene:
-            wled_set_scene(winner_scene)
-    threading.Thread(target=_after_spin, daemon=True).start()
-    # Broadcast spin to display
-    broadcast('wheel_spin', {
-        'winner_index':  data.get('winner_index', 0),
-        'entries':       data.get('entries', []),
-        'entry_colors':  data.get('entry_colors', {}),
-        'spin_duration': spin_ms,
-    })
+    _wheel_fire_spin(entries, data.get('entry_colors', {}), spin_ms,
+                      spin_scene, winner_scene, data.get('winner_index', 0))
     return jsonify({'ok': True})
+
+@app.route('/api/games/wheel/remote_spin', methods=['POST'])
+def api_games_wheel_remote_spin():
+    """Fired BY the M5Stick remote -- it has no rendering of its own, so
+    unlike the controller's own spin button (which already knows the winner,
+    picked by the browser doing the actual animation) this one has to pick a
+    winner itself and work from whatever was last SAVED for the live config,
+    not live-edited-but-unsaved entries in some open controller tab. That's a
+    real constraint, not an oversight -- there's no other source of truth to
+    read from a physical button with no screen."""
+    config_id = _current_live_game.get('config_id', '') if _current_live_game.get('game_type_id') == 'wheel' else ''
+    cfg_data = {}
+    if config_id:
+        match = next((c for c in load_game_configs() if c['id'] == config_id), None)
+        cfg_data = (match.get('data') or {}) if match else {}
+    entries = cfg_data.get('entries') or []
+    if not entries:
+        return jsonify({'ok': False, 'error': 'no saved entries for the live wheel config'}), 400
+    entry_colors = cfg_data.get('entry_colors') or {}
+    spin_ms      = int((cfg_data.get('spin_duration') or 6) * 1000)
+    w            = load_config().get('wheel', {})
+    spin_scene   = cfg_data.get('spin_scene')   or w.get('spin_scene',   '')
+    winner_scene = cfg_data.get('winner_scene') or w.get('winner_scene', '')
+    winner_index = random.randrange(len(entries))
+    _wheel_fire_spin(entries, entry_colors, spin_ms, spin_scene, winner_scene, winner_index)
+    return jsonify({'ok': True, 'winner_index': winner_index, 'winner': entries[winner_index]})
 
 # ── AG TRIVIA ──
 @app.route('/games/trivia')
@@ -7731,6 +7818,11 @@ def _get_next_walkup_preload(cfg, idx):
                         payload = _walkup_preload_payload_for_item('game_entry', intro_entry, cfg)
                         if payload:
                             return payload
+        # No walkup/game step in this macro (a lights/SFX-only macro, say) --
+        # skip past it and keep looking, same as vs_card/action below. Without
+        # this, the walkup right after a non-walkup macro never got warmed at
+        # all and cold-started with the full Pi 4B GC-stall stutter.
+        return _get_next_walkup_preload(cfg, idx + 1)
     elif nxt_type == 'vs_card':
         # Skip non-walkup steps and preload for whatever follows
         return _get_next_walkup_preload(cfg, idx + 1)
@@ -8142,6 +8234,7 @@ def execute_macro(macro, cancel=None, show_flow_idx=None, is_nested=False):
                     _load_shell_game_theme(theme_id, broadcast_reload=False)  # loads its own hold too, but the step's own value below wins
                 hold = step.get('hold', 5)
                 url = f'/shell-game?hold={hold}'
+                _register_shell_game_live()   # a macro/Show Flow step putting it on screen = the remote's cue to flip to it
                 broadcast('display_navigate', {'url': url})
             elif action == 'saved_slide':
                 sid  = step.get('slide_id', '')
@@ -8550,6 +8643,15 @@ def api_upload():
         wh = cfg.setdefault('wheel', {})
         wh[f'{slot}_name'] = f.filename
         save_config(cfg)
+        # Uploads always land at the same fixed path (spin_sfx.mp3 etc, see
+        # dest above) -- _sfx_cache is keyed by that path, so re-uploading a
+        # new tick sound kept serving the OLD decoded Sound object from the
+        # cache indefinitely. Also tell any live kiosk showing Wheel to
+        # reload (mirrors shell_game_reload above): games_wheel.html decodes
+        # spin_sfx into its own in-browser AudioBuffer once at page load,
+        # with no other way to pick up a swapped file.
+        _sfx_cache.pop(str(dest), None)
+        broadcast('wheel_game_reload', {})
     if target_type == 'circle' and target_id:
         circles = cfg.get('circles', [])
         circle = next((c for c in circles if c['id'] == target_id), None)
